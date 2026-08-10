@@ -9,6 +9,14 @@ set -uo pipefail
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
 
+# WER thresholds are calibrated on real hardware; virtualized CI runners
+# underrun audio pipelines and score far worse (MeetingCoach measured 35%
+# vs a 5% bar). Local push gates own this suite; CI loudly skips.
+if [ "${CI:-false}" = "true" ]; then
+    echo "asr SKIPPED on CI: WER thresholds are only valid on real hardware"
+    exit 0
+fi
+
 APP="$ROOT/Build/Build/Products/Debug/OpenSuperWhisper.app/Contents/MacOS/OpenSuperWhisper"
 if [ ! -x "$APP" ]; then
     echo "asr SKIPPED: no dev build — run ./run.sh build first"

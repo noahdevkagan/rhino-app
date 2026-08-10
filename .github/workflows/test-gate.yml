@@ -5,11 +5,12 @@ name: Test Gate
 # local pre-push gate can be skipped or unconfigured; this one cannot.
 # workflow_dispatch lets you run the gate on demand without releasing.
 
+# No per-push trigger: the local push gate covers development (this repo is
+# private; macOS CI minutes bill at 10x). Release workflows MUST call this
+# via workflow_call so nothing ships untested from any machine.
 on:
   workflow_dispatch:
   workflow_call:
-  push:
-    branches: [main]
 
 jobs:
   gate:

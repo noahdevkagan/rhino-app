@@ -17,6 +17,11 @@ if [ "${FAST:-0}" = "1" ]; then
     echo "latency: skipped (FAST=1)"
     exit 0
 fi
+# Latency budgets describe this machine class, not virtualized CI hardware.
+if [ "${CI:-false}" = "true" ]; then
+    echo "latency SKIPPED on CI: budgets are only valid on real hardware"
+    exit 0
+fi
 
 APP="$ROOT/Build/Build/Products/Debug/OpenSuperWhisper.app/Contents/MacOS/OpenSuperWhisper"
 if [ ! -x "$APP" ]; then

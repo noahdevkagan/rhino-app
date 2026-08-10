@@ -1,7 +1,10 @@
 name: Build Check
 
+# On-demand only. This is a private repo where macOS runners bill at 10x,
+# and every push already runs the full local gate (Scripts/push-gate.sh);
+# CI re-verification is for releases (test-gate.yml via workflow_call) and
+# manual runs, not every commit.
 on:
-  push:
   pull_request:
   workflow_dispatch:
 

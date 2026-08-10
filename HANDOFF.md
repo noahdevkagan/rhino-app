@@ -13,6 +13,9 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Outstanding
 
+- **Push master to origin** (`noahdevkagan/toucan-app`) once off plane WiFi —
+  all attempts on Delta in-flight WiFi died mid-upload; remote is still empty.
+
 - Wire upstream's XCTest suite (`OpenSuperWhisperTests/`) into the gate
   as a `tests/unit/` runner (needs a working `xcodebuild test` invocation).
 - Phase 1 (next): delete Remote ASR engine + remote LLM cleanup code

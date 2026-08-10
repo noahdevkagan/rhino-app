@@ -15,7 +15,7 @@ ROOT="$(cd ../.. && pwd)"
 
 fail=0
 
-echo "hygiene: [1/2] static scan"
+echo "hygiene: [1/3] static scan"
 
 # Deleted-in-Phase-1 files must stay deleted.
 for f in \
@@ -52,7 +52,30 @@ fi
 
 [ "$fail" = "0" ] && echo "  static scan clean"
 
-echo "hygiene: [2/2] dynamic egress check"
+echo "hygiene: [2/3] networking call sites classified"
+
+# Every file that can open a network connection must be on this list, each
+# with a sanctioned purpose. New networking anywhere else fails the gate —
+# classify it here (and defend it in decisions.md) or remove it.
+# Not listed but sanctioned: Sparkle updates (inside the Sparkle framework,
+# configured by SUFeedURL) and Parakeet model downloads (inside FluidAudio).
+ALLOWED_NET_FILES="OpenSuperWhisper/Engines/SenseVoiceModelManager.swift
+OpenSuperWhisper/LLMModelManager.swift
+OpenSuperWhisper/WhisperModelManager.swift"
+
+actual=$(grep -rln "URLSession\|URLRequest\|NWConnection\|CFStream\|NSURLConnection" \
+    "$ROOT/OpenSuperWhisper" --include='*.swift' | sed "s|$ROOT/||" | sort)
+unexpected=$(comm -23 <(echo "$actual") <(echo "$ALLOWED_NET_FILES" | sort))
+if [ -n "$unexpected" ]; then
+    echo "  FAIL: unclassified networking call sites (all three known ones are"
+    echo "  user-initiated model downloads — what is this?):"
+    echo "$unexpected" | sed 's/^/    /'
+    fail=1
+else
+    echo "  every networking call site is a user-initiated model download"
+fi
+
+echo "hygiene: [3/3] dynamic egress check"
 
 APP="$ROOT/Build/Build/Products/Debug/OpenSuperWhisper.app/Contents/MacOS/OpenSuperWhisper"
 if [ "${FAST:-0}" = "1" ]; then

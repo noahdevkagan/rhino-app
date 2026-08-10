@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && [ -f HANDOFF.md ] && echo \"=== HANDOFF.md (auto-injected session seed) ===\" && cat HANDOFF.md; true",
+            "statusMessage": "Loading session handoff"
+          }
+        ]
+      }
+    ]
+  }
+}

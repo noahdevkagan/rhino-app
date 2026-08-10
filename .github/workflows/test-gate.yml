@@ -1,0 +1,37 @@
+name: Test Gate
+
+# A future release workflow should call this (workflow_call), so EVERY
+# release runs the full test gate on CI before anything is published — the
+# local pre-push gate can be skipped or unconfigured; this one cannot.
+# workflow_dispatch lets you run the gate on demand without releasing.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+
+jobs:
+  gate:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Toolchain
+        run: brew install cmake libomp rust
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          # Same build command as Scripts/push-gate.sh stage 1.
+          ./run.sh build
+
+      - name: Test suites
+        run: |
+          set -euo pipefail
+          for runner in tests/*/run.sh; do
+            [ -f "$runner" ] || continue
+            bash "$runner"
+          done

@@ -1,0 +1,29 @@
+#!/bin/bash
+# Pre-push hook: run the full gate (scripts/push-gate.sh).
+# Installed via: git config core.hooksPath scripts/githooks
+# Emergency bypass: SKIP_GATE=1 git push
+if [ "${SKIP_GATE:-0}" = "1" ]; then
+    echo "push gate SKIPPED (SKIP_GATE=1)"
+    exit 0
+fi
+
+# A release tag may not leave this machine without user-facing notes:
+# pushing refs/tags/vX.Y.Z requires a "## X.Y.Z" section in CHANGELOG.md.
+while read -r local_ref local_sha _remote_ref _remote_sha; do
+    case "$local_ref" in
+        refs/tags/v*)
+            ver="${local_ref#refs/tags/v}"
+            # Check the CHANGELOG of the commit being TAGGED, not the working
+            # tree: tagging a branch from another checkout (main, say) must
+            # not fail on the checkout's older copy of the file.
+            if ! git show "${local_sha}^{commit}:CHANGELOG.md" 2>/dev/null \
+                 | grep -qE "^##[[:space:]]+${ver}([^0-9.]|$)"; then
+                echo "RELEASE GATE FAILED: no \"## $ver\" section in CHANGELOG.md at the tagged commit."
+                echo "Add user-facing notes for $ver, commit, re-point the tag, then push it."
+                exit 1
+            fi
+            ;;
+    esac
+done
+
+exec bash "$(dirname "$0")/../push-gate.sh"

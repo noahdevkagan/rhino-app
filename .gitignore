@@ -119,3 +119,7 @@ dev_config.json
 
 build-test/
 vendor/
+
+# Test suite build artifacts (tests/README.md)
+tests/*/.build/
+tests/*/.out/

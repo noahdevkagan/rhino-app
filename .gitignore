@@ -123,3 +123,8 @@ vendor/
 # Test suite build artifacts (tests/README.md)
 tests/*/.build/
 tests/*/.out/
+
+# Test/bench working files (audio + transcripts never committed)
+tests/asr/audio/
+bench/corpus/audio/
+bench/corpus/results/

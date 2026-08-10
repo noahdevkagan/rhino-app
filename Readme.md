@@ -71,10 +71,9 @@ Models load lazily: browsing engine tabs never triggers a surprise download.
   recognition and applies replacements.
 - 🧹 **Cleaner output** — optional filler-word removal (um, uh…), automatic sentence spacing, and
   "No speech detected" is never pasted.
-- 🤖 **AI cleanup** — optionally tidy punctuation/casing with an LLM: the **built-in** model
-  (Qwen2.5 1.5B, one-time ~1 GB download, no server to run), a local
-  [Ollama](https://ollama.com) server, or any OpenAI-compatible endpoint. Opt-in; the first two
-  stay fully on-device, and the transcription is returned verbatim if the model misbehaves.
+- 🤖 **AI cleanup** — optionally tidy punctuation/casing with the **built-in** on-device model
+  (Qwen2.5 1.5B, one-time ~1 GB download, no server to run, runs in-process). Opt-in, and the
+  transcription is returned verbatim if the model misbehaves.
 - ⏯️ **Media handling** — pause other apps' playback (and resume only what was actually playing) or
   duck the system volume while you record.
 - 🎤 **Any microphone** — built-in, external, Bluetooth or iPhone (Continuity), switchable from the
@@ -93,10 +92,10 @@ nothing is persisted, and retention limits (count / age) are available in betwee
 
 ## Private by default
 
-Audio never leaves your Mac — every engine runs on-device, AI cleanup runs on a bundled
-local model or loopback-only Ollama, and there's no account and no telemetry. The only
-network calls are update checks and model downloads you trigger yourself. History is
-yours to disable or cap.
+Audio never leaves your Mac — every engine runs on-device, AI cleanup runs on the bundled
+in-process model, and there's no account and no telemetry. The only network calls are
+update checks and model downloads you trigger yourself. History is off by default; turn
+it on if you want it, cap or clear it any time.
 
 ## Command line
 
@@ -106,8 +105,7 @@ opensuperwhisper transcribe path/to/audio.wav --json   # { "file", "text" }
 ```
 
 Engine logs go to stderr, so it pipes cleanly: `opensuperwhisper transcribe note.m4a > note.txt`.
-Set up a model in the app at least once first. There's also a **post-record hook** to run your own
-shell command after each dictation (text + audio path via env vars / JSON on stdin).
+Set up a model in the app at least once first.
 
 ## 🧪 Beta testing — we need you
 

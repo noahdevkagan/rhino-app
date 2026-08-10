@@ -81,6 +81,21 @@ final class SpeechTrimmingTests: XCTestCase {
         XCTAssertLessThan(trimmed.count, samples.count)
     }
 
+    /// Digital silence is near-silence; the faintest real speech is not. The threshold
+    /// separates "no speech exists" (return nothing, never hallucinate) from "quiet
+    /// sentence the VAD may have missed" (send the full clip to whisper).
+    func testNearSilenceSeparatesSilenceFromQuietSpeech() {
+        XCTAssertTrue(WhisperEngine.isNearSilence([Float](repeating: 0, count: 16000)))
+        XCTAssertTrue(WhisperEngine.isNearSilence([Float](repeating: 0.001, count: 16000)),
+                      "mic noise floor is still silence")
+        XCTAssertFalse(WhisperEngine.isNearSilence([Float](repeating: 0.02, count: 16000)),
+                       "quiet speech must NOT be treated as silence")
+        var oneSpike = [Float](repeating: 0, count: 16000)
+        oneSpike[8000] = 0.5
+        XCTAssertFalse(WhisperEngine.isNearSilence(oneSpike),
+                       "a single loud sample disqualifies the silence path")
+    }
+
     /// The model has to actually be in the bundle, or the gate silently never runs. This is
     /// the check that a bundling slip would otherwise hide until someone timed a dictation.
     func testVadModelIsBundled() {

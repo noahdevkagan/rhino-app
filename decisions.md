@@ -62,6 +62,45 @@ us), no LAN ranges (another machine is still another machine).
 for the remote engine; replaced with `NSAllowsLocalNetworking` only.
 Sparkle + model downloads are HTTPS and pass full ATS.
 
+**2026-08-10 — PLAN.md was rewritten upstream (00:29) and the session
+discovered it late.** The new plan wanted compile-time guards instead of
+deletion; Noah chose to KEEP the deletion (privacy is the product; deleted
+code can't regress; upstream fixes become cherry-picks). Adopted from the
+new plan instead: no Ollama in v1, no post-record hook, history off by
+default, layered privacy verification, personal-corpus benchmark before
+public quality claims, rebrand last.
+
+**2026-08-10 — App renamed Toucan → Rhino** (Noah: "it just goes
+forward"). Repos are noahdevkagan/rhino (plan) and noahdevkagan/rhino-app
+(code); local clones ~/rhino and ~/rhino-app. In-app rebrand (bundle id,
+icon, Sparkle feed) still deferred to the productization phase per plan.
+
+**2026-08-10 — Ollama backend and post-record hook removed from v1.**
+Embedded llama.cpp/Qwen is the only cleanup backend (one less process,
+socket, and misconfigurable endpoint); the hook was an unbounded egress
+channel ("run any shell command with the transcript"). Both come back only
+if measured demand justifies the support surface. aiBackend normalizes to
+"builtin" on launch.
+
+**2026-08-10 — Transcription history is OFF by default.** A log of
+everything you ever said is opt-in, not opt-out (privacy-safe defaults per
+plan). Existing installs that had it on keep their stored choice.
+
+**2026-08-10 — Silence-hallucination fix in WhisperEngine.** When Silero
+VAD finds no speech AND the clip peaks below 0.004 (digital silence / dead
+mic, two orders of magnitude under real speech), return "" instead of
+running whisper — tiny models hallucinate "you"/"Thank you." on silence
+and that text would be typed into the user's document. A quiet sentence
+the VAD merely missed still goes through whole (peak check fails).
+Found by the tests/asr silence case on its first run.
+
+**2026-08-10 — Gate ASR/latency suites run the bundled whisper-tiny in an
+isolated $HOME.** Hermetic (no downloads, no real-prefs contamination) and
+fast, at the cost of not measuring the shipping engine — the gate detects
+regressions; absolute quality lives in bench/corpus (Noah's voice, real
+models, vs Wispr Flow). Latency budgets set from measured actuals
+(p50 393ms / max 861ms → bars at 800/2000ms), ratchet down over time.
+
 **2026-08-10 — tests/hygiene is the privacy regression gate.** Static:
 forbidden endpoint strings, resurrected remote files, ATS exemption.
 Dynamic: a real CLI transcription in an isolated $HOME with `lsof`

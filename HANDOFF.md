@@ -28,5 +28,5 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Next session
 
-Start with: "Read AGENTS.md and ~/toucan/PLAN.md, then begin Phase 2:
+Start with: "Read AGENTS.md and ~/rhino/PLAN.md, then begin Phase 2:
 port MeetingCoach's ASR harness (~/coach-latest/tests/asr) as tests/asr."

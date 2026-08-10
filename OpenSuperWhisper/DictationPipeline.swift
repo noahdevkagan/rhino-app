@@ -193,7 +193,6 @@ final class DictationPipeline: ObservableObject {
             let shouldSubmit = spokenSubmit || item.submitAfterInsert
             let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
-            var hookAudioPath: String? = nil
             if hasText && AppPreferences.shared.saveTranscriptionHistory {
                 // Use the record-start time as the row timestamp (when the user actually dictated),
                 // not the later processing time. The id suffix keeps two clips that finish within
@@ -213,7 +212,6 @@ final class DictationPipeline: ObservableObject {
                 ).url
 
                 try recorder.moveTemporaryRecording(from: item.tempURL, to: finalURL)
-                hookAudioPath = finalURL.path
 
                 await storeRecording(
                     id: recordingId, timestamp: timestamp, fileName: fileName,
@@ -225,9 +223,6 @@ final class DictationPipeline: ObservableObject {
             }
 
             let pasteTargetMissing = hasText ? insertText(text) : false
-            if hasText {
-                PostRecordHook.runIfEnabled(text: text, audioPath: hookAudioPath, timestamp: item.startedAt, duration: 0)
-            }
 
             // Submit only when auto-paste actually inserted text somewhere. A short settle delay lets
             // the pasted text land in the field before Return reaches it.

@@ -1,0 +1,20 @@
+{
+  "short": {
+    "voice": "Samantha",
+    "text": "Can you send me the latest draft before lunch? I want to review it on the plane."
+  },
+  "message": {
+    "voice": "Daniel",
+    "text": "Hey team, quick update. The launch moved to Thursday because the review took longer than expected. Nothing is blocked, and the site is ready to go."
+  },
+  "prose": {
+    "voice": "Samantha",
+    "rate": 190,
+    "text": "Thanks for the thoughtful feedback on the proposal. I agree the onboarding flow needs work, and I like your idea of moving the model download to the first launch. Let me rework the first section tonight and send you a cleaner version tomorrow morning."
+  },
+  "technical": {
+    "voice": "Daniel",
+    "rate": 200,
+    "text": "The push gate runs the build first, then every test suite in order. If the whisper engine regresses, the word error rate check fails and the push is rejected before it ever leaves the machine."
+  }
+}

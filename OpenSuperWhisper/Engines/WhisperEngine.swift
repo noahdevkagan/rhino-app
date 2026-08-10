@@ -152,12 +152,22 @@ class WhisperEngine: TranscriptionEngine {
         // the user their words, while the silence it protects against is already handled by
         // suppressBlank and noSpeechThold. Timestamps are the exception: trimming shifts them
         // off the original file, so it's skipped when the user asked to see them.
+        //
+        // One exception to the fallback: when the VAD finds nothing AND the clip is
+        // near-digital silence (peak below any plausible speech), there is no quiet
+        // sentence to protect — running whisper on it only invites a hallucinated
+        // "you"/"Thank you." that would be typed into the user's document. Return
+        // nothing instead. (Caught by tests/asr's silence case.)
         let samples: [Float]
         if settings.showTimestamps {
             samples = converted
         } else {
             let trimmed = Self.speechOnlySamples(
                 from: converted, segments: detectSpeech(in: converted))
+            if trimmed.isEmpty && Self.isNearSilence(converted) {
+                onProgressUpdate?(1.0)
+                return ""
+            }
             samples = trimmed.isEmpty ? converted : trimmed
         }
 
@@ -299,6 +309,18 @@ class WhisperEngine: TranscriptionEngine {
         // one. The wider padding likewise protects word onsets, since Whisper mistranscribes a
         // word whose first consonant got clipped. Both trade a little kept silence for words.
         return vadContext?.speechSegments(in: samples, minSpeechMs: 100, padMs: 100) ?? []
+    }
+
+    /// True when the whole clip's peak amplitude is below any plausible speech —
+    /// digital silence or a dead mic, not a quiet talker (normal speech peaks are
+    /// two orders of magnitude above this even on a distant laptop mic).
+    static func isNearSilence(_ samples: [Float], threshold: Float = 0.004) -> Bool {
+        var peak: Float = 0
+        for s in samples {
+            peak = max(peak, abs(s))
+            if peak >= threshold { return false }
+        }
+        return true
     }
 
     /// Stitches the speech regions back into one buffer, mirroring what whisper.cpp does

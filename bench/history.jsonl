@@ -1,0 +1,1 @@
+{"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 430, "machine": "Mac.lan", "model": "ggml-tiny.en", "commit": "694e869", "date": "2026-08-10T21:28:27Z"}

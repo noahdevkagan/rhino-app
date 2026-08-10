@@ -330,26 +330,15 @@ class SettingsViewModel: ObservableObject {
     @Published var aiPostProcessingEnabled: Bool {
         didSet {
             AppPreferences.shared.aiPostProcessingEnabled = aiPostProcessingEnabled
-            // Surface connectivity right away when the user turns it on, so they aren't left
-            // wondering why their cleanup silently does nothing when the server isn't reachable.
-            if aiPostProcessingEnabled { testLLMConnection() }
+            // Warm the ~1 GB context now, while the user is here in Settings, so their first
+            // dictation doesn't wait several seconds for it. Released again after an idle spell.
+            if aiPostProcessingEnabled { BuiltInLlamaBackend.shared.preload() }
         }
     }
 
     /// True when anything needs the LLM: prose cleanup or the per-app formatting rules. Both feed
-    /// the same backend, so this is what gates the backend UI and its connection probe.
+    /// the same (embedded) backend, so this is what gates the model-download UI.
     var llmCleanupInUse: Bool { aiPostProcessingEnabled || appContextFormattingEnabled }
-
-    /// Cleanup backend: "builtin" (embedded llama.cpp) or "ollama" (local server).
-    @Published var aiBackend: String {
-        didSet {
-            AppPreferences.shared.aiBackend = aiBackend
-            if llmCleanupInUse { testLLMConnection() }
-            // Warm the ~1 GB context now, while the user is here in Settings, so their first
-            // dictation doesn't wait several seconds for it. Released again after an idle spell.
-            if aiBackend == "builtin" { BuiltInLlamaBackend.shared.preload() }
-        }
-    }
 
     /// Whether the built-in model's GGUF is present on disk.
     @Published var builtInModelDownloaded: Bool = LLMModelManager.shared.isDefaultModelDownloaded()
@@ -378,35 +367,9 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var aiOllamaEndpoint: String {
-        didSet {
-            AppPreferences.shared.aiOllamaEndpoint = aiOllamaEndpoint
-        }
-    }
-
-    @Published var aiOllamaModel: String {
-        didSet {
-            AppPreferences.shared.aiOllamaModel = aiOllamaModel
-        }
-    }
-
     @Published var aiPostProcessingPrompt: String {
         didSet {
             AppPreferences.shared.aiPostProcessingPrompt = aiPostProcessingPrompt
-        }
-    }
-
-    /// Live result of the last cleanup-backend connectivity probe, shown next to the fields.
-    @Published var llmStatus: LLMStatus = .unknown
-
-    /// Probes the local Ollama backend. The built-in backend has no server to probe
-    /// (see `builtInModelDownloaded`), so this only runs for Ollama.
-    func testLLMConnection() {
-        guard aiBackend == "ollama" else { return }
-        llmStatus = .checking
-        let endpoint = aiOllamaEndpoint, model = aiOllamaModel
-        Task { @MainActor in
-            self.llmStatus = await LLMPostProcessor.checkOllamaConnection(endpoint: endpoint, model: model)
         }
     }
 
@@ -419,18 +382,6 @@ class SettingsViewModel: ObservableObject {
     @Published var fillerWordsPattern: String {
         didSet {
             AppPreferences.shared.fillerWordsPattern = fillerWordsPattern
-        }
-    }
-
-    @Published var postRecordHookEnabled: Bool {
-        didSet {
-            AppPreferences.shared.postRecordHookEnabled = postRecordHookEnabled
-        }
-    }
-
-    @Published var postRecordHookCommand: String {
-        didSet {
-            AppPreferences.shared.postRecordHookCommand = postRecordHookCommand
         }
     }
 
@@ -471,12 +422,9 @@ class SettingsViewModel: ObservableObject {
     @Published var appContextFormattingEnabled: Bool {
         didSet {
             AppPreferences.shared.appContextFormattingEnabled = appContextFormattingEnabled
-            // Same reasoning as the general-cleanup toggle: this feature also needs the backend,
-            // so probe/warm it now instead of failing silently on the next dictation.
-            if appContextFormattingEnabled {
-                testLLMConnection()
-                if aiBackend == "builtin" { BuiltInLlamaBackend.shared.preload() }
-            }
+            // Same reasoning as the general-cleanup toggle: this feature also needs the model,
+            // so warm it now instead of stalling the next dictation.
+            if appContextFormattingEnabled { BuiltInLlamaBackend.shared.preload() }
         }
     }
 
@@ -618,14 +566,9 @@ class SettingsViewModel: ObservableObject {
         self.unloadWhisperModelWhenIdle = prefs.unloadWhisperModelWhenIdle
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
-        self.aiBackend = prefs.aiBackend
-        self.aiOllamaEndpoint = prefs.aiOllamaEndpoint
-        self.aiOllamaModel = prefs.aiOllamaModel
         self.aiPostProcessingPrompt = prefs.aiPostProcessingPrompt
         self.removeFillerWords = prefs.removeFillerWords
         self.fillerWordsPattern = prefs.fillerWordsPattern
-        self.postRecordHookEnabled = prefs.postRecordHookEnabled
-        self.postRecordHookCommand = prefs.postRecordHookCommand
         self.autoCopyToClipboard = prefs.autoCopyToClipboard
         self.autoPasteTranscription = prefs.autoPasteTranscription
         self.pasteInsteadOfTyping = prefs.pasteInsteadOfTyping
@@ -1176,14 +1119,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
-    struct HookVariable { let name: String; let description: String }
-    static let postRecordHookVariables = [
-        HookVariable(name: "$OSW_TEXT", description: "the transcription"),
-        HookVariable(name: "$OSW_AUDIO_PATH", description: "wav file path (when history is on)"),
-        HookVariable(name: "$OSW_TIMESTAMP", description: "ISO 8601 date"),
-        HookVariable(name: "$OSW_DURATION", description: "length in seconds"),
-    ]
-
     @StateObject private var viewModel = SettingsViewModel()
     @ObservedObject private var launchAtLogin = LaunchAtLoginManager.shared
     @Environment(\.dismiss) var dismiss
@@ -1627,19 +1562,6 @@ struct SettingsView: View {
         SEditor(text: text, height: height)
     }
 
-    @ViewBuilder private var ollamaCleanupFields: some View {
-        SRow(title: "Model", indented: true) {
-            sInput($viewModel.aiOllamaModel, prompt: "llama3.2", width: 170, mono: true)
-        }
-        SRow(title: "Endpoint", indented: true) {
-            HStack(spacing: 8) {
-                Button("Test") { viewModel.testLLMConnection() }
-                    .controlSize(.small)
-                sInput($viewModel.aiOllamaEndpoint, prompt: "http://localhost:11434", width: 210, mono: true)
-            }
-        }
-    }
-
     @ViewBuilder private var builtInCleanupFields: some View {
         HStack(spacing: 8) {
             if viewModel.builtInModelDownloaded {
@@ -1670,36 +1592,6 @@ struct SettingsView: View {
                 .foregroundColor(.red)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.leading, 16)
-        }
-    }
-
-    @ViewBuilder private var llmStatusView: some View {
-        switch viewModel.llmStatus {
-        case .unknown:
-            EmptyView()
-        case .checking:
-            ProgressView().controlSize(.small)
-        case .ok:
-            Text("✓ Connected — model ready")
-                .scaledFont(size: 11, weight: .semibold)
-                .foregroundColor(STheme.ok)
-                .padding(.horizontal, 9).padding(.vertical, 2)
-                .background(Capsule().fill(STheme.okBg))
-        case .modelMissing(let model):
-            Text("Reachable, but “\(model)” isn't pulled — run: ollama pull \(model)")
-                .scaledFont(size: 11)
-                .foregroundColor(STheme.warn)
-                .fixedSize(horizontal: false, vertical: true)
-        case .authFailed:
-            Text("✕ The server rejected the API key")
-                .scaledFont(size: 11)
-                .foregroundColor(.red)
-                .fixedSize(horizontal: false, vertical: true)
-        case .unreachable:
-            Text("✕ Can't reach Ollama — is it running? (ollama serve)")
-                .scaledFont(size: 11)
-                .foregroundColor(.red)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -1762,36 +1654,16 @@ struct SettingsView: View {
                     SToggle(isOn: $viewModel.aiPostProcessingEnabled)
                 }
                 .frame(minHeight: 26)
-                // One backend serves BOTH this prose cleanup and the per-app formatting rules in
-                // Settings → Rules, so it stays visible while either is on — otherwise someone
-                // using formatting only would have nowhere to pick a backend or download a model.
+                // The embedded model serves BOTH this prose cleanup and the per-app formatting
+                // rules in Settings → Rules, so it stays visible while either is on — otherwise
+                // someone using formatting only would have nowhere to download the model.
                 if viewModel.aiPostProcessingEnabled || viewModel.appContextFormattingEnabled {
-                    SRow(title: "Backend", indented: true) {
-                        Picker("", selection: $viewModel.aiBackend) {
-                            Text("Built-in (Qwen2.5 1.5B)").tag("builtin")
-                            Text("Ollama (local)").tag("ollama")
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.segmented)
-                        .fixedSize()
-                    }
                     if !viewModel.aiPostProcessingEnabled {
                         Text("Used by the per-app formatting rules in Rules.")
                             .scaledFont(size: 11).foregroundColor(STheme.hint)
                             .padding(.leading, 16)
                     }
-
-                    switch viewModel.aiBackend {
-                    case "builtin":
-                        builtInCleanupFields
-                    default:
-                        ollamaCleanupFields
-                    }
-
-                    if viewModel.aiBackend != "builtin" {
-                        HStack { Spacer(); llmStatusView }
-                            .padding(.leading, 16)
-                    }
+                    builtInCleanupFields
                 }
                 if viewModel.aiPostProcessingEnabled {
                     VStack(alignment: .leading, spacing: 4) {
@@ -2025,35 +1897,6 @@ struct SettingsView: View {
                     }
                     Slider(value: $viewModel.noSpeechThreshold, in: 0.0...1.0, step: 0.1)
                         .controlSize(.small)
-                }
-            }
-
-            SSection(title: "Post-record hook") {
-                SRow(title: "Run a command after each transcription", hint: "Launch your own script when a transcription completes.") {
-                    HStack(spacing: 8) {
-                        InfoButton(text: "Runs via /bin/sh -c after each successful transcription, in the background. Your command receives the data as environment variables — OSW_TEXT, OSW_AUDIO_PATH (when history is on), OSW_TIMESTAMP, OSW_DURATION — and a JSON object on stdin with the same fields. Example: echo \"$OSW_TEXT\" >> ~/dictations.txt")
-                        SToggle(isOn: $viewModel.postRecordHookEnabled)
-                    }
-                }
-                if viewModel.postRecordHookEnabled {
-                    sEditor($viewModel.postRecordHookCommand, height: 56)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Available in your command (also piped as JSON on stdin):")
-                            .scaledFont(size: 11)
-                            .foregroundColor(STheme.hint)
-                            .fixedSize(horizontal: false, vertical: true)
-                        ForEach(Self.postRecordHookVariables, id: \.name) { variable in
-                            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                Text(variable.name)
-                                    .scaledFont(size: 11, design: .monospaced)
-                                    .foregroundColor(STheme.text)
-                                Text("— \(variable.description)")
-                                    .scaledFont(size: 11)
-                                    .foregroundColor(STheme.hint)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                    }
                 }
             }
 

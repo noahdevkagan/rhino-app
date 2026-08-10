@@ -5,6 +5,13 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Silence no longer produces text: dictating nothing (or a dead mic) now
+  inserts nothing, instead of an occasional hallucinated word.
+- AI cleanup now always runs on the built-in on-device model; the Ollama
+  server option and the post-record shell hook were removed.
+- Transcription history is now off by default for new installs — turn it
+  on in Settings → History if you want it.
+
 - All-local, provably: removed the Remote (OpenAI-compatible/Groq)
   transcription engine and remote LLM cleanup entirely — every engine and
   cleanup model now runs on your Mac. Existing remote configurations fall

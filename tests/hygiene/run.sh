@@ -24,7 +24,9 @@ for f in \
     OpenSuperWhisper/Utils/UpdateChecker.swift \
     OpenSuperWhisper/RemoteSettingsSection.swift \
     OpenSuperWhisper/RemoteServerSettingsView.swift \
-    OpenSuperWhisper/RemoteCleanupSettingsView.swift; do
+    OpenSuperWhisper/RemoteCleanupSettingsView.swift \
+    OpenSuperWhisper/Utils/LLMCleanup/OllamaBackend.swift \
+    OpenSuperWhisper/Utils/PostRecordHook.swift; do
     if [ -e "$ROOT/$f" ]; then
         echo "  FAIL: deleted remote file has reappeared: $f"
         fail=1

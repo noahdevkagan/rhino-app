@@ -3,7 +3,7 @@ import Foundation
 /// Built-in LLM cleanup backend: a small GGUF model run locally via llama.cpp (`LlamaContext`),
 /// with no external server. The model downloads on first use (`LLMModelManager`); the inference
 /// context loads lazily, is reused by later dictations, and is released again after
-/// `idleUnloadDelay` without work. This is the zero-setup alternative to `OllamaBackend`.
+/// `idleUnloadDelay` without work. This is the app's only cleanup backend.
 ///
 /// Threading: `llama_context` is not thread-safe and two transcriptions CAN overlap (a hotkey
 /// dictation and a file-drop/rerun pass run on different queues), so every touch of `context` —

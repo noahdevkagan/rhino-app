@@ -1,4 +1,4 @@
-# Agent guide — Toucan
+# Agent guide — Rhino
 
 Read this first. It is written for AI coding agents (Codex, Claude Code,
 Cursor, …) and for humans who like commands over prose.
@@ -19,14 +19,15 @@ keep long sessions and handoffs lossless:
    `.claude/settings.json` injects `HANDOFF.md` into every new session
    automatically.
 
-**What this is:** Toucan — a macOS dictation app (hold a hotkey, speak,
+**What this is:** Rhino — a macOS dictation app (hold a hotkey, speak,
 release, text lands in whatever app has focus). Private fork of
 OpenSuperWhisper (MIT), being rebranded and hardened. **HARD CONSTRAINT:
 all-local, zero cloud.** On-device ASR (whisper.cpp / Parakeet /
-SenseVoice) and local-only LLM cleanup. The only acceptable network calls:
-Sparkle update checks to our own appcast and explicit user-initiated model
-downloads. Anything else that touches the network is a bug. The build
-plan lives in the sibling repo `~/toucan` (PLAN.md).
+SenseVoice) and embedded-only LLM cleanup (llama.cpp/Qwen in-process — no
+Ollama, no remote). The only acceptable network calls: Sparkle update
+checks to our own appcast and explicit user-initiated model downloads.
+Anything else that touches the network is a bug — tests/hygiene enforces
+this. The build plan lives in the sibling repo `~/rhino` (PLAN.md).
 
 ## Setup (one time)
 
@@ -73,7 +74,8 @@ test) — not yet wired into the gate; see HANDOFF.md.
 | `run.sh` | Dev build+run entry point (cmake → cargo → xcodebuild) |
 | `make_release.sh`, `notarize_app.sh` | Upstream release flow (to be replaced in Phase 3) |
 | `Scripts/` | Upstream helper scripts + `push-gate.sh` + `githooks/` (ours) |
-| `tests/` | Push-gate suites, one directory per concern |
+| `tests/` | Push-gate suites: `hygiene` (privacy), `asr` (WER), `latency`, `smoke`; `insertion-manual.md` is human-run |
+| `bench/` | Scorecard trend (`history.jsonl`) + `corpus/` (Noah's-voice head-to-head vs Wispr Flow) |
 | `.github/workflows/test-gate.yml` | Same gate on CI; release workflows must `workflow_call` it |
 | `docs/` | Upstream docs (PUBLISHING.md, release notes) |
 

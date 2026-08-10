@@ -1,17 +1,16 @@
 import Foundation
 
 /// A swappable backend that turns a (system, user) prompt pair into cleaned text.
-/// Implementations: `OllamaBackend` (local server, loopback-only) and `BuiltInLlamaBackend`
-/// (embedded llama.cpp). All-local by design — there is no remote backend.
+/// Sole implementation: `BuiltInLlamaBackend` (embedded llama.cpp, in-process).
+/// All-local by design — no remote backend, no separate server process. The
+/// protocol survives so tests can inject fakes and a future backend stays cheap.
 protocol LLMCleanupBackend {
     /// Whether the backend can serve a request right now (e.g. the built-in model is downloaded
     /// and loaded). When false, `LLMPostProcessor` skips cleanup and returns the raw text.
     var isReady: Bool { get }
     /// Whether `LLMPostProcessor` should apply its output-length ratio check to this backend's
     /// output (see `passesLengthGuard`). True only for the small built-in model, which is the one
-    /// weak enough to answer the transcription instead of transforming it. Ollama keeps the
-    /// original blank-output-only check, so a user who repurposed the instruction on a big model
-    /// (condensing, expanding) isn't second-guessed.
+    /// weak enough to answer the transcription instead of transforming it.
     var enforcesLengthRatio: Bool { get }
     func generate(system: String, user: String) async throws -> String
 }
@@ -20,32 +19,15 @@ extension LLMCleanupBackend {
     var enforcesLengthRatio: Bool { false }
 }
 
-/// Result of probing an LLM-cleanup backend for the settings UI.
-enum LLMStatus: Equatable {
-    case unknown
-    case checking
-    case ok                     // reachable and the configured model is present
-    case modelMissing(String)   // reachable, but the model isn't available there
-    case authFailed             // reachable, but the server rejected the API key
-    case unreachable            // server not running / wrong endpoint
-}
-
-/// Cleans up a transcription with a local LLM, behind a single `process` entry point so the
-/// backend (Ollama, built-in llama.cpp) can be swapped without
-/// touching the call sites.
+/// Cleans up a transcription with the embedded local LLM, behind a single `process`
+/// entry point.
 ///
 /// `process` never throws and never loses the transcription: if post-processing is disabled
-/// or the LLM call fails (server down, bad model, timeout, bad key…), it returns the input text.
+/// or the LLM call fails (model missing, timeout…), it returns the input text.
 enum LLMPostProcessor {
-    /// Selects the configured backend. Falls back to Ollama for any unknown value.
+    /// The one backend: the embedded llama.cpp model.
     static func currentBackend() -> LLMCleanupBackend {
-        let prefs = AppPreferences.shared
-        switch prefs.aiBackend {
-        case "builtin":
-            return BuiltInLlamaBackend.shared
-        default:
-            return OllamaBackend(endpoint: prefs.aiOllamaEndpoint, model: prefs.aiOllamaModel)
-        }
+        BuiltInLlamaBackend.shared
     }
 
     /// Cleans and/or app-formats `text` for the frontmost app identified by `bundleID`. Two
@@ -155,13 +137,6 @@ enum LLMPostProcessor {
 
         \(user)
         """
-    }
-
-    // MARK: - Connection tests (settings "Test" button)
-
-    /// Probes the Ollama server for the settings "Test" button. Forwards to `OllamaBackend`.
-    static func checkOllamaConnection(endpoint: String, model: String) async -> LLMStatus {
-        await OllamaBackend.checkConnection(endpoint: endpoint, model: model)
     }
 
 }

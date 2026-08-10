@@ -26,9 +26,10 @@ class TranscriptionService: ObservableObject {
     private var loadedEngineKind: String?
     private var totalDuration: Float = 0.0
 
-    /// The model that actually produced the most recent transcription, and whether it
-    /// came from the remote local-fallback. Read by the recording-save paths so history
-    /// shows the real model (and flags fallbacks). Set on the main actor per run.
+    /// The model that actually produced the most recent transcription. Read by the
+    /// recording-save paths so history shows the real model. Set on the main actor per
+    /// run. `lastUsedFallback` is always false now that all engines are on-device; it
+    /// survives only because history rows persist a usedLocalFallback column.
     private(set) var lastUsedModel: DictationModelOption?
     private(set) var lastUsedFallback = false
     private var transcriptionTask: Task<String, Error>? = nil
@@ -77,8 +78,6 @@ class TranscriptionService: ObservableObject {
                 // SenseVoice (sherpa-onnx/onnxruntime) ships arm64-only; fall back on Intel.
                 engine = await WhisperEngine()
 #endif
-            } else if selectedEngine == "remote" {
-                engine = RemoteEngine()
             } else if selectedEngine == "apple" {
 #if canImport(FoundationModels)
                 if #available(macOS 26.0, *) {
@@ -148,13 +147,11 @@ class TranscriptionService: ObservableObject {
         let previousEngine = prefs.selectedEngine
         let previousWhisper = prefs.selectedWhisperModelPath
         let previousFluid = prefs.fluidAudioModelVersion
-        let previousRemote = prefs.remoteServerModel
 
         prefs.selectedEngine = option.engine
         switch option.engine {
         case "whisper": prefs.selectedWhisperModelPath = option.identifier
         case "fluidaudio": prefs.fluidAudioModelVersion = option.identifier
-        case "remote": prefs.remoteServerModel = option.identifier
         default: break
         }
         reloadEngine()
@@ -163,7 +160,6 @@ class TranscriptionService: ObservableObject {
             prefs.selectedEngine = previousEngine
             prefs.selectedWhisperModelPath = previousWhisper
             prefs.fluidAudioModelVersion = previousFluid
-            prefs.remoteServerModel = previousRemote
             self.reloadEngine()
         }
     }
@@ -215,42 +211,21 @@ class TranscriptionService: ObservableObject {
             self.totalDuration = durationInSeconds
         }
 
-        return try await transcribe(url: url, settings: settings, fallbackModel: nil)
+        return try await transcribe(url: url, settings: settings)
     }
 
-    /// Load the appropriate engine and transcribe. On a fallback-worthy remote error
-    /// (server unreachable / 5xx after retries), re-runs once with the configured local
-    /// fallback model. Recursive by design: the `fallbackModel != nil` attempt is
-    /// guarded out of the catch (`fallbackModel == nil`), so it can never loop.
-    private func transcribe(url: URL, settings: Settings, fallbackModel: DictationModelOption?) async throws -> String {
-        let engine: TranscriptionEngine
-        if let fallbackModel {
-            engine = try await makeEngine(for: fallbackModel)
-            lastUsedModel = fallbackModel
-            lastUsedFallback = true
-        } else {
-            // Lazily initialize the selected engine on first use (downloads a local
-            // model only now, never on mere engine selection in Settings).
-            await ensureEngineLoaded()
-            guard let loaded = currentEngine else {
-                throw TranscriptionError.contextInitializationFailed
-            }
-            engine = loaded
-            lastUsedModel = ModelCatalog.activeOption()
-            lastUsedFallback = false
+    /// Load the appropriate engine and transcribe. All engines are on-device.
+    private func transcribe(url: URL, settings: Settings) async throws -> String {
+        // Lazily initialize the selected engine on first use (downloads a local
+        // model only now, never on mere engine selection in Settings).
+        await ensureEngineLoaded()
+        guard let engine = currentEngine else {
+            throw TranscriptionError.contextInitializationFailed
         }
+        lastUsedModel = ModelCatalog.activeOption()
+        lastUsedFallback = false
 
-        do {
-            return try await runOnEngine(engine, url: url, settings: settings)
-        } catch let error where fallbackModel == nil && Self.shouldUseFallback(for: error) {
-            guard AppPreferences.shared.remoteFallbackEnabled,
-                  AppPreferences.shared.selectedEngine == "remote",
-                  let fallback = AppPreferences.shared.remoteFallbackModel else {
-                throw error
-            }
-            print("Remote transcription failed (\(error)); falling back to local model \(fallback.displayName)")
-            return try await transcribe(url: url, settings: settings, fallbackModel: fallback)
-        }
+        return try await runOnEngine(engine, url: url, settings: settings)
     }
 
     /// Run one transcription on a specific engine: wire its progress callback, run it
@@ -266,13 +241,6 @@ class TranscriptionService: ObservableObject {
             }
         } else if let fluidEngine = engine as? FluidAudioEngine {
             fluidEngine.onProgressUpdate = { [weak self] newProgress in
-                Task { @MainActor in
-                    guard let self = self, !self.isCancelled else { return }
-                    self.progress = newProgress
-                }
-            }
-        } else if let remoteEngine = engine as? RemoteEngine {
-            remoteEngine.onProgressUpdate = { [weak self] newProgress in
                 Task { @MainActor in
                     guard let self = self, !self.isCancelled else { return }
                     self.progress = newProgress
@@ -323,53 +291,6 @@ class TranscriptionService: ObservableObject {
         }
     }
 
-    /// Build + initialize an engine for a specific model (only for the remote
-    /// local-fallback), without touching the global engine/model prefs. Runs the load
-    /// off the main actor, like `ensureEngineLoaded`.
-    private func makeEngine(for option: DictationModelOption) async throws -> TranscriptionEngine {
-        try await Task.detached(priority: .userInitiated) { () -> TranscriptionEngine in
-            let engine: TranscriptionEngine
-            switch option.engine {
-            case "fluidaudio":
-                engine = await FluidAudioEngine(versionOverride: option.identifier)
-            case "apple":
-#if canImport(FoundationModels)
-                if #available(macOS 26.0, *) {
-                    engine = AppleSpeechEngine()
-                } else {
-                    engine = await WhisperEngine()
-                }
-#else
-                engine = await WhisperEngine()
-#endif
-            case "sensevoice":
-#if arch(arm64)
-                engine = SenseVoiceEngine()
-#else
-                engine = await WhisperEngine(modelPathOverride: option.identifier)
-#endif
-            default: // "whisper"
-                engine = await WhisperEngine(modelPathOverride: option.identifier)
-            }
-            try await engine.initialize()
-            return engine
-        }.value
-    }
-
-    /// Whether a failed remote transcription should retry on the local fallback: only
-    /// "can't use the server" errors (unreachable / 5xx after retries) — never auth or a
-    /// real client 4xx that a local model wouldn't fix. Pure → `nonisolated` + testable.
-    nonisolated static func shouldUseFallback(for error: Error) -> Bool {
-        guard let remote = error as? RemoteError else { return false }
-        switch remote {
-        case .network:
-            return true
-        case .api(let status, _):
-            return (500...599).contains(status)
-        case .missingAPIKey, .invalidAPIKey:
-            return false
-        }
-    }
 }
 
 enum TranscriptionError: Error {

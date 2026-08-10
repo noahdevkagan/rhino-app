@@ -17,13 +17,16 @@ want) once a patched release is out.
 ## What to report
 
 OpenSuperWhisper is a macOS app that records audio, runs transcription
-(locally or via a configured remote endpoint), and inserts text into other
+(always locally — there is no remote transcription), and inserts text into other
 apps. Things worth reporting include, for example:
 
-- Ways to exfiltrate audio, transcriptions, or stored API keys.
-- Issues in how API keys / credentials are stored or transmitted.
+- Ways to exfiltrate audio or transcriptions — ANY code path that can move
+  them off the machine is a vulnerability in this app, by definition.
 - Code execution, privilege escalation, or injection via crafted input,
-  models, update feeds, or remote endpoints.
+  models, or update feeds.
+- Note: the opt-in post-record hook runs a user-authored shell command with
+  the transcript on stdin — user-controlled by design, but report ways for
+  anything else to set or alter it.
 - Tampering with the Sparkle auto-update path.
 
 ## ⚠️ Beware of fake "patched builds"

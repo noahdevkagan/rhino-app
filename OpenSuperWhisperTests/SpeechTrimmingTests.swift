@@ -73,8 +73,8 @@ final class SpeechTrimmingTests: XCTestCase {
     /// Trimming must never invent audio: the result is always shorter than the input.
     func testTrimmingNeverGrowsTheBuffer() {
         let samples = ramp(seconds: 6)
-        let segments = (0..<5).map {
-            WhisperVadSegment(startCs: Int64($0 * 100), endCs: Int64($0 * 100 + 50))
+        let segments: [WhisperVadSegment] = (0..<5).map { (i: Int) -> WhisperVadSegment in
+            WhisperVadSegment(startCs: Int64(i * 100), endCs: Int64(i * 100 + 50))
         }
         let trimmed = WhisperEngine.speechOnlySamples(from: samples, segments: segments)
 

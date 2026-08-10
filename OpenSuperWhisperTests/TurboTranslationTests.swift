@@ -47,7 +47,4 @@ final class TurboTranslationTests: XCTestCase {
         }
     }
 
-    func testRemoteServersAreLeftAlone() {
-        XCTAssertTrue(EngineCapabilities.supportsTranslation(engine: "remote", modelPath: nil))
-    }
 }

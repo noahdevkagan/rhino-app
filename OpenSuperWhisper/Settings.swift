@@ -48,64 +48,10 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Remote (OpenAI-compatible) engine settings
-
-    @Published var remoteServerURL: String {
-        didSet {
-            AppPreferences.shared.remoteServerURL = remoteServerURL
-            reloadRemoteEngineIfSelected()
-        }
-    }
-
-    @Published var remoteServerModel: String {
-        didSet {
-            guard !isSyncing else { return }
-            AppPreferences.shared.remoteServerModel = remoteServerModel
-            reloadRemoteEngineIfSelected()
-            // Editing the model string while Remote is the active engine changes the active
-            // selection — keep the store's mirror current (selectRemote covers the click path).
-            if selectedEngine == "remote" {
-                MainActor.assumeIsolated { ModelSelectionStore.shared.refresh() }
-            }
-        }
-    }
-
-    /// Non-optional in the UI (empty == "no key"); persisted to the Keychain-backed
-    /// optional `AppPreferences.remoteServerAPIKey` (empty clears it).
-    @Published var remoteServerAPIKey: String {
-        didSet {
-            AppPreferences.shared.remoteServerAPIKey = remoteServerAPIKey
-            reloadRemoteEngineIfSelected()
-        }
-    }
-
-    @Published var remoteServerTimeoutEnabled: Bool {
-        didSet {
-            AppPreferences.shared.remoteServerTimeoutEnabled = remoteServerTimeoutEnabled
-            reloadRemoteEngineIfSelected()
-        }
-    }
-
-    @Published var remoteServerTimeoutSeconds: Double {
-        didSet {
-            AppPreferences.shared.remoteServerTimeoutSeconds = remoteServerTimeoutSeconds
-            reloadRemoteEngineIfSelected()
-        }
-    }
-
     /// Context-aware model selection mode (per-app / per-site rules). See F2.
     @Published var contextAwareModelMode: ContextAwareModelMode {
         didSet {
             AppPreferences.shared.contextAwareModelMode = contextAwareModelMode
-        }
-    }
-
-    /// Re-initialize the engine on a remote-config change, but only when the remote
-    /// engine is the active one (editing the config while on Whisper shouldn't reload).
-    private func reloadRemoteEngineIfSelected() {
-        guard selectedEngine == "remote" else { return }
-        Task { @MainActor in
-            TranscriptionService.shared.reloadEngine()
         }
     }
 
@@ -133,13 +79,6 @@ class SettingsViewModel: ObservableObject {
         MainActor.assumeIsolated {
             ModelSelectionStore.shared.select(DictationModelOption(
                 engine: "fluidaudio", identifier: version, displayName: version))
-        }
-    }
-
-    func selectRemote(_ id: String) {
-        MainActor.assumeIsolated {
-            ModelSelectionStore.shared.select(DictationModelOption(
-                engine: "remote", identifier: id, displayName: id))
         }
     }
 
@@ -328,14 +267,6 @@ class SettingsViewModel: ObservableObject {
         didSet { AppPreferences.shared.showCancelButtonOnIndicator = showCancelButtonOnIndicator }
     }
 
-    @Published var remoteFallbackEnabled: Bool {
-        didSet { AppPreferences.shared.remoteFallbackEnabled = remoteFallbackEnabled }
-    }
-
-    @Published var remoteFallbackModel: DictationModelOption? {
-        didSet { AppPreferences.shared.remoteFallbackModel = remoteFallbackModel }
-    }
-
     @Published var liveTranscriptionEnabled: Bool {
         didSet {
             AppPreferences.shared.liveTranscriptionEnabled = liveTranscriptionEnabled
@@ -409,8 +340,7 @@ class SettingsViewModel: ObservableObject {
     /// the same backend, so this is what gates the backend UI and its connection probe.
     var llmCleanupInUse: Bool { aiPostProcessingEnabled || appContextFormattingEnabled }
 
-    /// Cleanup backend: "builtin" (embedded llama.cpp), "ollama" (local server), or
-    /// "remote" (OpenAI-compatible server).
+    /// Cleanup backend: "builtin" (embedded llama.cpp) or "ollama" (local server).
     @Published var aiBackend: String {
         didSet {
             AppPreferences.shared.aiBackend = aiBackend
@@ -460,24 +390,6 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var aiRemoteEndpoint: String {
-        didSet {
-            AppPreferences.shared.aiRemoteEndpoint = aiRemoteEndpoint
-        }
-    }
-
-    @Published var aiRemoteModel: String {
-        didSet {
-            AppPreferences.shared.aiRemoteModel = aiRemoteModel
-        }
-    }
-
-    @Published var aiRemoteAPIKey: String {
-        didSet {
-            AppPreferences.shared.aiRemoteAPIKey = aiRemoteAPIKey.isEmpty ? nil : aiRemoteAPIKey
-        }
-    }
-
     @Published var aiPostProcessingPrompt: String {
         didSet {
             AppPreferences.shared.aiPostProcessingPrompt = aiPostProcessingPrompt
@@ -487,9 +399,8 @@ class SettingsViewModel: ObservableObject {
     /// Live result of the last cleanup-backend connectivity probe, shown next to the fields.
     @Published var llmStatus: LLMStatus = .unknown
 
-    /// Probes the local Ollama backend. The Remote backend is owned by
-    /// RemoteCleanupSettingsView (it also fills the model list), and the built-in backend
-    /// has no server to probe (see `builtInModelDownloaded`), so this only runs for Ollama.
+    /// Probes the local Ollama backend. The built-in backend has no server to probe
+    /// (see `builtInModelDownloaded`), so this only runs for Ollama.
     func testLLMConnection() {
         guard aiBackend == "ollama" else { return }
         llmStatus = .checking
@@ -497,19 +408,6 @@ class SettingsViewModel: ObservableObject {
         Task { @MainActor in
             self.llmStatus = await LLMPostProcessor.checkOllamaConnection(endpoint: endpoint, model: model)
         }
-    }
-
-    /// Prefill the Remote-cleanup fields from the Remote transcription engine's config
-    /// (same Groq/OpenAI/LiteLLM server + key is the common case). The chat model is left
-    /// for the user — the STT model (whisper…) isn't a chat model.
-    func copyRemoteEngineConfig() {
-        let prefs = AppPreferences.shared
-        aiRemoteEndpoint = prefs.remoteServerURL
-        aiRemoteAPIKey = prefs.remoteServerAPIKey ?? ""
-    }
-
-    var hasRemoteEngineConfig: Bool {
-        !AppPreferences.shared.remoteServerURL.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     @Published var removeFillerWords: Bool {
@@ -685,11 +583,6 @@ class SettingsViewModel: ObservableObject {
         let prefs = AppPreferences.shared
         self.selectedEngine = prefs.selectedEngine
         self.fluidAudioModelVersion = prefs.fluidAudioModelVersion
-        self.remoteServerURL = prefs.remoteServerURL
-        self.remoteServerModel = prefs.remoteServerModel
-        self.remoteServerAPIKey = prefs.remoteServerAPIKey ?? ""
-        self.remoteServerTimeoutEnabled = prefs.remoteServerTimeoutEnabled
-        self.remoteServerTimeoutSeconds = prefs.remoteServerTimeoutSeconds
         self.contextAwareModelMode = prefs.contextAwareModelMode
         self.selectedLanguage = prefs.whisperLanguage
         self.translateToEnglish = prefs.translateToEnglish
@@ -715,8 +608,6 @@ class SettingsViewModel: ObservableObject {
         self.submitModifierOnlyHotkey = ModifierKey(rawValue: prefs.submitModifierOnlyHotkey) ?? .none
         self.showStopButtonOnIndicator = prefs.showStopButtonOnIndicator
         self.showCancelButtonOnIndicator = prefs.showCancelButtonOnIndicator
-        self.remoteFallbackEnabled = prefs.remoteFallbackEnabled
-        self.remoteFallbackModel = prefs.remoteFallbackModel
         self.liveTranscriptionEnabled = prefs.liveTranscriptionEnabled
         self.useAsianAutocorrect = prefs.useAsianAutocorrect
         self.modifierOnlyHotkey = ModifierKey(rawValue: prefs.modifierOnlyHotkey) ?? .none
@@ -730,9 +621,6 @@ class SettingsViewModel: ObservableObject {
         self.aiBackend = prefs.aiBackend
         self.aiOllamaEndpoint = prefs.aiOllamaEndpoint
         self.aiOllamaModel = prefs.aiOllamaModel
-        self.aiRemoteEndpoint = prefs.aiRemoteEndpoint
-        self.aiRemoteModel = prefs.aiRemoteModel
-        self.aiRemoteAPIKey = prefs.aiRemoteAPIKey ?? ""
         self.aiPostProcessingPrompt = prefs.aiPostProcessingPrompt
         self.removeFillerWords = prefs.removeFillerWords
         self.fillerWordsPattern = prefs.fillerWordsPattern
@@ -796,13 +684,11 @@ class SettingsViewModel: ObservableObject {
         let newURL = (prefs.selectedWhisperModelPath ?? prefs.selectedModelPath).map { URL(fileURLWithPath: $0) }
         guard selectedEngine != prefs.selectedEngine
             || fluidAudioModelVersion != prefs.fluidAudioModelVersion
-            || remoteServerModel != prefs.remoteServerModel
             || selectedModelURL != newURL else { return }
 
         isSyncing = true
         selectedEngine = prefs.selectedEngine
         fluidAudioModelVersion = prefs.fluidAudioModelVersion
-        remoteServerModel = prefs.remoteServerModel
         selectedModelURL = newURL
         isSyncing = false
 
@@ -1304,7 +1190,6 @@ struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .dictation
     @State private var sidebarSearch = ""
     @FocusState private var sidebarSearchFocused: Bool
-    @State private var availableUpdateTag: String?
     @ObservedObject private var micService = MicrophoneService.shared
     /// The engine whose models are currently being *browsed* (navigation only — the active engine
     /// in `viewModel.selectedEngine` changes only when the user clicks a model).
@@ -1324,7 +1209,6 @@ struct SettingsView: View {
         case "whisper": return "Whisper"
         case "sensevoice": return "SenseVoice"
         case "apple": return "Apple Speech"
-        case "remote": return "Remote"
         default: return engine
         }
     }
@@ -1336,7 +1220,6 @@ struct SettingsView: View {
         case "whisper": return "Whisper"
         case "sensevoice": return "SenseVoice"
         case "apple": return "Apple"
-        case "remote": return "Remote"
         default: return engine
         }
     }
@@ -1349,8 +1232,6 @@ struct SettingsView: View {
             return "Fast — Chinese, Cantonese, English, Japanese, Korean. Runs fully on-device."
         case "apple":
             return "macOS's built-in speech model — zero download in the app, managed by the system."
-        case "remote":
-            return "Cloud / self-hosted — any OpenAI-compatible server (Groq, speaches, LiteLLM, …)."
         default:
             return "Fast, multilingual (25 languages), with a live preview as you speak. Runs fully on-device."
         }
@@ -1443,9 +1324,6 @@ struct SettingsView: View {
                 Text(tab.title)
                     .scaledFont(size: compact ? 12 : 13, weight: .medium)
                 Spacer(minLength: 0)
-                if tab == .updates && availableUpdateTag != nil {
-                    Circle().fill(STheme.accent).frame(width: 6, height: 6)
-                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, compact ? 5 : 7)
@@ -1532,7 +1410,7 @@ struct SettingsView: View {
                                 .resizable()
                                 .renderingMode(.template)
                                 .frame(width: 13, height: 13)
-                            Text("v\(UpdateChecker.currentVersion)")
+                            Text("v\(UpdatesView.currentVersion)")
                                 .scaledFont(size: 10.5, design: .monospaced)
                         }
                         .foregroundColor(STheme.hint.opacity(0.8))
@@ -1553,11 +1431,6 @@ struct SettingsView: View {
             .frame(width: 224)
             .frame(maxHeight: .infinity, alignment: .top)
             .background(STheme.sidebarBg)
-            .task {
-                if let releases = try? await UpdateChecker.fetchReleases() {
-                    availableUpdateTag = UpdateChecker.availableUpdate(in: releases)?.tagName
-                }
-            }
 
             Rectangle().fill(STheme.border).frame(width: 1)
 
@@ -1685,22 +1558,8 @@ struct SettingsView: View {
                 if AppleSpeechSupport.isSupported {
                     engineCard(tag: "apple", name: "Apple", sub: "Built into macOS")
                 }
-                engineCard(tag: "remote", name: "Remote", sub: "Your own server")
             }
             .padding(.horizontal, 24).padding(.top, 12)
-
-            if browseEngine == "remote" {
-                HStack(spacing: 8) {
-                    Text("⚠︎")
-                    Text("Audio is uploaded to the remote server — not necessarily on-device.")
-                }
-                .scaledFont(size: 11.5)
-                .foregroundColor(STheme.warn)
-                .padding(.horizontal, 11).padding(.vertical, 7)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 7).fill(STheme.warnBg))
-                .padding(.horizontal, 24).padding(.top, 10)
-            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -1743,9 +1602,6 @@ struct SettingsView: View {
                         AppleSpeechModelSection(viewModel: viewModel)
                     }
 #endif
-                    if browseEngine == "remote" {
-                        RemoteSettingsSection(viewModel: viewModel)
-                    }
                 }
                 .padding(.horizontal, 24).padding(.vertical, 14)
             }
@@ -1818,7 +1674,6 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var llmStatusView: some View {
-        let isRemote = viewModel.aiBackend == "remote"
         switch viewModel.llmStatus {
         case .unknown:
             EmptyView()
@@ -1831,9 +1686,7 @@ struct SettingsView: View {
                 .padding(.horizontal, 9).padding(.vertical, 2)
                 .background(Capsule().fill(STheme.okBg))
         case .modelMissing(let model):
-            Text(isRemote
-                ? "Reachable, but “\(model)” isn't in the server's model list"
-                : "Reachable, but “\(model)” isn't pulled — run: ollama pull \(model)")
+            Text("Reachable, but “\(model)” isn't pulled — run: ollama pull \(model)")
                 .scaledFont(size: 11)
                 .foregroundColor(STheme.warn)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1843,9 +1696,7 @@ struct SettingsView: View {
                 .foregroundColor(.red)
                 .fixedSize(horizontal: false, vertical: true)
         case .unreachable:
-            Text(isRemote
-                ? "✕ Can't reach the server — check the URL"
-                : "✕ Can't reach Ollama — is it running? (ollama serve)")
+            Text("✕ Can't reach Ollama — is it running? (ollama serve)")
                 .scaledFont(size: 11)
                 .foregroundColor(.red)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1874,11 +1725,9 @@ struct SettingsView: View {
                      hint: !viewModel.canTranslate
                         ? (viewModel.selectedEngine == "whisper"
                             ? "Turbo models don't translate, whatever their documentation says. Pick a non-turbo Whisper model to translate."
-                            : "Only Whisper and remote servers translate; the current engine ignores this.")
-                        : (viewModel.translateToEnglish && viewModel.selectedEngine == "remote"
-                            ? "We can't confirm this remote model supports translation"
-                            : nil),
-                     hintColor: viewModel.translateToEnglish && viewModel.selectedEngine == "remote" ? STheme.warn : STheme.hint) {
+                            : "Only Whisper translates; the current engine ignores this.")
+                        : nil,
+                     hintColor: STheme.hint) {
                     SToggle(isOn: $viewModel.translateToEnglish, disabled: !viewModel.canTranslate)
                 }
                 if Settings.asianLanguages.contains(viewModel.selectedLanguage) {
@@ -1921,7 +1770,6 @@ struct SettingsView: View {
                         Picker("", selection: $viewModel.aiBackend) {
                             Text("Built-in (Qwen2.5 1.5B)").tag("builtin")
                             Text("Ollama (local)").tag("ollama")
-                            Text("Remote (OpenAI-compatible)").tag("remote")
                         }
                         .labelsHidden()
                         .pickerStyle(.segmented)
@@ -1936,8 +1784,6 @@ struct SettingsView: View {
                     switch viewModel.aiBackend {
                     case "builtin":
                         builtInCleanupFields
-                    case "remote":
-                        RemoteCleanupSettingsView(viewModel: viewModel)
                     default:
                         ollamaCleanupFields
                     }

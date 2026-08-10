@@ -15,11 +15,10 @@ protocol TranscriptionEngine: AnyObject {
 /// so the UI can gate features without instantiating an engine.
 enum EngineCapabilities {
     /// Engines that can translate to English — the single source of truth for the
-    /// translate toggle's gating AND the local-fallback picker. Add a provider here,
-    /// never a new `case` elsewhere. Whisper translates locally; the remote engine
-    /// forwards translation to the server's OpenAI `/audio/translations` endpoint.
-    /// Parakeet (fluidaudio) / SenseVoice silently ignore `translateToEnglish` (#124).
-    static let translationCapableEngines: Set<String> = ["whisper", "remote"]
+    /// translate toggle's gating. Add a provider here, never a new `case` elsewhere.
+    /// Whisper translates locally; Parakeet (fluidaudio) / SenseVoice silently
+    /// ignore `translateToEnglish` (#124).
+    static let translationCapableEngines: Set<String> = ["whisper"]
 
     static func supportsTranslation(engine: String) -> Bool {
         translationCapableEngines.contains(engine)
@@ -48,10 +47,6 @@ enum EngineCapabilities {
     /// Whisper set; "auto" (where present) means let the model detect the language.
     static func supportedLanguages(engine: String, fluidAudioModelVersion: String) -> [String] {
         switch engine {
-        case "remote":
-            // The remote server decides language support; advertise the full Whisper set
-            // (incl. "auto") so the user's choice is forwarded verbatim.
-            return LanguageUtil.availableLanguages
         case "apple":
             // System speech model (macOS 26). "auto" = the user's system language — the
             // transcriber has no cross-language auto-detect. The cache is refreshed at

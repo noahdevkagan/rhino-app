@@ -468,7 +468,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             ("Whisper", ModelCatalog.whisperModels()),
             ("Parakeet", ModelCatalog.parakeetModels()),
             ("SenseVoice", ModelCatalog.senseVoiceModels()),
-            ("Remote", ModelCatalog.remoteModels()),
         ]
 
         var addedAnything = false

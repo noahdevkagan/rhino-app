@@ -4,16 +4,15 @@ import Foundation
 /// One selectable dictation model across all engines. Used by the menu-bar model
 /// picker and the per-app context rules.
 struct DictationModelOption: Codable, Equatable, Hashable {
-    /// "whisper" | "fluidaudio" | "sensevoice" | "remote" — matches AppPreferences.selectedEngine.
+    /// "whisper" | "fluidaudio" | "sensevoice" | "apple" — matches AppPreferences.selectedEngine.
     let engine: String
-    /// whisper: model file path; fluidaudio: version ("v2"/"v3"); sensevoice: "default";
-    /// remote: model id.
+    /// whisper: model file path; fluidaudio: version ("v2"/"v3"); sensevoice/apple: "default".
     let identifier: String
     let displayName: String
 }
 
 /// Single source of truth for which models are actually usable right now
-/// (downloaded locally, or advertised by the configured remote server) and for
+/// (downloaded locally) and for
 /// applying a selection. The menu and the context rules read from here so they
 /// always agree.
 enum ModelCatalog {
@@ -53,22 +52,6 @@ enum ModelCatalog {
 #endif
     }
 
-    /// Models advertised by the remote server's /v1/models, cached by the
-    /// settings panel when it last fetched. The currently-selected model is
-    /// always included even if the cache is empty/stale, so the active choice is
-    /// never missing from the list.
-    static func remoteModels() -> [DictationModelOption] {
-        var ids = AppPreferences.shared.cachedRemoteModels
-        let current = AppPreferences.shared.remoteServerModel
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        if !current.isEmpty, !ids.contains(current) {
-            ids.insert(current, at: 0)
-        }
-        return ids.map {
-            DictationModelOption(engine: "remote", identifier: $0, displayName: $0)
-        }
-    }
-
     /// The system speech model (macOS 26+) — one entry, only when the OS supports it
     /// AND at least one locale's assets are already installed (the cached check keeps
     /// the never-download-from-the-menu rule).
@@ -80,7 +63,7 @@ enum ModelCatalog {
     /// Every usable model across engines. Used to decide whether switching is
     /// even meaningful (one model → nothing to choose).
     static func allAvailable() -> [DictationModelOption] {
-        whisperModels() + parakeetModels() + senseVoiceModels() + appleSpeechModels() + remoteModels()
+        whisperModels() + parakeetModels() + senseVoiceModels() + appleSpeechModels()
     }
 
     /// The model currently in effect (active engine + its selected model).
@@ -104,11 +87,6 @@ enum ModelCatalog {
             return DictationModelOption(engine: "sensevoice", identifier: "default", displayName: "SenseVoice")
         case "apple":
             return DictationModelOption(engine: "apple", identifier: "default", displayName: "Apple Speech")
-        case "remote":
-            let id = prefs.remoteServerModel.trimmingCharacters(in: .whitespacesAndNewlines)
-            return id.isEmpty
-                ? nil
-                : DictationModelOption(engine: "remote", identifier: id, displayName: id)
         default:
             return nil
         }
@@ -124,8 +102,6 @@ enum ModelCatalog {
             prefs.selectedWhisperModelPath = option.identifier
         case "fluidaudio":
             prefs.fluidAudioModelVersion = option.identifier
-        case "remote":
-            prefs.remoteServerModel = option.identifier
         case "sensevoice", "apple":
             break  // single model, nothing else to set
         default:

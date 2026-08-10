@@ -22,7 +22,7 @@ final class AppContextModelRulesTests: XCTestCase {
     }
 
     private func model(_ id: String) -> DictationModelOption {
-        DictationModelOption(engine: "remote", identifier: id, displayName: id)
+        DictationModelOption(engine: "whisper", identifier: id, displayName: id)
     }
 
     // MARK: - Key format

@@ -301,13 +301,6 @@ final class EngineCapabilitiesTests: XCTestCase {
         XCTAssertTrue(EngineCapabilities.supportsTranslation(engine: "whisper"))
     }
 
-    func testTranslation_remoteSupported() {
-        // Groq folded into the generic remote engine: translation is forwarded to the
-        // server's OpenAI-standard /audio/translations endpoint, so the capability is on
-        // (the server decides per-model support).
-        XCTAssertTrue(EngineCapabilities.supportsTranslation(engine: "remote"))
-    }
-
     func testTranslation_parakeetAndSenseVoiceNever() {
         XCTAssertFalse(EngineCapabilities.supportsTranslation(engine: "fluidaudio"))
         XCTAssertFalse(EngineCapabilities.supportsTranslation(engine: "sensevoice"))

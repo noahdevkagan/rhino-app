@@ -33,3 +33,38 @@ git remote (`upstream`) for future pulls.
 `scripts/`.** Upstream already has `Scripts/`; macOS's case-insensitive
 filesystem would silently merge the two while git records both paths.
 Hooks path is `Scripts/githooks`.
+
+**2026-08-10 — No Dependabot.** Config deleted, its 8 auto-PRs closed.
+Submodule/SwiftPM auto-bumps are risky here (run.sh patches FluidAudio
+source; whisper.cpp/llama.cpp bumps need real testing). Deps get bumped
+deliberately, gated by the push gate.
+
+**2026-08-10 — Phase 1: Remote ASR engine and remote LLM cleanup deleted
+(code paths, not hidden UI).** 7 app files + 9 test files removed, plus
+all prefs/UI plumbing. Stale `selectedEngine == "remote"/"groq"` migrates
+to "whisper"; stored `aiBackend == "remote"` migrates to "builtin"; the
+three remote API keys are scrubbed from the Keychain on launch (no code
+can use them anymore). `usedLocalFallback` stays as a DB column and an
+always-false flag so old history rows keep decoding.
+
+**2026-08-10 — UpdateChecker deleted (the second update path).** Upstream
+had Sparkle AND an unauthenticated GitHub-releases poll that pinged
+api.github.com with the user's IP when Settings opened. Sparkle to our own
+appcast is the ONE sanctioned update channel; the Updates tab is now
+Sparkle-only and the release-notes feed will live on the Toucan site.
+
+**2026-08-10 — Ollama cleanup endpoint is loopback-pinned in code.** The
+endpoint field is free text, so `OllamaBackend` refuses any host that
+isn't localhost/127.0.0.1/::1 — no DNS resolution (could change under
+us), no LAN ranges (another machine is still another machine).
+
+**2026-08-10 — ATS re-enabled.** `NSAllowsArbitraryLoads` existed solely
+for the remote engine; replaced with `NSAllowsLocalNetworking` only.
+Sparkle + model downloads are HTTPS and pass full ATS.
+
+**2026-08-10 — tests/hygiene is the privacy regression gate.** Static:
+forbidden endpoint strings, resurrected remote files, ATS exemption.
+Dynamic: a real CLI transcription in an isolated $HOME with `lsof`
+sampling — any non-loopback socket fails the gate. The detector itself is
+negative-tested (a synthetic remote lsof row must trip it). Fix the code,
+never the gate.

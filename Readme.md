@@ -49,22 +49,15 @@ automatically. (The Intel build ships Whisper + Parakeet; SenseVoice is Apple-Si
   [ivrit.ai](https://www.ivrit.ai/) model), live **translation to English**, and an interface
   localized in English, French, German, Spanish, Italian, Portuguese (BR) and Vietnamese.
 
-## Four engines, your choice
+## Three engines, your choice — all on-device
 
 | Engine | Runs | Best for |
 |---|---|---|
 | **Whisper** ([whisper.cpp](https://github.com/ggerganov/whisper.cpp)) | On-device | Accuracy, ~99 languages, translation to English |
 | **Parakeet** ([FluidAudio](https://github.com/AntinomyCollective/FluidAudio)) | On-device | Speed + live preview, 25 European languages |
 | **SenseVoice** ([sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)) | On-device | Chinese, Cantonese, English, Japanese, Korean |
-| **Remote** | Your server | Any OpenAI-compatible endpoint — Groq preset, LiteLLM, [speaches](https://github.com/speaches-ai/speaches), a box on your LAN |
 
-<div align="center">
-<img src="docs/screenshots/remote-engine.png" width="640" alt="Remote engine settings — point the app at any OpenAI-compatible server, with a Groq preset and connection test" />
-</div>
-
-The **Remote** engine sends audio to *your* chosen server (and says so, plainly). It lists the
-server's models after an authenticated **Test Connection**, retries transient network hiccups, and —
-if your server is unreachable — can **fall back to a local model** so dictation never just fails.
+There is deliberately no remote engine: your voice never leaves your Mac.
 Models load lazily: browsing engine tabs never triggers a surprise download.
 
 ## Smart while you dictate
@@ -100,9 +93,10 @@ nothing is persisted, and retention limits (count / age) are available in betwee
 
 ## Private by default
 
-On-device engines never send audio anywhere. There's no account, no telemetry, and the only
-network path is the Remote engine — which you explicitly configure and which labels itself
-clearly. History is yours to disable or cap.
+Audio never leaves your Mac — every engine runs on-device, AI cleanup runs on a bundled
+local model or loopback-only Ollama, and there's no account and no telemetry. The only
+network calls are update checks and model downloads you trigger yourself. History is
+yours to disable or cap.
 
 ## Command line
 

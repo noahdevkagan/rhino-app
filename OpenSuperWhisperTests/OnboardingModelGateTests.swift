@@ -52,11 +52,4 @@ final class OnboardingModelGateTests: XCTestCase {
         XCTAssertFalse(viewModel.canContinue)
     }
 
-    /// A remote server needs no local model, so it passes with nothing downloaded.
-    func testRemoteServerNeedsNoLocalModel() {
-        let viewModel = makeViewModel()
-        viewModel.selectRemote()
-        XCTAssertTrue(viewModel.canContinue)
-        XCTAssertEqual(AppPreferences.shared.selectedEngine, "remote")
-    }
 }

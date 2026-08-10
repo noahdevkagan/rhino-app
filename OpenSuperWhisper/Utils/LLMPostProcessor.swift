@@ -1,15 +1,15 @@
 import Foundation
 
 /// A swappable backend that turns a (system, user) prompt pair into cleaned text.
-/// Implementations: `OllamaBackend` (external server), `BuiltInLlamaBackend` (embedded
-/// llama.cpp), and `RemoteBackend` (any OpenAI-compatible `/v1/chat/completions` server).
+/// Implementations: `OllamaBackend` (local server, loopback-only) and `BuiltInLlamaBackend`
+/// (embedded llama.cpp). All-local by design — there is no remote backend.
 protocol LLMCleanupBackend {
     /// Whether the backend can serve a request right now (e.g. the built-in model is downloaded
     /// and loaded). When false, `LLMPostProcessor` skips cleanup and returns the raw text.
     var isReady: Bool { get }
     /// Whether `LLMPostProcessor` should apply its output-length ratio check to this backend's
     /// output (see `passesLengthGuard`). True only for the small built-in model, which is the one
-    /// weak enough to answer the transcription instead of transforming it. Ollama/Remote keep the
+    /// weak enough to answer the transcription instead of transforming it. Ollama keeps the
     /// original blank-output-only check, so a user who repurposed the instruction on a big model
     /// (condensing, expanding) isn't second-guessed.
     var enforcesLengthRatio: Bool { get }
@@ -31,7 +31,7 @@ enum LLMStatus: Equatable {
 }
 
 /// Cleans up a transcription with a local LLM, behind a single `process` entry point so the
-/// backend (Ollama, built-in llama.cpp, remote OpenAI-compatible) can be swapped without
+/// backend (Ollama, built-in llama.cpp) can be swapped without
 /// touching the call sites.
 ///
 /// `process` never throws and never loses the transcription: if post-processing is disabled
@@ -43,9 +43,6 @@ enum LLMPostProcessor {
         switch prefs.aiBackend {
         case "builtin":
             return BuiltInLlamaBackend.shared
-        case "remote":
-            return RemoteBackend(endpoint: prefs.aiRemoteEndpoint, model: prefs.aiRemoteModel,
-                                  apiKey: prefs.aiRemoteAPIKey ?? "")
         default:
             return OllamaBackend(endpoint: prefs.aiOllamaEndpoint, model: prefs.aiOllamaModel)
         }
@@ -167,42 +164,4 @@ enum LLMPostProcessor {
         await OllamaBackend.checkConnection(endpoint: endpoint, model: model)
     }
 
-    // MARK: - Remote (OpenAI-compatible) endpoint helpers
-    //
-    // Pure and unit-tested; shared by `RemoteBackend` (actual cleanup calls) and
-    // `RemoteCleanupSettingsView` (the settings "Test Connection" probe).
-
-    /// `<base>/v1/chat/completions`, tolerating a base that may lack a scheme or already
-    /// include `/v1` or a trailing slash.
-    static func chatEndpoint(base: String) -> URL? {
-        normalizedBase(base).flatMap { URL(string: $0 + "/v1/chat/completions") }
-    }
-
-    /// Normalize an OpenAI-compatible base URL: add http:// if no scheme, drop a trailing
-    /// slash and a trailing `/v1` (callers append their own `/v1/...`).
-    private static func normalizedBase(_ raw: String) -> String? {
-        var base = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !base.isEmpty else { return nil }
-        let lower = base.lowercased()
-        if !lower.hasPrefix("http://") && !lower.hasPrefix("https://") {
-            base = "http://" + base
-        }
-        while base.hasSuffix("/") { base.removeLast() }
-        if base.hasSuffix("/v1") { base.removeLast(3) }
-        return base
-    }
-
-    /// OpenAI chat completions: `{"choices":[{"message":{"content":"…"}}]}`.
-    static func extractChatContent(from data: Data) -> String? {
-        (try? JSONDecoder().decode(ChatCompletionResponse.self, from: data))?
-            .choices.first?.message.content
-    }
-
-    private struct ChatCompletionResponse: Decodable {
-        struct Choice: Decodable {
-            struct Message: Decodable { let content: String }
-            let message: Message
-        }
-        let choices: [Choice]
-    }
 }

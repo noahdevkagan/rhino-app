@@ -5,28 +5,38 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-10)
+## Current state (2026-08-10, end of day-1 marathon)
 
-- Phase 0 done: skeleton grafted, gate green, pushed to
-  noahdevkagan/toucan-app (Dependabot disabled, its PRs closed).
-- Phase 1 done in working tree: Remote ASR + remote LLM cleanup deleted,
-  UpdateChecker (GitHub ping) deleted, Ollama loopback-pinned, ATS
-  re-enabled, prefs migrations + Keychain scrub added. tests/hygiene
-  passes (static scan + dynamic lsof-during-transcription, detector
-  negative-tested). See decisions.md for each rationale.
+- App is **Rhino** (repos noahdevkagan/rhino + rhino-app; in-app rebrand
+  deferred until the quality gate passes, per PLAN.md Phase 4).
+- Phases 0–1 done and pushed: skeleton + gate; every remote code path
+  deleted (ASR, LLM cleanup, GitHub update ping, Ollama, post-record
+  hook); history off by default; ATS re-enabled; migrations + Keychain
+  scrub. NOTE: PLAN.md was rewritten mid-day — decisions.md records where
+  we diverged (deletion kept over compile-guards) and what was adopted.
+- Quality harness live: tests/asr (WER + silence guard), tests/latency
+  (budgets 800/2000ms from actuals), tests/hygiene (static + networking
+  classification + dynamic lsof), bench/scorecard.py trend,
+  bench/corpus/ tooling for the 30-item personal benchmark.
+- Real bug found & fixed by the new gate: silence hallucinated "you"
+  (VAD-empty + near-silent clip now returns "").
+- CI is on-demand/release-only (macOS minutes bill 10x on private repos).
+- Gate runs in ~16s warm; all suites green; unit tests green.
 
-## Outstanding
+## Outstanding (needs Noah)
 
-- Manual WiFi-off proof (plan's Phase 1 verification): WiFi off → full
-  hotkey dictation flow into a real app. Needs a human at the keyboard.
-- Localizable.xcstrings still carries orphaned remote/Groq UI strings
-  (unused keys, harmless) — clean up with the Phase 3 rebrand pass.
-- `docs/` + Readme screenshots still show the remote engine — full doc
-  refresh lands with the Phase 3 rebrand.
-- Wire `xcodebuild test` (upstream unit suite) into the gate as
-  tests/unit/run.sh — decide budget: it needs ~2-4 min.
+- **Record the 30-item corpus** (bench/corpus/README.md) and run the
+  head-to-head vs Wispr Flow — this is the go/no-go quality measurement
+  everything else waits on.
+- Manual checks: WiFi-off dictation proof + tests/insertion-manual.md.
+- Dogfood daily: `cd ~/rhino-app && ./run.sh`.
+- Decide domain/brand assets for Rhino (site, icon) — Phase 4.
+- For release later: Apple Developer ID cert, notary app-specific
+  password, Sparkle EdDSA keypair (upstream docs/PUBLISHING.md has the
+  full recipe; adapt, don't replace).
 
 ## Next session
 
-Start with: "Read AGENTS.md and ~/rhino/PLAN.md, then begin Phase 2:
-port MeetingCoach's ASR harness (~/coach-latest/tests/asr) as tests/asr."
+Start with: "Read AGENTS.md, decisions.md, and ~/rhino/PLAN.md. If corpus
+recordings exist in bench/corpus/audio/, score them and fix the largest
+measured gap; otherwise continue Phase 4 prep that needs no credentials."

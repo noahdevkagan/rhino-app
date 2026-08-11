@@ -9,9 +9,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Active plan — rhinovoice.app launch site
 
-1. Add a self-contained `website/` project without disturbing the macOS app build.
-2. Build a responsive one-page Rhino launch site modeled on MeetingCoach's concise product story: local-first hero, product proof, three-step setup, privacy details, FAQ, and a real DMG download CTA.
-3. Validate the production build, publish a private preview, then connect `rhinovoice.app` through Cloudflare once the page and release URL are confirmed.
+- Built and tested a self-contained `website/` project with the real v0.1.2
+  DMG, responsive product story, privacy proof, setup, FAQ, and social card.
+- Public Sites deployment: `https://rhinovoice-app.reg654.chatgpt.site`.
+- `rhinovoice.app` is registered with Sites but awaits Cloudflare DNS: A `@`
+  → `162.159.143.30` and `172.66.3.26` (DNS only), plus the two verification
+  TXT records returned during setup. After DNS propagates, refresh the custom
+  domain status and verify both hostname and TLS are active.
 
 - The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
   coral face icon, menu-bar rhino silhouette, forced light mode), main

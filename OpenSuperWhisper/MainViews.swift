@@ -370,6 +370,15 @@ struct PermissionsBanner: View {
         }
     }
 
+    /// Deep-link to the exact privacy pane instead of the Privacy & Security front
+    /// page. With both missing, mic goes first (matches the message's order); once
+    /// it's granted the banner re-renders and the button retargets Accessibility.
+    private var settingsPaneURL: String {
+        permissionsManager.isMicrophonePermissionGranted
+            ? "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+            : "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -378,7 +387,7 @@ struct PermissionsBanner: View {
                 .scaledFont(size: 12, weight: .medium)
             Spacer()
             Button("Open System Settings") {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
+                if let url = URL(string: settingsPaneURL) {
                     NSWorkspace.shared.open(url)
                 }
             }

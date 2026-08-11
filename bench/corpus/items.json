@@ -80,7 +80,8 @@
       "intended": "Grocery list: avocados, sourdough, oat milk, two lemons, and whatever cheese looks good.",
       "note": "say it with ums between items",
       "accept": [
-        "Grocery list: Avocados, Sourdough, Oat milk, 2 lemons, Whatever cheese looks good."
+        "Grocery list: Avocados, Sourdough, Oat milk, 2 lemons, Whatever cheese looks good.",
+        "Grocery list: Avocados, Sourdough, Oat milk, Two lemons, Whatever cheese looks good"
       ]
     }
   ],

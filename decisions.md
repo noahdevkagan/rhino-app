@@ -186,3 +186,22 @@ recording artifacts, not product gaps).
 "Punctuation & cleanup — recommended" card with an explicit ~1GB download
 button; enabling toggles aiPostProcessingEnabled and preloads. Dictation
 never requires it.
+
+**2026-08-11 — Hands-free lock is a double-tap, not the single-tap
+toggle.** Double-press the trigger inside 0.35s to lock recording on
+(release stops nothing; next press stops), `doubleTapLock` pref, on by
+default, toggle in Settings → Shortcut. The second press deliberately
+does not arm push-to-talk's hold timer, so double-tap-and-hold still
+locks. Single-tap toggle and hold-to-talk are unchanged — the lock only
+rescues the case where a second press lands while recording is live,
+which previously killed the recording.
+
+**2026-08-11 — Transcription failures say why; onboarding proves the
+model loads.** The shared-DMG new-user failure: every engine error
+collapsed into a bare "Transcription failed" flash. Now the flash and
+the failed history row name the actionable cause (model not loaded /
+audio unreadable), onboarding's Continue test-loads the selected engine
+before setup can finish (a truncated download otherwise fails on every
+first dictation — worst first impression), and whisper downloads are
+size-checked (≥95% of catalog size) with stale partial files deleted
+instead of short-circuiting retries as "done".

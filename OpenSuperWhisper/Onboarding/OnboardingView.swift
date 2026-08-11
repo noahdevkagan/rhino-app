@@ -129,8 +129,10 @@ class OnboardingViewModel: ObservableObject {
         downloadTask = Task {
             do {
                 let filename = url.lastPathComponent
-                
-                try await modelManager.downloadModel(url: url, name: filename) { [weak self] progress in
+                var expectedMB: Int?
+                if case .whisper(_, let sizeMB) = model.type { expectedMB = sizeMB }
+
+                try await modelManager.downloadModel(url: url, name: filename, expectedMB: expectedMB) { [weak self] progress in
                     Task { @MainActor [weak self] in
                         guard let self = self, !Task.isCancelled else { return }
                         guard let task = self.downloadTask, !task.isCancelled else { return }
@@ -308,7 +310,8 @@ struct OnboardingView: View {
     @EnvironmentObject private var appState: AppState
     @State private var showError = false
     @State private var errorMessage = ""
-    
+    @State private var isVerifyingModel = false
+
     private let keyboardLayoutInfo: KeyboardLayoutInfo? = KeyboardLayoutProvider.shared.resolveInfo()
 
     var body: some View {
@@ -438,15 +441,20 @@ struct OnboardingView: View {
                     handleContinueButtonTap()
                 }) {
                     HStack(spacing: 6) {
-                        Text("Continue")
-                        Image(systemName: "arrow.right")
-                            .scaledFont(size: 12, weight: .semibold)
+                        if isVerifyingModel {
+                            ProgressView().controlSize(.small)
+                            Text("Checking model…")
+                        } else {
+                            Text("Continue")
+                            Image(systemName: "arrow.right")
+                                .scaledFont(size: 12, weight: .semibold)
+                        }
                     }
                     .frame(minWidth: 100)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(!viewModel.canContinue || viewModel.isDownloading)
+                .disabled(!viewModel.canContinue || viewModel.isDownloading || isVerifyingModel)
             }
             .padding(16)
         }
@@ -467,7 +475,7 @@ struct OnboardingView: View {
                 )
             }
         )
-        .alert("Download Error", isPresented: $showError) {
+        .alert("Model Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)
@@ -475,7 +483,22 @@ struct OnboardingView: View {
     }
 
     private func handleContinueButtonTap() {
-        appState.hasCompletedOnboarding = true
+        // Prove the chosen model actually loads before finishing setup. Onboarding only
+        // checks that a model file EXISTS; a truncated download or unloadable model would
+        // otherwise pass here and turn every first dictation into "Transcription failed"
+        // (the shared-DMG new-user bug of 2026-08-11). On success the engine is now warm,
+        // so this also replaces the post-onboarding lazy load.
+        isVerifyingModel = true
+        Task { @MainActor in
+            let failure = await TranscriptionService.shared.verifyEngineLoads()
+            isVerifyingModel = false
+            if let failure {
+                errorMessage = "The selected model didn't load: \(failure)\n\nTry re-downloading it, or pick a different model."
+                showError = true
+            } else {
+                appState.hasCompletedOnboarding = true
+            }
+        }
     }
 }
 

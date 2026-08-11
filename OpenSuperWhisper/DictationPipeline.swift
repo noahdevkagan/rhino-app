@@ -237,6 +237,7 @@ final class DictationPipeline: ObservableObject {
             }
         } catch {
             print("Dictation transcription failed: \(error)")
+            let reason = Self.failureReason(for: error)
             // Don't lose the audio on failure. When history is on, keep the recording with a .failed
             // status + retry message so it shows in the log and can be re-run with the regenerate (↻)
             // button. Otherwise discard. Either way, surface the failure — silent loss is worse.
@@ -244,13 +245,27 @@ final class DictationPipeline: ObservableObject {
                let saved = persistFailedRecording(timestamp: item.startedAt, tempURL: item.tempURL) {
                 await storeRecording(
                     id: saved.id, timestamp: saved.timestamp, fileName: saved.fileName,
-                    finalURL: saved.url, transcription: "Transcription failed — click ↻ to try again.",
+                    finalURL: saved.url, transcription: "\(reason) — click ↻ to try again.",
                     status: .failed, progress: 0, context: item.context,
                     modelUsed: nil, wasFallback: false)
             } else {
                 try? FileManager.default.removeItem(at: item.tempURL)
             }
-            IndicatorWindowManager.shared.flash(.error("Transcription failed"))
+            IndicatorWindowManager.shared.flash(.error(reason))
+        }
+    }
+
+    /// The one thing the user can act on, not a stack trace. The engine-load failure carries the
+    /// underlying loader message when there is one (missing model file, corrupt download, …);
+    /// everything else keeps the generic label. Debug detail still goes to the console log above.
+    private static func failureReason(for error: Error) -> String {
+        switch error {
+        case TranscriptionError.contextInitializationFailed:
+            return "Model not loaded — check Settings → Models"
+        case TranscriptionError.audioConversionFailed:
+            return "Couldn't read the recording's audio"
+        default:
+            return "Transcription failed"
         }
     }
 

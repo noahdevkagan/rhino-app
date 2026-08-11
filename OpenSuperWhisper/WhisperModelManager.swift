@@ -77,17 +77,33 @@ class WhisperModelManager {
         }
     }
     
+    /// True when the file at `url` is plausibly a complete download: at least 95% of the
+    /// catalog size (base-10 MB, matching how Hugging Face reports it). A truncated .bin
+    /// passes every "does it exist" check and then fails on every dictation, so reject it
+    /// here where the user can still just retry the download.
+    private func isPlausiblyComplete(_ url: URL, expectedMB: Int?) -> Bool {
+        guard let expectedMB else { return true }
+        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+        let bytes = (attributes?[.size] as? Int64) ?? 0
+        return bytes >= Int64(expectedMB) * 1_000_000 * 95 / 100
+    }
+
     // Download model with progress callback using delegate
-    func downloadModel(url: URL, name: String, progressCallback: @escaping (Double) -> Void) async throws {
+    func downloadModel(url: URL, name: String, expectedMB: Int? = nil, progressCallback: @escaping (Double) -> Void) async throws {
         let destinationURL = modelsDirectory.appendingPathComponent(name)
-        
+
         // Check if model already exists
         if FileManager.default.fileExists(atPath: destinationURL.path) {
-            print("Model already exists at: \(destinationURL.path)")
-            DispatchQueue.main.async {
-                progressCallback(1.0)
+            if isPlausiblyComplete(destinationURL, expectedMB: expectedMB) {
+                print("Model already exists at: \(destinationURL.path)")
+                DispatchQueue.main.async {
+                    progressCallback(1.0)
+                }
+                return
             }
-            return
+            // A stale partial file would otherwise short-circuit every retry as "done".
+            print("Removing incomplete model at: \(destinationURL.path)")
+            try? FileManager.default.removeItem(at: destinationURL)
         }
         
         print("Starting model download:")
@@ -141,12 +157,23 @@ class WhisperModelManager {
                 do {
                     print("Download completed. Moving file to destination...")
                     try FileManager.default.moveItem(at: location, to: destinationURL)
+
+                    // A dropped connection can deliver a truncated file as "complete";
+                    // reject it now, while retrying is one click, instead of shipping a
+                    // model that fails to load on every dictation.
+                    guard self?.isPlausiblyComplete(destinationURL, expectedMB: expectedMB) ?? true else {
+                        try? FileManager.default.removeItem(at: destinationURL)
+                        continuation.resume(throwing: NSError(
+                            domain: "WhisperModelManager", code: -2,
+                            userInfo: [NSLocalizedDescriptionKey: "The download was incomplete — please try again."]))
+                        return
+                    }
                     print("Model successfully saved to: \(destinationURL.path)")
-                    
+
                     DispatchQueue.main.async {
                         progressCallback(1.0)
                     }
-                    
+
                     continuation.resume(returning: ())
                 } catch {
                     print("Failed to move downloaded file: \(error)")

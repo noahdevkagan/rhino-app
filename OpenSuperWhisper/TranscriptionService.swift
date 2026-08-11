@@ -106,6 +106,17 @@ class TranscriptionService: ObservableObject {
         Task { await ensureEngineLoaded() }
     }
 
+    /// Load the configured engine and report why it can't, or nil on success. Used by
+    /// onboarding to prove the chosen model actually loads BEFORE setup completes — a
+    /// truncated download or unloadable model otherwise surfaces as a failed first
+    /// dictation, the worst possible first impression. Loading is idempotent, so on the
+    /// happy path this doubles as the preload.
+    func verifyEngineLoads() async -> String? {
+        await ensureEngineLoaded()
+        guard currentEngine == nil else { return nil }
+        return engineError ?? "The speech model failed to load."
+    }
+
     /// Invalidate the active engine so the next transcription re-initializes it
     /// (used when the engine selection or model changes). Intentionally does NOT
     /// load or download anything — that's deferred to next use. Clears any stale

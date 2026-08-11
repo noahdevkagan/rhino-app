@@ -80,8 +80,8 @@ func renderTray(_ px: Int) -> NSBitmapImageRep {
     draw(into: src) { s in
         let glyph = "🦏" as NSString
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont(name: "Apple Color Emoji", size: s * 0.82)
-                ?? NSFont.systemFont(ofSize: s * 0.82)
+            .font: NSFont(name: "Apple Color Emoji", size: s * 0.98)
+                ?? NSFont.systemFont(ofSize: s * 0.98)
         ]
         let gsize = glyph.size(withAttributes: attrs)
         glyph.draw(at: NSPoint(x: (s - gsize.width) / 2, y: (s - gsize.height) / 2),

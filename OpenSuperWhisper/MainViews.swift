@@ -30,6 +30,7 @@ struct MainSidebar: View {
     @Binding var selection: MainTab
     let openSettings: () -> Void
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var transcriptionService = TranscriptionService.shared
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
@@ -67,6 +68,19 @@ struct MainSidebar: View {
             }
 
             Spacer()
+
+            // Quiet warm-up pill: the engine preloads at launch so the first
+            // dictation is instant; this is the only place that says so.
+            if transcriptionService.isLoading {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.mini)
+                    Text("Warming up…")
+                        .scaledFont(size: 11)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
+            }
 
             HStack {
                 Button(action: openSettings) {

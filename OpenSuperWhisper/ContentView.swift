@@ -480,26 +480,8 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: RecordingStore.recordingsDidUpdateNotification)) { _ in
             viewModel.loadInitialData()
         }
-        .overlay {
-            let isPermissionsGranted = permissionsManager.isMicrophonePermissionGranted
-                && permissionsManager.isAccessibilityPermissionGranted
-
-            if viewModel.transcriptionService.isLoading && isPermissionsGranted {
-                ZStack {
-                    Color.black.opacity(0.3)
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text(AppPreferences.shared.selectedEngine == "fluidaudio"
-                             ? "Loading Parakeet Model..."
-                             : "Loading Whisper Model...")
-                            .foregroundColor(.white)
-                            .font(.headline)
-                    }
-                }
-                .ignoresSafeArea()
-            }
-        }
+        // Engine loading is quiet background work (it runs at launch as a warm-up):
+        // no dimming overlay — the sidebar shows a small "warming up" pill instead.
         .fileDropHandler()
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
             openSettingsWindow(id: "settings")

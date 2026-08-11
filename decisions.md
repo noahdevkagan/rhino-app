@@ -295,3 +295,13 @@ ending the popover's focused text-field edit; SwiftUI's generated
 access. Once removed, teardown reads return the last rendered value and late
 text commits are ignored, so deletion remains immediate without retaining an
 invalid positional binding.
+
+**2026-08-11 — Modifier-only triggers require Input Monitoring, not just
+Accessibility.** Fn appeared to work only while Rhino was focused because its
+listen-only `flagsChanged` event tap was created but disabled for other apps by
+macOS TCC. Rhino now requests event-listening access when a modifier trigger is
+armed, shows Input Monitoring as its own missing permission, and rebuilds the
+tap when access arrives. Key-combination-only setups do not request it. We keep
+the tap listen-only and subscribe only to modifier-flag changes; switching to a
+more powerful active tap merely to reuse Accessibility would broaden capability
+without improving the product.

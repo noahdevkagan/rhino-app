@@ -50,6 +50,13 @@ class ShortcutManager {
             name: .hotkeySettingsChanged,
             object: nil
         )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(inputMonitoringPermissionChanged),
+            name: .inputMonitoringPermissionChanged,
+            object: nil
+        )
         
         NotificationCenter.default.addObserver(
             self,
@@ -66,6 +73,12 @@ class ShortcutManager {
     }
 
     @objc private func hotkeySettingsChanged() {
+        setupRecordingTrigger()
+    }
+
+    @objc private func inputMonitoringPermissionChanged() {
+        // The modifier monitor stays unarmed until TCC approves event listening. Build its
+        // event tap as soon as permission arrives so Fn works without a Rhino relaunch.
         setupRecordingTrigger()
     }
 

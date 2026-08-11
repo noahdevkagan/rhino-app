@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Global Fn trigger fixed:** modifier-only triggers use a listen-only CGEvent
+  tap, so they now request and surface macOS Input Monitoring separately from
+  Accessibility. Rhino deep-links the right pane and arms the modifier tap
+  once access arrives; ordinary key combos do not request the extra permission.
+  The app builds and all 13 `RecordingTriggerSetTests` pass.
+
 - **Latest `origin/master` marketing-site launch merged into the
   dictionary-crash branch:** the incoming `website/` tree is unchanged and
   the handoff conflict preserves both features. The site production build and

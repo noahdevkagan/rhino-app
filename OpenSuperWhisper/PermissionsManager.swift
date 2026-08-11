@@ -5,18 +5,25 @@ import Foundation
 enum Permission {
     case microphone
     case accessibility
+    case inputMonitoring
 }
 
 class PermissionsManager: ObservableObject {
     @Published var isMicrophonePermissionGranted = false
     @Published var isAccessibilityPermissionGranted = false
+    @Published var isInputMonitoringPermissionGranted = false
+    @Published private(set) var isInputMonitoringRequired: Bool
 
     private var permissionCheckTimer: Timer?
     private var windowObservers: [NSObjectProtocol] = []
 
     init() {
+        isInputMonitoringRequired = RecordingTriggerSet
+            .load(from: AppPreferences.shared.recordingTriggers)
+            .requiresInputMonitoring
         checkMicrophonePermission()
         checkAccessibilityPermission()
+        checkInputMonitoringPermission()
 
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -26,6 +33,18 @@ class PermissionsManager: ObservableObject {
         )
 
         setupWindowObservers()
+
+        let hotkeyObserver = NotificationCenter.default.addObserver(
+            forName: .hotkeySettingsChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.isInputMonitoringRequired = RecordingTriggerSet
+                .load(from: AppPreferences.shared.recordingTriggers)
+                .requiresInputMonitoring
+            self?.checkInputMonitoringPermission()
+        }
+        windowObservers.append(hotkeyObserver)
     }
 
     deinit {
@@ -73,6 +92,7 @@ class PermissionsManager: ObservableObject {
         permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.checkMicrophonePermission()
             self?.checkAccessibilityPermission()
+            self?.checkInputMonitoringPermission()
         }
     }
 
@@ -110,6 +130,19 @@ class PermissionsManager: ObservableObject {
         }
     }
 
+    func checkInputMonitoringPermission() {
+        let granted = CGPreflightListenEventAccess()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let becameGranted = granted && !self.isInputMonitoringPermissionGranted
+            self.isInputMonitoringPermissionGranted = granted
+            if becameGranted {
+                NotificationCenter.default.post(name: .inputMonitoringPermissionChanged,
+                                                object: nil)
+            }
+        }
+    }
+
     func requestMicrophonePermissionOrOpenSystemPreferences() {
 
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
@@ -128,6 +161,14 @@ class PermissionsManager: ObservableObject {
         }
     }
 
+    func requestInputMonitoringPermissionOrOpenSystemPreferences() {
+        if CGRequestListenEventAccess() {
+            checkInputMonitoringPermission()
+        } else {
+            openSystemPreferences(for: .inputMonitoring)
+        }
+    }
+
     @objc private func accessibilityPermissionChanged() {
         checkAccessibilityPermission()
     }
@@ -140,6 +181,8 @@ class PermissionsManager: ObservableObject {
         case .accessibility:
             urlString =
                 "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        case .inputMonitoring:
+            urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         }
 
         if let url = URL(string: urlString) {

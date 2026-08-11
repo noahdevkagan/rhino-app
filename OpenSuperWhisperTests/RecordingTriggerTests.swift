@@ -192,6 +192,18 @@ final class RecordingTriggerSetTests: XCTestCase {
     }
 
     @MainActor
+    func testModifierTriggerRequiresInputMonitoring() {
+        let set = RecordingTriggerSet(triggers: [.modifier(.fn)])
+        XCTAssertTrue(set.requiresInputMonitoring)
+    }
+
+    @MainActor
+    func testRegisteredKeyCombinationDoesNotRequireInputMonitoring() {
+        let set = RecordingTriggerSet(triggers: [.keyCombo(combo(.d))])
+        XCTAssertFalse(set.requiresInputMonitoring)
+    }
+
+    @MainActor
     func testPrimaryDescriptionShowsDefaultFnTrigger() {
         let set = RecordingTriggerSet(triggers: [.modifier(.fn)])
         XCTAssertEqual(set.primaryDescription, "fn")

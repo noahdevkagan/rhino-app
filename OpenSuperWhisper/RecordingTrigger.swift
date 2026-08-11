@@ -116,6 +116,13 @@ struct RecordingTriggerSet: Equatable, Codable {
         triggers.compactMap { if case .keyCombo(let combo) = $0 { return combo } else { return nil } }
     }
 
+    /// A lone modifier (including the default Fn trigger) is observed with a listen-only
+    /// CGEvent tap. macOS allows that tap to see other apps only after Input Monitoring is
+    /// granted; ordinary registered key combinations do not need that permission.
+    var requiresInputMonitoring: Bool {
+        !modifiers.isEmpty
+    }
+
     /// The first configured trigger is the primary one presented in compact UI hints. Settings
     /// shows the full list when more than one trigger is configured.
     @MainActor var primaryDescription: String {

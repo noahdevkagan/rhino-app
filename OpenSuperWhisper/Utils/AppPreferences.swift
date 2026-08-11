@@ -31,6 +31,7 @@ struct OptionalUserDefault<T> {
 final class AppPreferences {
     static let shared = AppPreferences()
     private init() {
+        Self.migrateFromUpstreamIdentity()
         migrateOldPreferences()
         seedAppContextPresetsIfNeeded()
         migrateRemoteEnginesToWhisper()
@@ -77,6 +78,34 @@ final class AppPreferences {
         if let oldPath = DefaultsStore.current.string(forKey: "selectedModelPath"),
            DefaultsStore.current.string(forKey: "selectedWhisperModelPath") == nil {
             DefaultsStore.current.set(oldPath, forKey: "selectedWhisperModelPath")
+        }
+    }
+
+    /// The app used to be OpenSuperWhisper (`fr.my-monkey.opensuperwhisper`); the Rhino
+    /// rebrand changed the bundle id, which macOS treats as a brand-new app. Carry the
+    /// old identity's data over once: every preference key, and the Application Support
+    /// folder (history DB + recordings). Idempotent — runs only while the new identity
+    /// has no data of its own. TCC permissions cannot be migrated; those re-prompt.
+    private static func migrateFromUpstreamIdentity() {
+        let oldID = "fr.my-monkey.opensuperwhisper"
+        let defaults = UserDefaults.standard
+
+        if defaults.object(forKey: "hasCompletedOnboarding") == nil,
+           let old = defaults.persistentDomain(forName: oldID),
+           old["hasCompletedOnboarding"] != nil {
+            for (key, value) in old where !key.hasPrefix("NSWindow") {
+                defaults.set(value, forKey: key)
+            }
+        }
+
+        let fm = FileManager.default
+        if let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first,
+           let newID = Bundle.main.bundleIdentifier {
+            let oldDir = appSupport.appendingPathComponent(oldID)
+            let newDir = appSupport.appendingPathComponent(newID)
+            if fm.fileExists(atPath: oldDir.path), !fm.fileExists(atPath: newDir.path) {
+                try? fm.moveItem(at: oldDir, to: newDir)
+            }
         }
     }
 

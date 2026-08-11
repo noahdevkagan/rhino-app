@@ -36,12 +36,11 @@ struct OpenSuperWhisperApp: App {
                     ContentView()
                 }
             }
-            .frame(width: 450)
-            .frame(minHeight: 400, maxHeight: 900)
+            .frame(minWidth: 780, minHeight: 540)
             .environmentObject(appState)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 450, height: 650)
+        .defaultSize(width: 900, height: 640)
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {}
@@ -119,6 +118,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     private var microphoneObserver: AnyCancellable?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // White-first product (design: Gebbia minimal, per the Typeless-style
+        // mockups) — the whole app renders light regardless of system theme.
+        NSApp.appearance = NSAppearance(named: .aqua)
 
         setupStatusBarItem()
 
@@ -126,8 +128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             self.mainWindow = window
             window.delegate = self
 
-            window.minSize = NSSize(width: 450, height: 400)
-            window.maxSize = NSSize(width: 450, height: 900)
+            window.minSize = NSSize(width: 780, height: 540)
 
             // Start in the menu bar only (don't show the main window) when requested.
             // Never hide during onboarding — the user needs the window to finish setup.
@@ -209,7 +210,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
                 iconImage.isTemplate = true
                 button.image = iconImage
             } else {
-                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "OpenSuperWhisper")
+                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Rhino")
             }
             
             button.action = #selector(statusBarButtonClicked(_:))

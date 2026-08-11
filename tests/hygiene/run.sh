@@ -77,7 +77,7 @@ fi
 
 echo "hygiene: [3/3] dynamic egress check"
 
-APP="$ROOT/Build/Build/Products/Debug/OpenSuperWhisper.app/Contents/MacOS/OpenSuperWhisper"
+APP="$ROOT/Build/Build/Products/Debug/Rhino.app/Contents/MacOS/Rhino"
 if [ "${FAST:-0}" = "1" ]; then
     echo "  skipped (FAST=1)"
 elif [ ! -x "$APP" ]; then
@@ -89,10 +89,10 @@ else
     # prefs, and we can pin the engine to the repo's tiny whisper model.
     SCRATCH="$(mktemp -d)"
     mkdir -p .out && : > .out/egress.txt
-    HOME="$SCRATCH" defaults write fr.my-monkey.opensuperwhisper selectedEngine whisper
-    HOME="$SCRATCH" defaults write fr.my-monkey.opensuperwhisper selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
-    HOME="$SCRATCH" defaults write fr.my-monkey.opensuperwhisper aiPostProcessingEnabled -bool false
-    HOME="$SCRATCH" defaults write fr.my-monkey.opensuperwhisper saveTranscriptionHistory -bool false
+    HOME="$SCRATCH" defaults write com.noahkagan.rhino selectedEngine whisper
+    HOME="$SCRATCH" defaults write com.noahkagan.rhino selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
+    HOME="$SCRATCH" defaults write com.noahkagan.rhino aiPostProcessingEnabled -bool false
+    HOME="$SCRATCH" defaults write com.noahkagan.rhino saveTranscriptionHistory -bool false
 
     HOME="$SCRATCH" "$APP" transcribe "$ROOT/jfk.wav" > .out/transcript.txt 2> .out/cli-stderr.txt &
     PID=$!

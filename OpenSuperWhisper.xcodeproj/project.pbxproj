@@ -865,8 +865,9 @@
 					"$(inherited)",
 					"-lonnxruntime",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = fr.my-monkey.opensuperwhisper;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahkagan.rhino;
+				PRODUCT_NAME = Rhino;
+				PRODUCT_MODULE_NAME = OpenSuperWhisper;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -934,8 +935,9 @@
 					"$(inherited)",
 					"-lonnxruntime",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = fr.my-monkey.opensuperwhisper;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahkagan.rhino;
+				PRODUCT_NAME = Rhino;
+				PRODUCT_MODULE_NAME = OpenSuperWhisper;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -967,7 +969,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/Bridge.h";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenSuperWhisper.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenSuperWhisper";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Rhino.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Rhino";
 			};
 			name = Debug;
 		};
@@ -993,7 +995,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/Bridge.h";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenSuperWhisper.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenSuperWhisper";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Rhino.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Rhino";
 			};
 			name = Release;
 		};

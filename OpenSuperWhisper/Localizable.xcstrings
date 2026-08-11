@@ -7161,42 +7161,42 @@
         }
       }
     },
-    "Start OpenSuperWhisper automatically when you log in.": {
+    "Start Rhino automatically when you log in.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lancer OpenSuperWhisper automatiquement à l'ouverture de votre session."
+            "value": "Lancer Rhino automatiquement à l'ouverture de votre session."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenSuperWhisper automatisch beim Anmelden starten."
+            "value": "Rhino automatisch beim Anmelden starten."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Inicia OpenSuperWhisper automáticamente al iniciar sesión."
+            "value": "Inicia Rhino automáticamente al iniciar sesión."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Avvia OpenSuperWhisper automaticamente quando accedi."
+            "value": "Avvia Rhino automaticamente quando accedi."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Iniciar o OpenSuperWhisper automaticamente quando você fizer login."
+            "value": "Iniciar o Rhino automaticamente quando você fizer login."
           }
         },
         "vi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Tự động khởi chạy OpenSuperWhisper khi bạn đăng nhập."
+            "value": "Tự động khởi chạy Rhino khi bạn đăng nhập."
           }
         }
       }
@@ -9161,42 +9161,42 @@
         }
       }
     },
-    "Overrides your Mac's language for OpenSuperWhisper only. \"System\" follows your Mac's language. This is separate from the transcription language.": {
+    "Overrides your Mac's language for Rhino only. \"System\" follows your Mac's language. This is separate from the transcription language.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Remplace la langue de votre Mac pour OpenSuperWhisper uniquement. « Système » suit la langue de votre Mac. C'est indépendant de la langue de transcription."
+            "value": "Remplace la langue de votre Mac pour Rhino uniquement. « Système » suit la langue de votre Mac. C'est indépendant de la langue de transcription."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Überschreibt die Mac-Sprache nur für OpenSuperWhisper. „System“ folgt der Sprache deines Mac. Dies ist unabhängig von der Transkriptionssprache."
+            "value": "Überschreibt die Mac-Sprache nur für Rhino. „System“ folgt der Sprache deines Mac. Dies ist unabhängig von der Transkriptionssprache."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anula el idioma de tu Mac solo para OpenSuperWhisper. «Sistema» sigue el idioma de tu Mac. Esto es independiente del idioma de transcripción."
+            "value": "Anula el idioma de tu Mac solo para Rhino. «Sistema» sigue el idioma de tu Mac. Esto es independiente del idioma de transcripción."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sostituisce la lingua del tuo Mac solo per OpenSuperWhisper. «Sistema» segue la lingua del tuo Mac. È indipendente dalla lingua di trascrizione."
+            "value": "Sostituisce la lingua del tuo Mac solo per Rhino. «Sistema» segue la lingua del tuo Mac. È indipendente dalla lingua di trascrizione."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Substitui o idioma do seu Mac apenas para o OpenSuperWhisper. \"Sistema\" segue o idioma do seu Mac. Isto é independente do idioma de transcrição."
+            "value": "Substitui o idioma do seu Mac apenas para o Rhino. \"Sistema\" segue o idioma do seu Mac. Isto é independente do idioma de transcrição."
           }
         },
         "vi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Ghi đè ngôn ngữ của máy Mac chỉ cho OpenSuperWhisper. \"Hệ thống\" theo ngôn ngữ máy Mac của bạn. Đây là tùy chọn riêng biệt với ngôn ngữ phiên âm."
+            "value": "Ghi đè ngôn ngữ của máy Mac chỉ cho Rhino. \"Hệ thống\" theo ngôn ngữ máy Mac của bạn. Đây là tùy chọn riêng biệt với ngôn ngữ phiên âm."
           }
         }
       }

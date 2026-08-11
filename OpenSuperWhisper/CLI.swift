@@ -4,17 +4,17 @@ import Foundation
 /// Headless command-line transcription (#150). Reached from the app's entry point when the first
 /// argument is `transcribe`, so it reuses the exact same engines as the GUI without a second target.
 ///
-///   OpenSuperWhisper transcribe <audio-file> [--json]
+///   Rhino transcribe <audio-file> [--json]
 ///
 /// Uses whatever engine/model is configured in the app. Prints the transcription to stdout (plain
 /// text, or a JSON object with `--json`) and exits — no dock icon, no menu bar, no windows.
 enum CLI {
     static let usage = """
-    OpenSuperWhisper — command-line transcription
+    Rhino — command-line transcription
 
     Usage:
-      OpenSuperWhisper transcribe <audio-file> [--json]
-      OpenSuperWhisper bench <dir-of-wavs>
+      Rhino transcribe <audio-file> [--json]
+      Rhino bench <dir-of-wavs>
 
     Options:
       --json       Print a JSON object ({ "file", "text" }) instead of plain text.

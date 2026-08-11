@@ -437,21 +437,22 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack {
+        // Missing permissions surface as a banner, never a wall: the app is
+        // usable (history, dictionary, stats) without them, and the banner
+        // says exactly what's missing and where to grant it.
+        VStack(spacing: 0) {
             if !permissionsManager.isMicrophonePermissionGranted
-                || !permissionsManager.isAccessibilityPermissionGranted
-            {
-                PermissionsView(permissionsManager: permissionsManager)
-            } else {
-                HStack(spacing: 0) {
-                    MainSidebar(selection: $mainTab,
-                                openSettings: { openSettingsWindow(id: "settings") })
-                    Divider()
-                    switch mainTab {
-                    case .home: HomeStatsView()
-                    case .history: historyPane
-                    case .dictionary: DictionaryTabView()
-                    }
+                || !permissionsManager.isAccessibilityPermissionGranted {
+                PermissionsBanner(permissionsManager: permissionsManager)
+            }
+            HStack(spacing: 0) {
+                MainSidebar(selection: $mainTab,
+                            openSettings: { openSettingsWindow(id: "settings") })
+                Divider()
+                switch mainTab {
+                case .home: HomeStatsView()
+                case .history: historyPane
+                case .dictionary: DictionaryTabView()
                 }
             }
         }

@@ -12,10 +12,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
 
-LABEL="${2:-rhino-$(defaults read fr.my-monkey.opensuperwhisper selectedEngine 2>/dev/null || echo default)}"
+LABEL="${2:-rhino-$(defaults read com.noahkagan.rhino selectedEngine 2>/dev/null || echo default)}"
 [ "${1:-}" = "--label" ] && LABEL="$2"
 
-APP="$ROOT/Build/Build/Products/Debug/OpenSuperWhisper.app/Contents/MacOS/OpenSuperWhisper"
+APP="$ROOT/Build/Build/Products/Debug/Rhino.app/Contents/MacOS/Rhino"
 [ -x "$APP" ] || { echo "no dev build — run ./run.sh build first"; exit 1; }
 ls audio/*.m4a >/dev/null 2>&1 || { echo "no recordings in audio/ — see README.md"; exit 1; }
 

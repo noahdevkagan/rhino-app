@@ -375,7 +375,7 @@ struct OnboardingView: View {
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
                     
-                    Text("OpenSuperWhisper")
+                    Text("Rhino")
                         .scaledFont(size: 32, weight: .bold)
                         .foregroundStyle(
                             .white

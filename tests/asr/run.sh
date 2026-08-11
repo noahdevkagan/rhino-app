@@ -17,7 +17,7 @@ if [ "${CI:-false}" = "true" ]; then
     exit 0
 fi
 
-APP="$ROOT/Build/Build/Products/Debug/OpenSuperWhisper.app/Contents/MacOS/OpenSuperWhisper"
+APP="$ROOT/Build/Build/Products/Debug/Rhino.app/Contents/MacOS/Rhino"
 if [ ! -x "$APP" ]; then
     echo "asr SKIPPED: no dev build — run ./run.sh build first"
     exit 0
@@ -27,7 +27,7 @@ fi
 mkdir -p .out
 
 SCRATCH="$(mktemp -d)"
-BUNDLE=fr.my-monkey.opensuperwhisper
+BUNDLE=com.noahkagan.rhino
 HOME="$SCRATCH" defaults write "$BUNDLE" selectedEngine whisper
 HOME="$SCRATCH" defaults write "$BUNDLE" selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
 HOME="$SCRATCH" defaults write "$BUNDLE" aiPostProcessingEnabled -bool false

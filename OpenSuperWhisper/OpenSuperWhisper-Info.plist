@@ -20,11 +20,11 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>OpenSuperWhisper needs microphone access to record audio for transcription.</string>
+	<string>Rhino needs microphone access to record your dictation. Audio never leaves this Mac.</string>
 	<key>NSAccessibilityUsageDescription</key>
-	<string>OpenSuperWhisper needs accessibility access to provide system-wide functionality.</string>
+	<string>Rhino needs accessibility access to type your dictated text into other apps.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>OpenSuperWhisper reads the active browser tab's URL to record where a dictation happened and to apply per-site model rules.</string>
+	<string>Rhino reads the active browser tab's URL to record where a dictation happened and to apply per-site model rules.</string>
 	<key>SUFeedURL</key>
 	<string>https://raw.githubusercontent.com/my-monkeys/OpenSuperWhisper/master/appcast.xml</string>
 	<key>SUPublicEDKey</key>

@@ -1,43 +1,24 @@
 # Security Policy
 
-## Reporting a vulnerability
-
-**Please do not report security issues in public issues, discussions, or pull
-requests.** A public report can put users at risk before a fix ships.
-
-Instead, use GitHub's **private vulnerability reporting** for this repository:
-
-1. Go to the [**Security** tab](https://github.com/my-monkeys/OpenSuperWhisper/security).
-2. Click **Report a vulnerability**.
-3. Describe the issue, the affected version, and steps to reproduce.
-
-We'll acknowledge your report, work with you on a fix, and credit you (if you
-want) once a patched release is out.
+Rhino is a private pre-release project. Report security issues directly to
+the maintainer (do not open a public issue if the repo ever becomes
+public).
 
 ## What to report
 
-OpenSuperWhisper is a macOS app that records audio, runs transcription
-(always locally — there is no remote transcription), and inserts text into other
+Rhino is a macOS app that records audio, runs transcription — always
+locally, there is no remote transcription — and inserts text into other
 apps. Things worth reporting include, for example:
 
 - Ways to exfiltrate audio or transcriptions — ANY code path that can move
   them off the machine is a vulnerability in this app, by definition.
 - Code execution, privilege escalation, or injection via crafted input,
   models, or update feeds.
-- Note: the opt-in post-record hook runs a user-authored shell command with
-  the transcript on stdin — user-controlled by design, but report ways for
-  anything else to set or alter it.
 - Tampering with the Sparkle auto-update path.
 
-## ⚠️ Beware of fake "patched builds"
+## Verification in the repo
 
-We distribute OpenSuperWhisper **only** as signed, notarized macOS builds
-(`.dmg`) attached to [our GitHub Releases](https://github.com/my-monkeys/OpenSuperWhisper/releases),
-and via Homebrew. **Never install an OpenSuperWhisper "patch", "mod", or
-"fix" posted in an issue comment or hosted on a random repository** — those are
-not from us. A macOS app is never shipped as an `.apk`.
-
-## Supported versions
-
-Security fixes target the **latest release**. Please reproduce on the most
-recent version before reporting.
+`tests/hygiene/run.sh` is the enforced privacy boundary: static scans for
+remote endpoints, a networking-call-site allowlist, and live socket
+monitoring during a real transcription. If you can defeat it, that is
+itself a report we want.

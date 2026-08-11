@@ -95,15 +95,15 @@ if [[ $? -eq 0 ]] && [[ ! "$BUILD_OUTPUT" =~ "BUILD FAILED" ]]; then
     echo "Building successful!"
     # Re-sign with a stable identity so macOS keeps granted TCC permissions
     # across rebuilds (no-op / ad-hoc fallback when no identity is available).
-    "$(dirname "$0")/Scripts/dev-codesign.sh" "./Build/Build/Products/Debug/OpenSuperWhisper.app" || true
+    "$(dirname "$0")/Scripts/dev-codesign.sh" "./Build/Build/Products/Debug/Rhino.app" || true
     if $JUST_BUILD; then
         exit 0
     fi
     echo "Starting the app..."
     # Remove quarantine attribute if exists
-    xattr -d com.apple.quarantine ./Build/Build/Products/Debug/OpenSuperWhisper.app 2>/dev/null || true
+    xattr -d com.apple.quarantine ./Build/Build/Products/Debug/Rhino.app 2>/dev/null || true
     # Run the app and show logs
-    ./Build/Build/Products/Debug/OpenSuperWhisper.app/Contents/MacOS/OpenSuperWhisper
+    ./Build/Build/Products/Debug/Rhino.app/Contents/MacOS/Rhino
 else
     echo "Build failed!"
     exit 1

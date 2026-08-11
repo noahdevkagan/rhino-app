@@ -288,6 +288,43 @@ extension Notification.Name {
     static let customDictionaryDidChange = Notification.Name("customDictionaryDidChange")
 }
 
+// MARK: - Permissions banner
+
+/// Slim banner shown at the top of the main window while mic/accessibility
+/// are missing. Replaces the old full-window "Required Permissions" wall.
+struct PermissionsBanner: View {
+    @ObservedObject var permissionsManager: PermissionsManager
+
+    private var message: String {
+        let mic = permissionsManager.isMicrophonePermissionGranted
+        let ax = permissionsManager.isAccessibilityPermissionGranted
+        switch (mic, ax) {
+        case (false, false): return "Rhino needs Microphone (to hear you) and Accessibility (to type for you)."
+        case (false, true): return "Rhino needs Microphone access to hear you."
+        default: return "Rhino needs Accessibility access to type into other apps."
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+            Text(message)
+                .scaledFont(size: 12, weight: .medium)
+            Spacer()
+            Button("Open System Settings") {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.12))
+    }
+}
+
 // MARK: - History header (keep-history control, mockup-style)
 
 struct HistoryKeepBar: View {

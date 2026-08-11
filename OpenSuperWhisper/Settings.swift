@@ -1759,7 +1759,7 @@ struct SettingsView: View {
                             .controlSize(.small)
                     }
                 }
-                SRow(title: "Launch at login", hint: "Start OpenSuperWhisper automatically when you log in.") {
+                SRow(title: "Launch at login", hint: "Start Rhino automatically when you log in.") {
                     SToggle(isOn: Binding(
                         get: { launchAtLogin.isEnabled },
                         set: { launchAtLogin.setEnabled($0) }

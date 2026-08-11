@@ -1,4 +1,3 @@
-import KeyboardShortcuts
 import SwiftUI
 
 // The main window's sidebar navigation (mockup: Typeless-style — white-first,
@@ -147,6 +146,7 @@ struct HomeStatsView: View {
     @StateObject private var stats = DictationStats()
     @Environment(\.colorScheme) private var colorScheme
     @State private var modelMissing = false
+    @State private var shortcutDescription = "—"
 
     /// True when the first dictation would fail before it starts: the active engine is
     /// Whisper and no model file is on disk (never picked one, or the pref points at a
@@ -165,10 +165,10 @@ struct HomeStatsView: View {
         return false
     }
 
-    private var shortcutDescription: String {
-        let modifier = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
-        if modifier != .none { return modifier.shortSymbol }
-        return KeyboardShortcuts.getShortcut(for: .toggleRecord)?.description ?? "—"
+    private func reloadShortcutDescription() {
+        shortcutDescription = RecordingTriggerSet
+            .load(from: AppPreferences.shared.recordingTriggers)
+            .primaryDescription
     }
 
     var body: some View {
@@ -253,6 +253,10 @@ struct HomeStatsView: View {
         .onAppear {
             stats.reload()
             modelMissing = Self.isModelMissing()
+            reloadShortcutDescription()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hotkeySettingsChanged)) { _ in
+            reloadShortcutDescription()
         }
         .onReceive(NotificationCenter.default.publisher(
             for: RecordingStore.recordingsDidUpdateNotification)) { _ in stats.reload() }

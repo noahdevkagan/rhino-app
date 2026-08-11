@@ -7,7 +7,10 @@ import KeyboardShortcuts
 import SwiftUI
 
 extension KeyboardShortcuts.Name {
-    static let toggleRecord = Self("toggleRecord", default: .init(.backtick, modifiers: .option))
+    // No baked-in combo default: a fresh install's default trigger is hold-Fn
+    // (seeded in migrateRecordingTriggers), and this slot only holds a combo
+    // the user explicitly records.
+    static let toggleRecord = Self("toggleRecord")
     static let escape = Self("escape", default: .init(.escape))
 
     /// One registration handle per recorded key combination. Names are dynamic because the

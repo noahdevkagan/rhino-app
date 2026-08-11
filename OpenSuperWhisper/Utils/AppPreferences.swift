@@ -43,9 +43,16 @@ final class AppPreferences {
     /// while the new key is unset. The old keys stay readable so a downgrade still finds them.
     private func migrateRecordingTriggers() {
         guard recordingTriggers.isEmpty else { return }
-        recordingTriggers = RecordingTriggerSet.migrated(
+        var set = RecordingTriggerSet.migrated(
             modifierRaw: modifierOnlyHotkey,
-            shortcut: KeyboardShortcuts.getShortcut(for: .toggleRecord)).json
+            shortcut: KeyboardShortcuts.getShortcut(for: .toggleRecord))
+        // Fresh install with nothing configured: hold-Fn is the default dictate
+        // key (the dictation-app convention — thumb-reachable, never collides
+        // with app shortcuts). Existing installs keep whatever they had.
+        if set.triggers.isEmpty {
+            set.add(.modifier(.fn))
+        }
+        recordingTriggers = set.json
     }
 
     private func migrateOldPreferences() {

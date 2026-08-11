@@ -45,6 +45,9 @@ if [[ $? -ne 0 ]]; then
 fi
 
 echo "Copying libomp.dylib..."
+# On a fresh checkout nothing has created build/ yet (xcodebuild makes it later),
+# so without this the cp fails silently and the app's copy-files phase errors.
+mkdir -p ./build
 cp /opt/homebrew/opt/libomp/lib/libomp.dylib ./build/libomp.dylib
 install_name_tool -id "@rpath/libomp.dylib" ./build/libomp.dylib
 codesign --force --sign - ./build/libomp.dylib

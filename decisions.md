@@ -239,3 +239,15 @@ never requires the 1GB model. The prompt also stopped being a pref: its
 editing UI died in the 80/20 axe, so a launch migration drops any stored
 copy (installs from the editable era would otherwise be pinned to old
 wording forever).
+
+**2026-08-11 — Sparkle key rotated (fallback path).** The original EdDSA
+key lives only on the marathon dev machine's keychain; releasing from
+the laptop meant either exporting it or rotating. Rotated: new keypair
+(keychain account "Rhino" on the laptop), new SUPublicEDKey in
+Info.plist from 0.1.1 on. Cost, accepted knowingly: the two v0.1.0
+installs (Noah + Nick) pin the old public key, so their Sparkle
+update to 0.1.1 fails signature verification — they re-download the DMG
+once. Every install from 0.1.1 forward updates normally. The Developer
+ID cert was likewise re-issued from the laptop (new CSR) rather than
+exported — Gatekeeper/notarization accept any valid team cert, so that
+rotation costs nothing.

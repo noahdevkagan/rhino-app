@@ -357,9 +357,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         settingsItem.image = nil
         menu.addItem(settingsItem)
 
-        // No "Check for Updates" until the Sparkle feed points at Rhino's own
-        // appcast — a manual check against upstream's feed would offer to
-        // replace this build with stock OpenSuperWhisper.
+        let updateItem = NSMenuItem(title: NSLocalizedString("Check for Updates…", comment: ""),
+                                    action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: NSLocalizedString("Quit", comment: ""), action: #selector(quitApp), keyEquivalent: "q"))
@@ -484,6 +485,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         guard let option = sender.representedObject as? DictationModelOption else { return }
         MainActor.assumeIsolated { ModelSelectionStore.shared.select(option) }
         populateModelSubmenu()
+    }
+
+    @objc private func checkForUpdates() {
+        NSApp.activate(ignoringOtherApps: true)
+        Task { @MainActor in
+            SparkleUpdater.shared.checkForUpdates()
+        }
     }
 
     @objc private func statusBarButtonClicked(_ sender: Any) {

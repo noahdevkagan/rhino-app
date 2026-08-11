@@ -25,19 +25,14 @@
 	<string>Rhino needs accessibility access to type your dictated text into other apps.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Rhino reads the active browser tab's URL to record where a dictation happened and to apply per-site model rules.</string>
-	<!-- Rhino's own feed + key. The appcast URL goes live with the first release
-	     (site deploy); until then automatic checks stay off below, so pointing at
-	     the future URL is safe. Private key: login keychain, account "Rhino"
-	     (export to CI as SPARKLE_ED_PRIVATE_KEY when the release pipeline lands). -->
+	<!-- Rhino's live feed (public releases repo). Private signing key: login
+	     keychain, account "Rhino". Moves to rhinovoice.app when the site exists. -->
 	<key>SUFeedURL</key>
-	<string>https://rhinovoice.app/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/noahdevkagan/rhino-releases/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>5pICUVveoLSZXI7/h90i8nBE4jOh74mx317W8jF7gfE=</string>
-	<!-- Automatic checks OFF while the feed still points at upstream's appcast:
-	     a dev/Rhino build must never offer to "update" itself into stock
-	     OpenSuperWhisper. Re-enable when SUFeedURL moves to Rhino's own feed. -->
 	<key>SUEnableAutomaticChecks</key>
-	<false/>
+	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!-- All-local app: every network call is HTTPS to a public host (Sparkle

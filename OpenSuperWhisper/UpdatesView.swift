@@ -39,8 +39,9 @@ struct UpdatesView: View {
     var body: some View {
         SPane(title: "Updates") {
             SRow(title: "Version \(Self.currentVersion)",
-                 hint: "In-app updates arrive with the first public release, over Rhino's own signed feed.") {
-                EmptyView()
+                 hint: "Updates install in place over Rhino's own signed feed, then the app relaunches.") {
+                Button("Check for Updates") { SparkleUpdater.shared.checkForUpdates() }
+                    .controlSize(.small)
             }
 
             ForEach(notes, id: \.version) { section in

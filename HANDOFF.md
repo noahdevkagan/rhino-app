@@ -15,7 +15,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 - `/thanks` delivers the v0.1.2 DMG after purchase; `/changelog` lists the three
   Rhino releases. Production render tests and live-route checks all pass.
 - `rhinovoice.app` remains registered with Sites but awaits the Cloudflare DNS
-  records already handed off; verify hostname and TLS after Noah adds them.
+  records. Noah's Cloudflare screenshot now confirms all four records are in
+  place; refresh the hostname status and verify HTTPS after the favicon deploy.
+- Active site-update plan: generate an explicit full-rhino browser icon using
+  Next's `app/icon.png` convention, update its render test, build and deploy,
+  then verify the favicon plus `rhinovoice.app` hostname and TLS end to end.
 
 - The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
   coral face icon, menu-bar rhino silhouette, forced light mode), main

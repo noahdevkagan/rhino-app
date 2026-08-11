@@ -271,3 +271,10 @@ three-step onboarding, product FAQ, and no account or payment flow. Its
 download URL is pinned to the tested v0.1.2 asset rather than resolved at
 request time; updating that one constant is part of each release until the
 release workflow automates it.
+
+**2026-08-11 — The website favicon uses a full rhino, not the app or tray
+crop.** The app artwork deliberately zooms into the emoji's face and the tray
+art reduces it to a monochrome silhouette; both become ambiguous in a browser
+tab. The site now generates a 512px coral tile with the full native rhino emoji
+and publishes it through Next's `app/icon.png` convention, which emits an
+explicit cache-busted favicon link that browsers reliably discover.

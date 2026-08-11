@@ -65,20 +65,30 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(thanks, /Download Rhino for Mac/);
 });
 
-test("ships the crisp brand asset and product metadata", async () => {
-  const [page, layout, packageJson, mark, socialCard] = await Promise.all([
+test("ships the crisp Rhino favicon and product metadata", async () => {
+  const [page, layout, packageJson, favicon, socialCard] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readFile(new URL("../public/rhino-mark.png", import.meta.url)),
+    readFile(new URL("../app/icon.png", import.meta.url)),
     readFile(new URL("../public/og.png", import.meta.url)),
   ]);
 
   assert.match(page, /🦏/);
   assert.doesNotMatch(page, /\/rhino-icon\.png/);
   assert.match(layout, /new URL\("\/og\.png", baseUrl\)/);
-  assert.match(layout, /icon: "\/rhino-mark\.png"/);
+  assert.doesNotMatch(layout, /rhino-mark\.png/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
-  assert.ok(mark.byteLength > 50_000);
+  assert.ok(favicon.byteLength > 20_000);
   assert.ok(socialCard.byteLength > 100_000);
+});
+
+test("advertises the Rhino favicon in rendered HTML", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  assert.match(
+    html,
+    /<link rel="icon" href="https:\/\/rhinovoice\.app\/icon\.png[^\"]*"/i,
+  );
 });

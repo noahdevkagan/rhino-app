@@ -7,6 +7,12 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 (nothing yet)
 
+## 0.1.2 — 2026-08-11
+
+- "Open System Settings" in the permissions banner now takes you straight
+  to the exact privacy pane (Microphone, then Accessibility) instead of
+  the Privacy & Security front page.
+
 ## 0.1.1 — 2026-08-11
 
 - **Hands-free mode**: double-press your dictation shortcut to lock

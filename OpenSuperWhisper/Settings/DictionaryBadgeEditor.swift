@@ -13,8 +13,8 @@ struct DictionaryBadgeEditor: View {
 
     var body: some View {
         FlowLayout(spacing: 6) {
-            ForEach($entries) { $entry in
-                badge(for: $entry)
+            ForEach(entries) { entry in
+                badge(for: entry)
             }
             addBadge
         }
@@ -24,8 +24,8 @@ struct DictionaryBadgeEditor: View {
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(STheme.border, lineWidth: 1))
     }
 
-    private func badge(for entry: Binding<CustomDictionaryEntry>) -> some View {
-        let value = entry.wrappedValue
+    private func badge(for value: CustomDictionaryEntry) -> some View {
+        let entry = stableDictionaryEntryBinding(entries: $entries, fallback: value)
         let label = value.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
         let count = value.triggers.count
 
@@ -78,6 +78,26 @@ struct DictionaryBadgeEditor: View {
         .buttonStyle(.plain)
         .help("Add a rule")
     }
+}
+
+/// Resolves an editor row by identity every time SwiftUI reads or writes it.
+///
+/// `ForEach($entries)` creates bindings backed by array positions. Deleting a rule removes its
+/// position before the popover's focused text field finishes resigning focus; AppKit then makes
+/// one final read through that stale binding and traps in `Array.subscript`. A removed row uses
+/// its last rendered value for that teardown read, and any late write is deliberately ignored.
+func stableDictionaryEntryBinding(entries: Binding<[CustomDictionaryEntry]>,
+                                  fallback: CustomDictionaryEntry) -> Binding<CustomDictionaryEntry> {
+    Binding(
+        get: {
+            entries.wrappedValue.first { $0.id == fallback.id } ?? fallback
+        },
+        set: { updated in
+            guard let index = entries.wrappedValue.firstIndex(where: { $0.id == fallback.id })
+            else { return }
+            entries.wrappedValue[index] = updated
+        }
+    )
 }
 
 /// What sits behind one badge: the result on top, everything that reaches it underneath.

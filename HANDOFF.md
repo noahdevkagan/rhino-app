@@ -7,6 +7,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Latest `origin/master` marketing-site launch merged into the
+  dictionary-crash branch:** the incoming `website/` tree is unchanged and
+  the handoff conflict preserves both features. The site production build and
+  4 render tests pass, as do all 35 dictionary tests.
+
 - Fixed Home shortcut hint rendering the default Fn trigger as a dash: hints
   now read the unified `recordingTriggers` source used by ShortcutManager,
   refresh after settings changes, and have focused regression coverage. App
@@ -22,6 +27,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 - Cloudflare DNS, the custom hostname, and TLS are all active. The browser tab
   uses a cache-busted, full-rhino coral favicon generated at 512px through
   Next's `app/icon.png` convention; its deployed bytes match the tested asset.
+
+- **Dictionary editor crash fixed:** deleting a rule while one of its text
+  fields was focused left SwiftUI's positional `ForEach($entries)` binding
+  pointing past the end of the array. Rows now bind by UUID, using their last
+  rendered value for AppKit's teardown read and ignoring a late commit after
+  deletion. The focused editor regression and all 35 dictionary tests pass.
 
 - The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
   coral face icon, menu-bar rhino silhouette, forced light mode), main

@@ -124,3 +124,12 @@ only requires the license notice, which stays). SUEnableAutomaticChecks
 is false and the Check-for-Updates entry points are removed because the
 feed URL still targets upstream's appcast — an "update" from there would
 replace the hardened build with stock OpenSuperWhisper.
+
+**2026-08-10 — In-app rebrand executed (pulled forward from Phase 4 by
+Noah).** Rhino.app / com.noahkagan.rhino, module name pinned to
+OpenSuperWhisper so 460+ files and all tests keep compiling — display
+identity and code identity are deliberately decoupled. One-time migration
+carries prefs + Application Support across the bundle-id change; TCC
+can't migrate and re-prompts once. Icon is generated code
+(Scripts/make-icon.swift), not a binary asset — regenerate, don't edit.
+Forced light appearance: white-first is the design, not a theme option.

@@ -16,6 +16,9 @@ echo "Vendoring libomp.dylib..."
 LIBOMP="${LIBOMP_PATH:-/opt/homebrew/opt/libomp/lib/libomp.dylib}"
 [ -f "$LIBOMP" ] || { echo "libomp not found at $LIBOMP (brew install libomp)"; exit 1; }
 mkdir -p build
+# rm first: an already-vendored copy is read-only (brew ships 0444), and cp
+# won't overwrite it — fresh checkouts and existing ones must both work.
+rm -f build/libomp.dylib
 cp "$LIBOMP" build/libomp.dylib
 install_name_tool -id "@rpath/libomp.dylib" build/libomp.dylib
 codesign --force --sign - build/libomp.dylib

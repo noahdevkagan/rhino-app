@@ -7,6 +7,21 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 (nothing yet)
 
+## 0.1.1 — 2026-08-11
+
+- **Hands-free mode**: double-press your dictation shortcut to lock
+  recording on — nothing to hold — and press it again to stop. On by
+  default; toggle in Settings → Dictation.
+- Dictation failures now say what went wrong (like "Model not loaded —
+  check Settings → Models") instead of a bare "Transcription failed".
+- Home shows a banner when no speech model is installed, with a button
+  that takes you straight to the model downloads.
+- Setup now verifies your chosen model actually loads before finishing,
+  and interrupted model downloads are detected and retried instead of
+  silently breaking every dictation.
+- Cleanup now restores short words the engine dropped ("Schedule review"
+  → "Schedule the review") when the optional cleanup model is enabled.
+
 ## 0.1.0 — 2026-08-11
 
 - Rhino is born: new name, icon, menu-bar rhino, and a redesigned home

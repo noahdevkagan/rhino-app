@@ -251,3 +251,13 @@ once. Every install from 0.1.1 forward updates normally. The Developer
 ID cert was likewise re-issued from the laptop (new CSR) rather than
 exported — Gatekeeper/notarization accept any valid team cert, so that
 rotation costs nothing.
+
+**2026-08-11 — The public site lives in `website/` beside the app.** It
+is a self-contained Sites/vinext project so web dependencies and builds
+cannot disturb Xcode, while the product, release automation, and website
+copy still evolve in one repository. The first launch page is intentionally
+one route: direct notarized DMG download, concrete local-only privacy proof,
+three-step onboarding, product FAQ, and no account or payment flow. Its
+download URL is pinned to the tested v0.1.2 asset rather than resolved at
+request time; updating that one constant is part of each release until the
+release workflow automates it.

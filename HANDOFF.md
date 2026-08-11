@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+### Active plan — rhinovoice.app launch site
+
+1. Add a self-contained `website/` project without disturbing the macOS app build.
+2. Build a responsive one-page Rhino launch site modeled on MeetingCoach's concise product story: local-first hero, product proof, three-step setup, privacy details, FAQ, and a real DMG download CTA.
+3. Validate the production build, publish a private preview, then connect `rhinovoice.app` through Cloudflare once the page and release URL are confirmed.
+
 - The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
   coral face icon, menu-bar rhino silhouette, forced light mode), main
   window is sidebar + Home stats/History/Dictionary per Noah's mockups.

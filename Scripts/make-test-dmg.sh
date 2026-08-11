@@ -1,15 +1,33 @@
 #!/bin/bash
-# Build a shareable test DMG: Release build, Developer ID deep-signed with
-# hardened runtime, packaged. NOT notarized (testers click through one
-# Gatekeeper prompt: System Settings → Privacy & Security → "Open Anyway").
-# The release pipeline will add notarization on top of this exact flow.
+# Build a shareable DMG: Release build, Developer ID deep-signed with
+# hardened runtime, notarized + stapled (app AND dmg), packaged. Opens
+# clean on any Mac, no Gatekeeper prompts.
 #
 #   ./Scripts/make-test-dmg.sh          → dist/Rhino-<version>-test.dmg
+#   NOTARY_PROFILE=rhino by default; set SKIP_NOTARIZE=1 to skip (testers
+#   then need System Settings → Privacy & Security → "Open Anyway").
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 IDENTITY="${DEVELOPER_ID_APP:-Developer ID Application: noah kagan (U433SX7BT8)}"
 ENTITLEMENTS="OpenSuperWhisper/OpenSuperWhisper.entitlements"
+NOTARY_PROFILE="${NOTARY_PROFILE:-rhino}"
+
+# notarytool submit --wait can exit 0 on an Invalid submission; grep the
+# status line and dump the log on anything but Accepted (MeetingCoach's
+# hardening, ported).
+notarize_file() {
+    local target="$1"
+    local out subid status
+    out="$(xcrun notarytool submit "$target" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1 | tee /dev/stderr)"
+    subid="$(printf '%s\n' "$out" | awk '/^[[:space:]]*id:/ {print $2; exit}')"
+    status="$(printf '%s\n' "$out" | awk '/^[[:space:]]*status:/ {print $2}' | tail -1)"
+    if [ "$status" != "Accepted" ]; then
+        echo "!! Notarization failed (status: ${status:-unknown})" >&2
+        [ -n "$subid" ] && xcrun notarytool log "$subid" --keychain-profile "$NOTARY_PROFILE" >&2 || true
+        exit 1
+    fi
+}
 
 echo "== release build"
 xcodebuild -scheme OpenSuperWhisper -configuration Release -derivedDataPath build \
@@ -48,11 +66,29 @@ done
 codesign --verify --deep --strict "$APP"
 echo "   signed & verified"
 
+if [ "${SKIP_NOTARIZE:-0}" != "1" ]; then
+    echo "== notarize app (a few minutes)"
+    ZIP="$(mktemp -d)/Rhino.zip"
+    ditto -c -k --keepParent "$APP" "$ZIP"
+    notarize_file "$ZIP"
+    # Staple the .app itself: users drag it out of the DMG, and an unstapled
+    # app fails Gatekeeper offline.
+    xcrun stapler staple "$APP"
+fi
+
 echo "== dmg"
 ln -s /Applications "$STAGE/Applications"
 DMG="dist/Rhino-$VERSION-test.dmg"
 rm -f "$DMG"
 hdiutil create -quiet -volname "Rhino" -srcfolder "$STAGE" -format UDZO "$DMG"
 codesign --force --timestamp --sign "$IDENTITY" "$DMG"
+
+if [ "${SKIP_NOTARIZE:-0}" != "1" ]; then
+    echo "== notarize dmg"
+    notarize_file "$DMG"
+    xcrun stapler staple "$DMG"
+    spctl -a -t open --context context:primary-signature -vv "$DMG" || true
+fi
+
 echo "== done: $DMG"
 du -h "$DMG"

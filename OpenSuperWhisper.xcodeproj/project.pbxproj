@@ -20,7 +20,6 @@
 		36EBCD57CC6B8E2D3FC51EF5 /* (null) in Sources */ = {isa = PBXBuildFile; };
 		36EBCE4EA0197EA30ECFA1F7 /* (null) in Sources */ = {isa = PBXBuildFile; };
 		840156D02D79ED9900FB5FFE /* libwhisper.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 840156CF2D79ED9900FB5FFE /* libwhisper.a */; };
-		5BB5E04A0000000000A2 /* libsherpa-onnx.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5BB5E04A0000000000A1 /* libsherpa-onnx.a */; };
 		840156D12D79EDA900FB5FFE /* libggml.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 840156C52D79ED9900FB5FFE /* libggml.a */; };
 		840156D22D79EDB500FB5FFE /* libggml-base.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 840156C72D79ED9900FB5FFE /* libggml-base.a */; };
 		840156D32D79EDBA00FB5FFE /* libggml-blas.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 840156C92D79ED9900FB5FFE /* libggml-blas.a */; };
@@ -34,10 +33,7 @@
 		CE84DF722D55778000C54EA6 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE84DF702D55778000C54EA6 /* MetalKit.framework */; };
 		CE84DF762D5577D200C54EA6 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE84DF752D5577D200C54EA6 /* Accelerate.framework */; };
 		CE84E17D2D56550B00C54EA6 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = CE84E17C2D56550B00C54EA6 /* KeyboardShortcuts */; };
-		CEAC00032D82F00200000000 /* libautocorrect_swift.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = CEAC00012D82F00000000000 /* libautocorrect_swift.dylib */; };
-		CEAC00042D82F10000000000 /* libautocorrect_swift.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = CEAC00012D82F00000000000 /* libautocorrect_swift.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		CEAC00082D82F50000000000 /* libomp.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = CEAC00072D82F40000000000 /* libomp.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		5BB5E04B0000000000B2 /* libonnxruntime.1.24.4.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5BB5E04B0000000000B1 /* libonnxruntime.1.24.4.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -47,7 +43,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				CEAC00042D82F00300000000 /* libautocorrect_swift.dylib in Copy Files */,
 			);
 			name = "Copy Files";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -127,9 +122,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				CEAC00042D82F10000000000 /* libautocorrect_swift.dylib in CopyFiles */,
 				CEAC00082D82F50000000000 /* libomp.dylib in CopyFiles */,
-				5BB5E04B0000000000B2 /* libonnxruntime.1.24.4.dylib in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -172,7 +165,6 @@
 		CE84DF652D55762200C54EA6 /* libggml-metal.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "libggml-metal.a"; sourceTree = "<group>"; };
 		CE84DF662D55762200C54EA6 /* libggml-base.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "libggml-base.a"; sourceTree = "<group>"; };
 		CE84DF672D55762200C54EA6 /* libwhisper.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libwhisper.a; sourceTree = "<group>"; };
-		5BB5E04A0000000000A1 /* libsherpa-onnx.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libsherpa-onnx.a"; path = "vendor/sherpa-onnx.xcframework/macos-arm64_x86_64/libsherpa-onnx.a"; sourceTree = SOURCE_ROOT; };
 		CE84DF6D2D55777800C54EA6 /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
 		CE84DF6F2D55778000C54EA6 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		CE84DF702D55778000C54EA6 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
@@ -180,9 +172,7 @@
 		CE84DF752D5577D200C54EA6 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
 		CE84DF772D55789800C54EA6 /* ggml-tiny.en.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "ggml-tiny.en.bin"; sourceTree = "<group>"; };
 		CE84DF792D5578BE00C54EA6 /* jfk.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = jfk.wav; sourceTree = "<group>"; };
-		CEAC00012D82F00000000000 /* libautocorrect_swift.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libautocorrect_swift.dylib; path = build/libautocorrect_swift.dylib; sourceTree = "<group>"; };
 		CEAC00072D82F40000000000 /* libomp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libomp.dylib; path = build/libomp.dylib; sourceTree = "<group>"; };
-		5BB5E04B0000000000B1 /* libonnxruntime.1.24.4.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libonnxruntime.1.24.4.dylib"; path = "build/libonnxruntime.1.24.4.dylib"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -231,11 +221,9 @@
 				CE84DF722D55778000C54EA6 /* MetalKit.framework in Frameworks */,
 				840156D02D79ED9900FB5FFE /* libwhisper.a in Frameworks */,
 				840156E02D79EE0000FB5FFE /* libllama.a in Frameworks */,
-				5BB5E04A0000000000A2 /* libsherpa-onnx.a in Frameworks */,
 				CE84DF6E2D55777800C54EA6 /* libc++.tbd in Frameworks */,
 				840156D12D79EDA900FB5FFE /* libggml.a in Frameworks */,
 				CE84E17D2D56550B00C54EA6 /* KeyboardShortcuts in Frameworks */,
-				CEAC00032D82F00200000000 /* libautocorrect_swift.dylib in Frameworks */,
 				5BA9E0DA0000000000000A03 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -417,7 +405,6 @@
 		CE9DA5672EA8DA4600EB417E /* Recovered References */ = {
 			isa = PBXGroup;
 			children = (
-				CEAC00012D82F00000000000 /* libautocorrect_swift.dylib */,
 				CEAC00072D82F40000000000 /* libomp.dylib */,
 			);
 			name = "Recovered References";
@@ -836,7 +823,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/libwhisper/whisper.cpp/**",
 					"$(PROJECT_DIR)/libwhisper/llama.cpp/include",
-					"$(PROJECT_DIR)/vendor/sherpa-onnx.xcframework/macos-arm64_x86_64/Headers",
 				);
 				INFOPLIST_FILE = "OpenSuperWhisper/OpenSuperWhisper-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -851,7 +837,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)",
 					"$(PROJECT_DIR)/build",
-					"$(PROJECT_DIR)/vendor/sherpa-onnx.xcframework/macos-arm64_x86_64",
 					/opt/homebrew/opt/libomp/lib,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -863,7 +848,6 @@
 				);
 				"OTHER_LDFLAGS[arch=arm64]" = (
 					"$(inherited)",
-					"-lonnxruntime",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.noahkagan.rhino;
 				PRODUCT_NAME = Rhino;
@@ -905,7 +889,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/libwhisper/whisper.cpp/**",
 					"$(PROJECT_DIR)/libwhisper/llama.cpp/include",
-					"$(PROJECT_DIR)/vendor/sherpa-onnx.xcframework/macos-arm64_x86_64/Headers",
 				);
 				INFOPLIST_FILE = "OpenSuperWhisper/OpenSuperWhisper-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -920,7 +903,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)",
 					"$(PROJECT_DIR)/build",
-					"$(PROJECT_DIR)/vendor/sherpa-onnx.xcframework/macos-arm64_x86_64",
 					/opt/homebrew/opt/libomp/lib,
 				);
 				LLVM_LTO = YES;
@@ -933,7 +915,6 @@
 				);
 				"OTHER_LDFLAGS[arch=arm64]" = (
 					"$(inherited)",
-					"-lonnxruntime",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.noahkagan.rhino;
 				PRODUCT_NAME = Rhino;
@@ -960,7 +941,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/libwhisper/whisper.cpp/**",
 					"$(PROJECT_DIR)/libwhisper/llama.cpp/include",
-					"$(PROJECT_DIR)/vendor/sherpa-onnx.xcframework/macos-arm64_x86_64/Headers",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.1;
 				MARKETING_VERSION = 0.11.0;
@@ -986,7 +966,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/libwhisper/whisper.cpp/**",
 					"$(PROJECT_DIR)/libwhisper/llama.cpp/include",
-					"$(PROJECT_DIR)/vendor/sherpa-onnx.xcframework/macos-arm64_x86_64/Headers",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.1;
 				MARKETING_VERSION = 0.11.0;

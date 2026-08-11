@@ -1,9 +1,6 @@
 [submodule "libwhisper/whisper.cpp"]
 	path = libwhisper/whisper.cpp
 	url = https://github.com/my-monkeys/whisper.cpp
-[submodule "asian-autocorrect"]
-	path = asian-autocorrect
-	url = https://github.com/huacnlee/autocorrect
 [submodule "libwhisper/llama.cpp"]
 	path = libwhisper/llama.cpp
 	url = https://github.com/ggml-org/llama.cpp

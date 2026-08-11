@@ -7,6 +7,16 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Latest `origin/master` merged into the dictionary-crash branch:** the
+  shortcut-hint code landed unchanged; the two append-only note conflicts
+  preserve both branches' entries. All 46 affected shortcut and dictionary
+  tests pass on the merged tree.
+
+- Fixed Home shortcut hint rendering the default Fn trigger as a dash: hints
+  now read the unified `recordingTriggers` source used by ShortcutManager,
+  refresh after settings changes, and have focused regression coverage. App
+  build and all 11 `RecordingTriggerSetTests` pass.
+
 - **Dictionary editor crash fixed:** deleting a rule while one of its text
   fields was focused left SwiftUI's positional `ForEach($entries)` binding
   pointing past the end of the array. Rows now bind by UUID, using their last

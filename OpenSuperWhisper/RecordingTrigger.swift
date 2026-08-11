@@ -46,6 +46,19 @@ enum RecordingTrigger: Equatable, Codable {
         }
     }
 
+    /// Compact label for places that show the active dictate key inline. Keep this on the
+    /// trigger itself so every hint reads the same unified trigger model as ShortcutManager.
+    @MainActor var compactDescription: String {
+        switch self {
+        case .none:
+            return "—"
+        case .keyCombo(let shortcut):
+            return shortcut.description
+        case .modifier(let key):
+            return key.shortSymbol
+        }
+    }
+
     static let modifierBadges: [(flag: NSEvent.ModifierFlags, symbol: String)] = [
         (.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘"),
     ]
@@ -101,6 +114,12 @@ struct RecordingTriggerSet: Equatable, Codable {
 
     var keyCombos: [KeyboardShortcuts.Shortcut] {
         triggers.compactMap { if case .keyCombo(let combo) = $0 { return combo } else { return nil } }
+    }
+
+    /// The first configured trigger is the primary one presented in compact UI hints. Settings
+    /// shows the full list when more than one trigger is configured.
+    @MainActor var primaryDescription: String {
+        triggers.first?.compactDescription ?? "—"
     }
 
     /// Appends unless an identical trigger is already there — recording the same key twice

@@ -9,11 +9,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Active plan — rhinovoice.app launch site
 
-- Revision requested from screenshots: replace the blurry enlarged emoji with
-  a crisp existing Rhino vector mark; reduce the homepage to header + hero +
-  compact footer only; make the primary CTA a $20 one-time PayPal purchase.
-- Add separate `/thanks` (post-purchase DMG download) and `/changelog` routes,
-  then rebuild, test, deploy, and verify the public Sites URL.
+- Revised site is live at `https://rhinovoice-app.reg654.chatgpt.site`: one
+  header + hero + compact footer, sharp native-size rhino emoji mark, and a
+  one-time $20 PayPal checkout through `paypal@okdork.com`.
+- `/thanks` delivers the v0.1.2 DMG after purchase; `/changelog` lists the three
+  Rhino releases. Production render tests and live-route checks all pass.
 - `rhinovoice.app` remains registered with Sites but awaits the Cloudflare DNS
   records already handed off; verify hostname and TLS after Noah adds them.
 

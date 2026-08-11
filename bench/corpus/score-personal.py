@@ -25,11 +25,13 @@ def score_dir(d: Path, items: dict) -> dict:
         if not f.exists():
             continue
         hyp = f.read_text().strip()
-        errors, ref_len = wer(item["intended"], hyp)
-        rate = 100.0 * errors / max(ref_len, 1)
+        # Score against the intended text AND any accepted variants — the BEST
+        # match counts. Formatting taste must never decide the benchmark.
+        refs = [item["intended"]] + item.get("accept", [])
+        rate = min(100.0 * (lambda e_n: e_n[0] / max(e_n[1], 1))(wer(r, hyp)) for r in refs)
         rows.append({
             "id": item["id"], "tier": item["tier"],
-            "zeroFix": norm(item["intended"]) == norm(hyp),
+            "zeroFix": any(norm(r) == norm(hyp) for r in refs),
             "wer": round(rate, 1),
             "review": rate > 15.0,
         })

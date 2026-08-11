@@ -1,15 +1,86 @@
 {
-  "_comment": "Quick corpus: 10 items, ~3 minutes to record with ./record.sh. `intended` is the text you'd want SENT (fillers removed, restarts resolved) — speak naturally, edit `intended` afterward if what you said drifted. Add more items any time; the scorers pick up whatever exists.",
+  "_comment": "Quick corpus: 10 items, ~3 minutes to record with ./record.sh. `intended` is the text you'd want SENT (fillers removed, restarts resolved) \u2014 speak naturally, edit `intended` afterward if what you said drifted. Add more items any time; the scorers pick up whatever exists.",
   "items": [
-    {"id": "s01", "tier": "short", "intended": "Sounds good, let's do Thursday at 2."},
-    {"id": "s02", "tier": "short", "intended": "Running five minutes late, start without me."},
-    {"id": "s03", "tier": "short", "intended": "Summarize this thread and draft a two-line reply."},
-    {"id": "s04", "tier": "short", "intended": "Ship it. We'll fix the edge cases next week."},
-    {"id": "e01", "tier": "email", "intended": "Hey Sarah, thanks for sending the proposal over. The scope looks right but the timeline feels optimistic. Can we add a buffer week before the launch date?"},
-    {"id": "e02", "tier": "email", "intended": "Quick update on the quarter. Revenue is tracking eight percent ahead of plan, mostly from the annual push. The one thing I'm watching is support response times."},
-    {"id": "h01", "tier": "hard", "intended": "Schedule the review for March 3rd at 10:30 with Priya, Nguyen, and the Kubernetes team."},
-    {"id": "h02", "tier": "hard", "intended": "The MRR went from 42k to 58k, that's roughly 38 percent growth quarter over quarter.", "note": "numbers garble engines"},
-    {"id": "h03", "tier": "hard", "intended": "Move our one-on-one from Tuesday to Wednesday, actually no, keep it Tuesday but make it 4pm.", "note": "the self-correction is the content"},
-    {"id": "h04", "tier": "hard", "intended": "Grocery list: avocados, sourdough, oat milk, two lemons, and whatever cheese looks good.", "note": "say it with ums between items"}
-  ]
+    {
+      "id": "s01",
+      "tier": "short",
+      "intended": "Sounds good, let's do Thursday at 2.",
+      "accept": [
+        "Sounds good, let's do Thursday at 2:00.",
+        "Sounds good. Let's do Thursday at 2."
+      ]
+    },
+    {
+      "id": "s02",
+      "tier": "short",
+      "intended": "Running five minutes late, start without me.",
+      "accept": [
+        "Running 5 minutes late, start without me."
+      ]
+    },
+    {
+      "id": "s03",
+      "tier": "short",
+      "intended": "Summarize this thread and draft a two-line reply.",
+      "accept": [
+        "Summarize this thread and draft a 2-line reply."
+      ]
+    },
+    {
+      "id": "s04",
+      "tier": "short",
+      "intended": "Ship it. We'll fix the edge cases next week."
+    },
+    {
+      "id": "e01",
+      "tier": "email",
+      "intended": "Hey Sarah, thanks for sending the proposal over. The scope looks right but the timeline feels optimistic. Can we add a buffer week before the launch date?"
+    },
+    {
+      "id": "e02",
+      "tier": "email",
+      "intended": "Quick update on the quarter. Revenue is tracking eight percent ahead of plan, mostly from the annual push. The one thing I'm watching is support response times.",
+      "accept": [
+        "Quick update on the quarter: Revenue is tracking 8% ahead of plan, mostly from the annual push. The one thing I'm watching is support response times."
+      ]
+    },
+    {
+      "id": "h01",
+      "tier": "hard",
+      "intended": "Schedule the review for March 3rd at 10:30 with Priya, Nguyen, and the Kubernetes team.",
+      "accept": [
+        "Schedule the review for March 3rd at 10:30am with Priya Nguyen and the Kubernetes team."
+      ]
+    },
+    {
+      "id": "h02",
+      "tier": "hard",
+      "intended": "The MRR went from 42k to 58k, that's roughly 38 percent growth quarter over quarter.",
+      "note": "numbers garble engines",
+      "accept": [
+        "The MRR went from $42,000 to $58,000, roughly 38% growth quarter-over-quarter.",
+        "The MRR went from 42k to 58k, that's roughly 38% growth quarter over quarter."
+      ]
+    },
+    {
+      "id": "h03",
+      "tier": "hard",
+      "intended": "Move our one-on-one from Tuesday to Wednesday, actually no, keep it Tuesday but make it 4pm.",
+      "note": "the self-correction is the content",
+      "accept": [
+        "Keep our one-on-one on Tuesday, but make it 4:00pm.",
+        "Move our one-on-one from Tuesday to Wednesday \u2014 actually no, keep it Tuesday but make it 4pm."
+      ]
+    },
+    {
+      "id": "h04",
+      "tier": "hard",
+      "intended": "Grocery list: avocados, sourdough, oat milk, two lemons, and whatever cheese looks good.",
+      "note": "say it with ums between items",
+      "accept": [
+        "Grocery list: Avocados, Sourdough, Oat milk, 2 lemons, Whatever cheese looks good."
+      ]
+    }
+  ],
+  "_comment_accept": "accept: alternate outputs that also count as perfect \u2014 formatting taste (2:00 vs 2, $42,000 vs 42k, resolved self-corrections, bullets-as-commas) must never decide a benchmark. Add variants whenever a review shows the scorer punishing a good output."
 }

@@ -8,6 +8,10 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
+# Isolated prefs domain: the app reads it via RHINO_PREFS_SUITE — a HOME
+# override does NOT isolate defaults (cfprefsd keys by user, not $HOME).
+SUITE=com.noahkagan.rhino.gate
+defaults delete "$SUITE" >/dev/null 2>&1 || true
 
 # WER thresholds are calibrated on real hardware; virtualized CI runners
 # underrun audio pipelines and score far worse (MeetingCoach measured 35%
@@ -26,17 +30,15 @@ fi
 ./gen_audio.sh
 mkdir -p .out
 
-SCRATCH="$(mktemp -d)"
-BUNDLE=com.noahkagan.rhino
-HOME="$SCRATCH" defaults write "$BUNDLE" selectedEngine whisper
-HOME="$SCRATCH" defaults write "$BUNDLE" selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
-HOME="$SCRATCH" defaults write "$BUNDLE" aiPostProcessingEnabled -bool false
-HOME="$SCRATCH" defaults write "$BUNDLE" saveTranscriptionHistory -bool false
+defaults write "$SUITE" selectedEngine whisper
+defaults write "$SUITE" selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
+defaults write "$SUITE" aiPostProcessingEnabled -bool false
+defaults write "$SUITE" saveTranscriptionHistory -bool false
 
 fail=0
 run_case() {
     local case=$1 ext=$2; shift 2
-    HOME="$SCRATCH" "$APP" transcribe "audio/${case}.${ext}" > ".out/${case}.txt" 2> ".out/${case}.log" || true
+    RHINO_PREFS_SUITE="$SUITE" "$APP" transcribe "audio/${case}.${ext}" > ".out/${case}.txt" 2> ".out/${case}.log" || true
     python3 score.py "$case" ".out/${case}.txt" "$@" || fail=1
 }
 
@@ -50,5 +52,5 @@ if [ "${FAST:-0}" != "1" ]; then
     run_case technical aiff
 fi
 
-rm -rf "$SCRATCH"
+defaults delete "$SUITE" >/dev/null 2>&1 || true
 exit $fail

@@ -14,6 +14,16 @@ import Foundation
 /// forgotten by the next test that starts background work.
 enum DefaultsStore {
     static let current: UserDefaults = {
+        // Benchmark/gate isolation: the test scripts run the real binary with
+        // RHINO_PREFS_SUITE set and seed that named domain via `defaults write`.
+        // (A HOME override does NOT isolate preferences — `defaults` and the app
+        // both go through cfprefsd, which keys domains by user, not by $HOME.
+        // The gate suites learned that by silently rewriting the developer's
+        // real engine/history settings on every push.)
+        if let suiteName = ProcessInfo.processInfo.environment["RHINO_PREFS_SUITE"],
+           let suite = UserDefaults(suiteName: suiteName) {
+            return suite
+        }
         guard isRunningTests else { return .standard }
         let name = testSuiteName(for: ProcessInfo.processInfo.processIdentifier)
         guard let suite = UserDefaults(suiteName: name) else { return .standard }

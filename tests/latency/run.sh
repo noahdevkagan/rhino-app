@@ -12,6 +12,10 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
+# Isolated prefs domain: the app reads it via RHINO_PREFS_SUITE — a HOME
+# override does NOT isolate defaults (cfprefsd keys by user, not $HOME).
+SUITE=com.noahkagan.rhino.gate
+defaults delete "$SUITE" >/dev/null 2>&1 || true
 
 if [ "${FAST:-0}" = "1" ]; then
     echo "latency: skipped (FAST=1)"
@@ -39,18 +43,16 @@ for f in ../asr/audio/*.aiff; do
     [ -f ".out/clips/$base.wav" ] || afconvert -f WAVE -d LEI16@16000 -c 1 "$f" ".out/clips/$base.wav"
 done
 
-SCRATCH="$(mktemp -d)"
-BUNDLE=com.noahkagan.rhino
-HOME="$SCRATCH" defaults write "$BUNDLE" selectedEngine whisper
-HOME="$SCRATCH" defaults write "$BUNDLE" selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
-HOME="$SCRATCH" defaults write "$BUNDLE" aiPostProcessingEnabled -bool false
-HOME="$SCRATCH" defaults write "$BUNDLE" saveTranscriptionHistory -bool false
+defaults write "$SUITE" selectedEngine whisper
+defaults write "$SUITE" selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
+defaults write "$SUITE" aiPostProcessingEnabled -bool false
+defaults write "$SUITE" saveTranscriptionHistory -bool false
 
-HOME="$SCRATCH" "$APP" bench .out/clips > .out/bench.json 2> .out/bench.log || {
+RHINO_PREFS_SUITE="$SUITE" "$APP" bench .out/clips > .out/bench.json 2> .out/bench.log || {
     echo "latency FAIL: bench run crashed (see tests/latency/.out/bench.log)"
-    rm -rf "$SCRATCH"; exit 1
+    exit 1
 }
-rm -rf "$SCRATCH"
+defaults delete "$SUITE" >/dev/null 2>&1 || true
 
 python3 - <<'PY'
 import json, statistics, sys

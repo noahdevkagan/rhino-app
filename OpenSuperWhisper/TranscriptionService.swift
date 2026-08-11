@@ -215,7 +215,11 @@ class TranscriptionService: ObservableObject {
         lastUsedModel = ModelCatalog.activeOption()
         lastUsedFallback = false
 
-        return try await runOnEngine(engine, url: url, settings: settings)
+        // Deterministic formatting AFTER the engine, BEFORE any LLM cleanup:
+        // spoken numbers/percent/meridiem become digits ("forty-two thousand"
+        // → "42,000") without depending on a small model's compliance.
+        let raw = try await runOnEngine(engine, url: url, settings: settings)
+        return NumberCompaction.apply(raw)
     }
 
     /// Run one transcription on a specific engine: wire its progress callback, run it

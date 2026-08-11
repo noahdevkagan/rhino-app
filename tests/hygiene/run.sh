@@ -12,6 +12,10 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
+# Isolated prefs domain: the app reads it via RHINO_PREFS_SUITE — a HOME
+# override does NOT isolate defaults (cfprefsd keys by user, not $HOME).
+SUITE=com.noahkagan.rhino.gate
+defaults delete "$SUITE" >/dev/null 2>&1 || true
 
 fail=0
 
@@ -87,14 +91,13 @@ elif [ ! -x "$APP" ]; then
 else
     # Isolated HOME so the run can't touch (or depend on) the real install's
     # prefs, and we can pin the engine to the repo's tiny whisper model.
-    SCRATCH="$(mktemp -d)"
-    mkdir -p .out && : > .out/egress.txt
-    HOME="$SCRATCH" defaults write com.noahkagan.rhino selectedEngine whisper
-    HOME="$SCRATCH" defaults write com.noahkagan.rhino selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
-    HOME="$SCRATCH" defaults write com.noahkagan.rhino aiPostProcessingEnabled -bool false
-    HOME="$SCRATCH" defaults write com.noahkagan.rhino saveTranscriptionHistory -bool false
+        mkdir -p .out && : > .out/egress.txt
+    defaults write "$SUITE" selectedEngine whisper
+    defaults write "$SUITE" selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
+    defaults write "$SUITE" aiPostProcessingEnabled -bool false
+    defaults write "$SUITE" saveTranscriptionHistory -bool false
 
-    HOME="$SCRATCH" "$APP" transcribe "$ROOT/jfk.wav" > .out/transcript.txt 2> .out/cli-stderr.txt &
+    RHINO_PREFS_SUITE="$SUITE" "$APP" transcribe "$ROOT/jfk.wav" > .out/transcript.txt 2> .out/cli-stderr.txt &
     PID=$!
     # Sample the process's open network sockets for its whole lifetime.
     while kill -0 "$PID" 2>/dev/null; do
@@ -102,7 +105,7 @@ else
         sleep 0.2
     done
     wait "$PID"; status=$?
-    rm -rf "$SCRATCH"
+    defaults delete "$SUITE" >/dev/null 2>&1 || true
 
     if [ "$status" -ne 0 ]; then
         echo "  FAIL: CLI transcription exited $status (see tests/hygiene/.out/cli-stderr.txt)"

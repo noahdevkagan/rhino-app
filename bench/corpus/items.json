@@ -59,7 +59,8 @@
       "note": "numbers garble engines",
       "accept": [
         "The MRR went from $42,000 to $58,000, roughly 38% growth quarter-over-quarter.",
-        "The MRR went from 42k to 58k, that's roughly 38% growth quarter over quarter."
+        "The MRR went from 42k to 58k, that's roughly 38% growth quarter over quarter.",
+        "The MRR went from 42,000 to 58,000, that's roughly 38% growth quarter over quarter."
       ]
     },
     {
@@ -69,7 +70,8 @@
       "note": "the self-correction is the content",
       "accept": [
         "Keep our one-on-one on Tuesday, but make it 4:00pm.",
-        "Move our one-on-one from Tuesday to Wednesday \u2014 actually no, keep it Tuesday but make it 4pm."
+        "Move our one-on-one from Tuesday to Wednesday \u2014 actually no, keep it Tuesday but make it 4pm.",
+        "Move our one-on-one from Tuesday to Wednesday \u2014 actually no, keep it Tuesday but make it 4:00pm."
       ]
     },
     {

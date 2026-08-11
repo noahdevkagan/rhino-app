@@ -420,6 +420,9 @@ struct OnboardingView: View {
                             }
                         }
 
+                        OnboardingCleanupOffer()
+                            .padding(.top, 4)
+
                     }
                 }
                 .padding(12)
@@ -774,3 +777,66 @@ struct OnboardingShortcutCard: View {
     OnboardingView()
 }
 
+
+/// Optional AI-cleanup offer, right under the required model pick. A choice,
+/// never a default: dictation works without it, and the ~1 GB download only
+/// starts on an explicit click (the app's only sanctioned network calls are
+/// updates and user-initiated model downloads).
+struct OnboardingCleanupOffer: View {
+    @State private var downloaded = LLMModelManager.shared.isDefaultModelDownloaded()
+    @State private var progress: Double?
+    @State private var error: String?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "wand.and.stars")
+                .scaledFont(size: 16)
+                .foregroundColor(.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Punctuation & cleanup — recommended")
+                    .scaledFont(size: 13, weight: .semibold)
+                Text(downloaded
+                     ? "On: dictations come out tidy — punctuation, casing, numbers as digits. Runs on this Mac."
+                     : "Tidies punctuation, casing, and numbers with an on-device model (~1 GB, one-time download). Your words never leave this Mac.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let error {
+                    Text(error).font(.caption2).foregroundColor(.red)
+                }
+            }
+            Spacer()
+            if downloaded {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            } else if let progress {
+                ProgressView(value: progress)
+                    .frame(width: 90)
+            } else {
+                Button("Download") {
+                    error = nil
+                    progress = 0
+                    Task { @MainActor in
+                        do {
+                            try await LLMModelManager.shared.downloadDefaultModel { p in
+                                Task { @MainActor in progress = p }
+                            }
+                            AppPreferences.shared.aiPostProcessingEnabled = true
+                            downloaded = true
+                            BuiltInLlamaBackend.shared.preload()
+                        } catch {
+                            self.error = error.localizedDescription
+                        }
+                        progress = nil
+                    }
+                }
+                .controlSize(.small)
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.accentColor.opacity(0.35), lineWidth: 1)
+        )
+    }
+}

@@ -21,13 +21,19 @@ for it in json.load(open('items.json'))['items']:
     echo "──────────────────────────────────────────────"
     echo "  SAY: $text"
     echo "──────────────────────────────────────────────"
-    read -r -p "  Enter to START recording $id... " _
-    # 16kHz mono wav; convert to m4a after. rec stops on Ctrl-C... instead
-    # record in background and stop on Enter for a smoother loop.
+    # Read keypresses from the TERMINAL (/dev/tty), never stdin — stdin is
+    # the item list feeding this loop, and reading it here would consume
+    # upcoming items as phantom keypresses (the bug in v1 of this script).
+    read -r -p "  Enter to START recording $id... " _ < /dev/tty
     rec -q -r 16000 -c 1 "audio/$id.wav" &
     RECPID=$!
-    read -r -p "  🎙  recording — Enter to STOP... " _
+    read -r -p "  🎙  recording — Enter to STOP... " _ < /dev/tty
     kill -INT "$RECPID" 2>/dev/null; wait "$RECPID" 2>/dev/null || true
+    if [ ! -s "audio/$id.wav" ]; then
+        echo "  !! nothing recorded for $id (mic permission for the terminal?) — will retry on next run"
+        rm -f "audio/$id.wav"
+        continue
+    fi
     afconvert -f m4af -d aac "audio/$id.wav" "audio/$id.m4a" && rm "audio/$id.wav"
     echo "  saved audio/$id.m4a"
 done

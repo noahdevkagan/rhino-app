@@ -460,8 +460,9 @@ final class AppPreferences {
     var retentionMaxAgeUnit: String
 
     /// When off, recordings & transcriptions are not persisted (deleted right after use).
-    /// OFF by default (privacy-safe default): keeping a log of everything you ever said
-    /// is something you opt into, not something you discover.
-    @UserDefault(key: "saveTranscriptionHistory", defaultValue: false)
+    /// ON by default (product decision 2026-08-10): everything stores to THIS Mac and
+    /// nowhere else — local history is the product's memory (stats, rerun, search),
+    /// and the privacy promise is "never leaves your Mac", not "never exists".
+    @UserDefault(key: "saveTranscriptionHistory", defaultValue: true)
     var saveTranscriptionHistory: Bool
 }

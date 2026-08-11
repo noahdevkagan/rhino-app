@@ -1,43 +1,41 @@
-# Personal benchmark corpus — Noah's voice, real dictations
+# Personal benchmark corpus — your voice, ~3 minutes
 
-The plan's quality target ("at least 90% of Wispr Flow's useful output") is
-measured HERE, not in tests/asr — the gate corpus is synthetic `say` audio
-on a tiny model and only catches regressions. This corpus is the real thing:
-your voice, your phrasing, scored against the text you *meant* to produce.
+The quality target ("at least 90% of Wispr Flow's useful output") is
+measured HERE — the gate corpus is synthetic audio on a tiny model and only
+catches regressions. This is the real thing: your voice, scored against the
+text you *meant* to produce.
 
-## One-time recording session (~30 min)
+## Record (~3 minutes, once)
 
-1. Open `items.json` — 30 prompts: 10 short messages/AI prompts, 10
-   email-length prose, 10 hard cases (fillers, self-corrections, lists,
-   names, numbers, technical terms). Edit freely to match what you actually
-   dictate day to day.
-2. For each item, record yourself saying it naturally (QuickTime → New Audio
-   Recording, or any recorder): speak like you dictate, fillers and
-   restarts included. Save as `audio/<id>.m4a`.
-3. In `items.json`, `intended` is the text you'd want to SEND — fillers
-   removed, restarts resolved. Adjust it after recording if what you said
-   drifted from the prompt. Score against intent, not verbatim speech.
+```bash
+brew install sox            # one-time, terminal recorder
+cd ~/rhino-app/bench/corpus
+./record.sh                 # guided: read prompt → speak → Enter → next
+```
 
-## Scoring a candidate (repeatable, per release)
+10 items: 4 short messages, 2 email-length, 4 hard cases (names, numbers,
+a self-correction, ums). Speak like you actually dictate. If what you said
+drifted from the prompt, edit that item's `intended` in items.json — we
+score against intent, not verbatim speech.
 
-    ./score-corpus.sh              # runs every clip through the dev build
-    ./score-corpus.sh --engine parakeet-v2   # config under test
+## Score Rhino (~1 minute, repeatable per release)
 
-For Wispr Flow (no CLI): play each clip into it via a virtual mic (BlackHole)
-or re-dictate the same items live, paste its output into
-`results/wispr/<id>.txt`, then:
+```bash
+./score-corpus.sh
+```
 
-    python3 score-personal.py results/wispr
+## Compare against other services
 
-Metrics per candidate (written to `results/<name>/summary.json`):
-- zero-fix rate — % of items whose output matches intended after
-  normalization (usable without touching the keyboard)
-- WER vs intended
-- meaning-changing failures (flagged for manual review when WER > 15%)
+Play the same clips into Wispr Flow / SuperWhisper / whatever (or
+re-dictate the same items live there), paste each output into
+`results/<service>/<id>.txt`, then:
 
-Compare candidates side by side:
+```bash
+python3 score-personal.py results/rhino-fluidaudio results/wispr
+```
 
-    python3 compare.py results/rhino-parakeet-v2 results/wispr
+Prints zero-fix rate (usable without touching the keyboard), WER vs
+intended, and the head-to-head ratio (target ≥ 90%).
 
-Audio and results are gitignored (your voice stays out of git history);
-items.json and summaries are committed.
+Audio and results are gitignored — your voice never enters git history.
+items.json and summary.json are committed.

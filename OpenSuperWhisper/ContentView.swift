@@ -399,6 +399,7 @@ struct ContentView: View {
     @State private var debouncedSearchText = ""
     @State private var showDeleteConfirmation = false
     @State private var searchTask: Task<Void, Never>? = nil
+    @State private var mainTab: MainTab = .home
 
     private var currentShortcutDescription: String {
         let mouseButton = MouseButton(rawValue: AppPreferences.shared.mouseButtonHotkey) ?? .none
@@ -442,7 +443,84 @@ struct ContentView: View {
             {
                 PermissionsView(permissionsManager: permissionsManager)
             } else {
-                VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    MainSidebar(selection: $mainTab,
+                                openSettings: { openSettingsWindow(id: "settings") })
+                    Divider()
+                    switch mainTab {
+                    case .home: HomeStatsView()
+                    case .history: historyPane
+                    case .dictionary: DictionaryTabView()
+                    }
+                }
+            }
+        }
+        .frame(minWidth: 780, idealWidth: 900, minHeight: 540)
+        .background(ThemePalette.windowBackground(colorScheme))
+        .onAppear {
+            viewModel.loadInitialData()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RecordingStore.recordingProgressDidUpdateNotification)) { notification in
+            guard let userInfo = notification.userInfo,
+                  let id = userInfo["id"] as? UUID,
+                  let progress = userInfo["progress"] as? Float,
+                  let status = userInfo["status"] as? RecordingStatus else { return }
+            
+            let transcription = userInfo["transcription"] as? String
+            let isRegeneration = userInfo["isRegeneration"] as? Bool
+            let modelUsed = userInfo["modelUsed"] as? String
+            let wasFallback = userInfo["wasFallback"] as? Bool
+
+            viewModel.handleProgressUpdate(
+                id: id,
+                transcription: transcription,
+                progress: progress,
+                status: status,
+                isRegeneration: isRegeneration,
+                modelUsed: modelUsed,
+                wasFallback: wasFallback
+            )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RecordingStore.recordingsDidUpdateNotification)) { _ in
+            viewModel.loadInitialData()
+        }
+        .overlay {
+            let isPermissionsGranted = permissionsManager.isMicrophonePermissionGranted
+                && permissionsManager.isAccessibilityPermissionGranted
+
+            if viewModel.transcriptionService.isLoading && isPermissionsGranted {
+                ZStack {
+                    Color.black.opacity(0.3)
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text(AppPreferences.shared.selectedEngine == "fluidaudio"
+                             ? "Loading Parakeet Model..."
+                             : "Loading Whisper Model...")
+                            .foregroundColor(.white)
+                            .font(.headline)
+                    }
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .fileDropHandler()
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            openSettingsWindow(id: "settings")
+        }
+        .onChange(of: viewModel.shouldClearSearch) { _, shouldClear in
+            if shouldClear {
+                searchText = ""
+                debouncedSearchText = ""
+                searchTask?.cancel()
+                viewModel.shouldClearSearch = false
+            }
+        }
+    }
+    /// The pre-redesign main screen: search + recording list + record button.
+    private var historyPane: some View {
+        VStack(spacing: 0) {
+            HistoryKeepBar()
                     // Search bar
                     HStack {
                         Image(systemName: "magnifyingglass")
@@ -734,71 +812,10 @@ struct ContentView: View {
                         }
                     }
                     .padding()
-                }
-            }
-        }
-        .frame(minWidth: 400, idealWidth: 400)
-        .background(ThemePalette.windowBackground(colorScheme))
-        .onAppear {
-            viewModel.loadInitialData()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: RecordingStore.recordingProgressDidUpdateNotification)) { notification in
-            guard let userInfo = notification.userInfo,
-                  let id = userInfo["id"] as? UUID,
-                  let progress = userInfo["progress"] as? Float,
-                  let status = userInfo["status"] as? RecordingStatus else { return }
-            
-            let transcription = userInfo["transcription"] as? String
-            let isRegeneration = userInfo["isRegeneration"] as? Bool
-            let modelUsed = userInfo["modelUsed"] as? String
-            let wasFallback = userInfo["wasFallback"] as? Bool
-
-            viewModel.handleProgressUpdate(
-                id: id,
-                transcription: transcription,
-                progress: progress,
-                status: status,
-                isRegeneration: isRegeneration,
-                modelUsed: modelUsed,
-                wasFallback: wasFallback
-            )
-        }
-        .onReceive(NotificationCenter.default.publisher(for: RecordingStore.recordingsDidUpdateNotification)) { _ in
-            viewModel.loadInitialData()
-        }
-        .overlay {
-            let isPermissionsGranted = permissionsManager.isMicrophonePermissionGranted
-                && permissionsManager.isAccessibilityPermissionGranted
-
-            if viewModel.transcriptionService.isLoading && isPermissionsGranted {
-                ZStack {
-                    Color.black.opacity(0.3)
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text(AppPreferences.shared.selectedEngine == "fluidaudio"
-                             ? "Loading Parakeet Model..."
-                             : "Loading Whisper Model...")
-                            .foregroundColor(.white)
-                            .font(.headline)
-                    }
-                }
-                .ignoresSafeArea()
-            }
-        }
-        .fileDropHandler()
-        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
-            openSettingsWindow(id: "settings")
-        }
-        .onChange(of: viewModel.shouldClearSearch) { _, shouldClear in
-            if shouldClear {
-                searchText = ""
-                debouncedSearchText = ""
-                searchTask?.cancel()
-                viewModel.shouldClearSearch = false
-            }
         }
     }
+
+
 }
 
 struct PermissionsView: View {

@@ -29,8 +29,11 @@
 	<string>https://raw.githubusercontent.com/my-monkeys/OpenSuperWhisper/master/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>ECQpCBVVumUKoBjgcDPSlmllYiWlSAUFGh5WycBhCA0=</string>
+	<!-- Automatic checks OFF while the feed still points at upstream's appcast:
+	     a dev/Rhino build must never offer to "update" itself into stock
+	     OpenSuperWhisper. Re-enable when SUFeedURL moves to Rhino's own feed. -->
 	<key>SUEnableAutomaticChecks</key>
-	<true/>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!-- All-local app: every network call is HTTPS to a public host (Sparkle

@@ -1083,12 +1083,12 @@ struct InfoButton: View {
 
 /// The settings tabs, shown as a vertical sidebar in the dedicated settings window.
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case dictation, models, output, rules, history, advanced, updates, feedback
+    case dictation, models, output, rules, history, advanced, updates
     var id: String { rawValue }
 
     /// Main navigation (sidebar top) vs utility items (sidebar footer).
     static let main: [SettingsTab] = [.dictation, .models, .output, .rules, .history, .advanced]
-    static let footer: [SettingsTab] = [.updates, .feedback]
+    static let footer: [SettingsTab] = [.updates]
 
     var title: String {
         switch self {
@@ -1099,7 +1099,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .history: return "History & Privacy"
         case .advanced: return "Advanced"
         case .updates: return "Updates"
-        case .feedback: return "Feedback"
         }
     }
     // Icons carried over from the previous sidebar (kept on purpose); "Rules" is the
@@ -1113,7 +1112,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .history: return "clock.arrow.circlepath"
         case .advanced: return "gearshape"
         case .updates: return "sparkles"
-        case .feedback: return "heart.text.square"
         }
     }
 }
@@ -1182,68 +1180,7 @@ struct SettingsView: View {
         case .history:   storageSettings
         case .advanced:  advancedSettings
         case .updates:   UpdatesView()
-        case .feedback:  feedbackSettings
         }
-    }
-
-    /// "Feedback" tab — recruit beta testers and route every kind of report (#beta).
-    private var feedbackSettings: some View {
-        SPane(title: "Feedback", subtitle: "Help us improve") {
-            Text("OpenSuperWhisper gets better with your feedback. Hit a bug, or have an idea? Tell us — every report helps make it more stable.")
-                .scaledFont(size: 12)
-                .foregroundColor(STheme.hint)
-                .fixedSize(horizontal: false, vertical: true)
-
-            VStack(spacing: 10) {
-                feedbackLink(
-                    title: "Report a bug",
-                    subtitle: "On GitHub — steps to reproduce, your macOS version & engine, logs if you have them",
-                    icon: "ladybug",
-                    url: "https://github.com/my-monkeys/OpenSuperWhisper/issues/new")
-                feedbackLink(
-                    title: "Send feedback or an idea",
-                    subtitle: "A quick form on opensuperwhisper.com — no account needed",
-                    icon: "bubble.left.and.bubble.right",
-                    url: "https://opensuperwhisper.com/#feedback")
-                feedbackLink(
-                    title: "Try a beta build",
-                    subtitle: "Early features before they ship, on GitHub Releases",
-                    icon: "testtube.2",
-                    url: "https://github.com/my-monkeys/OpenSuperWhisper/releases")
-            }
-        }
-    }
-
-    private func feedbackLink(title: String, subtitle: String, icon: String, url: String) -> some View {
-        Button {
-            if let u = URL(string: url) { NSWorkspace.shared.open(u) }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .scaledFont(size: 15)
-                    .foregroundColor(STheme.accent)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .scaledFont(size: 13, weight: .semibold)
-                        .foregroundColor(STheme.textBright)
-                    Text(subtitle)
-                        .scaledFont(size: 11)
-                        .foregroundColor(STheme.hint)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-                Image(systemName: "arrow.up.right")
-                    .scaledFont(size: 10)
-                    .foregroundColor(STheme.hint)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 10).fill(STheme.cardBg))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(STheme.border, lineWidth: 1))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     /// One row in the left sidebar. Selection = soft copper tint (design: "teinte douce").
@@ -1322,43 +1259,11 @@ struct SettingsView: View {
                 ForEach(SettingsTab.footer.filter(matchesSearch)) { tab in
                     sidebarRow(tab, compact: true)
                 }
-                Button {
-                    if let url = URL(string: "https://ko-fi.com/mymonkey") { NSWorkspace.shared.open(url) }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "heart")
-                            .scaledFont(size: 11, weight: .medium)
-                            .frame(width: 18, alignment: .center)
-                            .foregroundColor(STheme.hint)
-                        Text("Support us").scaledFont(size: 12, weight: .medium)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .foregroundStyle(STheme.sidebarItem)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                HStack(spacing: 6) {
-                    Link(destination: URL(string: "https://github.com/my-monkeys/OpenSuperWhisper")!) {
-                        HStack(spacing: 6) {
-                            Image("github-mark")
-                                .resizable()
-                                .renderingMode(.template)
-                                .frame(width: 13, height: 13)
-                            Text("v\(UpdatesView.currentVersion)")
-                                .scaledFont(size: 10.5, design: .monospaced)
-                        }
-                        .foregroundColor(STheme.hint.opacity(0.8))
-                        .contentShape(Rectangle())
-                    }
-                    .help("GitHub")
+                HStack {
                     Spacer()
-                    Link(destination: URL(string: "https://github.com/my-monkeys/OpenSuperWhisper")!) {
-                        Image(systemName: "star")
-                            .scaledFont(size: 10)
-                            .foregroundColor(STheme.hint.opacity(0.8))
-                    }
-                    .help("Star us on GitHub")
+                    Text("v\(UpdatesView.currentVersion)")
+                        .scaledFont(size: 10.5, design: .monospaced)
+                        .foregroundColor(STheme.hint.opacity(0.8))
                 }
                 .padding(.horizontal, 10).padding(.top, 6)
             }

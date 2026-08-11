@@ -68,7 +68,12 @@ enum CLI {
             }
             if mode == "transcribe" {
                 do {
-                    let text = try await service.transcribeAudio(url: target, settings: Settings())
+                    // Same post pipeline as a real dictation (filler removal +
+                    // AI cleanup, honoring the app's settings) — so the corpus
+                    // benchmark measures what users actually get, not raw ASR.
+                    var text = try await service.transcribeAudio(url: target, settings: Settings())
+                    text = AppPreferences.shared.cleanTranscription(text)
+                    text = await LLMPostProcessor.process(text)
                     emit(text, file: target.path, json: json)
                     exit(0)
                 } catch {

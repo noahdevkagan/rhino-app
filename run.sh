@@ -76,6 +76,7 @@ fi
 # Check if build output contains BUILD FAILED or if the command failed
 if [[ $? -eq 0 ]] && [[ ! "$BUILD_OUTPUT" =~ "BUILD FAILED" ]]; then
     echo "Building successful!"
+    cp CHANGELOG.md ./Build/Build/Products/Debug/Rhino.app/Contents/Resources/CHANGELOG.md
     # Re-sign with a stable identity so macOS keeps granted TCC permissions
     # across rebuilds (no-op / ad-hoc fallback when no identity is available).
     "$(dirname "$0")/Scripts/dev-codesign.sh" "./Build/Build/Products/Debug/Rhino.app" || true

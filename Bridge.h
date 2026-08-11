@@ -6,7 +6,6 @@
 //
 
 #include "whisper.h"
-#include "asian-autocorrect/autocorrect-swift/autocorrect_swift.h"
 // llama.cpp built-in LLM backend. HEADER_SEARCH_PATHS names libwhisper/llama.cpp/include
 // explicitly — NOT recursively, and not the llama.cpp root: the tree ships
 // common/jinja/string.h, which a recursive entry would let shadow the system <string.h> and

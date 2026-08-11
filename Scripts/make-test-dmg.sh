@@ -43,6 +43,7 @@ STAGE="$(mktemp -d)/Rhino"
 mkdir -p "$STAGE" dist
 cp -R "$APP_SRC" "$STAGE/Rhino.app"
 APP="$STAGE/Rhino.app"
+cp CHANGELOG.md "$APP/Contents/Resources/CHANGELOG.md"
 
 echo "== deep sign (inside-out; notarization-shaped even though we skip it)"
 SIGN=(codesign --force --timestamp --options runtime --sign "$IDENTITY")

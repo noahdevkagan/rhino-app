@@ -5,6 +5,15 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+(nothing yet)
+
+## 0.1.0 — 2026-08-11
+
+- Rhino is born: new name, icon, menu-bar rhino, and a redesigned home
+  with your dictation stats.
+- Hold **Fn** to dictate (default), release to insert. Launch at login and
+  live in the menu bar, on by default.
+
 - Radically simplified: removed per-app rules, the SenseVoice and Apple
   Speech engines, translation, mouse/latch/submit trigger modes, the
   indicator layout editor, and the advanced decoding knobs. One shortcut,

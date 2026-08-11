@@ -138,6 +138,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             }
         }
 
+        // Default-on launch-at-login, registered exactly once after onboarding —
+        // an update never re-registers behind a user who turned it off.
+        if AppPreferences.shared.hasCompletedOnboarding,
+           !AppPreferences.shared.didDefaultLaunchAtLogin {
+            LaunchAtLoginManager.shared.setEnabled(true)
+            AppPreferences.shared.didDefaultLaunchAtLogin = true
+        }
+
         OpenSuperWhisperApp.startTranscriptionQueue()
         OpenSuperWhisperApp.startRetentionScheduler()
         observeMicrophoneChanges()

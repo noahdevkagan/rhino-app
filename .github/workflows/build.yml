@@ -1,35 +1,17 @@
 name: Build Check
 
-# On-demand only. This is a private repo where macOS runners bill at 10x,
-# and every push already runs the full local gate (Scripts/push-gate.sh);
-# CI re-verification is for releases (test-gate.yml via workflow_call) and
-# manual runs, not every commit.
+# PRs run the same gate releases run (test-gate.yml via workflow_call), so
+# there is exactly one CI build definition and it can't drift from releases.
+# (This file used to carry its own build steps, pinned to macos-26 for the
+# Apple Speech engine — that engine and the rust toolchain it installed were
+# both deleted in the 0.1.0 80/20 cut.)
+#
+# No per-push trigger: the local push gate covers development (this repo is
+# private; macOS CI minutes bill at 10x).
 on:
   pull_request:
   workflow_dispatch:
 
 jobs:
-  build:
-    # Pinned to the macOS 26 runner: it ships only Xcode 26.x (macOS 26 SDK), so the
-    # Apple Speech engine (SpeechTranscriber/AssetInventory, gated on
-    # `#if canImport(FoundationModels)`) is always compiled and tested. `macos-latest`
-    # (macOS 15) rotates its default Xcode between 16.4 and 26.5, which non-deterministically
-    # dropped the whole Apple Speech path and broke builds depending on which runner we drew.
-    runs-on: macos-26
-    steps:
-      - name: Checkout repository (with submodules)
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-      - name: Install dependencies
-        run: brew install cmake libomp rust
-      - name: Set up Ruby (for xcpretty)
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.4'
-      - name: Install xcpretty
-        run: gem install xcpretty
-      - name: Make run.sh executable
-        run: chmod +x ./run.sh
-      - name: Build with run.sh
-        run: ./run.sh build 
+  gate:
+    uses: ./.github/workflows/test-gate.yml

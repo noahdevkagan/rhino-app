@@ -13,21 +13,32 @@ IDENTITY="${DEVELOPER_ID_APP:-Developer ID Application: noah kagan (U433SX7BT8)}
 ENTITLEMENTS="OpenSuperWhisper/OpenSuperWhisper.entitlements"
 NOTARY_PROFILE="${NOTARY_PROFILE:-rhino}"
 
+# Credentials: locally the notarytool keychain profile ("rhino"); on CI there
+# is no keychain profile, so NOTARY_APPLE_ID/NOTARY_PASSWORD/NOTARY_TEAM_ID
+# env vars (from repo secrets) select explicit-credential mode instead.
+NOTARY_ARGS=(--keychain-profile "$NOTARY_PROFILE")
+if [ -n "${NOTARY_APPLE_ID:-}" ]; then
+    NOTARY_ARGS=(--apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$NOTARY_TEAM_ID")
+fi
+
 # notarytool submit --wait can exit 0 on an Invalid submission; grep the
 # status line and dump the log on anything but Accepted (MeetingCoach's
 # hardening, ported).
 notarize_file() {
     local target="$1"
     local out subid status
-    out="$(xcrun notarytool submit "$target" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1 | tee /dev/stderr)"
+    out="$(xcrun notarytool submit "$target" "${NOTARY_ARGS[@]}" --wait 2>&1 | tee /dev/stderr)"
     subid="$(printf '%s\n' "$out" | awk '/^[[:space:]]*id:/ {print $2; exit}')"
     status="$(printf '%s\n' "$out" | awk '/^[[:space:]]*status:/ {print $2}' | tail -1)"
     if [ "$status" != "Accepted" ]; then
         echo "!! Notarization failed (status: ${status:-unknown})" >&2
-        [ -n "$subid" ] && xcrun notarytool log "$subid" --keychain-profile "$NOTARY_PROFILE" >&2 || true
+        [ -n "$subid" ] && xcrun notarytool log "$subid" "${NOTARY_ARGS[@]}" >&2 || true
         exit 1
     fi
 }
+
+echo "== build deps (fresh-checkout safe; idempotent on a dev machine)"
+./Scripts/prepare-build-deps.sh
 
 echo "== release build"
 xcodebuild -scheme OpenSuperWhisper -configuration Release -derivedDataPath build \

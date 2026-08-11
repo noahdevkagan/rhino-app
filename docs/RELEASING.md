@@ -1,98 +1,82 @@
-# Releasing OpenSuperWhisper
+# Releasing Rhino
 
-> **The complete, canonical guide is [`PUBLISHING.md`](./PUBLISHING.md)** (stable + beta channels,
-> toolchain gotchas, verification, troubleshooting, key inventory). This file is a short summary kept
-> for reference.
+Two release paths publish to the same place (the public
+[`noahdevkagan/rhino-releases`](https://github.com/noahdevkagan/rhino-releases)
+repo: GitHub release DMG + `appcast.xml` Sparkle feed). Installed apps
+auto-update via Sparkle (`SUFeedURL` already points at the feed).
 
-The app is distributed as a **notarized Developer ID** build, published as a GitHub release DMG
-and installable via Homebrew.
+> Upstream OpenSuperWhisper's release docs ([`PUBLISHING.md`](./PUBLISHING.md))
+> are kept for reference (toolchain gotchas, verification commands) but its
+> identities/repos/two-arch scheme do not apply — Rhino ships arm64-only,
+> signed as `Developer ID Application: noah kagan (U433SX7BT8)`.
 
-## One-time setup (already done)
-
-- **Developer ID Application** certificate for team `5C67TFSJ2B` is in the login keychain
-  (`security find-identity -v -p codesigning` lists it).
-- **Notarization** uses an App Store Connect API key stored as the notarytool keychain profile
-  `osw-notary` (the `.p8`, key, CSR and cert live in `~/.osw-signing/`, chmod 700).
-- Bundle id: `fr.my-monkey.opensuperwhisper`.
-
-## Architectures
-
-Each release ships **two** notarized DMGs — there is no universal binary:
-
-| DMG | Arch | Engines | Sparkle feed |
-|---|---|---|---|
-| `OpenSuperWhisper-arm64-$VERSION.dmg`  | Apple Silicon | Whisper · Parakeet · SenseVoice | `appcast.xml` |
-| `OpenSuperWhisper-x86_64-$VERSION.dmg` | Intel         | Whisper · Parakeet             | `appcast-x86_64.xml` |
-
-SenseVoice is excluded from x86_64 because its onnxruntime ships arm64-only (the engine is behind
-`#if arch(arm64)`; the x86_64 build strips the onnxruntime dylib and points `SUFeedURL` at the
-Intel feed). `notarize_app.sh` builds the universal native deps (autocorrect pinned to deployment
-target 14.0; a fat libomp via `Scripts/fetch-libomp-universal.sh`) so either slice can link.
-
-## Cut a release
+## Path A — local, one command (works today)
 
 ```sh
-# 1. bump MARKETING_VERSION (+ CURRENT_PROJECT_VERSION) in the Xcode project, commit.
-VERSION=0.5.0
-
-# 2. build → sign → notarize → staple → DMG, ONCE PER ARCH  (~12 min each)
-./notarize_app.sh "Developer ID Application: Maxim Costa (5C67TFSJ2B)" arm64
-./notarize_app.sh "Developer ID Application: Maxim Costa (5C67TFSJ2B)" x86_64
-#    → ./OpenSuperWhisper-arm64.dmg  and  ./OpenSuperWhisper-x86_64.dmg
-
-# 3. version the names + grab the hashes
-for a in arm64 x86_64; do
-  mv "OpenSuperWhisper-$a.dmg" "OpenSuperWhisper-$a-$VERSION.dmg"
-  shasum -a 256 "OpenSuperWhisper-$a-$VERSION.dmg"
-done
-
-# 4. publish the release with BOTH DMGs attached
-gh release create "v$VERSION" --repo my-monkeys/OpenSuperWhisper \
-  "OpenSuperWhisper-arm64-$VERSION.dmg" "OpenSuperWhisper-x86_64-$VERSION.dmg" \
-  --title "v$VERSION — …" --notes-file notes.md
+# 1. write a "## X.Y.Z" section in CHANGELOG.md (the tag push gate enforces it)
+# 2. then:
+./Scripts/release.sh 0.1.1
+# gate → version bump → notarized DMG → GitHub release → signed appcast
+git push && SKIP_GATE=1 git push origin v0.1.1
 ```
 
-Verify each DMG before announcing: `xcrun stapler validate OpenSuperWhisper-<arch>-$VERSION.dmg`
-and, after mounting, `spctl -a -vvv -t exec /Volumes/OpenSuperWhisper/OpenSuperWhisper.app` should
-say `accepted` / `source=Notarized Developer ID`.
+Needs (all present on Noah's machine): Developer ID cert in the login
+keychain, notarytool keychain profile `rhino`, Sparkle private key in the
+keychain (account `Rhino`), `gh` authed with push access to rhino-releases.
 
-## Update the Homebrew cask
+The tag push also triggers `.github/workflows/release.yml`: the CI test gate
+runs regardless (nothing ships untested), and the CI *publish* job skips
+cleanly while its secrets are unset — no double-publish.
 
-The cask lives in the **`my-monkeys/homebrew-tap`** repo at `Casks/opensuperwhisper.rb`. It uses
-an `arch arm: "arm64", intel: "x86_64"` stanza with per-arch `on_arm`/`on_intel` `sha256` blocks and
-a `#{arch}` URL, so `brew` fetches the matching DMG. After a release, bump `version` and **both**
-`sha256` values (from step 3) and push.
+## Path B — CI, tag-driven (canonical once secrets are uploaded)
 
 ```sh
-brew install --cask my-monkeys/tap/opensuperwhisper
+# 1. CHANGELOG section as above
+# 2. bump the version WITHOUT publishing (release.sh does both; for the CI
+#    path run its bump alone):
+python3 - 0.1.1 <<'PY'
+import re, sys
+v = sys.argv[1]
+p = 'OpenSuperWhisper.xcodeproj/project.pbxproj'
+s = open(p).read()
+s = re.sub(r'MARKETING_VERSION = [^;]+;', f'MARKETING_VERSION = {v};', s)
+build = int(re.search(r'CURRENT_PROJECT_VERSION = (\d+);', s).group(1)) + 1
+s = re.sub(r'CURRENT_PROJECT_VERSION = \d+;', f'CURRENT_PROJECT_VERSION = {build};', s)
+open(p, 'w').write(s)
+PY
+git commit -am "Release v0.1.1"
+# 3. tag + push; CI gates, builds, signs, notarizes, publishes DMG + appcast
+git push && git tag v0.1.1 && SKIP_GATE=1 git push origin v0.1.1
 ```
 
-> Use the full `my-monkeys/tap/` path — the bare `opensuperwhisper` resolves to the original
-> (unmaintained) cask in homebrew-cask, not this fork.
+CI verifies the tag matches `MARKETING_VERSION` and the CHANGELOG section
+exists, then fails fast if not. Re-runs are idempotent (release upload
+`--clobber`, appcast merge).
 
-## Auto-update (Sparkle)
+### One-time secret setup (rhino-app repo → Settings → Secrets → Actions)
 
-The app embeds **Sparkle**. The menu-bar **"Check for Updates…"** runs Sparkle's verified
-in-place download + install; the Settings → Updates tab still shows the GitHub release-note history.
+| Secret | Value | How to get it |
+|---|---|---|
+| `MACOS_CERT_P12_BASE64` | Developer ID Application cert + key, base64 | Keychain Access → export cert as `.p12` with a password → `base64 -i cert.p12 \| pbcopy` |
+| `MACOS_CERT_PASSWORD` | that `.p12`'s password | you chose it at export |
+| `MACOS_DEVELOPER_ID_APP` | `Developer ID Application: noah kagan (U433SX7BT8)` | `security find-identity -v -p codesigning` |
+| `MACOS_TEAM_ID` | `U433SX7BT8` | same |
+| `MACOS_NOTARY_APPLE_ID` | the Apple ID email used for notarization | — |
+| `MACOS_NOTARY_PASSWORD` | an **app-specific password** for that Apple ID | appleid.apple.com → App-Specific Passwords |
+| `SPARKLE_ED_PRIVATE_KEY` | Sparkle EdDSA private key (one base64 line) | `SourcePackages/artifacts/*/Sparkle/bin/generate_keys -x /tmp/k --account Rhino && cat /tmp/k \| pbcopy && rm -P /tmp/k` |
+| `RELEASES_TOKEN` | fine-grained PAT, **Contents: read/write** on `noahdevkagan/rhino-releases` | github.com → Settings → Developer settings → Fine-grained tokens |
 
-- Feed: `SUFeedURL` in Info.plist → `appcast.xml` at the repo root (served via
-  `https://raw.githubusercontent.com/my-monkeys/OpenSuperWhisper/master/appcast.xml`).
-- Signing key: an EdDSA keypair; the **public** key is `SUPublicEDKey` in Info.plist, the **private**
-  key lives in the login keychain (generated once via Sparkle's `generate_keys`).
-
-**Per release**, after building the notarized DMG (and before/with publishing it), append an item to
-`appcast.xml`:
+## Verify a shipped DMG
 
 ```sh
-# sign the DMG with the EdDSA private key (from the keychain)
-/path/to/Sparkle/bin/sign_update OpenSuperWhisper-$VERSION.dmg
-#   → sparkle:edSignature="…" length="…"
+xcrun stapler validate Rhino-<ver>.dmg
+hdiutil attach Rhino-<ver>.dmg
+spctl -a -vvv -t exec /Volumes/Rhino/Rhino.app   # → accepted, Notarized Developer ID
 ```
 
-Sign **both** DMGs and add an `<item>` to the matching feed — the arm64 DMG → `appcast.xml`, the
-x86_64 DMG → **`appcast-x86_64.xml`** (each build's `SUFeedURL` points at its own feed, so the two
-arches never offer each other's downloads). Each item carries the new `<sparkle:shortVersionString>`,
-`<sparkle:version>` (= `CURRENT_PROJECT_VERSION`), the release-tag `<link>`, and an `<enclosure>`
-whose `url` is that arch's GitHub release DMG, with the `sparkle:edSignature` and `length` from
-`sign_update`. Commit both feeds to `master`. (The Sparkle CLI tools come from the
-[Sparkle release tarball](https://github.com/sparkle-project/Sparkle/releases).)
+## Still TODO (needs Noah)
+
+- **rhinovoice.app**: register the domain, put up a download page pointing at
+  the latest rhino-releases DMG. The Sparkle feed does NOT depend on the
+  site (it's raw.githubusercontent) — the site is marketing/download only.
+- Upload the Path-B secrets when ready to move releases to CI.

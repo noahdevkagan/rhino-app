@@ -1,0 +1,163 @@
+name: Release
+
+# Cut a release by pushing a version tag (after bumping the version and
+# writing the CHANGELOG section — see docs/RELEASING.md):
+#   git tag v0.1.1 && SKIP_GATE=1 git push origin v0.1.1
+# Or re-run/publish manually from the Actions tab (workflow_dispatch) with an
+# explicit version.
+#
+# tag push → full CI test gate → build → Developer ID sign → notarize →
+# staple → DMG → Sparkle appcast → publish to noahdevkagan/rhino-releases.
+#
+# The publish job runs ONLY when the signing secrets are configured on this
+# repo; until then it skips cleanly and Scripts/release.sh (local, keychain
+# creds) remains the release path — the gate still runs on every tag either
+# way, so nothing ships untested. MeetingCoach's release.yml is the model.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.1.1) — expects tag v<version>'s content checked out"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Every release runs the full test gate first — a tag from any machine
+  # (or a manual dispatch) can never ship untested.
+  gate:
+    uses: ./.github/workflows/test-gate.yml
+
+  # Job-level `if:` can't read the secrets context; surface "are the signing
+  # secrets configured?" as an output instead so the publish job can skip
+  # cleanly (green, with a notice) instead of failing red on every tag.
+  precheck:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          CERT: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          NOTARY: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          SPARKLE: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          RELTOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if [ -n "$CERT" ] && [ -n "$NOTARY" ] && [ -n "$SPARKLE" ] && [ -n "$RELTOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Signing secrets not configured — CI publish skipped; release with Scripts/release.sh locally. Secret setup: docs/RELEASING.md."
+          fi
+
+  release:
+    needs: [gate, precheck]
+    if: needs.precheck.outputs.ready == 'true'
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Toolchain
+        run: brew install cmake libomp
+
+      - name: Derive version
+        id: ver
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # The tag must point at a commit that already carries this version —
+      # CI never bumps versions (that happens before tagging; RELEASING.md).
+      - name: Verify version + changelog
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          grep -q "MARKETING_VERSION = $VERSION;" OpenSuperWhisper.xcodeproj/project.pbxproj \
+            || { echo "MARKETING_VERSION in the Xcode project != $VERSION — bump it (Scripts/release.sh does) and re-tag"; exit 1; }
+          grep -qE "^##[[:space:]]+${VERSION}([^0-9.]|$)" CHANGELOG.md \
+            || { echo "no '## $VERSION' section in CHANGELOG.md at the tagged commit"; exit 1; }
+
+      # Import the Developer ID Application cert into a temporary keychain
+      # (MeetingCoach's step; the keychain password is a throwaway generated
+      # per run — it protects nothing beyond this ephemeral runner).
+      - name: Import signing certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Build, sign, notarize, staple, DMG
+        env:
+          DEVELOPER_ID_APP: ${{ secrets.MACOS_DEVELOPER_ID_APP }}
+          NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+        run: ./Scripts/make-test-dmg.sh
+
+      # Mirrors Scripts/release.sh's publish half (rename, notes from
+      # CHANGELOG, appcast merge, upload) — change one, change both.
+      - name: Publish DMG + appcast to rhino-releases
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          RELEASES_REPO: noahdevkagan/rhino-releases
+        run: |
+          set -euo pipefail
+          ARCHIVE="dist/releases"
+          mkdir -p "$ARCHIVE"
+          DMG="$ARCHIVE/Rhino-$VERSION.dmg"
+          mv "dist/Rhino-$VERSION-test.dmg" "$DMG"
+
+          NOTES="$(awk -v ver="$VERSION" '
+            $0 ~ "^##[[:space:]]+"ver"([^0-9.]|$)" {on=1; next}
+            on && /^##[[:space:]]/ {exit}
+            on {print}' CHANGELOG.md)"
+          gh release create "v$VERSION" "$DMG" --repo "$RELEASES_REPO" \
+              --title "Rhino $VERSION" --notes "$NOTES" \
+              || gh release upload "v$VERSION" "$DMG" --repo "$RELEASES_REPO" --clobber
+
+          # generate_appcast merges into an existing -o file, so prior releases
+          # keep their own per-tag URLs while the archive holds only this DMG.
+          curl -fsSL "https://raw.githubusercontent.com/$RELEASES_REPO/main/appcast.xml" \
+              -o dist/appcast.xml 2>/dev/null || rm -f dist/appcast.xml
+          SPARKLE_BIN=$(find SourcePackages/artifacts -type d -name bin -path "*parkle*" | head -1)
+          KEYFILE="$RUNNER_TEMP/sparkle_ed_key"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$KEYFILE"
+          "$SPARKLE_BIN/generate_appcast" --ed-key-file "$KEYFILE" \
+              --download-url-prefix "https://github.com/$RELEASES_REPO/releases/download/v$VERSION/" \
+              -o dist/appcast.xml "$ARCHIVE"
+          rm -f "$KEYFILE"
+
+          SHA=$(gh api "repos/$RELEASES_REPO/contents/appcast.xml" -q .sha 2>/dev/null || true)
+          gh api -X PUT "repos/$RELEASES_REPO/contents/appcast.xml" \
+            -f message="Appcast for v$VERSION" \
+            -f content="$(base64 -i dist/appcast.xml)" ${SHA:+-f sha="$SHA"} >/dev/null
+          echo "v$VERSION published to $RELEASES_REPO; feed updated"

@@ -5,38 +5,45 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-10, end of day-1 marathon)
+## Current state (2026-08-11, end of the two-day marathon)
 
-- App is **Rhino** (repos noahdevkagan/rhino + rhino-app; in-app rebrand
-  deferred until the quality gate passes, per PLAN.md Phase 4).
-- Phases 0–1 done and pushed: skeleton + gate; every remote code path
-  deleted (ASR, LLM cleanup, GitHub update ping, Ollama, post-record
-  hook); history off by default; ATS re-enabled; migrations + Keychain
-  scrub. NOTE: PLAN.md was rewritten mid-day — decisions.md records where
-  we diverged (deletion kept over compile-guards) and what was adopted.
-- Quality harness live: tests/asr (WER + silence guard), tests/latency
-  (budgets 800/2000ms from actuals), tests/hygiene (static + networking
-  classification + dynamic lsof), bench/scorecard.py trend,
-  bench/corpus/ tooling for the 30-item personal benchmark.
-- Real bug found & fixed by the new gate: silence hallucinated "you"
-  (VAD-empty + near-silent clip now returns "").
-- CI is on-demand/release-only (macOS minutes bill 10x on private repos).
-- Gate runs in ~16s warm; all suites green; unit tests green.
+- The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
+  coral face icon, menu-bar rhino silhouette, forced light mode), main
+  window is sidebar + Home stats/History/Dictionary per Noah's mockups.
+- 80/20 axe done: Rules, SenseVoice/Apple Speech, Rust autocorrect,
+  translation, extra triggers, knobs — all deleted; bundle ships only
+  whisper.cpp + libomp + Sparkle (DMG 28→14MB).
+- Defaults ON: hold-Fn dictate, launch at login, menu-bar start, history,
+  dictionary. Cleanup is an onboarding offer (explicit 1GB download).
+- Shareable build: `Scripts/make-test-dmg.sh` → signed, NOTARIZED,
+  stapled DMG (notarytool profile "rhino"; Sparkle keys exist, feed
+  inert until rhinovoice.app + first release).
+- Deterministic NumberCompaction ("forty-two thousand"→"42,000") runs on
+  every transcription; unit-tested.
+- **Benchmark (Noah's voice, 10 items): Rhino 80% zero-fix / 5.3% WER —
+  beats Wispr Flow (44%); Typeless (100%) is the standing bar.** Grid:
+  `bench/corpus/score-personal.py results/*`.
+- Gate prefs leak fixed (RHINO_PREFS_SUITE); suites can no longer rewrite
+  real settings.
 
-## Outstanding (needs Noah)
+## Outstanding
 
-- **Record the 30-item corpus** (bench/corpus/README.md) and run the
-  head-to-head vs Wispr Flow — this is the go/no-go quality measurement
-  everything else waits on.
-- Manual checks: WiFi-off dictation proof + tests/insertion-manual.md.
-- Dogfood daily: `cd ~/rhino-app && ./run.sh`.
-- Decide domain/brand assets for Rhino (site, icon) — Phase 4.
-- For release later: Apple Developer ID cert, notary app-specific
-  password, Sparkle EdDSA keypair (upstream docs/PUBLISHING.md has the
-  full recipe; adapt, don't replace).
+- Noah: re-record e02 + h01 (`rm audio/{e02,h01}.m4a && ./record.sh`) —
+  realistic shot at 90-100% zero-fix; optionally dictate h03 into Wispr.
+- Next quality lever: elided-word reconstruction in cleanup ("Schedule
+  the review" — Rhino AND Wispr both dropped the "the"; Typeless's LLM
+  reconstructs). Then email-tier polish.
+- Release pipeline (tag → CI gate → sign/notarize → DMG → Sparkle
+  appcast → site): creds exist locally; needs the workflow + rhinovoice
+  .app registration + site. Crib docs/PUBLISHING.md + MeetingCoach.
+- Localizable.xcstrings still carries orphaned keys for cut features
+  (harmless); prune someday.
+- CI test-gate.yml still builds with old assumptions (submodule list
+  changed after autocorrect removal) — verify with a workflow_dispatch
+  run before relying on it for releases.
 
 ## Next session
 
-Start with: "Read AGENTS.md, decisions.md, and ~/rhino/PLAN.md. If corpus
-recordings exist in bench/corpus/audio/, score them and fix the largest
-measured gap; otherwise continue Phase 4 prep that needs no credentials."
+Start with: "Read AGENTS.md and decisions.md. If bench/corpus has fresh
+recordings, rescore and update the head-to-head; then build elided-word
+reconstruction into the cleanup pass and corpus-test it."

@@ -191,6 +191,23 @@ final class RecordingTriggerSetTests: XCTestCase {
         XCTAssertEqual(RecordingTriggerSet.load(from: ""), .empty)
     }
 
+    @MainActor
+    func testPrimaryDescriptionShowsDefaultFnTrigger() {
+        let set = RecordingTriggerSet(triggers: [.modifier(.fn)])
+        XCTAssertEqual(set.primaryDescription, "fn")
+    }
+
+    @MainActor
+    func testPrimaryDescriptionShowsRecordedKeyCombination() {
+        let set = RecordingTriggerSet(triggers: [.keyCombo(combo(.d))])
+        XCTAssertEqual(set.primaryDescription, combo(.d).description)
+    }
+
+    @MainActor
+    func testPrimaryDescriptionUsesDashOnlyWhenNoTriggerExists() {
+        XCTAssertEqual(RecordingTriggerSet.empty.primaryDescription, "—")
+    }
+
     /// Upgrading must keep whatever was configured before the list existed.
     @MainActor
     func testMigrationCarriesTheOldSlots() {

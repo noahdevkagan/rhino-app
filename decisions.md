@@ -251,3 +251,11 @@ once. Every install from 0.1.1 forward updates normally. The Developer
 ID cert was likewise re-issued from the laptop (new CSR) rather than
 exported — Gatekeeper/notarization accept any valid team cert, so that
 rotation costs nothing.
+
+**2026-08-11 — Shortcut hints read `recordingTriggers`, never legacy
+slots.** The recorder moved to a unified trigger list, but Home and the
+legacy recorder footer still read `modifierOnlyHotkey` / `toggleRecord`.
+Fresh installs therefore displayed an em dash even while hold-Fn was
+armed. Compact hints now use the first unified trigger (the complete list
+remains visible in Settings), so displayed instructions cannot drift from
+the keys ShortcutManager actually monitors.

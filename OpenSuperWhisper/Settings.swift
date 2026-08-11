@@ -182,6 +182,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var doubleTapLock: Bool {
+        didSet {
+            AppPreferences.shared.doubleTapLock = doubleTapLock
+        }
+    }
+
     @Published var addSpaceAfterSentence: Bool {
         didSet {
             AppPreferences.shared.addSpaceAfterSentence = addSpaceAfterSentence
@@ -354,6 +360,7 @@ class SettingsViewModel: ObservableObject {
         self.liveTranscriptionEnabled = prefs.liveTranscriptionEnabled
         self.modifierOnlyHotkey = ModifierKey(rawValue: prefs.modifierOnlyHotkey) ?? .none
         self.holdToRecord = prefs.holdToRecord
+        self.doubleTapLock = prefs.doubleTapLock
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
         self.removeFillerWords = prefs.removeFillerWords
@@ -1437,6 +1444,10 @@ struct SettingsView: View {
                 }
                 SRow(title: "Hold to record", hint: "Hold the shortcut to record, release to stop") {
                     SToggle(isOn: $viewModel.holdToRecord)
+                }
+                SRow(title: "Hands-free mode",
+                     hint: "Double-press the shortcut to lock recording on; press again to stop") {
+                    SToggle(isOn: $viewModel.doubleTapLock)
                 }
             }
 

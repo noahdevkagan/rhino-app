@@ -247,6 +247,11 @@ final class AppPreferences {
     @UserDefault(key: "holdToRecord", defaultValue: true)
     var holdToRecord: Bool
 
+    /// Hands-free mode: double-press the recording trigger to lock the recording on
+    /// (no key held); the next press stops it.
+    @UserDefault(key: "doubleTapLock", defaultValue: true)
+    var doubleTapLock: Bool
+
     @UserDefault(key: "addSpaceAfterSentence", defaultValue: true)
     var addSpaceAfterSentence: Bool
 

@@ -31,6 +31,13 @@ class ShortcutManager {
     private var holdMode = false
     private var useModifierOnlyHotkey = false
 
+    /// Hands-free lock: a second trigger press within this window of the first locks the
+    /// recording on — release (and hold-release) no longer stops it; the next press does.
+    /// Shorter than holdThreshold + a beat, so a double-tap can't be mistaken for a hold.
+    private let doubleTapWindow: TimeInterval = 0.35
+    private var lastTriggerDownAt: Date?
+    private var lockedOn = false
+
     private init() {
         print("ShortcutManager init")
 
@@ -55,6 +62,7 @@ class ShortcutManager {
     @objc private func indicatorWindowDidHide() {
         activeVm = nil
         holdMode = false
+        lockedOn = false
     }
 
     @objc private func hotkeySettingsChanged() {
@@ -133,6 +141,12 @@ class ShortcutManager {
         holdMode = false
 
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord
+        // Second press of a quick double-tap. Timed here (not in the Task) so queue latency
+        // can't stretch the gesture window.
+        let now = Date()
+        let isDoubleTap = AppPreferences.shared.doubleTapLock
+            && lastTriggerDownAt.map { now.timeIntervalSince($0) < doubleTapWindow } ?? false
+        lastTriggerDownAt = now
 
         Task { @MainActor in
             if self.activeVm == nil {
@@ -151,13 +165,21 @@ class ShortcutManager {
                 }
                 Diag.measure("vm.startRecording") { vm.startRecording() }
                 self.activeVm = vm
-            } else if !self.holdMode {
+                self.lockedOn = false
+            } else if isDoubleTap && !self.lockedOn {
+                // Hands-free: the double-tap's second press locks the recording on instead of
+                // stopping it. Any later press (outside the window, or while locked) stops.
+                self.lockedOn = true
+            } else if !self.holdMode || self.lockedOn {
                 IndicatorWindowManager.shared.stopRecording()
                 self.activeVm = nil
+                self.lockedOn = false
             }
         }
-        
-        if holdToRecordEnabled {
+
+        // A locking press must not also arm push-to-talk: holding the second tap past the
+        // threshold would otherwise flip to holdMode and its release would undo the lock.
+        if holdToRecordEnabled && !isDoubleTap {
             let workItem = DispatchWorkItem { [weak self] in
                 self?.holdMode = true
             }
@@ -173,6 +195,8 @@ class ShortcutManager {
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord
         
         Task { @MainActor in
+            // Locked on (hands-free): releases never stop the recording; only a press does.
+            if self.lockedOn { return }
             if holdToRecordEnabled && self.holdMode {
                 IndicatorWindowManager.shared.stopRecording()
                 self.activeVm = nil

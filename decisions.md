@@ -107,3 +107,20 @@ Dynamic: a real CLI transcription in an isolated $HOME with `lsof`
 sampling — any non-loopback socket fails the gate. The detector itself is
 negative-tested (a synthetic remote lsof row must trip it). Fix the code,
 never the gate.
+**2026-08-10 — History ON by default (reverses the earlier off-default).**
+Noah's call: "it should store everything to the local computer." Local
+history is the product's memory — the Home stats page, rerun, and search
+are its payoff. The privacy promise is "never leaves your Mac", not
+"never exists". The privacy-safe-defaults idea survives as the retention
+caps and the one-toggle off switch surfaced at the top of History.
+
+**2026-08-10 — Main window is sidebar + Home/History/Dictionary**, per
+Noah's Typeless mockups (white-first, stat tiles, dictionary as a
+first-class tab). Settings stays its own window.
+
+**2026-08-10 — Upstream-facing UI stripped; Sparkle neutered until we
+have our own feed.** Feedback tab, Ko-fi, their GitHub links: gone (MIT
+only requires the license notice, which stays). SUEnableAutomaticChecks
+is false and the Check-for-Updates entry points are removed because the
+feed URL still targets upstream's appcast — an "update" from there would
+replace the hardened build with stock OpenSuperWhisper.

@@ -4,3 +4,4 @@
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 432, "machine": "Mac.lan", "model": "ggml-tiny.en", "commit": "dddfafe", "date": "2026-08-10T21:31:59Z"}
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 438, "machine": "Mac.lan", "model": "ggml-tiny.en", "commit": "b719a57", "date": "2026-08-10T21:32:46Z"}
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 431, "machine": "Mac.lan", "model": "ggml-tiny.en", "commit": "875d484", "date": "2026-08-11T01:05:54Z"}
+{"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 424, "machine": "Mac.lan", "model": "ggml-tiny.en", "commit": "7941a2c", "date": "2026-08-11T01:06:28Z"}

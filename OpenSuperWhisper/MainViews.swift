@@ -146,6 +146,24 @@ final class DictationStats: ObservableObject {
 struct HomeStatsView: View {
     @StateObject private var stats = DictationStats()
     @Environment(\.colorScheme) private var colorScheme
+    @State private var modelMissing = false
+
+    /// True when the first dictation would fail before it starts: the active engine is
+    /// Whisper and no model file is on disk (never picked one, or the pref points at a
+    /// file that's gone — migrated installs and pre-0.1.0 test builds land here). The
+    /// onboarding gate can't catch these, so Home says it instead of the first
+    /// dictation failing. Parakeet fetches its model on first use, so it never trips.
+    private static func isModelMissing() -> Bool {
+        let prefs = AppPreferences.shared
+        guard prefs.selectedEngine == "whisper" else { return false }
+        guard let path = prefs.selectedWhisperModelPath ?? prefs.selectedModelPath,
+              FileManager.default.fileExists(atPath: path) else {
+            // Any downloaded model on disk still counts — the engine can't use it until
+            // it's selected, so the banner stays until the user picks one in Settings.
+            return true
+        }
+        return false
+    }
 
     private var shortcutDescription: String {
         let modifier = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
@@ -168,6 +186,29 @@ struct HomeStatsView: View {
                     .foregroundColor(.secondary)
                 }
                 .padding(.top, 26)
+
+                if modelMissing {
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("No speech model installed")
+                                .scaledFont(size: 13, weight: .semibold)
+                            Text("Dictation won't work until a model is downloaded to this Mac.")
+                                .scaledFont(size: 12)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button("Get a model") {
+                            NotificationCenter.default.post(name: .openSettings, object: nil)
+                            NotificationCenter.default.post(name: .openSettingsModelsTab, object: nil)
+                        }
+                        .controlSize(.regular)
+                    }
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.10)))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.35), lineWidth: 1))
+                }
 
                 let time = DictationStats.format(seconds: stats.totalSeconds)
                 let saved = DictationStats.format(seconds: stats.secondsSaved)
@@ -209,9 +250,21 @@ struct HomeStatsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ThemePalette.windowBackground(colorScheme))
-        .onAppear { stats.reload() }
+        .onAppear {
+            stats.reload()
+            modelMissing = Self.isModelMissing()
+        }
         .onReceive(NotificationCenter.default.publisher(
             for: RecordingStore.recordingsDidUpdateNotification)) { _ in stats.reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .modelSelectionDidChange)) { _ in
+            modelMissing = Self.isModelMissing()
+        }
+        // Re-check when the main window comes back to front — the user typically fixes
+        // this in the Settings window and returns here expecting the banner gone.
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSWindow.didBecomeKeyNotification)) { _ in
+            modelMissing = Self.isModelMissing()
+        }
     }
 
     private func compact(_ n: Int) -> String {

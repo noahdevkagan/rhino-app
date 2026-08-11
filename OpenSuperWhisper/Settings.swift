@@ -1040,6 +1040,9 @@ struct SettingsView: View {
                 viewModel.initializeFluidAudioModels()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsModelsTab)) { _ in
+            selectedTab = .models
+        }
         .onChange(of: viewModel.selectedEngine) { _, newEngine in
             if newEngine == "fluidaudio" {
                 viewModel.initializeFluidAudioModels()

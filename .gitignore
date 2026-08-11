@@ -120,6 +120,10 @@ dev_config.json
 build-test/
 vendor/
 
+# Source plugin used by the public site (not a generated build directory).
+!website/build/
+!website/build/sites-vite-plugin.ts
+
 # Test suite build artifacts (tests/README.md)
 tests/*/.build/
 tests/*/.out/

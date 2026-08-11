@@ -252,6 +252,33 @@ ID cert was likewise re-issued from the laptop (new CSR) rather than
 exported — Gatekeeper/notarization accept any valid team cert, so that
 rotation costs nothing.
 
+**2026-08-11 — Rhino's homepage is a one-screen $20 purchase page.** The
+first site pass overbuilt the brief with feature, privacy, setup, FAQ, and
+repeat-CTA sections. Noah's screenshots clarified the target: retain only the
+header, product hero, PayPal purchase, and a compact footer; put release history
+on `/changelog` and the DMG on the post-purchase `/thanks` route. Checkout uses
+the same `paypal@okdork.com` account, one-time $20 price, and 30-day guarantee
+as MeetingCoach. The visible logo renders the system rhino emoji at its native
+display size instead of enlarging the app icon's cropped emoji bitmap, which
+keeps it sharp on Retina screens.
+
+**2026-08-11 — The public site lives in `website/` beside the app.** It
+is a self-contained Sites/vinext project so web dependencies and builds
+cannot disturb Xcode, while the product, release automation, and website
+copy still evolve in one repository. The first launch page is intentionally
+one route: direct notarized DMG download, concrete local-only privacy proof,
+three-step onboarding, product FAQ, and no account or payment flow. Its
+download URL is pinned to the tested v0.1.2 asset rather than resolved at
+request time; updating that one constant is part of each release until the
+release workflow automates it.
+
+**2026-08-11 — The website favicon uses a full rhino, not the app or tray
+crop.** The app artwork deliberately zooms into the emoji's face and the tray
+art reduces it to a monochrome silhouette; both become ambiguous in a browser
+tab. The site now generates a 512px coral tile with the full native rhino emoji
+and publishes it through Next's `app/icon.png` convention, which emits an
+explicit cache-busted favicon link that browsers reliably discover.
+
 **2026-08-11 — Shortcut hints read `recordingTriggers`, never legacy
 slots.** The recorder moved to a unified trigger list, but Home and the
 legacy recorder footer still read `modifierOnlyHotkey` / `toggleRecord`.

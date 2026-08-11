@@ -401,13 +401,9 @@ struct ContentView: View {
     @State private var mainTab: MainTab = .home
 
     private var currentShortcutDescription: String {
-        let modifierKey = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
-        if modifierKey != .none {
-            return modifierKey.shortSymbol
-        } else if let shortcut = KeyboardShortcuts.getShortcut(for: .toggleRecord) {
-            return shortcut.description
-        }
-        return ""
+        RecordingTriggerSet
+            .load(from: AppPreferences.shared.recordingTriggers)
+            .primaryDescription
     }
     
     private func performSearch(_ query: String) {

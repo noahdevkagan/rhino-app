@@ -7,7 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
-### Active plan — rhinovoice.app launch site
+- Fixed Home shortcut hint rendering the default Fn trigger as a dash: hints
+  now read the unified `recordingTriggers` source used by ShortcutManager,
+  refresh after settings changes, and have focused regression coverage. App
+  build and all 11 `RecordingTriggerSetTests` pass.
+
+### rhinovoice.app launch site
 
 - Revised site is live at `https://rhinovoice.app`: one
   header + hero + compact footer, sharp native-size rhino emoji mark, and a

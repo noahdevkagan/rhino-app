@@ -278,3 +278,11 @@ art reduces it to a monochrome silhouette; both become ambiguous in a browser
 tab. The site now generates a 512px coral tile with the full native rhino emoji
 and publishes it through Next's `app/icon.png` convention, which emits an
 explicit cache-busted favicon link that browsers reliably discover.
+
+**2026-08-11 — Shortcut hints read `recordingTriggers`, never legacy
+slots.** The recorder moved to a unified trigger list, but Home and the
+legacy recorder footer still read `modifierOnlyHotkey` / `toggleRecord`.
+Fresh installs therefore displayed an em dash even while hold-Fn was
+armed. Compact hints now use the first unified trigger (the complete list
+remains visible in Settings), so displayed instructions cannot drift from
+the keys ShortcutManager actually monitors.

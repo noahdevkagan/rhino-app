@@ -9,17 +9,14 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Active plan — rhinovoice.app launch site
 
-- Revised site is live at `https://rhinovoice-app.reg654.chatgpt.site`: one
+- Revised site is live at `https://rhinovoice.app`: one
   header + hero + compact footer, sharp native-size rhino emoji mark, and a
   one-time $20 PayPal checkout through `paypal@okdork.com`.
 - `/thanks` delivers the v0.1.2 DMG after purchase; `/changelog` lists the three
   Rhino releases. Production render tests and live-route checks all pass.
-- `rhinovoice.app` remains registered with Sites but awaits the Cloudflare DNS
-  records. Noah's Cloudflare screenshot now confirms all four records are in
-  place; refresh the hostname status and verify HTTPS after the favicon deploy.
-- Active site-update plan: generate an explicit full-rhino browser icon using
-  Next's `app/icon.png` convention, update its render test, build and deploy,
-  then verify the favicon plus `rhinovoice.app` hostname and TLS end to end.
+- Cloudflare DNS, the custom hostname, and TLS are all active. The browser tab
+  uses a cache-busted, full-rhino coral favicon generated at 512px through
+  Next's `app/icon.png` convention; its deployed bytes match the tested asset.
 
 - The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
   coral face icon, menu-bar rhino silhouette, forced light mode), main

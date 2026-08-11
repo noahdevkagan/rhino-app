@@ -142,13 +142,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         OpenSuperWhisperApp.startRetentionScheduler()
         observeMicrophoneChanges()
 
-        // The Apple Speech locale lists are async-only; refresh the sync caches the
-        // model catalog and language picker read (menu must never trigger a download).
-#if canImport(FoundationModels)
-        if #available(macOS 26.0, *) {
-            Task.detached(priority: .utility) { await AppleSpeechSupport.refreshCaches() }
+        // Speed: warm the heavy pieces at launch so the FIRST dictation doesn't
+        // pay their load time — the ASR engine (~1-3s) and, when cleanup is on,
+        // the LLM context. Both no-op when nothing is configured yet.
+        Task { @MainActor in
+            TranscriptionService.shared.preloadEngine()
+            if AppPreferences.shared.aiPostProcessingEnabled {
+                BuiltInLlamaBackend.shared.preload()
+            }
         }
-#endif
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
@@ -206,7 +208,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         
         if let button = statusItem?.button {
             if let iconImage = NSImage(named: "tray_icon") {
-                iconImage.size = NSSize(width: 48, height: 48)
+                iconImage.size = NSSize(width: 18, height: 18)
                 iconImage.isTemplate = true
                 button.image = iconImage
             } else {
@@ -259,25 +261,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         
         transcriptionLanguageItem.submenu = languageSubmenu
         menu.addItem(transcriptionLanguageItem)
-
-        // Translation needs a Whisper-class model or a remote server; Parakeet/SenseVoice only
-        // transcribe in the source language (#124). Off those, gray the item out and say why
-        // instead of silently ignoring it.
-        let engine = AppPreferences.shared.selectedEngine
-        let translateSupported = EngineCapabilities.supportsTranslation(
-            engine: engine, modelPath: AppPreferences.shared.selectedWhisperModelPath)
-        let turboBlocks = engine == "whisper" && !translateSupported
-        let translateItem = NSMenuItem(
-            title: translateSupported
-                ? NSLocalizedString("Translate to English", comment: "")
-                : turboBlocks
-                    ? NSLocalizedString("Translate to English (not with turbo models)", comment: "")
-                    : NSLocalizedString("Translate to English (Whisper only)", comment: ""),
-            action: translateSupported ? #selector(toggleTranslateToEnglish) : nil,
-            keyEquivalent: "")
-        translateItem.target = self
-        translateItem.state = (translateSupported && AppPreferences.shared.translateToEnglish) ? .on : .off
-        menu.addItem(translateItem)
 
         // Model picker — quick cross-engine switch. Its items are (re)built each time
         // the submenu opens (menuNeedsUpdate) so newly-downloaded or newly-fetched
@@ -376,11 +359,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         statusItem?.menu = menu
     }
 
-    @objc private func toggleTranslateToEnglish() {
-        MainActor.assumeIsolated { TranslateStore.shared.toggle() }
-        updateStatusBarMenu()
-    }
-    
     @objc private func selectMicrophone(_ sender: NSMenuItem) {
         guard let device = sender.representedObject as? MicrophoneService.AudioDevice else { return }
         microphoneService.selectMicrophone(device)
@@ -436,7 +414,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     @objc private func insertRecentTranscript(_ sender: NSMenuItem) {
         guard let text = sender.representedObject as? String else { return }
         Task { @MainActor in
-            await PasteLastTranscript.insert(text)
+            await RecentTranscripts.insert(text)
         }
     }
 
@@ -461,7 +439,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         let groups: [(label: String, options: [DictationModelOption])] = [
             ("Whisper", ModelCatalog.whisperModels()),
             ("Parakeet", ModelCatalog.parakeetModels()),
-            ("SenseVoice", ModelCatalog.senseVoiceModels()),
         ]
 
         var addedAnything = false
@@ -497,62 +474,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
 
     @objc private func selectModel(_ sender: NSMenuItem) {
         guard let option = sender.representedObject as? DictationModelOption else { return }
-        let context = RecordingContext.shared
-        // Ask the scope only when it's meaningful: context-awareness is on, there's
-        // more than one model to choose between, and we're in a recognized app
-        // whose current rule differs. Otherwise just set the system default.
-        if AppPreferences.shared.contextAwareModelMode.prompts,
-           ModelCatalog.allAvailable().count > 1,
-           let bundleID = context.bundleID, let scopeLabel = context.scopeLabel,
-           AppContextModelRules.rule(for: bundleID, host: context.host) != option {
-            promptForModelScope(option, bundleID: bundleID, host: context.host, scopeLabel: scopeLabel)
-        } else {
-            MainActor.assumeIsolated { ModelSelectionStore.shared.select(option) }
-        }
+        MainActor.assumeIsolated { ModelSelectionStore.shared.select(option) }
         populateModelSubmenu()
     }
 
-    /// Picking a model can mean: the system default (everywhere, except apps with
-    /// their own rule), the default for the current app, just the next recording in
-    /// that app, or — when the app already has a rule — forgetting it. Never
-    /// overwrites a rule silently.
-    private func promptForModelScope(_ option: DictationModelOption, bundleID: String, host: String?, scopeLabel: String) {
-        // "scope" is the most specific bindable context: the site (host) inside a
-        // browser, otherwise the app.
-        let hasRule = AppContextModelRules.exactRule(for: bundleID, host: host) != nil
-        let alert = NSAlert()
-        alert.messageText = "Apply “\(option.displayName)”?"
-        alert.informativeText = "Set it as your system default, the default for \(scopeLabel), or just for your next recording."
-        alert.addButton(withTitle: "System Default")
-        alert.addButton(withTitle: "Default for \(scopeLabel)")
-        alert.addButton(withTitle: "Just This Time")
-        if hasRule {
-            alert.addButton(withTitle: "Forget \(scopeLabel)’s Default")
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            // System default — change the active model everywhere (scopes with
-            // their own rule still win); drop any pending one-time override.
-            MainActor.assumeIsolated { ModelSelectionStore.shared.select(option) }
-            RecordingContext.shared.clearOneTimeModel(for: bundleID)
-        case .alertSecondButtonReturn:
-            // Default for this scope (site or app) — apply now and persist.
-            MainActor.assumeIsolated { ModelSelectionStore.shared.select(option) }
-            AppContextModelRules.set(option, for: bundleID, host: host)
-            RecordingContext.shared.clearOneTimeModel(for: bundleID)
-        case .alertThirdButtonReturn:
-            // Just this time — next recording uses it; the system default is left
-            // untouched (the override fires at record-start).
-            RecordingContext.shared.setOneTimeModel(option, for: bundleID)
-        default:
-            // Fourth button (only present when this scope has a rule): forget it so
-            // it falls back to the app rule, then the system default.
-            AppContextModelRules.remove(bundleID: bundleID, host: host)
-            RecordingContext.shared.clearOneTimeModel(for: bundleID)
-        }
-    }
-    
     @objc private func statusBarButtonClicked(_ sender: Any) {
         statusItem?.button?.performClick(nil)
     }

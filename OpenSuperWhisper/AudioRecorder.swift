@@ -102,8 +102,7 @@ class AudioRecorder: NSObject, ObservableObject {
         }
     }
     
-    /// The short chime used to confirm a recording state change. Internal rather than private so
-    /// the Space latch can reuse it — same class of feedback, same preference.
+    /// The short chime used to confirm a recording state change.
     func playNotificationSound() {
         // Try to play using NSSound first
         guard let soundURL = Bundle.main.url(forResource: "notification", withExtension: "mp3") else {
@@ -139,9 +138,6 @@ class AudioRecorder: NSObject, ObservableObject {
         
         if AppPreferences.shared.pauseMediaOnRecord {
             MediaPlaybackController.shared.pauseMedia()
-        }
-        if AppPreferences.shared.reduceVolumeOnRecord {
-            SystemVolumeController.shared.duck(to: Float32(AppPreferences.shared.reduceVolumeLevel))
         }
 
         if AppPreferences.shared.playSoundOnRecordStart {
@@ -228,10 +224,7 @@ class AudioRecorder: NSObject, ObservableObject {
         if AppPreferences.shared.pauseMediaOnRecord {
             MediaPlaybackController.shared.resumeMedia()
         }
-        if AppPreferences.shared.reduceVolumeOnRecord {
-            SystemVolumeController.shared.restore()
-        }
-        
+
         if let url = currentRecordingURL,
            let duration = try? AVAudioPlayer(contentsOf: url).duration,
            duration < 1.0
@@ -255,10 +248,7 @@ class AudioRecorder: NSObject, ObservableObject {
         if AppPreferences.shared.pauseMediaOnRecord {
             MediaPlaybackController.shared.resumeMedia()
         }
-        if AppPreferences.shared.reduceVolumeOnRecord {
-            SystemVolumeController.shared.restore()
-        }
-        
+
         if let url = currentRecordingURL {
             try? FileManager.default.removeItem(at: url)
         }

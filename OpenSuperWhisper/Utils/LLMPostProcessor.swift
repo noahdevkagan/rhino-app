@@ -30,21 +30,16 @@ enum LLMPostProcessor {
         BuiltInLlamaBackend.shared
     }
 
-    /// Cleans and/or app-formats `text` for the frontmost app identified by `bundleID`. Two
-    /// independent capabilities feed one LLM pass: general prose cleanup (`aiPostProcessingEnabled`)
-    /// and app-aware formatting (`appContextFormattingEnabled`). Either, both, or neither may run.
-    static func process(_ text: String, bundleID: String?) async -> String {
+    /// Cleans `text` with the general prose-cleanup pass (`aiPostProcessingEnabled`).
+    static func process(_ text: String, bundleID: String? = nil) async -> String {
         let prefs = AppPreferences.shared
         let general = prefs.aiPostProcessingEnabled
-        let formatting = prefs.appContextFormattingEnabled
 
-        guard general || formatting else { return text }
+        guard general else { return text }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
 
-        let prof = formatting ? profile(for: bundleID, in: prefs.appContextProfiles) : nil
         guard let system = assembleSystemPrompt(generalCleanup: general,
-                                                generalPrompt: prefs.aiPostProcessingPrompt,
-                                                profile: prof) else { return text }
+                                                generalPrompt: prefs.aiPostProcessingPrompt) else { return text }
 
         let backend = currentBackend()
         guard backend.isReady else { return text }
@@ -52,13 +47,12 @@ enum LLMPostProcessor {
         do {
             let raw = try await backend.generate(system: system, user: wrapUserText(text))
             let result = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Blank output always falls back to the verbatim transcription. The length-ratio check
-            // on top of that runs only for backends that ask for it (the small built-in model), and
-            // an active app profile relaxes its shrink floor because those rules condense on
-            // purpose — see `passesLengthGuard`.
+            // Blank output always falls back to the verbatim transcription. The length-ratio
+            // check on top of that runs only for backends that ask for it (the small built-in
+            // model) — see `passesLengthGuard`.
             guard !result.isEmpty else { return text }
             if backend.enforcesLengthRatio,
-               !passesLengthGuard(input: text, output: result, condensingAllowed: prof != nil) {
+               !passesLengthGuard(input: text, output: result, condensingAllowed: false) {
                 return text
             }
             return result
@@ -70,24 +64,12 @@ enum LLMPostProcessor {
 
     // MARK: - Pure logic (no I/O; unit-tested)
 
-    /// The profile whose `bundleIdentifier` matches `bundleID`, case-insensitively. Returns nil
-    /// when `bundleID` is nil or no profile matches.
-    static func profile(for bundleID: String?, in profiles: [AppContextProfile]) -> AppContextProfile? {
-        guard let bundleID = bundleID else { return nil }
-        return profiles.first { $0.bundleIdentifier.caseInsensitiveCompare(bundleID) == .orderedSame }
-    }
-
-    /// Builds the single system prompt for one LLM pass from the two independent contributors.
-    /// Returns nil when neither contributes (general cleanup off AND no app profile), signalling
-    /// the caller to skip the LLM entirely and return the text untouched.
-    ///
-    /// The prompt always opens with a strict transform-only preamble (so a weak model rewrites
-    /// rather than "answers"), then appends the general cleanup instruction and/or an
-    /// "App-specific formatting rules:" section as applicable.
+    /// Builds the system prompt for the cleanup pass: a strict transform-only preamble
+    /// (so a weak model rewrites rather than "answers") plus the cleanup instruction.
+    /// Returns nil when cleanup is off, signalling the caller to skip the LLM entirely.
     static func assembleSystemPrompt(generalCleanup: Bool,
-                                     generalPrompt: String,
-                                     profile: AppContextProfile?) -> String? {
-        guard generalCleanup || profile != nil else { return nil }
+                                     generalPrompt: String) -> String? {
+        guard generalCleanup else { return nil }
 
         var sections: [String] = [
             "You are a strict text transformer, not a chatbot. You receive the raw output of a "
@@ -97,12 +79,7 @@ enum LLMPostProcessor {
             + "ONLY the transformed text."
         ]
 
-        if generalCleanup {
-            sections.append(generalPrompt)
-        }
-        if let profile = profile {
-            sections.append("App-specific formatting rules:\n\(profile.instructions)")
-        }
+        sections.append(generalPrompt)
 
         return sections.joined(separator: "\n\n")
     }

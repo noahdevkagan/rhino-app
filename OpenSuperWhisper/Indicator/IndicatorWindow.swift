@@ -28,8 +28,6 @@ class IndicatorViewModel: ObservableObject {
 
     @Published var state: RecordingState = .idle
     @Published var isBlinking = false
-    /// The recording has been pinned hands-free and no longer depends on the trigger key.
-    @Published var isLatched = false
     @Published var isConfirmingCancel = false
     @Published var recorder: AudioRecorder = .shared
     @Published var isVisible = false
@@ -130,12 +128,10 @@ class IndicatorViewModel: ObservableObject {
             return
         }
 
-        // Capture where the dictation is happening (frontmost app, browser site/URL,
-        // window title) and apply any context-aware model rule before recording. This
-        // runs AppleScript/Accessibility synchronously on the main thread; it's quick,
-        // but see the note in RecordingContext.captureFrontmost. (F2/F3)
+        // Capture where the dictation is happening (frontmost app, window title) before
+        // recording, for the history row. This runs Accessibility synchronously on the
+        // main thread; it's quick, but see the note in RecordingContext.captureFrontmost.
         RecordingContext.shared.captureFrontmost()
-        ContextModelSwitcher.applyForCurrentContext()
 
         // Show recording immediately and optimistically. Whether the mic needs a
         // connection is decided off the main thread inside `recorder.startRecording()`
@@ -217,7 +213,6 @@ class IndicatorViewModel: ObservableObject {
     func startDecoding() {
         resetCancelConfirmation()
         stopBlinking()
-        isLatched = false
 
         // Grab the live-streaming preview text (if any) BEFORE cancelling the stream, then hand
         // off. A very short clip can come back empty from the offline file pass even when the
@@ -296,7 +291,6 @@ class IndicatorViewModel: ObservableObject {
     func cleanup() {
         stopBlinking()
         resetCancelConfirmation()
-        isLatched = false
         recordingStartedAt = nil
         hideTimer?.invalidate()
         hideTimer = nil
@@ -327,10 +321,6 @@ class IndicatorViewModel: ObservableObject {
 
 struct RecordingIndicator: View {
     let isBlinking: Bool
-    /// Hands-free: the dot swells, stops blinking and gains a slow outward pulse. The change has to
-    /// be legible at a glance and from the corner of the eye — it is the only signal that it is now
-    /// safe to let go of the trigger key.
-    var isLatched: Bool = false
 
     @Environment(\.textScaleFactor) private var scale
 
@@ -346,29 +336,10 @@ struct RecordingIndicator: View {
                     endPoint: .bottomTrailing
                 )
             )
-            .frame(width: (isLatched ? 11 : 8) * scale, height: (isLatched ? 11 : 8) * scale)
-            .shadow(color: .red.opacity(0.5), radius: isLatched ? 6 : 4)
-            // Latched reads as steady-and-pulsing rather than blinking: a solid dot says the
-            // recording no longer depends on anything being held down.
-            .opacity(isLatched ? 1.0 : (isBlinking ? 0.3 : 1.0))
-            .overlay { if isLatched { LatchPulse() } }
+            .frame(width: 8 * scale, height: 8 * scale)
+            .shadow(color: .red.opacity(0.5), radius: 4)
+            .opacity(isBlinking ? 0.3 : 1.0)
             .animation(.easeInOut(duration: 0.4), value: isBlinking)
-            .animation(.spring(response: 0.32, dampingFraction: 0.55), value: isLatched)
-    }
-}
-
-/// The ring that expands out of the latched dot and fades, once per beat. Deliberately slow: it is
-/// an ambient "still going" cue, not something to keep looking at.
-private struct LatchPulse: View {
-    @State private var expanded = false
-
-    var body: some View {
-        Circle()
-            .stroke(Color.red.opacity(0.55), lineWidth: 1.5)
-            .scaleEffect(expanded ? 2.1 : 1)
-            .opacity(expanded ? 0 : 0.7)
-            .animation(.easeOut(duration: 1.4).repeatForever(autoreverses: false), value: expanded)
-            .onAppear { expanded = true }
     }
 }
 
@@ -497,46 +468,6 @@ struct IndicatorWindow: View {
 
     private var decodingElements: [IndicatorElement] { layout.decodingLeading }
 
-    /// Opt-in on-bubble controls (default off). Shown on the trailing side while
-    /// recording. Stop = stop & transcribe (same as the hotkey toggle); Cancel =
-    /// discard (same as the Esc cancel shortcut). Fixed-size, so they don't couple
-    /// the bubble's size to the window (see the recursion-crash note above).
-    private var anyIndicatorButton: Bool {
-        AppPreferences.shared.showStopButtonOnIndicator
-            || AppPreferences.shared.showCancelButtonOnIndicator
-    }
-
-    @ViewBuilder private var indicatorControls: some View {
-        HStack(spacing: 8) {
-            if AppPreferences.shared.showStopButtonOnIndicator {
-                Button { IndicatorWindowManager.shared.stopRecording() } label: {
-                    // A red ring with a red stop square inside (transparent interior).
-                    Image(systemName: "stop.circle")
-                        .scaledFont(size: 19, weight: .regular)
-                        .foregroundColor(.red)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .pointerCursorOnHover()
-                .help("Finish recording")
-            }
-            if AppPreferences.shared.showCancelButtonOnIndicator {
-                Button { IndicatorWindowManager.shared.stopForce() } label: {
-                    // A plain red trash can — discard without transcribing.
-                    Image(systemName: "trash")
-                        .scaledFont(size: 16, weight: .regular)
-                        .foregroundColor(.red)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .pointerCursorOnHover()
-                .help("Cancel recording")
-            }
-        }
-    }
-
     var body: some View {
 
         // Notch mode uses the real notch silhouette (concave top wings + rounded bottom).
@@ -575,7 +506,6 @@ struct IndicatorWindow: View {
                                                  bands: spectrum.bands,
                                                  meterHeight: meterHeight,
                                                  isBlinking: viewModel.isBlinking,
-                                                 isLatched: viewModel.isLatched,
                                                  queued: pipeline.pendingCount)
                         }
                         if !layout.trailing.isEmpty {
@@ -586,7 +516,6 @@ struct IndicatorWindow: View {
                                                          bands: spectrum.bands,
                                                          meterHeight: meterHeight,
                                                          isBlinking: viewModel.isBlinking,
-                                                         isLatched: viewModel.isLatched,
                                                          queued: pipeline.pendingCount)
                                 }
                             }
@@ -599,7 +528,7 @@ struct IndicatorWindow: View {
                     // Center-aligned: with the (taller) on-bubble buttons enabled, .top
                     // alignment pinned a single caption line above the vertical middle.
                     HStack(alignment: .center, spacing: 10) {
-                        RecordingIndicator(isBlinking: viewModel.isBlinking, isLatched: viewModel.isLatched)
+                        RecordingIndicator(isBlinking: viewModel.isBlinking)
                             .frame(width: 16)
                         (Text(streaming.confirmedText).foregroundColor(.primary)
                             + Text(streaming.confirmedText.isEmpty ? "" : " ")
@@ -607,9 +536,17 @@ struct IndicatorWindow: View {
                             .scaledFont(size: 14)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(width: 300, alignment: .leading)
-                        if anyIndicatorButton {
+                        if !layout.trailing.isEmpty {
                             Spacer(minLength: 8)
-                            indicatorControls
+                            HStack(spacing: 8) {
+                                ForEach(layout.trailing) { element in
+                                    IndicatorElementView(element: element,
+                                                         bands: spectrum.bands,
+                                                         meterHeight: meterHeight,
+                                                         isBlinking: viewModel.isBlinking,
+                                                         queued: pipeline.pendingCount)
+                                }
+                            }
                         }
                     }
                 }

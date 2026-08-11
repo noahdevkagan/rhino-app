@@ -1,20 +1,17 @@
 import FluidAudio
 import Foundation
 
-/// One selectable dictation model across all engines. Used by the menu-bar model
-/// picker and the per-app context rules.
+/// One selectable dictation model across all engines. Used by the menu-bar model picker.
 struct DictationModelOption: Codable, Equatable, Hashable {
-    /// "whisper" | "fluidaudio" | "sensevoice" | "apple" — matches AppPreferences.selectedEngine.
+    /// "whisper" | "fluidaudio" — matches AppPreferences.selectedEngine.
     let engine: String
-    /// whisper: model file path; fluidaudio: version ("v2"/"v3"); sensevoice/apple: "default".
+    /// whisper: model file path; fluidaudio: version ("v2"/"v3").
     let identifier: String
     let displayName: String
 }
 
 /// Single source of truth for which models are actually usable right now
-/// (downloaded locally) and for
-/// applying a selection. The menu and the context rules read from here so they
-/// always agree.
+/// (downloaded locally) and for applying a selection.
 enum ModelCatalog {
     /// Downloaded whisper.cpp model files.
     static func whisperModels() -> [DictationModelOption] {
@@ -42,28 +39,10 @@ enum ModelCatalog {
         }
     }
 
-    /// SenseVoice — a single (int8) model, arm64-only and only when downloaded.
-    static func senseVoiceModels() -> [DictationModelOption] {
-#if arch(arm64)
-        guard SenseVoiceModelManager.shared.isDownloaded else { return [] }
-        return [DictationModelOption(engine: "sensevoice", identifier: "default", displayName: "SenseVoice")]
-#else
-        return []
-#endif
-    }
-
-    /// The system speech model (macOS 26+) — one entry, only when the OS supports it
-    /// AND at least one locale's assets are already installed (the cached check keeps
-    /// the never-download-from-the-menu rule).
-    static func appleSpeechModels() -> [DictationModelOption] {
-        guard AppleSpeechSupport.isSupported, AppleSpeechSupport.hasInstalledModel else { return [] }
-        return [DictationModelOption(engine: "apple", identifier: "default", displayName: "Apple Speech")]
-    }
-
     /// Every usable model across engines. Used to decide whether switching is
     /// even meaningful (one model → nothing to choose).
     static func allAvailable() -> [DictationModelOption] {
-        whisperModels() + parakeetModels() + senseVoiceModels() + appleSpeechModels()
+        whisperModels() + parakeetModels()
     }
 
     /// The model currently in effect (active engine + its selected model).
@@ -83,10 +62,6 @@ enum ModelCatalog {
                 identifier: prefs.fluidAudioModelVersion,
                 displayName: prefs.fluidAudioModelVersion
             )
-        case "sensevoice":
-            return DictationModelOption(engine: "sensevoice", identifier: "default", displayName: "SenseVoice")
-        case "apple":
-            return DictationModelOption(engine: "apple", identifier: "default", displayName: "Apple Speech")
         default:
             return nil
         }
@@ -102,8 +77,6 @@ enum ModelCatalog {
             prefs.selectedWhisperModelPath = option.identifier
         case "fluidaudio":
             prefs.fluidAudioModelVersion = option.identifier
-        case "sensevoice", "apple":
-            break  // single model, nothing else to set
         default:
             break
         }

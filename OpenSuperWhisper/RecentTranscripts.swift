@@ -1,10 +1,11 @@
+import AppKit
 import Foundation
 
-/// Picks and labels the transcriptions offered in the status bar's "Recent" submenu.
+/// Picks, labels and re-inserts the transcriptions offered in the status bar's "Recent"
+/// submenu.
 ///
 /// Reaching an earlier dictation used to mean opening the main window and copying out of the
-/// history list. [PasteLastTranscript] covers the newest one from a shortcut; this covers the
-/// case where the one you want isn't the last.
+/// history list.
 enum RecentTranscripts {
 
     /// How many rows the submenu offers. Enough to cover "not that one, the one before",
@@ -46,5 +47,39 @@ enum RecentTranscripts {
 
         guard collapsed.count > limit else { return collapsed }
         return collapsed.prefix(limit).trimmingCharacters(in: .whitespaces) + "…"
+    }
+
+    /// Puts a chosen transcription where the caret is.
+    @MainActor
+    static func insert(_ text: String) async {
+        await waitForModifiersToClear()
+
+        // `honorAutoPastePreference: false` — asking for this insertion *is* the request, so a
+        // user who dictates to the clipboard only still gets text where the cursor is.
+        let targetMissing = TranscriptInserter.insert(IndicatorViewModel.applyPostProcessing(text),
+                                                      honorAutoPastePreference: false)
+        if targetMissing {
+            IndicatorWindowManager.shared.flash(.info("Copied — press ⌘V"))
+        }
+    }
+
+    /// Waits (briefly) for any physically-held modifiers to come back up.
+    ///
+    /// The insertion is a synthetic ⌘V, and macOS merges the physically-held modifiers into it.
+    /// Fire while ⌃⌘ is still down and the frontmost app sees ⌃⌘V — not a paste — so the text
+    /// silently fails to appear. Typing mode is just as exposed: held modifiers turn the
+    /// keystrokes into shortcuts.
+    @MainActor
+    static func waitForModifiersToClear(timeout: TimeInterval = 1.0,
+                                        pollInterval: TimeInterval = 0.02) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while modifiersAreHeld(), Date() < deadline {
+            try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+        }
+    }
+
+    @MainActor
+    private static func modifiersAreHeld() -> Bool {
+        !NSEvent.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty
     }
 }

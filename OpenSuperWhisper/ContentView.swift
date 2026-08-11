@@ -190,10 +190,9 @@ class ContentViewModel: ObservableObject {
         // local monitor also needs no Input-Monitoring grant. Removed again on stop/cancel.
         installEscapeMonitor()
 
-        // Capture where the dictation is happening (frontmost app + browser site) and
-        // apply any context-aware model rule before the engine spins up. See F2.
+        // Capture where the dictation is happening (frontmost app + window title)
+        // before the engine spins up, for the history row.
         RecordingContext.shared.captureFrontmost()
-        ContextModelSwitcher.applyForCurrentContext()
 
         if microphoneService.isActiveMicrophoneRequiresConnection() {
             state = .connecting
@@ -402,10 +401,6 @@ struct ContentView: View {
     @State private var mainTab: MainTab = .home
 
     private var currentShortcutDescription: String {
-        let mouseButton = MouseButton(rawValue: AppPreferences.shared.mouseButtonHotkey) ?? .none
-        if mouseButton != .none {
-            return mouseButton.shortSymbol
-        }
         let modifierKey = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
         if modifierKey != .none {
             return modifierKey.shortSymbol

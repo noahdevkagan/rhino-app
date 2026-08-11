@@ -64,19 +64,6 @@ final class RecentTranscriptsTests: XCTestCase {
         XCTAssertTrue(RecentTranscripts.pick(from: [], limit: 5).isEmpty)
     }
 
-    /// The shortcut and the menu must agree on which clip is "the last one", or pressing the
-    /// shortcut and picking the top row would insert different text.
-    func testAgreesWithThePasteLastShortcut() {
-        let recordings = [
-            makeRecording("failed", status: .failed, secondsAgo: 0),
-            makeRecording("newest good", secondsAgo: 5),
-            makeRecording("older", secondsAgo: 50),
-        ]
-
-        XCTAssertEqual(RecentTranscripts.pick(from: recordings, limit: 1).first?.transcription,
-                       PasteLastTranscript.pick(from: recordings))
-    }
-
     // MARK: - Labelling
 
     func testShortTranscriptionIsUsedAsIs() {

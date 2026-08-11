@@ -297,15 +297,6 @@ final class MicrophoneServiceRequiresConnectionTests: XCTestCase {
 // MARK: - Engine Capabilities Tests
 
 final class EngineCapabilitiesTests: XCTestCase {
-    func testTranslation_whisperAlwaysSupported() {
-        XCTAssertTrue(EngineCapabilities.supportsTranslation(engine: "whisper"))
-    }
-
-    func testTranslation_parakeetAndSenseVoiceNever() {
-        XCTAssertFalse(EngineCapabilities.supportsTranslation(engine: "fluidaudio"))
-        XCTAssertFalse(EngineCapabilities.supportsTranslation(engine: "sensevoice"))
-    }
-
     func testLanguages_parakeetV2IsEnglishOnly() {
         XCTAssertEqual(EngineCapabilities.supportedLanguages(engine: "fluidaudio", fluidAudioModelVersion: "v2"), ["en"])
     }
@@ -314,11 +305,6 @@ final class EngineCapabilitiesTests: XCTestCase {
         let langs = EngineCapabilities.supportedLanguages(engine: "fluidaudio", fluidAudioModelVersion: "v3")
         XCTAssertGreaterThan(langs.count, 1)
         XCTAssertTrue(langs.contains("fr"))
-    }
-
-    func testLanguages_senseVoiceLimitedSet() {
-        XCTAssertEqual(EngineCapabilities.supportedLanguages(engine: "sensevoice", fluidAudioModelVersion: ""),
-                       ["auto", "zh", "en", "ja", "ko", "yue"])
     }
 
     func testLanguages_whisperUsesFullSet() {

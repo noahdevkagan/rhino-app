@@ -8,8 +8,6 @@ struct IndicatorElementView: View {
     var bands: [Float] = []
     var meterHeight: CGFloat = 30
     var isBlinking = false
-    /// Hands-free (Space-latched) recording: the dot swells, goes solid and pulses.
-    var isLatched = false
     var queued = 0
     /// The editor's preview has no manager to call, so its buttons do nothing.
     var isInteractive = true
@@ -26,7 +24,7 @@ struct IndicatorElementView: View {
     var body: some View {
         switch element {
         case .dot:
-            RecordingIndicator(isBlinking: isBlinking, isLatched: isLatched)
+            RecordingIndicator(isBlinking: isBlinking)
                 .frame(width: 16 * scale)
         case .waveform:
             if isDecoding {

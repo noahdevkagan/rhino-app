@@ -157,8 +157,7 @@ struct SPane<Content: View>: View {
     }
 }
 
-/// Themed multiline editor (regex, prompts, per-app instructions). Shared by the
-/// panes that let the user type free-form text; `SettingsView.sEditor` wraps it.
+/// Themed multiline editor for panes that let the user type free-form text.
 struct SEditor: View {
     @Binding var text: String
     let height: CGFloat

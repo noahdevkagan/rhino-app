@@ -13,7 +13,6 @@ class SettingsViewModel: ObservableObject {
     private var isSyncing = false
     private var modelSyncObserver: NSObjectProtocol?
     private var languageSyncObserver: NSObjectProtocol?
-    private var translateSyncObserver: NSObjectProtocol?
 
     @Published var selectedEngine: String {
         didSet {
@@ -48,15 +47,8 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    /// Context-aware model selection mode (per-app / per-site rules). See F2.
-    @Published var contextAwareModelMode: ContextAwareModelMode {
-        didSet {
-            AppPreferences.shared.contextAwareModelMode = contextAwareModelMode
-        }
-    }
-
     /// User-initiated model selections. Each routes through the single mutation point —
-    /// `ModelSelectionStore.select` — so the menu bar, Settings, and the context rules all change
+    /// `ModelSelectionStore.select` — so the menu bar and Settings change
     /// the active model the same way and can't drift. The store persists to AppPreferences,
     /// reloads the engine, and posts `.modelSelectionDidChange`, which syncs our @Published copies
     /// back (`syncModelSelectionFromPreferences`). Call these for explicit user actions only —
@@ -82,20 +74,6 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    func selectSenseVoice() {
-        MainActor.assumeIsolated {
-            ModelSelectionStore.shared.select(DictationModelOption(
-                engine: "sensevoice", identifier: "default", displayName: "SenseVoice"))
-        }
-    }
-
-    func selectAppleSpeech() {
-        MainActor.assumeIsolated {
-            ModelSelectionStore.shared.select(DictationModelOption(
-                engine: "apple", identifier: "default", displayName: "Apple Speech"))
-        }
-    }
-
     @Published var availableModels: [URL] = []
     
     @Published var downloadableModels: [SettingsDownloadableModel] = []
@@ -111,21 +89,6 @@ class SettingsViewModel: ObservableObject {
             // so the menu→Settings sync setting this back to the same value is a harmless no-op.
             MainActor.assumeIsolated { LanguageStore.shared.select(selectedLanguage) }
         }
-    }
-
-    @Published var translateToEnglish: Bool {
-        didSet {
-            MainActor.assumeIsolated { TranslateStore.shared.set(translateToEnglish) }
-        }
-    }
-
-    /// Whether the selected engine can translate to English (#124). When false the
-    /// "Translate to English" toggle is disabled — Parakeet/SenseVoice ignore the flag, so
-    /// showing an active toggle is misleading.
-    var canTranslate: Bool {
-        EngineCapabilities.supportsTranslation(
-            engine: selectedEngine,
-            modelPath: AppPreferences.shared.selectedWhisperModelPath)
     }
 
     /// Languages the selected engine+model can transcribe — filters the language picker (#155).
@@ -150,30 +113,6 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var showTimestamps: Bool {
-        didSet {
-            AppPreferences.shared.showTimestamps = showTimestamps
-        }
-    }
-    
-    @Published var temperature: Double {
-        didSet {
-            AppPreferences.shared.temperature = temperature
-        }
-    }
-
-    @Published var noSpeechThreshold: Double {
-        didSet {
-            AppPreferences.shared.noSpeechThreshold = noSpeechThreshold
-        }
-    }
-
-    @Published var initialPrompt: String {
-        didSet {
-            AppPreferences.shared.initialPrompt = initialPrompt
-        }
-    }
-
     @Published var customDictionaryEnabled: Bool {
         didSet {
             AppPreferences.shared.customDictionaryEnabled = customDictionaryEnabled
@@ -189,18 +128,6 @@ class SettingsViewModel: ObservableObject {
     @Published var customDictionaryEntries: [CustomDictionaryEntry] {
         didSet {
             AppPreferences.shared.customDictionaryEntries = customDictionaryEntries
-        }
-    }
-
-    @Published var useBeamSearch: Bool {
-        didSet {
-            AppPreferences.shared.useBeamSearch = useBeamSearch
-        }
-    }
-
-    @Published var beamSize: Int {
-        didSet {
-            AppPreferences.shared.beamSize = beamSize
         }
     }
 
@@ -222,35 +149,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var submitMouseButtonHotkey: MouseButton {
-        didSet {
-            AppPreferences.shared.submitMouseButtonHotkey = submitMouseButtonHotkey.rawValue
-            NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
-        }
-    }
-
-    @Published var submitModifierOnlyHotkey: ModifierKey {
-        didSet {
-            AppPreferences.shared.submitModifierOnlyHotkey = submitModifierOnlyHotkey.rawValue
-            NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
-        }
-    }
-
-    /// Cancel and paste-last are key-combination only, but the recorder field needs bindings,
-    /// so these stay parked at `.none`.
-    @Published var cancelMouseButtonUnused: MouseButton = .none
+    /// Cancel is key-combination only, but the recorder field needs a binding,
+    /// so this stays parked at `.none`.
     @Published var cancelModifierUnused: ModifierKey = .none
-    @Published var pasteMouseButtonUnused: MouseButton = .none
-    @Published var pasteModifierUnused: ModifierKey = .none
 
     @Published var textScale: Double {
         didSet { AppPreferences.shared.textScale = TextScale.clamped(textScale) }
-    }
-
-    @Published var indicatorMeterMode: String {
-        didSet {
-            AppPreferences.shared.indicatorMeterMode = indicatorMeterMode
-        }
     }
 
     @Published var indicatorPosition: String {
@@ -259,36 +163,15 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var showStopButtonOnIndicator: Bool {
-        didSet { AppPreferences.shared.showStopButtonOnIndicator = showStopButtonOnIndicator }
-    }
-
-    @Published var showCancelButtonOnIndicator: Bool {
-        didSet { AppPreferences.shared.showCancelButtonOnIndicator = showCancelButtonOnIndicator }
-    }
-
     @Published var liveTranscriptionEnabled: Bool {
         didSet {
             AppPreferences.shared.liveTranscriptionEnabled = liveTranscriptionEnabled
         }
     }
 
-    @Published var useAsianAutocorrect: Bool {
-        didSet {
-            AppPreferences.shared.useAsianAutocorrect = useAsianAutocorrect
-        }
-    }
-    
     @Published var modifierOnlyHotkey: ModifierKey {
         didSet {
             AppPreferences.shared.modifierOnlyHotkey = modifierOnlyHotkey.rawValue
-            NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
-        }
-    }
-
-    @Published var mouseButtonHotkey: MouseButton {
-        didSet {
-            AppPreferences.shared.mouseButtonHotkey = mouseButtonHotkey.rawValue
             NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
         }
     }
@@ -298,28 +181,6 @@ class SettingsViewModel: ObservableObject {
             AppPreferences.shared.holdToRecord = holdToRecord
         }
     }
-
-    @Published var latchRecordingWithSpace: Bool {
-        didSet {
-            AppPreferences.shared.latchRecordingWithSpace = latchRecordingWithSpace
-            // Same notification the trigger modes use: it makes ShortcutManager install or tear
-            // down the latch tap immediately, instead of at the next launch.
-            NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
-        }
-    }
-
-    @Published var escCancelWithoutConfirmation: Bool {
-        didSet {
-            AppPreferences.shared.escCancelWithoutConfirmation = escCancelWithoutConfirmation
-        }
-    }
-
-    @Published var unloadWhisperModelWhenIdle: Bool {
-        didSet {
-            AppPreferences.shared.unloadWhisperModelWhenIdle = unloadWhisperModelWhenIdle
-        }
-    }
-
 
     @Published var addSpaceAfterSentence: Bool {
         didSet {
@@ -335,10 +196,6 @@ class SettingsViewModel: ObservableObject {
             if aiPostProcessingEnabled { BuiltInLlamaBackend.shared.preload() }
         }
     }
-
-    /// True when anything needs the LLM: prose cleanup or the per-app formatting rules. Both feed
-    /// the same (embedded) backend, so this is what gates the model-download UI.
-    var llmCleanupInUse: Bool { aiPostProcessingEnabled || appContextFormattingEnabled }
 
     /// Whether the built-in model's GGUF is present on disk.
     @Published var builtInModelDownloaded: Bool = LLMModelManager.shared.isDefaultModelDownloaded()
@@ -367,21 +224,9 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var aiPostProcessingPrompt: String {
-        didSet {
-            AppPreferences.shared.aiPostProcessingPrompt = aiPostProcessingPrompt
-        }
-    }
-
     @Published var removeFillerWords: Bool {
         didSet {
             AppPreferences.shared.removeFillerWords = removeFillerWords
-        }
-    }
-
-    @Published var fillerWordsPattern: String {
-        didSet {
-            AppPreferences.shared.fillerWordsPattern = fillerWordsPattern
         }
     }
 
@@ -409,46 +254,9 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var submitOnVoiceCommand: Bool {
-        didSet {
-            AppPreferences.shared.submitOnVoiceCommand = submitOnVoiceCommand
-        }
-    }
-
-    /// App-aware LLM formatting: per-app instructions, keyed by the bundle identifier of the app
-    /// dictated into, that reshape the transcription via the same LLM cleanup pass (e.g. "at Rob"
-    /// -> "@Rob" in Slack). Independent of `aiPostProcessingEnabled`: either can contribute to one
-    /// pass. Edited in Settings → Rules; the shared backend is configured in Output → Cleanup.
-    @Published var appContextFormattingEnabled: Bool {
-        didSet {
-            AppPreferences.shared.appContextFormattingEnabled = appContextFormattingEnabled
-            // Same reasoning as the general-cleanup toggle: this feature also needs the model,
-            // so warm it now instead of stalling the next dictation.
-            if appContextFormattingEnabled { BuiltInLlamaBackend.shared.preload() }
-        }
-    }
-
-    @Published var appContextProfiles: [AppContextProfile] {
-        didSet {
-            AppPreferences.shared.appContextProfiles = appContextProfiles
-        }
-    }
-
     @Published var pauseMediaOnRecord: Bool {
         didSet {
             AppPreferences.shared.pauseMediaOnRecord = pauseMediaOnRecord
-        }
-    }
-
-    @Published var reduceVolumeOnRecord: Bool {
-        didSet {
-            AppPreferences.shared.reduceVolumeOnRecord = reduceVolumeOnRecord
-        }
-    }
-
-    @Published var reduceVolumeLevel: Double {
-        didSet {
-            AppPreferences.shared.reduceVolumeLevel = reduceVolumeLevel
         }
     }
 
@@ -531,54 +339,29 @@ class SettingsViewModel: ObservableObject {
         let prefs = AppPreferences.shared
         self.selectedEngine = prefs.selectedEngine
         self.fluidAudioModelVersion = prefs.fluidAudioModelVersion
-        self.contextAwareModelMode = prefs.contextAwareModelMode
         self.selectedLanguage = prefs.whisperLanguage
-        self.translateToEnglish = prefs.translateToEnglish
         self.suppressBlankAudio = prefs.suppressBlankAudio
-        self.showTimestamps = prefs.showTimestamps
-        self.temperature = prefs.temperature
-        self.noSpeechThreshold = prefs.noSpeechThreshold
-        self.initialPrompt = prefs.initialPrompt
         self.customDictionaryEnabled = prefs.customDictionaryEnabled
         self.customDictionaryBoostEnabled = prefs.customDictionaryBoostEnabled
         // Folded when the window opens rather than as the user types: merging live would yank a
         // row away mid-keystroke the moment its replacement matched another.
         self.customDictionaryEntries = CustomDictionary.merged(prefs.customDictionaryEntries)
-        self.useBeamSearch = prefs.useBeamSearch
-        self.beamSize = prefs.beamSize
         self.debugMode = prefs.debugMode
         self.playSoundOnRecordStart = prefs.playSoundOnRecordStart
         self.startHidden = prefs.startHidden
         self.indicatorPosition = prefs.indicatorPosition
-        self.indicatorMeterMode = prefs.indicatorMeterMode
         self.textScale = prefs.textScale
-        self.submitMouseButtonHotkey = MouseButton(rawValue: prefs.submitMouseButtonHotkey) ?? .none
-        self.submitModifierOnlyHotkey = ModifierKey(rawValue: prefs.submitModifierOnlyHotkey) ?? .none
-        self.showStopButtonOnIndicator = prefs.showStopButtonOnIndicator
-        self.showCancelButtonOnIndicator = prefs.showCancelButtonOnIndicator
         self.liveTranscriptionEnabled = prefs.liveTranscriptionEnabled
-        self.useAsianAutocorrect = prefs.useAsianAutocorrect
         self.modifierOnlyHotkey = ModifierKey(rawValue: prefs.modifierOnlyHotkey) ?? .none
-        self.mouseButtonHotkey = MouseButton(rawValue: prefs.mouseButtonHotkey) ?? .none
         self.holdToRecord = prefs.holdToRecord
-        self.latchRecordingWithSpace = prefs.latchRecordingWithSpace
-        self.escCancelWithoutConfirmation = prefs.escCancelWithoutConfirmation
-        self.unloadWhisperModelWhenIdle = prefs.unloadWhisperModelWhenIdle
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
-        self.aiPostProcessingPrompt = prefs.aiPostProcessingPrompt
         self.removeFillerWords = prefs.removeFillerWords
-        self.fillerWordsPattern = prefs.fillerWordsPattern
         self.autoCopyToClipboard = prefs.autoCopyToClipboard
         self.autoPasteTranscription = prefs.autoPasteTranscription
         self.pasteInsteadOfTyping = prefs.pasteInsteadOfTyping
         self.notifyWhenNoPasteTarget = prefs.notifyWhenNoPasteTarget
-        self.submitOnVoiceCommand = prefs.submitOnVoiceCommand
-        self.appContextFormattingEnabled = prefs.appContextFormattingEnabled
-        self.appContextProfiles = prefs.appContextProfiles
         self.pauseMediaOnRecord = prefs.pauseMediaOnRecord
-        self.reduceVolumeOnRecord = prefs.reduceVolumeOnRecord
-        self.reduceVolumeLevel = prefs.reduceVolumeLevel
         self.retentionMaxCountEnabled = prefs.retentionMaxCountEnabled
         self.retentionMaxCount = prefs.retentionMaxCount
         self.retentionMaxAgeEnabled = prefs.retentionMaxAgeEnabled
@@ -599,22 +382,17 @@ class SettingsViewModel: ObservableObject {
         ) { [weak self] _ in
             self?.syncModelSelectionFromPreferences()
         }
-        // Same for the menu-bar Language picker and Translate toggle. The @Published didSets route
-        // back through the stores idempotently, so setting the same value here doesn't loop.
+        // Same for the menu-bar Language picker. The @Published didSets route back through
+        // the stores idempotently, so setting the same value here doesn't loop.
         languageSyncObserver = NotificationCenter.default.addObserver(
             forName: .appPreferencesLanguageChanged, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.selectedLanguage = AppPreferences.shared.whisperLanguage }
         }
-        translateSyncObserver = NotificationCenter.default.addObserver(
-            forName: .translateSettingDidChange, object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.translateToEnglish = AppPreferences.shared.translateToEnglish }
-        }
     }
 
     deinit {
-        for observer in [modelSyncObserver, languageSyncObserver, translateSyncObserver] {
+        for observer in [modelSyncObserver, languageSyncObserver] {
             if let observer { NotificationCenter.default.removeObserver(observer) }
         }
     }
@@ -976,8 +754,6 @@ struct SettingsDownloadableModels {
 }
 
 struct Settings {
-    static let asianLanguages: Set<String> = ["zh", "ja", "ko"]
-
     /// A prompt kept in a file wins over the one typed in Settings.
     ///
     /// Whisper copies the style of whatever it is primed with, so anyone writing to a house
@@ -1013,18 +789,9 @@ struct Settings {
     var initialPrompt: String
     var useBeamSearch: Bool
     var beamSize: Int
-    var useAsianAutocorrect: Bool
     var customDictionaryEnabled: Bool
     var customDictionaryBoostEnabled: Bool
     var customDictionaryEntries: [CustomDictionaryEntry]
-
-    var isAsianLanguage: Bool {
-        Settings.asianLanguages.contains(selectedLanguage)
-    }
-
-    var shouldApplyAsianAutocorrect: Bool {
-        isAsianLanguage && useAsianAutocorrect
-    }
 
     var shouldApplyCustomDictionary: Bool {
         customDictionaryEnabled && !customDictionaryEntries.isEmpty
@@ -1039,7 +806,9 @@ struct Settings {
     init() {
         let prefs = AppPreferences.shared
         self.selectedLanguage = prefs.whisperLanguage
-        self.translateToEnglish = prefs.translateToEnglish
+        // Translate-to-English was cut from the UI; the pref survives but the engines
+        // always see it off.
+        self.translateToEnglish = false
         self.suppressBlankAudio = prefs.suppressBlankAudio
         self.showTimestamps = prefs.showTimestamps
         self.temperature = prefs.temperature
@@ -1047,7 +816,6 @@ struct Settings {
         self.initialPrompt = Settings.promptFileContents() ?? prefs.initialPrompt
         self.useBeamSearch = prefs.useBeamSearch
         self.beamSize = prefs.beamSize
-        self.useAsianAutocorrect = prefs.useAsianAutocorrect
         self.customDictionaryEnabled = prefs.customDictionaryEnabled
         self.customDictionaryBoostEnabled = prefs.customDictionaryBoostEnabled
         self.customDictionaryEntries = prefs.customDictionaryEntries
@@ -1083,11 +851,11 @@ struct InfoButton: View {
 
 /// The settings tabs, shown as a vertical sidebar in the dedicated settings window.
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case dictation, models, output, rules, history, advanced, updates
+    case dictation, models, output, history, advanced, updates
     var id: String { rawValue }
 
     /// Main navigation (sidebar top) vs utility items (sidebar footer).
-    static let main: [SettingsTab] = [.dictation, .models, .output, .rules, .history, .advanced]
+    static let main: [SettingsTab] = [.dictation, .models, .output, .history, .advanced]
     static let footer: [SettingsTab] = [.updates]
 
     var title: String {
@@ -1095,20 +863,17 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .dictation: return "Dictation"
         case .models: return "Models"
         case .output: return "Output"
-        case .rules: return "Rules"
         case .history: return "History & Privacy"
         case .advanced: return "Advanced"
         case .updates: return "Updates"
         }
     }
-    // Icons carried over from the previous sidebar (kept on purpose); "Rules" is the
-    // one new tab, so it gets the one new symbol.
+    // Icons carried over from the previous sidebar (kept on purpose).
     var icon: String {
         switch self {
         case .dictation: return "slider.horizontal.3"
         case .models: return "cpu"
         case .output: return "text.bubble"
-        case .rules: return "arrow.triangle.branch"
         case .history: return "clock.arrow.circlepath"
         case .advanced: return "gearshape"
         case .updates: return "sparkles"
@@ -1132,41 +897,12 @@ struct SettingsView: View {
     @State private var langNeedsRelaunch = false
     @State private var showPunctuationCalibration = false
 
-    /// Curated cancel-recording keys (the recorder can't capture Esc / single special keys).
-
-    /// One-line description of the selected engine, to help users choose.
     /// Engine → display name for the "active engine" indicator.
     private func engineDisplayName(_ engine: String) -> String {
         switch engine {
         case "fluidaudio": return "Parakeet"
         case "whisper": return "Whisper"
-        case "sensevoice": return "SenseVoice"
-        case "apple": return "Apple Speech"
         default: return engine
-        }
-    }
-
-    /// Short engine name (no model/language suffix) for compact controls.
-    private func engineShortName(_ engine: String) -> String {
-        switch engine {
-        case "fluidaudio": return "Parakeet"
-        case "whisper": return "Whisper"
-        case "sensevoice": return "SenseVoice"
-        case "apple": return "Apple"
-        default: return engine
-        }
-    }
-
-    private func engineBlurb(for engine: String) -> LocalizedStringKey {
-        switch engine {
-        case "whisper":
-            return "Most accurate, ~99 languages, and can translate to English. Runs fully on-device."
-        case "sensevoice":
-            return "Fast — Chinese, Cantonese, English, Japanese, Korean. Runs fully on-device."
-        case "apple":
-            return "macOS's built-in speech model — zero download in the app, managed by the system."
-        default:
-            return "Fast, multilingual (25 languages), with a live preview as you speak. Runs fully on-device."
         }
     }
 
@@ -1176,7 +912,6 @@ struct SettingsView: View {
         case .dictation: dictationSettings
         case .models:    modelSettings
         case .output:    transcriptionSettings
-        case .rules:     AppContextSettingsView(viewModel: viewModel)
         case .history:   storageSettings
         case .advanced:  advancedSettings
         case .updates:   UpdatesView()
@@ -1392,12 +1127,6 @@ struct SettingsView: View {
             HStack(spacing: 8) {
                 engineCard(tag: "fluidaudio", name: "Parakeet", sub: "Fast, on-device")
                 engineCard(tag: "whisper", name: "Whisper", sub: "Accurate · 99 langs")
-#if arch(arm64)
-                engineCard(tag: "sensevoice", name: "SenseVoice", sub: "zh · yue · ja · ko")
-#endif
-                if AppleSpeechSupport.isSupported {
-                    engineCard(tag: "apple", name: "Apple", sub: "Built into macOS")
-                }
             }
             .padding(.horizontal, 24).padding(.top, 12)
 
@@ -1414,12 +1143,6 @@ struct SettingsView: View {
                         storageSection(path: WhisperModelManager.shared.modelsDirectory.path) {
                             NSWorkspace.shared.open(WhisperModelManager.shared.modelsDirectory)
                         }
-                        SSection(title: "Memory") {
-                            SRow(title: "Unload model when idle",
-                                 hint: "Free the model (~1 GB) between dictations and reload it on demand — saves RAM, adds a little start latency") {
-                                SToggle(isOn: $viewModel.unloadWhisperModelWhenIdle)
-                            }
-                        }
                     } else if browseEngine == "fluidaudio" {
                         SSection(title: "Parakeet models") {
                             VStack(spacing: 8) {
@@ -1432,39 +1155,11 @@ struct SettingsView: View {
                             NSWorkspace.shared.open(AsrModels.defaultCacheDirectory(for: .v3).deletingLastPathComponent())
                         }
                     }
-#if arch(arm64)
-                    if browseEngine == "sensevoice" {
-                        SenseVoiceModelSection(viewModel: viewModel)
-                    }
-#endif
-#if canImport(FoundationModels)
-                    if browseEngine == "apple", #available(macOS 26.0, *) {
-                        AppleSpeechModelSection(viewModel: viewModel)
-                    }
-#endif
                 }
                 .padding(.horizontal, 24).padding(.vertical, 14)
             }
         }
         .background(STheme.windowBg)
-    }
-
-    /// Small themed text input used across the Output pane.
-    private func sInput(_ text: Binding<String>, prompt: String, width: CGFloat, mono: Bool = false) -> some View {
-        TextField("", text: text, prompt: Text(prompt))
-            .textFieldStyle(.plain)
-            .scaledFont(size: 12, design: mono ? .monospaced : .default)
-            .autocorrectionDisabled(true)
-            .padding(.horizontal, 9).padding(.vertical, 5)
-            .frame(width: width)
-            .background(RoundedRectangle(cornerRadius: 7).fill(STheme.inputBg))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(STheme.controlBorder, lineWidth: 1))
-    }
-
-    /// Themed multiline editor (regex, prompts, instructions). See `SEditor`, shared with
-    /// the Rules pane.
-    private func sEditor(_ text: Binding<String>, height: CGFloat) -> some View {
-        SEditor(text: text, height: height)
     }
 
     @ViewBuilder private var builtInCleanupFields: some View {
@@ -1518,39 +1213,11 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-                SRow(title: "Translate to English",
-                     hint: !viewModel.canTranslate
-                        ? (viewModel.selectedEngine == "whisper"
-                            ? "Turbo models don't translate, whatever their documentation says. Pick a non-turbo Whisper model to translate."
-                            : "Only Whisper translates; the current engine ignores this.")
-                        : nil,
-                     hintColor: STheme.hint) {
-                    SToggle(isOn: $viewModel.translateToEnglish, disabled: !viewModel.canTranslate)
-                }
-                if Settings.asianLanguages.contains(viewModel.selectedLanguage) {
-                    SRow(title: "Asian autocorrect", hint: "Fixes CJK spacing") {
-                        SToggle(isOn: $viewModel.useAsianAutocorrect)
-                    }
-                }
-            }
-
-            SSection(title: "Guidance") {
-                SRow(title: "Initial prompt",
-                     hint: "Optional text to guide the model's transcription. Whisper copies its style, so a few lines of your own writing teach it your punctuation. A file at ~/.config/opensuperwhisper/prompt.md is used instead of this box when it exists.") { EmptyView() }
-                sEditor($viewModel.initialPrompt, height: 48)
             }
 
             SSection(title: "Cleanup") {
                 SRow(title: "Remove filler words", hint: "Strip um, uh, er… before inserting") {
                     SToggle(isOn: $viewModel.removeFillerWords)
-                }
-                if viewModel.removeFillerWords {
-                    VStack(alignment: .leading, spacing: 4) {
-                        sEditor($viewModel.fillerWordsPattern, height: 48)
-                        Text("Case-insensitive regex, applied before pasting.")
-                            .scaledFont(size: 11).foregroundColor(STheme.hint)
-                    }
-                    .padding(.leading, 16)
                 }
                 HStack(spacing: 8) {
                     Text("Clean up with an LLM")
@@ -1559,23 +1226,8 @@ struct SettingsView: View {
                     SToggle(isOn: $viewModel.aiPostProcessingEnabled)
                 }
                 .frame(minHeight: 26)
-                // The embedded model serves BOTH this prose cleanup and the per-app formatting
-                // rules in Settings → Rules, so it stays visible while either is on — otherwise
-                // someone using formatting only would have nowhere to download the model.
-                if viewModel.aiPostProcessingEnabled || viewModel.appContextFormattingEnabled {
-                    if !viewModel.aiPostProcessingEnabled {
-                        Text("Used by the per-app formatting rules in Rules.")
-                            .scaledFont(size: 11).foregroundColor(STheme.hint)
-                            .padding(.leading, 16)
-                    }
-                    builtInCleanupFields
-                }
                 if viewModel.aiPostProcessingEnabled {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Instruction").scaledFont(size: 11).foregroundColor(STheme.hint)
-                        sEditor($viewModel.aiPostProcessingPrompt, height: 64)
-                    }
-                    .padding(.leading, 16)
+                    builtInCleanupFields
                 }
             }
 
@@ -1626,13 +1278,6 @@ struct SettingsView: View {
                 SRow(title: "Notify when no paste target",
                      hint: "\"Copied — press ⌘V\" if no text field is focused") {
                     SToggle(isOn: $viewModel.notifyWhenNoPasteTarget)
-                }
-                SRow(title: "Submit on “press enter”",
-                     hint: "Saying “press enter” at the end presses Return — submitting in Claude Code, Slack, etc.") {
-                    SToggle(isOn: $viewModel.submitOnVoiceCommand)
-                }
-                SRow(title: "Show timestamps") {
-                    SToggle(isOn: $viewModel.showTimestamps)
                 }
                 SRow(title: "Suppress blank audio") {
                     SToggle(isOn: $viewModel.suppressBlankAudio)
@@ -1715,25 +1360,10 @@ struct SettingsView: View {
         }
     }
 
-    /// "Advanced" — the redesigned engine-internals screen (Settings Explorations 2e):
-    /// App / Decoding / Model parameters / Post-record hook / Debug, in the Atelier style.
+    /// "Advanced" — app-level odds and ends: language, launch behavior, debug.
     private var advancedSettings: some View {
         SPane(title: "Advanced") {
             SSection(title: "App") {
-                SRow(title: "Text size",
-                     hint: "Applied on top of the system text size (System Settings → Accessibility → Display). Leave at 100% to follow macOS exactly.") {
-                    HStack(spacing: 10) {
-                        Slider(value: $viewModel.textScale,
-                               in: TextScale.minimum...TextScale.maximum, step: 0.05)
-                            .controlSize(.small)
-                            .frame(width: 150)
-                            .tint(STheme.accent)
-                        Text("\(Int(viewModel.textScale * 100))%")
-                            .scaledFont(size: 11, design: .monospaced)
-                            .foregroundColor(STheme.hint)
-                            .frame(width: 40, alignment: .trailing)
-                    }
-                }
                 SRow(title: "App language", hint: "Relaunch to apply.") {
                     Picker("", selection: $appLanguage) {
                         Text("System").tag("system")
@@ -1770,41 +1400,6 @@ struct SettingsView: View {
                 }
             }
 
-            SSection(title: "Decoding") {
-                SRow(title: "Use beam search", hint: "Can improve accuracy, at some speed cost.") {
-                    SToggle(isOn: $viewModel.useBeamSearch)
-                }
-                if viewModel.useBeamSearch {
-                    SRow(title: "Beam size", indented: true) {
-                        Stepper("\(viewModel.beamSize)", value: $viewModel.beamSize, in: 1...10)
-                            .scaledFont(size: 12, design: .monospaced)
-                            .foregroundColor(STheme.text)
-                            .frame(width: 90)
-                    }
-                }
-            }
-
-            SSection(title: "Model parameters") {
-                VStack(alignment: .leading, spacing: 2) {
-                    SRow(title: "Temperature", hint: "Higher values make decoding more random.") {
-                        Text(String(format: "%.2f", viewModel.temperature))
-                            .scaledFont(size: 11.5, design: .monospaced)
-                            .foregroundColor(STheme.hint)
-                    }
-                    Slider(value: $viewModel.temperature, in: 0.0...1.0, step: 0.1)
-                        .controlSize(.small)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    SRow(title: "No speech threshold", hint: "How confident the model must be to call a segment silence.") {
-                        Text(String(format: "%.2f", viewModel.noSpeechThreshold))
-                            .scaledFont(size: 11.5, design: .monospaced)
-                            .foregroundColor(STheme.hint)
-                    }
-                    Slider(value: $viewModel.noSpeechThreshold, in: 0.0...1.0, step: 0.1)
-                        .controlSize(.small)
-                }
-            }
-
             SSection(title: "Debug") {
                 SRow(title: "Debug mode", hint: "Extra logging and diagnostic output.") {
                     SToggle(isOn: $viewModel.debugMode)
@@ -1813,8 +1408,6 @@ struct SettingsView: View {
         }
     }
 
-    /// The three recording-trigger modes are mutually exclusive; a bound mouse button
-    /// wins over a modifier key, which wins over the regular key-combination shortcut.
     /// "Dictation" — the redesigned first screen (Settings Explorations 2a):
     /// Trigger / Recording bar / Input, in the Atelier style.
     private var dictationSettings: some View {
@@ -1824,65 +1417,23 @@ struct SettingsView: View {
                     Text("Recording trigger")
                         .scaledFont(size: 13)
                         .foregroundColor(STheme.text)
-                    Text("Click Add, then do the thing: press a combination with ⌘ ⌥ ⌃, tap a single modifier on its own, or click a spare mouse button. Keep several and use whichever suits the moment.")
+                    Text("Click Add, then do the thing: press a combination with ⌘ ⌥ ⌃, or tap a single modifier on its own. Keep several and use whichever suits the moment.")
                         .scaledFont(size: 11)
                         .foregroundColor(STheme.hint)
                         .fixedSize(horizontal: false, vertical: true)
                     TriggerRecorderField(name: .toggleRecord,
-                                         mouseButton: $viewModel.mouseButtonHotkey,
                                          modifierKey: $viewModel.modifierOnlyHotkey,
                                          allowsMultiple: true)
                         .padding(.top, 2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                SRow(title: "Latch with Space",
-                     hint: "While recording, Space (or a double-tap of the trigger) pins it so you can let go and keep talking. Space again stops it — so Space won't type into other apps during a recording") {
-                    SToggle(isOn: $viewModel.latchRecordingWithSpace)
-                }
-                if viewModel.latchRecordingWithSpace {
-                    SWarnBox {
-                        Text("**⚠︎ Accessibility permission required.** macOS needs it to see the Space key globally. Space is only intercepted while a recording is running — at any other time it types normally, and no other keystrokes are captured.")
-                        Button("Open Accessibility Settings…") {
-                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .scaledFont(size: 11.5, weight: .semibold)
-                        .foregroundColor(STheme.warn)
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(STheme.warnBorder, lineWidth: 1))
-                    }
-                }
-                SRow(title: "Paste last transcription",
-                     hint: "Inserts your most recent transcription again, wherever the cursor is. Unbound by default — ⌫ clears it") {
-                    TriggerRecorderField(name: .pasteLastTranscription,
-                                         mouseButton: $viewModel.pasteMouseButtonUnused,
-                                         modifierKey: $viewModel.pasteModifierUnused,
-                                         allowsMouse: false,
-                                         allowsModifier: false)
-                        .frame(width: 168)
-                }
                 SRow(title: "Cancel shortcut",
                      hint: "Discards the recording. Esc on its own is fine here; ⌫ clears it") {
                     TriggerRecorderField(name: .escape,
-                                         mouseButton: $viewModel.cancelMouseButtonUnused,
                                          modifierKey: $viewModel.cancelModifierUnused,
-                                         allowsMouse: false,
                                          allowsModifier: false,
                                          allowsBareEscape: true)
                         .frame(width: 168)
-                }
-                SRow(title: "Stop and submit",
-                     hint: "Ends the recording and presses Return, so the message sends itself. Only works while recording — it never starts one. Unbound by default; ⌫ clears it") {
-                    TriggerRecorderField(name: .toggleRecordAndSubmit,
-                                         mouseButton: $viewModel.submitMouseButtonHotkey,
-                                         modifierKey: $viewModel.submitModifierOnlyHotkey)
-                        .frame(width: 168)
-                }
-                SRow(title: "Cancel without confirmation",
-                     hint: "Skip the double-Esc confirmation for recordings longer than 10 seconds") {
-                    SToggle(isOn: $viewModel.escCancelWithoutConfirmation)
                 }
                 SRow(title: "Hold to record", hint: "Hold the shortcut to record, release to stop") {
                     SToggle(isOn: $viewModel.holdToRecord)
@@ -1890,8 +1441,7 @@ struct SettingsView: View {
             }
 
             SSection(title: "While recording") {
-                SRow(title: "Play sound when recording starts",
-                     hint: "Also plays when a recording is latched hands-free") {
+                SRow(title: "Play sound when recording starts") {
                     SToggle(isOn: $viewModel.playSoundOnRecordStart)
                 }
                 HStack(spacing: 8) {
@@ -1908,23 +1458,6 @@ struct SettingsView: View {
                 SRow(title: "Pause media during recording",
                      hint: "Resumes what was actually playing when you stop") {
                     SToggle(isOn: $viewModel.pauseMediaOnRecord)
-                }
-                SRow(title: "Lower system volume while recording") {
-                    SToggle(isOn: $viewModel.reduceVolumeOnRecord)
-                }
-                if viewModel.reduceVolumeOnRecord {
-                    SRow(title: "Volume while recording", indented: true) {
-                        HStack(spacing: 10) {
-                            Slider(value: $viewModel.reduceVolumeLevel, in: 0...0.5)
-                                .controlSize(.small)
-                                .frame(width: 150)
-                                .tint(STheme.accent)
-                            Text("\(Int(viewModel.reduceVolumeLevel * 100))%")
-                                .scaledFont(size: 11, design: .monospaced)
-                                .foregroundColor(STheme.hint)
-                                .frame(width: 34, alignment: .trailing)
-                        }
-                    }
                 }
             }
 
@@ -1960,7 +1493,18 @@ struct SettingsView: View {
             }
 
             SSection(title: "Indicator") {
-                IndicatorLayoutEditor(viewModel: viewModel)
+                SRow(title: "Position", hint: "Where the bubble appears while recording") {
+                    Picker("", selection: $viewModel.indicatorPosition) {
+                        Text("Near cursor").tag("cursor")
+                        Text("Notch").tag("notch")
+                        Text("Top").tag("top")
+                        Text("Center").tag("center")
+                        Text("Bottom").tag("bottom")
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                }
             }
         }
     }
@@ -2005,7 +1549,6 @@ struct SettingsFluidAudioModels {
 enum OnboardingModelType {
     case whisper(url: URL, size: Int)
     case parakeet(version: String)
-    case senseVoice
 }
 
 struct OnboardingUnifiedModel: Identifiable {
@@ -2063,24 +1606,6 @@ struct OnboardingUnifiedModels {
             )
         ),
     ]
-        // Apple Silicon only: the engine is behind `#if arch(arm64)` because its runtime
-        // (onnxruntime) ships no Intel build, so offering it there would download 239 MB for
-        // something that cannot run. Missing from this screen entirely was worse: the site
-        // advertises SenseVoice, and setup implied it did not exist (#83).
-        + senseVoiceModel
-
-    private static var senseVoiceModel: [OnboardingUnifiedModel] {
-        #if arch(arm64)
-        [OnboardingUnifiedModel(
-            name: "SenseVoice",
-            isDownloaded: false,
-            description: "Compact and quick. Chinese, English, Japanese, Korean, Cantonese",
-            type: .senseVoice
-        )]
-        #else
-        []
-        #endif
-    }
 }
 
 struct FluidAudioModelDownloadItemView: View {

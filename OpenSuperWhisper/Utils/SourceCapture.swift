@@ -2,9 +2,10 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-/// Best-effort capture of "where" a dictation happened, beyond the app name: the
-/// focused window's title (Accessibility) and, for supported browsers, the active
-/// tab's URL (AppleScript — triggers a one-time automation permission per app).
+/// Best-effort capture of "where" a dictation happened, beyond the app name:
+/// the focused window's title (Accessibility). Browser-URL capture was cut in
+/// the 80/20 simplification — it needed AppleScript automation permission per
+/// browser and only served the removed per-site rules.
 enum SourceCapture {
     /// Title of the system-wide focused window (e.g. a browser tab or document).
     static func focusedWindowTitle() -> String? {
@@ -30,32 +31,8 @@ enum SourceCapture {
         return (title?.isEmpty == false) ? title : nil
     }
 
-    /// AppleScript to read the active tab/document URL, keyed by bundle id.
-    private static let browserScripts: [String: String] = [
-        "com.google.Chrome": "tell application \"Google Chrome\" to return URL of active tab of front window",
-        "com.google.Chrome.beta": "tell application \"Google Chrome Beta\" to return URL of active tab of front window",
-        "com.brave.Browser": "tell application \"Brave Browser\" to return URL of active tab of front window",
-        "com.microsoft.edgemac": "tell application \"Microsoft Edge\" to return URL of active tab of front window",
-        "com.vivaldi.Vivaldi": "tell application \"Vivaldi\" to return URL of active tab of front window",
-        "company.thebrowser.Browser": "tell application \"Arc\" to return URL of active tab of front window",
-        "com.apple.Safari": "tell application \"Safari\" to return URL of front document",
-    ]
-
-    /// Active-tab URL for a known browser bundle id, or nil (not a browser, no
-    /// window, or automation permission denied). Synchronous — call on the main
-    /// thread (NSAppleScript requirement).
-    static func browserURL(bundleID: String) -> String? {
-        guard let source = browserScripts[bundleID],
-              let script = NSAppleScript(source: source) else { return nil }
-        var error: NSDictionary?
-        let result = script.executeAndReturnError(&error)
-        guard error == nil else { return nil }
-        let url = result.stringValue
-        return (url?.isEmpty == false) ? url : nil
-    }
-
-    /// Host of a URL string, "www." stripped — e.g. "github.com". For display and
-    /// (later) per-site rules.
+    /// Bare host of a stored source URL, for the history row's "· site" suffix. New rows no
+    /// longer capture URLs, but rows written by older versions still render theirs.
     static func host(of urlString: String?) -> String? {
         guard let urlString,
               let host = URLComponents(string: urlString)?.host,

@@ -65,15 +65,4 @@ final class IndicatorLayoutTests: XCTestCase {
         layout.move(.cancelButton, before: .stopButton)
         XCTAssertEqual(layout.trailing, [.cancelButton, .stopButton])
     }
-
-    func testMigrationReproducesTheOldSettings() {
-        let off = IndicatorLayout.migrated(meterMode: "off", showStop: false, showCancel: false)
-        XCTAssertEqual(off.elements, [.dot, .label])
-
-        let replaces = IndicatorLayout.migrated(meterMode: "replacesDot", showStop: false, showCancel: false)
-        XCTAssertEqual(replaces.elements, [.waveform, .label])
-
-        let beside = IndicatorLayout.migrated(meterMode: "besideLabel", showStop: true, showCancel: true)
-        XCTAssertEqual(beside.elements, [.dot, .label, .waveform, .stopButton, .cancelButton])
-    }
 }

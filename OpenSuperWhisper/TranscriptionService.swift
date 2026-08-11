@@ -71,25 +71,6 @@ class TranscriptionService: ObservableObject {
 
             if selectedEngine == "fluidaudio" {
                 engine = await FluidAudioEngine()
-            } else if selectedEngine == "sensevoice" {
-#if arch(arm64)
-                engine = SenseVoiceEngine()
-#else
-                // SenseVoice (sherpa-onnx/onnxruntime) ships arm64-only; fall back on Intel.
-                engine = await WhisperEngine()
-#endif
-            } else if selectedEngine == "apple" {
-#if canImport(FoundationModels)
-                if #available(macOS 26.0, *) {
-                    engine = AppleSpeechEngine()
-                } else {
-                    // A pref synced from a newer machine; the catalog never offers
-                    // "apple" here, so quietly fall back.
-                    engine = await WhisperEngine()
-                }
-#else
-                engine = await WhisperEngine()
-#endif
             } else {
                 engine = await WhisperEngine()
             }
@@ -114,6 +95,15 @@ class TranscriptionService: ObservableObject {
             print("Failed to load engine: \(error)")
         }
         isLoading = false
+    }
+
+    /// Load the selected engine now instead of on the first dictation, so the first
+    /// hotkey press of the day is as fast as the tenth. Called at launch, only after
+    /// onboarding (a model was chosen and downloaded there — preloading never triggers
+    /// a surprise download for a configured install). No-op if already loaded.
+    func preloadEngine() {
+        guard AppPreferences.shared.hasCompletedOnboarding else { return }
+        Task { await ensureEngineLoaded() }
     }
 
     /// Invalidate the active engine so the next transcription re-initializes it

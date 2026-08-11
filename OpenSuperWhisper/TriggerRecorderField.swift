@@ -3,27 +3,23 @@ import Carbon.HIToolbox
 import KeyboardShortcuts
 import SwiftUI
 
-/// Records the recording trigger: a key combination, a single modifier, or a mouse button,
-/// whichever the user performs. One field instead of a mode picker plus three per-mode controls.
+/// Records the recording trigger: a key combination or a single modifier, whichever the user
+/// performs. One field instead of a mode picker plus per-mode controls.
 ///
-/// Click to arm, then do the thing you want as your trigger: press ⌃⌥D, tap Right ⌥ on its own,
-/// or click a spare mouse button. Esc cancels, ⌫ clears.
+/// Click to arm, then do the thing you want as your trigger: press ⌃⌥D, or tap Right ⌥ on its
+/// own. Esc cancels, ⌫ clears.
 struct TriggerRecorderField: View {
-    /// Where this field stores what it records. Three actions use the same widget: start a
-    /// recording, dictate-and-submit, and cancel.
+    /// Where this field stores what it records. Two actions use the same widget: start a
+    /// recording, and cancel.
     let name: KeyboardShortcuts.Name
-    @Binding var mouseButton: MouseButton
     @Binding var modifierKey: ModifierKey
-    /// Mouse buttons make no sense for some actions (cancel is a keyboard reflex, and binding
-    /// a spare button to it would collide with the record trigger's own button).
-    var allowsMouse = true
     /// A lone modifier is a fine way to start a recording but a poor way to cancel one, so the
     /// cancel field turns it off.
     var allowsModifier = true
     /// Cancel is normally bound to bare Esc, so that field has to be able to record it. Esc then
     /// can't also mean "abort the capture" there; clicking outside does that instead.
     var allowsBareEscape = false
-    /// The record trigger keeps a list: any number of combinations, modifiers and buttons, all
+    /// The record trigger keeps a list: any number of combinations and modifiers, all
     /// live at once (#48). The other actions hold one binding, so recording replaces it.
     var allowsMultiple = false
 
@@ -43,8 +39,7 @@ struct TriggerRecorderField: View {
 
     private var triggers: [RecordingTrigger] {
         guard allowsMultiple else {
-            let single = RecordingTrigger.resolve(mouseRaw: mouseButton.rawValue,
-                                                  modifierRaw: modifierKey.rawValue,
+            let single = RecordingTrigger.resolve(modifierRaw: modifierKey.rawValue,
                                                   shortcut: shortcut)
             return single == .none ? [] : [single]
         }
@@ -227,11 +222,7 @@ struct TriggerRecorderField: View {
     }
 
     private var placeholder: String {
-        switch (allowsModifier, allowsMouse) {
-        case (true, true): return "key, modifier or mouse…"
-        case (true, false): return "key or modifier…"
-        default: return "key combination…"
-        }
+        allowsModifier ? "key or modifier…" : "key combination…"
     }
 
     // MARK: - Capture
@@ -244,7 +235,6 @@ struct TriggerRecorderField: View {
         // Pause live hotkeys so re-recording the current trigger doesn't start a dictation.
         KeyboardShortcuts.isEnabled = false
         ModifierKeyMonitor.shared.stop()
-        MouseButtonMonitor.shared.stop()
 
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
             heldModifiers = event.modifierFlags.intersection([.control, .option, .shift, .command])
@@ -292,21 +282,6 @@ struct TriggerRecorderField: View {
             return nil
         }!)
 
-        // Spare mouse buttons only. Left and right click stay ordinary clicks: binding them
-        // would take the pointer away from the user.
-        if allowsMouse {
-            monitors.append(NSEvent.addLocalMonitorForEvents(matching: .otherMouseDown) { event in
-                guard let button = MouseButton.allCases.first(where: {
-                    $0 != .none && $0.buttonNumber == Int64(event.buttonNumber)
-                }) else {
-                    NSSound.beep()
-                    return nil
-                }
-                save(.mouse(button))
-                return nil
-            }!)
-        }
-
         // A click outside the field disarms; a click on it is handled by the tap gesture.
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
             if !isHovering { disarm() }
@@ -314,12 +289,11 @@ struct TriggerRecorderField: View {
         }!)
     }
 
-    /// Stores the trigger, clearing the other two kinds: exactly one is active at a time, which
+    /// Stores the trigger, clearing the other kind: exactly one is active at a time, which
     /// is what makes the mode implicit.
     private func save(_ trigger: RecordingTrigger) {
         if allowsMultiple {
             set.add(trigger)
-            releaseFromOtherActions(trigger)
             persistSet()
             disarm()
             return
@@ -331,47 +305,19 @@ struct TriggerRecorderField: View {
         case .none:
             clear()
         case .keyCombo(let shortcut):
-            if !allowsMultiple { mouseButton = .none; modifierKey = .none }
+            modifierKey = .none
             KeyboardShortcuts.setShortcut(shortcut, for: name)
             self.shortcut = shortcut
         case .modifier(let key):
-            if !allowsMultiple {
-                mouseButton = .none
-                KeyboardShortcuts.setShortcut(nil, for: name)
-                self.shortcut = nil
-            }
+            KeyboardShortcuts.setShortcut(nil, for: name)
+            self.shortcut = nil
             modifierKey = key
-        case .mouse(let button):
-            if !allowsMultiple {
-                modifierKey = .none
-                KeyboardShortcuts.setShortcut(nil, for: name)
-                self.shortcut = nil
-            }
-            mouseButton = button
         }
         disarm()
     }
 
-    /// Frees a key that another action already claims. The newest assignment wins, which is what
-    /// every shortcut editor does — the alternative is a key bound twice where the loser fails
-    /// silently, which is exactly how a working modifier looked broken.
-    private func releaseFromOtherActions(_ trigger: RecordingTrigger) {
-        let prefs = AppPreferences.shared
-        switch trigger {
-        case .modifier(let key):
-            if prefs.submitModifierOnlyHotkey == key.rawValue {
-                prefs.submitModifierOnlyHotkey = ModifierKey.none.rawValue
-            }
-        case .mouse(let button):
-            if prefs.submitMouseButtonHotkey == button.rawValue {
-                prefs.submitMouseButtonHotkey = MouseButton.none.rawValue
-            }
-        case .keyCombo, .none:
-            break
-        }
-    }
-
-    /// Same rule, applied when a single-binding field claims something the trigger list holds.
+    /// Newest assignment wins: a single-binding field claiming something the trigger list holds
+    /// takes it off the list, so a key is never bound twice with the loser failing silently.
     private func takeOverFromRecordingTriggers(_ trigger: RecordingTrigger) {
         var triggerSet = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
         guard triggerSet.triggers.contains(trigger) else { return }
@@ -380,7 +326,6 @@ struct TriggerRecorderField: View {
     }
 
     private func clear() {
-        mouseButton = .none
         modifierKey = .none
         KeyboardShortcuts.setShortcut(nil, for: name)
         shortcut = nil

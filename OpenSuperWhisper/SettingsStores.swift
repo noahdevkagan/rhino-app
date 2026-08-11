@@ -36,35 +36,3 @@ final class LanguageStore: ObservableObject {
         NotificationCenter.default.post(name: .appPreferencesLanguageChanged, object: nil)
     }
 }
-
-/// Single source of truth **and** single mutation point for the Translate-to-English toggle.
-///
-/// The menu-bar toggle and the Settings toggle both flip it — route both through `set(_:)`/`toggle()`
-/// so they stay in lockstep. Idempotent like `LanguageStore`; posts `.translateSettingDidChange`,
-/// which an open Settings window observes (the menu rebuilds from `AppPreferences` on open).
-@MainActor
-final class TranslateStore: ObservableObject {
-    static let shared = TranslateStore()
-
-    @Published private(set) var enabled: Bool
-
-    private var observer: NSObjectProtocol?
-
-    private init() {
-        enabled = AppPreferences.shared.translateToEnglish
-        observer = NotificationCenter.default.addObserver(
-            forName: .translateSettingDidChange, object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.enabled = AppPreferences.shared.translateToEnglish }
-        }
-    }
-
-    func set(_ value: Bool) {
-        guard value != AppPreferences.shared.translateToEnglish else { return }
-        AppPreferences.shared.translateToEnglish = value
-        enabled = value
-        NotificationCenter.default.post(name: .translateSettingDidChange, object: nil)
-    }
-
-    func toggle() { set(!AppPreferences.shared.translateToEnglish) }
-}

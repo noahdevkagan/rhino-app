@@ -105,10 +105,6 @@ class FluidAudioEngine: TranscriptionEngine {
         onProgressUpdate?(0.95)
 
         var processedText = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if settings.shouldApplyAsianAutocorrect && !processedText.isEmpty {
-            processedText = AutocorrectWrapper.format(processedText)
-        }
 
         if settings.shouldApplyCustomDictionary {
             processedText = CustomDictionary.apply(processedText, entries: settings.customDictionaryEntries)

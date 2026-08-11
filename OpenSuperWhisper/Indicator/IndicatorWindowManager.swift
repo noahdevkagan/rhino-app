@@ -92,11 +92,10 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         // size the window.
         window?.setContentSize(NSSize(width: 380, height: 120))
 
-        // Accept clicks only when an on-bubble button is enabled (so it's tappable);
-        // otherwise stay fully click-through (baseline). Re-evaluated each show() so
-        // toggling the setting takes effect on the next recording.
-        window?.ignoresMouseEvents = !(AppPreferences.shared.showStopButtonOnIndicator
-            || AppPreferences.shared.showCancelButtonOnIndicator)
+        // Accept clicks only when the stored layout shows an on-bubble button (so it's
+        // tappable); otherwise stay fully click-through (baseline). Re-evaluated each show().
+        window?.ignoresMouseEvents = IndicatorLayout
+            .load(from: AppPreferences.shared.indicatorLayout).trailing.isEmpty
 
         // Position window - use the screen containing the point, or main screen as fallback
         let targetScreen = point.flatMap { FocusUtils.screenContaining(point: $0) } ?? NSScreen.main
@@ -218,11 +217,6 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         viewModel?.startDecoding()
     }
 
-    /// Reflect the hands-free latch in the bubble. No-op when nothing is showing.
-    func setLatched(_ latched: Bool) {
-        viewModel?.isLatched = latched
-    }
-    
     func stopForce() {
         viewModel?.cancelRecording()
         viewModel?.cleanup()

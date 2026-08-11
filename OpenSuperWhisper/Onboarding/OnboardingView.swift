@@ -20,13 +20,7 @@ class OnboardingViewModel: ObservableObject {
             AppPreferences.shared.whisperLanguage = selectedLanguage
         }
     }
-    
-    @Published var useAsianAutocorrect: Bool {
-        didSet {
-            AppPreferences.shared.useAsianAutocorrect = useAsianAutocorrect
-        }
-    }
-    
+
     @Published var selectedShortcut: OnboardingShortcutOption {
         didSet {
             switch selectedShortcut {
@@ -52,8 +46,7 @@ class OnboardingViewModel: ObservableObject {
         let systemLanguage = LanguageUtil.getSystemLanguage()
         AppPreferences.shared.whisperLanguage = systemLanguage
         self.selectedLanguage = systemLanguage
-        self.useAsianAutocorrect = AppPreferences.shared.useAsianAutocorrect
-        
+
         let currentHotkey = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
         if currentHotkey == .none && !AppPreferences.shared.hasCompletedOnboarding {
             // Default to key combination mode — does NOT require Input Monitoring permission.
@@ -77,8 +70,6 @@ class OnboardingViewModel: ObservableObject {
                 updatedModel.isDownloaded = modelManager.isModelDownloaded(name: filename)
             case .parakeet(let version):
                 updatedModel.isDownloaded = isFluidAudioModelDownloaded(version: version)
-            case .senseVoice:
-                updatedModel.isDownloaded = SenseVoiceModelManager.shared.isDownloaded
             }
             return updatedModel
         }
@@ -110,8 +101,6 @@ class OnboardingViewModel: ObservableObject {
         case .parakeet(let version):
             AppPreferences.shared.selectedEngine = "fluidaudio"
             AppPreferences.shared.fluidAudioModelVersion = version
-        case .senseVoice:
-            AppPreferences.shared.selectedEngine = "sensevoice"
         }
     }
 
@@ -132,8 +121,6 @@ class OnboardingViewModel: ObservableObject {
             try await downloadWhisperModel(model: model, url: url)
         case .parakeet(let version):
             try await downloadParakeetModel(model: model, version: version)
-        case .senseVoice:
-            try await downloadSenseVoiceModel(model: model)
         }
     }
     
@@ -205,47 +192,6 @@ class OnboardingViewModel: ObservableObject {
         try await downloadTask?.value
     }
     
-    @MainActor
-    private func downloadSenseVoiceModel(model: OnboardingUnifiedModel) async throws {
-        downloadTask = Task {
-            do {
-                try await SenseVoiceModelManager.shared.download { [weak self] progress in
-                    Task { @MainActor in
-                        guard let self else { return }
-                        self.downloadProgress = progress
-                        if let index = self.unifiedModels.firstIndex(where: { $0.id == model.id }) {
-                            self.unifiedModels[index].downloadProgress = progress
-                        }
-                    }
-                }
-                try Task.checkCancellation()
-
-                await MainActor.run {
-                    if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
-                        unifiedModels[index].isDownloaded = true
-                        unifiedModels[index].downloadProgress = 1.0
-                    }
-                    selectModel(model)
-                    isDownloading = false
-                    downloadingModelName = nil
-                    downloadProgress = 1.0
-                }
-            } catch {
-                await MainActor.run {
-                    isDownloading = false
-                    downloadingModelName = nil
-                    downloadProgress = 0.0
-                    if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
-                        unifiedModels[index].downloadProgress = 0.0
-                    }
-                }
-                throw error
-            }
-        }
-
-        try await downloadTask?.value
-    }
-
     private func downloadParakeetModel(model: OnboardingUnifiedModel, version: String) async throws {
         var wasCancelled = false
         
@@ -394,14 +340,6 @@ struct OnboardingView: View {
                     }
                     .pickerStyle(.menu)
                     .frame(width: 150)
-                }
-                
-                if Settings.asianLanguages.contains(viewModel.selectedLanguage) {
-                    Toggle(isOn: $viewModel.useAsianAutocorrect) {
-                        Text("Use Asian Autocorrect")
-                            .font(.caption)
-                    }
-                    .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
                 }
             }
             .padding(20)

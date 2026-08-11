@@ -132,24 +132,4 @@ struct IndicatorLayout: Codable, Equatable {
         else { return "" }
         return string
     }
-
-    /// Builds the layout a pre-editor install should start from, so nobody's bubble changes
-    /// shape on upgrade. `meterMode` is the old "off" / "replacesDot" / "besideLabel" value.
-    static func migrated(meterMode: String, showStop: Bool, showCancel: Bool) -> IndicatorLayout {
-        var layout = IndicatorLayout.default
-        switch meterMode {
-        case "off":
-            layout.order = [.dot, .label, .waveform, .stopButton, .cancelButton]
-            layout.hidden = [.waveform]
-        case "besideLabel":
-            layout.order = [.dot, .label, .waveform, .stopButton, .cancelButton]
-            layout.hidden = []
-        default:
-            layout.order = [.waveform, .label, .dot, .stopButton, .cancelButton]
-            layout.hidden = [.dot]
-        }
-        if !showStop { layout.hidden.insert(.stopButton) }
-        if !showCancel { layout.hidden.insert(.cancelButton) }
-        return layout
-    }
 }

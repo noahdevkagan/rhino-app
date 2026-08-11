@@ -134,8 +134,6 @@ struct HomeStatsView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var shortcutDescription: String {
-        let mouse = MouseButton(rawValue: AppPreferences.shared.mouseButtonHotkey) ?? .none
-        if mouse != .none { return mouse.shortSymbol }
         let modifier = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
         if modifier != .none { return modifier.shortSymbol }
         return KeyboardShortcuts.getShortcut(for: .toggleRecord)?.description ?? "—"

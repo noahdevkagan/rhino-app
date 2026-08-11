@@ -14,10 +14,8 @@ protocol TranscriptionEngine: AnyObject {
 /// Static engine capabilities keyed by the stored engine id (`AppPreferences.selectedEngine`),
 /// so the UI can gate features without instantiating an engine.
 enum EngineCapabilities {
-    /// Engines that can translate to English — the single source of truth for the
-    /// translate toggle's gating. Add a provider here, never a new `case` elsewhere.
-    /// Whisper translates locally; Parakeet (fluidaudio) / SenseVoice silently
-    /// ignore `translateToEnglish` (#124).
+    /// Engines that can translate to English. Whisper translates locally; Parakeet
+    /// (fluidaudio) silently ignores `translateToEnglish` (#124).
     static let translationCapableEngines: Set<String> = ["whisper"]
 
     static func supportsTranslation(engine: String) -> Bool {
@@ -47,14 +45,6 @@ enum EngineCapabilities {
     /// Whisper set; "auto" (where present) means let the model detect the language.
     static func supportedLanguages(engine: String, fluidAudioModelVersion: String) -> [String] {
         switch engine {
-        case "apple":
-            // System speech model (macOS 26). "auto" = the user's system language — the
-            // transcriber has no cross-language auto-detect. The cache is refreshed at
-            // launch; before the first refresh, English is the only safe promise.
-            let cached = AppleSpeechSupport.cachedSupportedLanguages
-            return ["auto"] + (cached.isEmpty ? ["en"] : cached)
-        case "sensevoice":
-            return ["auto", "zh", "en", "ja", "ko", "yue"]
         case "fluidaudio":
             return fluidAudioModelVersion == "v2"
                 ? ["en"]

@@ -5,6 +5,17 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Radically simplified: removed per-app rules, the SenseVoice and Apple
+  Speech engines, translation, mouse/latch/submit trigger modes, the
+  indicator layout editor, and the advanced decoding knobs. One shortcut,
+  two engines (Parakeet + Whisper), sane defaults.
+- Faster first dictation: the speech engine and cleanup model now load at
+  launch instead of on your first recording.
+- New Rhino app icon and a rhino menu-bar icon.
+- Dictation history is on by default, stored only on this Mac; the main
+  window now shows your stats (words, time saved, speed), history, and
+  the dictionary.
+
 - Silence no longer produces text: dictating nothing (or a dead mic) now
   inserts nothing, instead of an occasional hallucinated word.
 - AI cleanup now always runs on the built-in on-device model; the Ollama

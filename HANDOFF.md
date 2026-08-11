@@ -7,15 +7,26 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
-- **Latest `origin/master` merged into the dictionary-crash branch:** the
-  shortcut-hint code landed unchanged; the two append-only note conflicts
-  preserve both branches' entries. All 46 affected shortcut and dictionary
-  tests pass on the merged tree.
+- **Latest `origin/master` marketing-site launch merged into the
+  dictionary-crash branch:** the incoming `website/` tree is unchanged and
+  the handoff conflict preserves both features. The site production build and
+  4 render tests pass, as do all 35 dictionary tests.
 
 - Fixed Home shortcut hint rendering the default Fn trigger as a dash: hints
   now read the unified `recordingTriggers` source used by ShortcutManager,
   refresh after settings changes, and have focused regression coverage. App
   build and all 11 `RecordingTriggerSetTests` pass.
+
+### rhinovoice.app launch site
+
+- Revised site is live at `https://rhinovoice.app`: one
+  header + hero + compact footer, sharp native-size rhino emoji mark, and a
+  one-time $20 PayPal checkout through `paypal@okdork.com`.
+- `/thanks` delivers the v0.1.2 DMG after purchase; `/changelog` lists the three
+  Rhino releases. Production render tests and live-route checks all pass.
+- Cloudflare DNS, the custom hostname, and TLS are all active. The browser tab
+  uses a cache-busted, full-rhino coral favicon generated at 512px through
+  Next's `app/icon.png` convention; its deployed bytes match the tested asset.
 
 - **Dictionary editor crash fixed:** deleting a rule while one of its text
   fields was focused left SwiftUI's positional `ForEach($entries)` binding

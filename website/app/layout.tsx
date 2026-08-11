@@ -39,8 +39,8 @@ export async function generateMetadata(): Promise<Metadata> {
       "on-device speech to text",
     ],
     icons: {
-      icon: "/rhino-icon.png",
-      apple: "/rhino-icon.png",
+      icon: "/rhino-mark.png",
+      apple: "/rhino-mark.png",
     },
     openGraph: {
       type: "website",

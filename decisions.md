@@ -252,6 +252,16 @@ ID cert was likewise re-issued from the laptop (new CSR) rather than
 exported — Gatekeeper/notarization accept any valid team cert, so that
 rotation costs nothing.
 
+**2026-08-11 — Rhino's homepage is a one-screen $20 purchase page.** The
+first site pass overbuilt the brief with feature, privacy, setup, FAQ, and
+repeat-CTA sections. Noah's screenshots clarified the target: retain only the
+header, product hero, PayPal purchase, and a compact footer; put release history
+on `/changelog` and the DMG on the post-purchase `/thanks` route. Checkout uses
+the same `paypal@okdork.com` account, one-time $20 price, and 30-day guarantee
+as MeetingCoach. The visible logo renders the system rhino emoji at its native
+display size instead of enlarging the app icon's cropped emoji bitmap, which
+keeps it sharp on Retina screens.
+
 **2026-08-11 — The public site lives in `website/` beside the app.** It
 is a self-contained Sites/vinext project so web dependencies and builds
 cannot disturb Xcode, while the product, release automation, and website

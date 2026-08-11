@@ -9,13 +9,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Active plan — rhinovoice.app launch site
 
-- Built and tested a self-contained `website/` project with the real v0.1.2
-  DMG, responsive product story, privacy proof, setup, FAQ, and social card.
-- Public Sites deployment: `https://rhinovoice-app.reg654.chatgpt.site`.
-- `rhinovoice.app` is registered with Sites but awaits Cloudflare DNS: A `@`
-  → `162.159.143.30` and `172.66.3.26` (DNS only), plus the two verification
-  TXT records returned during setup. After DNS propagates, refresh the custom
-  domain status and verify both hostname and TLS are active.
+- Revision requested from screenshots: replace the blurry enlarged emoji with
+  a crisp existing Rhino vector mark; reduce the homepage to header + hero +
+  compact footer only; make the primary CTA a $20 one-time PayPal purchase.
+- Add separate `/thanks` (post-purchase DMG download) and `/changelog` routes,
+  then rebuild, test, deploy, and verify the public Sites URL.
+- `rhinovoice.app` remains registered with Sites but awaits the Cloudflare DNS
+  records already handed off; verify hostname and TLS after Noah adds them.
 
 - The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
   coral face icon, menu-bar rhino silhouette, forced light mode), main

@@ -205,3 +205,20 @@ before setup can finish (a truncated download otherwise fails on every
 first dictation — worst first impression), and whisper downloads are
 size-checked (≥95% of catalog size) with stale partial files deleted
 instead of short-circuiting retries as "done".
+
+**2026-08-11 — CI releases are tag-driven and secret-gated; local
+release.sh stays the working fallback.** release.yml (cribbed from
+MeetingCoach) runs on every v* tag: the test gate always runs, but the
+sign/notarize/publish job checks for the signing secrets first and skips
+green with a notice when they're unset — so until Noah uploads secrets,
+tags stay quiet and Scripts/release.sh (proven: shipped v0.1.0) is the
+publish path, with no risk of a double- or half-publish. CI never bumps
+versions: it verifies the tag matches MARKETING_VERSION + CHANGELOG and
+fails fast, keeping "what's tagged is what's shipped" true. The
+fresh-checkout preamble (cmake configure, libomp vendoring, SwiftPM
+resolve + FluidAudio patch) moved to Scripts/prepare-build-deps.sh,
+shared by run.sh, make-test-dmg.sh and CI — it also fixes the fresh-clone
+bug where run.sh copied libomp into a build/ dir that didn't exist yet.
+build.yml is now a thin wrapper calling test-gate.yml (its macos-26 pin
+existed for the deleted Apple Speech engine; rust was for the deleted
+autocorrect submodule).

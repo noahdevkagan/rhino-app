@@ -186,3 +186,20 @@ recording artifacts, not product gaps).
 "Punctuation & cleanup — recommended" card with an explicit ~1GB download
 button; enabling toggles aiPostProcessingEnabled and preloads. Dictation
 never requires it.
+
+**2026-08-11 — Elided-word reconstruction is a cleanup-prompt clause, not
+code.** Dropped function words ("Schedule review" for "Schedule the
+review", corpus h01) are context-dependent — the opposite of
+NumberCompaction's deterministic cases — so the fix is an explicit
+restoration rule in the cleanup prompt (with a worked example; the 1.5B
+model follows examples, not abstractions), scoped to short function words
+with "never add names, facts, or any other words" keeping the
+transform-only contract. A/B on the real Qwen2.5-1.5B (greedy, app's
+exact prompt assembly): new prompt restores h01's "the" and "a buffer
+week before the launch date"; old prompt left both broken; all
+pass-through and question-trap cases byte-identical. Reconstruction
+therefore only works when cleanup is enabled — by design, dictation
+never requires the 1GB model. The prompt also stopped being a pref: its
+editing UI died in the 80/20 axe, so a launch migration drops any stored
+copy (installs from the editable era would otherwise be pinned to old
+wording forever).

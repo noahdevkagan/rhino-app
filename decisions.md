@@ -251,3 +251,12 @@ once. Every install from 0.1.1 forward updates normally. The Developer
 ID cert was likewise re-issued from the laptop (new CSR) rather than
 exported — Gatekeeper/notarization accept any valid team cert, so that
 rotation costs nothing.
+
+**2026-08-11 — Dictionary editor rows bind by UUID, not array position.**
+Deleting a rule synchronously removes its array slot while AppKit is still
+ending the popover's focused text-field edit; SwiftUI's generated
+`ForEach($entries)` binding then reads that stale slot and traps in
+`Array.subscript`. Each row binding now resolves the rule's UUID on every
+access. Once removed, teardown reads return the last rendered value and late
+text commits are ignored, so deletion remains immediate without retaining an
+invalid positional binding.

@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Dictionary editor crash fixed:** deleting a rule while one of its text
+  fields was focused left SwiftUI's positional `ForEach($entries)` binding
+  pointing past the end of the array. Rows now bind by UUID, using their last
+  rendered value for AppKit's teardown read and ignoring a late commit after
+  deletion. The focused editor regression and all 35 dictionary tests pass.
+
 - The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
   coral face icon, menu-bar rhino silhouette, forced light mode), main
   window is sidebar + Home stats/History/Dictionary per Noah's mockups.

@@ -12,8 +12,8 @@ The durable "why" behind choices goes in `decisions.md`, not here.
   `.context/rhino-appsumo-codes.csv`; only their SHA-256 hashes ship. The
   branded `/appsumo` page gates the v0.1.3 download, is noindexed, and handles
   loading, invalid, unavailable, and successful redemption states. The website
-  production build and all seven render/generator tests pass; publication is
-  the remaining step in this session.
+  production build and all seven render/generator tests pass, and the page is
+  published at `https://rhinovoice.app/appsumo`.
 
 - **Rhino v0.1.3 is live (2026-08-12):** immutable tag and `origin/master`
   agreed at release commit `e5ae58a`; the 14 MB Developer ID DMG passed both

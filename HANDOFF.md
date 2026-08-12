@@ -7,6 +7,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Release v0.1.4 in progress (2026-08-12):** PR #16 is merged and its CI
+  gate passed. Add a user-facing changelog entry, run the changelog-driven
+  release command, then verify the immutable tag, signed/notarized DMG,
+  GitHub release, Sparkle appcast, and full local/CI gates.
+
 - **Input Monitoring false-negative fixed (2026-08-12):** Accessibility
   already authorizes the listen-only Fn event tap and is required for text
   insertion, so Rhino no longer forces a redundant Input Monitoring grant or

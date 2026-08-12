@@ -305,3 +305,14 @@ tap when access arrives. Key-combination-only setups do not request it. We keep
 the tap listen-only and subscribe only to modifier-flag changes; switching to a
 more powerful active tap merely to reuse Accessibility would broaden capability
 without improving the product.
+
+**2026-08-11 — The changelog is the release command's source of truth;
+release tags are immutable.** `Scripts/cut-release.sh` derives the next version
+from the newest numbered changelog section, rejects versions that are not newer
+than the existing tags, and refuses to carry unmerged code or unrelated dirty
+files into a release. It selects the tag-driven CI publisher only when all
+eight signing/publishing secret names exist; otherwise it uses the proven local
+keychain publisher, so the same command works before and after CI credential
+setup without double-publishing. The release commit and tag push atomically to
+`origin/master`, and neither path force-moves a tag: a shipped version denotes
+one exact source commit forever.

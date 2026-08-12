@@ -10,48 +10,49 @@ auto-update via Sparkle (`SUFeedURL` already points at the feed).
 > identities/repos/two-arch scheme do not apply — Rhino ships arm64-only,
 > signed as `Developer ID Application: noah kagan (U433SX7BT8)`.
 
-## Path A — local, one command (works today)
+## Cut a release — one command
 
 ```sh
-# 1. write a "## X.Y.Z" section in CHANGELOG.md (the tag push gate enforces it)
-# 2. then:
-./Scripts/release.sh 0.1.1
-# gate → version bump → notarized DMG → GitHub release → signed appcast
-git push && SKIP_GATE=1 git push origin v0.1.1
+# 1. Put the next version at the top of CHANGELOG.md, with release-note bullets:
+#    ## 0.1.3 — 2026-08-11
+# 2. Run from a checkout at origin/master (a pending CHANGELOG-only edit or
+#    commit is allowed):
+./Scripts/cut-release.sh
 ```
 
-Needs (all present on Noah's machine): Developer ID cert in the login
-keychain, notarytool keychain profile `rhino`, Sparkle private key in the
-keychain (account `Rhino`), `gh` authed with push access to rhino-releases.
+`cut-release.sh` reads the first numbered changelog heading, requires it to be
+newer than every existing tag, runs the full gate, bumps the marketing/build
+versions, creates `Release vX.Y.Z`, creates the immutable tag, and atomically
+pushes the commit + tag to `origin/master`. It refuses unmerged code and dirty
+files other than `CHANGELOG.md`, so a release cannot accidentally scoop up an
+agent's working tree.
 
-The tag push also triggers `.github/workflows/release.yml`: the CI test gate
-runs regardless (nothing ships untested), and the CI *publish* job skips
-cleanly while its secrets are unset — no double-publish.
+The command checks the *names* of the repo's Actions secrets. When all eight
+CI signing/publishing secrets exist, the tag-triggered workflow builds,
+notarizes, publishes the DMG, and updates Sparkle. Until then, the same command
+automatically uses the proven local publisher before pushing; the tag workflow
+still re-runs the CI gate and skips its publish job, so it cannot double-publish.
 
-## Path B — CI, tag-driven (canonical once secrets are uploaded)
+The local fallback needs (all present on Noah's machine): Developer ID cert in
+the login keychain, notarytool keychain profile `rhino`, Sparkle private key in
+the keychain (account `Rhino`), and `gh` authenticated with push access to
+`rhino-app` and `rhino-releases`.
+
+## Manual/repair path
+
+Normally use `cut-release.sh`. For a deliberate local-only publish or repair,
+the lower-level command remains:
 
 ```sh
-# 1. CHANGELOG section as above
-# 2. bump the version WITHOUT publishing (release.sh does both; for the CI
-#    path run its bump alone):
-python3 - 0.1.1 <<'PY'
-import re, sys
-v = sys.argv[1]
-p = 'OpenSuperWhisper.xcodeproj/project.pbxproj'
-s = open(p).read()
-s = re.sub(r'MARKETING_VERSION = [^;]+;', f'MARKETING_VERSION = {v};', s)
-build = int(re.search(r'CURRENT_PROJECT_VERSION = (\d+);', s).group(1)) + 1
-s = re.sub(r'CURRENT_PROJECT_VERSION = \d+;', f'CURRENT_PROJECT_VERSION = {build};', s)
-open(p, 'w').write(s)
-PY
-git commit -am "Release v0.1.1"
-# 3. tag + push; CI gates, builds, signs, notarizes, publishes DMG + appcast
-git push && git tag v0.1.1 && SKIP_GATE=1 git push origin v0.1.1
+./Scripts/release.sh 0.1.3
+git push
+SKIP_GATE=1 git push origin v0.1.3
 ```
 
-CI verifies the tag matches `MARKETING_VERSION` and the CHANGELOG section
-exists, then fails fast if not. Re-runs are idempotent (release upload
-`--clobber`, appcast merge).
+Release tags cannot be reused or moved. If publication failed after the tag was
+pushed, fix the publisher and re-run the existing GitHub Actions job instead of
+force-tagging. CI verifies that the tag matches `MARKETING_VERSION` and the
+changelog section before it publishes.
 
 ### One-time secret setup (rhino-app repo → Settings → Secrets → Actions)
 
@@ -76,7 +77,8 @@ spctl -a -vvv -t exec /Volumes/Rhino/Rhino.app   # → accepted, Notarized Devel
 
 ## Still TODO (needs Noah)
 
-- **rhinovoice.app**: register the domain, put up a download page pointing at
-  the latest rhino-releases DMG. The Sparkle feed does NOT depend on the
-  site (it's raw.githubusercontent) — the site is marketing/download only.
-- Upload the Path-B secrets when ready to move releases to CI.
+- Upload the eight Actions secrets above when ready to move releases from the
+  local fallback into CI.
+- The live site's `/thanks` download URL and `/changelog` data are still pinned
+  in `website/`; update and deploy those for each public release. Sparkle does
+  not depend on the site because its feed is served from `rhino-releases`.

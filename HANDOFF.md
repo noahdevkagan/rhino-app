@@ -7,6 +7,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Rhino v0.1.3 is live (2026-08-12):** immutable tag and `origin/master`
+  agreed at release commit `e5ae58a`; the 14 MB Developer ID DMG passed both
+  Apple notarizations and staple validation, the GitHub release and signed
+  Sparkle appcast publish 0.1.3, and the full local gate passed. The website's
+  post-purchase download and changelog were advanced to 0.1.3 and its four
+  production render tests pass.
+
 - **Changelog-driven releases are one command:** after adding the newest
   numbered section, run `./Scripts/cut-release.sh`. It derives/validates the
   version, forces the full gate, bumps/commits/tags, and atomically pushes to

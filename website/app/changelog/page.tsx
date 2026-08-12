@@ -1,5 +1,14 @@
 const releases = [
   {
+    version: "0.1.3",
+    date: "August 12, 2026",
+    changes: [
+      "The Fn shortcut now works while other apps are focused and clearly requests Input Monitoring access when needed.",
+      "Deleting a dictionary rule no longer crashes when one of its text fields is focused.",
+      "The Home screen now shows the active dictation shortcut instead of a dash.",
+    ],
+  },
+  {
     version: "0.1.2",
     date: "August 11, 2026",
     changes: [

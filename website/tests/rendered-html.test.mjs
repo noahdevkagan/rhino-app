@@ -58,10 +58,11 @@ test("renders the changelog and post-purchase download routes", async () => {
   ]);
 
   assert.match(changelog, /<h1>Changelog<\/h1>/);
-  assert.match(changelog, /0\.1\.2/);
+  assert.match(changelog, /0\.1\.3/);
+  assert.match(changelog, /Input Monitoring access/);
   assert.match(changelog, /updates itself automatically/);
   assert.match(thanks, /Thanks for buying Rhino/);
-  assert.match(thanks, /Rhino-0\.1\.2\.dmg/);
+  assert.match(thanks, /Rhino-0\.1\.3\.dmg/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 

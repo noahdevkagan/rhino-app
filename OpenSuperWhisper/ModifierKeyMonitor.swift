@@ -129,13 +129,12 @@ class ModifierKeyMonitor {
         watched = [modifierKey.keyCode: modifierKey]
         pressedKey = nil
 
-        // A listen-only keyboard event tap can be created without Input Monitoring, but macOS
-        // disables it outside Rhino. That failure looks exactly like a broken global Fn key.
-        // Ask through the dedicated TCC API so Rhino appears in the correct privacy pane and
-        // the user gets the system explanation. The permission banner remains available if the
-        // prompt was previously declined.
-        guard CGPreflightListenEventAccess() || CGRequestListenEventAccess() else {
-            print("ModifierKeyMonitor: Input Monitoring is required for global \(modifierKey.displayName)")
+        // Accessibility already authorizes both posting and listening to events. Rhino needs it
+        // to insert text, so requiring Input Monitoring as well creates a redundant TCC prompt
+        // whose newly enabled state may not become visible until relaunch. Existing installs
+        // with the narrower Input Monitoring grant remain supported.
+        guard GlobalEventListeningAccess.current else {
+            print("ModifierKeyMonitor: Accessibility is required for global \(modifierKey.displayName)")
             return
         }
         
@@ -163,7 +162,7 @@ class ModifierKeyMonitor {
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            print("ModifierKeyMonitor: Failed to create event tap. Check Input Monitoring permission.")
+            print("ModifierKeyMonitor: Failed to create event tap. Check Accessibility permission.")
             return
         }
         

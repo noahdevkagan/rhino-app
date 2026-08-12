@@ -359,42 +359,28 @@ extension Notification.Name {
 
 // MARK: - Permissions banner
 
-/// Slim banner shown at the top of the main window while microphone, Accessibility, or a
-/// configured modifier trigger's Input Monitoring permission is missing.
+/// Slim banner shown at the top of the main window while microphone or Accessibility is missing.
 struct PermissionsBanner: View {
     @ObservedObject var permissionsManager: PermissionsManager
 
     private var message: String {
         let mic = permissionsManager.isMicrophonePermissionGranted
         let ax = permissionsManager.isAccessibilityPermissionGranted
-        let input = !permissionsManager.isInputMonitoringRequired
-            || permissionsManager.isInputMonitoringPermissionGranted
-        switch (mic, input, ax) {
-        case (true, false, true):
-            return "Rhino needs Input Monitoring so Fn works while you're in other apps."
-        case (false, true, true):
+        switch (mic, ax) {
+        case (false, true):
             return "Rhino needs Microphone access to hear you."
-        case (true, true, false):
-            return "Rhino needs Accessibility access to type into other apps."
+        case (true, false):
+            return "Rhino needs Accessibility so Fn works globally and text can be typed into other apps."
         default:
-            var missing: [String] = []
-            if !mic { missing.append("Microphone") }
-            if !input { missing.append("Input Monitoring") }
-            if !ax { missing.append("Accessibility") }
-            return "Rhino needs " + missing.joined(separator: ", ") + " permissions."
+            return "Rhino needs Microphone and Accessibility permissions."
         }
     }
 
     /// Deep-link to the exact privacy pane instead of the Privacy & Security front
-    /// page. Microphone goes first; modifier triggers then need Input Monitoring;
-    /// Accessibility is last because it is used when the finished text is inserted.
+    /// page. Microphone goes first, then Accessibility for global Fn and text insertion.
     private var settingsPaneURL: String {
         if !permissionsManager.isMicrophonePermissionGranted {
             return "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
-        }
-        if permissionsManager.isInputMonitoringRequired
-            && !permissionsManager.isInputMonitoringPermissionGranted {
-            return "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         }
         return "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     }

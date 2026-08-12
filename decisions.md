@@ -332,3 +332,15 @@ exist. This deliberately is a lightweight AppSumo fulfillment gate rather than
 one-time license enforcement: it matches the proven MeetingCoach flow and the
 download itself is public, so a database would add personal-data and operating
 surface without protecting a private asset.
+
+**2026-08-12 — Accessibility is Rhino's single required keyboard TCC grant
+(reverses the separate Input Monitoring requirement).** Apple DTS confirms
+that Accessibility authorizes both event posting and listening, while Input
+Monitoring authorizes listening only. Rhino already needs Accessibility to
+insert dictated text, so forcing a second permission for the listen-only Fn
+tap was redundant and produced a false-negative loop when System Settings
+showed Input Monitoring enabled but the running process still saw cached TCC
+state. The tap remains listen-only and watches only modifier flags; it now
+accepts either grant for compatibility, while Rhino requests and displays only
+Accessibility. Debug builds also use the real TCC result so permission UI can
+never claim a global trigger will work when macOS will block it.

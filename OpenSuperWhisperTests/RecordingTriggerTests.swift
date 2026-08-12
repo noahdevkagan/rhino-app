@@ -192,15 +192,15 @@ final class RecordingTriggerSetTests: XCTestCase {
     }
 
     @MainActor
-    func testModifierTriggerRequiresInputMonitoring() {
+    func testModifierTriggerRequiresGlobalEventListening() {
         let set = RecordingTriggerSet(triggers: [.modifier(.fn)])
-        XCTAssertTrue(set.requiresInputMonitoring)
+        XCTAssertTrue(set.requiresGlobalEventListening)
     }
 
     @MainActor
-    func testRegisteredKeyCombinationDoesNotRequireInputMonitoring() {
+    func testRegisteredKeyCombinationDoesNotRequireGlobalEventListening() {
         let set = RecordingTriggerSet(triggers: [.keyCombo(combo(.d))])
-        XCTAssertFalse(set.requiresInputMonitoring)
+        XCTAssertFalse(set.requiresGlobalEventListening)
     }
 
     @MainActor
@@ -231,5 +231,24 @@ final class RecordingTriggerSetTests: XCTestCase {
 
     func testMigrationOfAnUnconfiguredInstallIsEmpty() {
         XCTAssertEqual(RecordingTriggerSet.migrated(modifierRaw: "none", shortcut: nil), .empty)
+    }
+}
+
+/// Rhino already needs Accessibility for insertion. It must count as authorization for the
+/// listen-only modifier tap instead of forcing users through a redundant Input Monitoring gate.
+final class GlobalEventListeningAccessTests: XCTestCase {
+    func testAccessibilityGrantAuthorizesListening() {
+        XCTAssertTrue(GlobalEventListeningAccess.isGranted(accessibility: true,
+                                                           inputMonitoring: false))
+    }
+
+    func testExistingInputMonitoringGrantAuthorizesListening() {
+        XCTAssertTrue(GlobalEventListeningAccess.isGranted(accessibility: false,
+                                                           inputMonitoring: true))
+    }
+
+    func testListeningIsDeniedWithoutEitherGrant() {
+        XCTAssertFalse(GlobalEventListeningAccess.isGranted(accessibility: false,
+                                                            inputMonitoring: false))
     }
 }

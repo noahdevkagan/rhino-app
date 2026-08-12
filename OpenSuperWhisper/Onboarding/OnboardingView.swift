@@ -49,8 +49,8 @@ class OnboardingViewModel: ObservableObject {
 
         let currentHotkey = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
         if currentHotkey == .none && !AppPreferences.shared.hasCompletedOnboarding {
-            // Default to key combination mode — does NOT require Input Monitoring permission.
-            // Users can switch to single modifier key mode later in Settings if they prefer.
+            // Default to key combination mode. Single modifiers use the same Accessibility
+            // permission Rhino already needs for insertion, so they require no extra TCC grant.
             self.selectedShortcut = .keyCombination
             AppPreferences.shared.modifierOnlyHotkey = ModifierKey.none.rawValue
             NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
@@ -397,9 +397,9 @@ struct OnboardingView: View {
                         }
                         
                         if viewModel.selectedShortcut == .rightOption {
-                            Text("⚠️ Single modifier key mode requires Input Monitoring permission (macOS needs it to detect modifier keys globally). Only modifier key events are monitored — no regular keystrokes.")
+                            Text("Single modifier mode uses Rhino's Accessibility permission to watch only modifier presses — no regular keystrokes are captured.")
                                 .font(.caption2)
-                                .foregroundColor(.orange)
+                                .foregroundColor(.secondary)
                         }
 
                         Text("You can change this later in Settings")

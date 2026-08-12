@@ -7,6 +7,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Changelog-driven releases are one command:** after adding the newest
+  numbered section, run `./Scripts/cut-release.sh`. It derives/validates the
+  version, forces the full gate, bumps/commits/tags, and atomically pushes to
+  `origin/master`. All eight CI secret names select the tag-driven publisher;
+  otherwise it transparently uses the proven local keychain publisher. Tags
+  are immutable. The non-publishing release regression suite passes.
+
 - **Global Fn trigger fixed:** modifier-only triggers use a listen-only CGEvent
   tap, so they now request and surface macOS Input Monitoring separately from
   Accessibility. Rhino deep-links the right pane and arms the modifier tap
@@ -66,9 +73,9 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 - Next quality lever: elided-word reconstruction in cleanup ("Schedule
   the review" — Rhino AND Wispr both dropped the "the"; Typeless's LLM
   reconstructs). Then email-tier polish.
-- Release pipeline (tag → CI gate → sign/notarize → DMG → Sparkle
-  appcast → site): creds exist locally; needs the workflow + rhinovoice
-  .app registration + site. Crib docs/PUBLISHING.md + MeetingCoach.
+- CI release secrets are still absent (the one-command release transparently
+  uses local signing meanwhile). Upload the eight values in
+  `docs/RELEASING.md` when ready to move signing/notarization into Actions.
 - Localizable.xcstrings still carries orphaned keys for cut features
   (harmless); prune someday.
 - CI test-gate.yml still builds with old assumptions (submodule list

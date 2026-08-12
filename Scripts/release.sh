@@ -16,22 +16,18 @@ ARCHIVE="dist/releases"   # accumulates every shipped DMG; appcast spans them
 
 grep -qE "^##[[:space:]]+${VERSION}([^0-9.]|$)" CHANGELOG.md \
     || { echo "RELEASE BLOCKED: no '## $VERSION' section in CHANGELOG.md"; exit 1; }
+git show-ref --verify --quiet "refs/tags/v$VERSION" \
+    && { echo "RELEASE BLOCKED: v$VERSION already exists; release tags are immutable"; exit 1; }
+if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+    echo "RELEASE BLOCKED: v$VERSION already exists on origin; release tags are immutable"
+    exit 1
+fi
 
 echo "== gate"
-./Scripts/push-gate.sh
+FORCE_GATE=1 ./Scripts/push-gate.sh
 
 echo "== version $VERSION"
-python3 - "$VERSION" <<'PY'
-import re, sys
-v = sys.argv[1]
-p = 'OpenSuperWhisper.xcodeproj/project.pbxproj'
-s = open(p).read()
-s = re.sub(r'MARKETING_VERSION = [^;]+;', f'MARKETING_VERSION = {v};', s)
-build = int(re.search(r'CURRENT_PROJECT_VERSION = (\d+);', s).group(1)) + 1
-s = re.sub(r'CURRENT_PROJECT_VERSION = \d+;', f'CURRENT_PROJECT_VERSION = {build};', s)
-open(p, 'w').write(s)
-print(f"   marketing {v}, build {build}")
-PY
+./Scripts/bump-release-version.sh "$VERSION"
 
 echo "== notarized dmg"
 ./Scripts/make-test-dmg.sh
@@ -73,5 +69,5 @@ echo "== feed updated"
 git add -A
 git -c user.name="Noah Kagan" -c user.email="noahkagan@gmail.com" \
     commit -q -m "Release v$VERSION" || true
-git tag -f "v$VERSION"
+git tag "v$VERSION"
 echo "== done: v$VERSION shipped. Push with: git push && SKIP_GATE=1 git push origin v$VERSION"

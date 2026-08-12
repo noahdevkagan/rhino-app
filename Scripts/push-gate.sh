@@ -14,7 +14,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 upstream=$(git rev-parse '@{u}' 2>/dev/null)
-if [ -n "$upstream" ]; then
+if [ -n "$upstream" ] && [ "${FORCE_GATE:-0}" != "1" ]; then
     changed=$(git diff --name-only "$upstream"..HEAD)
     # Bench-record-only pushes skip the gate entirely — the gate itself
     # appends those records, so testing them again would loop forever.

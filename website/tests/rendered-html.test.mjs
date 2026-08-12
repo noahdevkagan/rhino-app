@@ -59,11 +59,11 @@ test("renders the changelog and post-purchase download routes", async () => {
   ]);
 
   assert.match(changelog, /<h1>Changelog<\/h1>/);
-  assert.match(changelog, /0\.1\.3/);
-  assert.match(changelog, /Input Monitoring access/);
+  assert.match(changelog, /0\.1\.4/);
+  assert.match(changelog, /permission loop/);
   assert.match(changelog, /updates itself automatically/);
   assert.match(thanks, /Thanks for buying Rhino/);
-  assert.match(thanks, /Rhino-0\.1\.3\.dmg/);
+  assert.match(thanks, /Rhino-0\.1\.4\.dmg/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 
@@ -105,6 +105,10 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /RH-XXXX-XXXX-XXXX/);
   assert.match(html, /Getting ready…/);
   assert.match(html, /noahkagan@gmail\.com/);
+  assert.match(
+    await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8"),
+    /Rhino-0\.1\.4\.dmg/,
+  );
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });
 

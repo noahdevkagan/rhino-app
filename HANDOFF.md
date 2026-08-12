@@ -7,10 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
-- **Release v0.1.4 in progress (2026-08-12):** PR #16 is merged and its CI
-  gate passed. Add a user-facing changelog entry, run the changelog-driven
-  release command, then verify the immutable tag, signed/notarized DMG,
-  GitHub release, Sparkle appcast, and full local/CI gates.
+- **Rhino v0.1.4 shipped (2026-08-12):** immutable tag and `origin/master`
+  point to release commit `70fe399`; the 15 MB Developer ID DMG and app both
+  passed Apple notarization and staple validation, the GitHub release and
+  signed Sparkle appcast publish 0.1.4, and the full local gate passed. The
+  website download, AppSumo fulfillment, and changelog now point to 0.1.4;
+  its production build and render tests pass and the Sites deployment is live.
 
 - **Input Monitoring false-negative fixed (2026-08-12):** Accessibility
   already authorizes the listen-only Fn event tap and is required for text

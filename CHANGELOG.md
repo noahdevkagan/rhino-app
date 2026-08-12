@@ -7,6 +7,15 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 (nothing yet)
 
+## 0.1.3 — 2026-08-12
+
+- Fixed the Fn shortcut permission flow so dictation works while other apps
+  are focused, with a clear prompt for the required Input Monitoring access.
+- Fixed a crash when deleting a dictionary rule while one of its text fields
+  was focused.
+- Fixed the Home screen showing a dash instead of the active dictation
+  shortcut.
+
 ## 0.1.2 — 2026-08-11
 
 - "Open System Settings" in the permissions banner now takes you straight

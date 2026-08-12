@@ -117,9 +117,9 @@ struct RecordingTriggerSet: Equatable, Codable {
     }
 
     /// A lone modifier (including the default Fn trigger) is observed with a listen-only
-    /// CGEvent tap. macOS allows that tap to see other apps only after Input Monitoring is
-    /// granted; ordinary registered key combinations do not need that permission.
-    var requiresInputMonitoring: Bool {
+    /// CGEvent tap. That requires global event-listening authorization (provided by Rhino's
+    /// existing Accessibility grant or by Input Monitoring); registered combos do not.
+    var requiresGlobalEventListening: Bool {
         !modifiers.isEmpty
     }
 

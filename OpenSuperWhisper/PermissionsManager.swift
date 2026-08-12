@@ -5,25 +5,20 @@ import Foundation
 enum Permission {
     case microphone
     case accessibility
-    case inputMonitoring
 }
 
 class PermissionsManager: ObservableObject {
     @Published var isMicrophonePermissionGranted = false
     @Published var isAccessibilityPermissionGranted = false
-    @Published var isInputMonitoringPermissionGranted = false
-    @Published private(set) var isInputMonitoringRequired: Bool
 
     private var permissionCheckTimer: Timer?
     private var windowObservers: [NSObjectProtocol] = []
+    private var isGlobalEventListeningPermissionGranted = false
 
     init() {
-        isInputMonitoringRequired = RecordingTriggerSet
-            .load(from: AppPreferences.shared.recordingTriggers)
-            .requiresInputMonitoring
         checkMicrophonePermission()
         checkAccessibilityPermission()
-        checkInputMonitoringPermission()
+        checkGlobalEventListeningPermission()
 
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -33,18 +28,6 @@ class PermissionsManager: ObservableObject {
         )
 
         setupWindowObservers()
-
-        let hotkeyObserver = NotificationCenter.default.addObserver(
-            forName: .hotkeySettingsChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.isInputMonitoringRequired = RecordingTriggerSet
-                .load(from: AppPreferences.shared.recordingTriggers)
-                .requiresInputMonitoring
-            self?.checkInputMonitoringPermission()
-        }
-        windowObservers.append(hotkeyObserver)
     }
 
     deinit {
@@ -92,7 +75,7 @@ class PermissionsManager: ObservableObject {
         permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.checkMicrophonePermission()
             self?.checkAccessibilityPermission()
-            self?.checkInputMonitoringPermission()
+            self?.checkGlobalEventListeningPermission()
         }
     }
 
@@ -115,29 +98,24 @@ class PermissionsManager: ObservableObject {
     }
 
     func checkAccessibilityPermission() {
-        #if DEBUG
-        // The DEBUG build is signed with a different identity than the release app, so its TCC
-        // Accessibility grant is separate and goes stale on each rebuild. Treat it as granted while
-        // developing so the permission gate doesn't block the app and we can test without
-        // re-granting every time. (macOS still blocks real *global* event taps / synthetic
-        // insertion without the grant — this only unblocks the in-app flow + the UI.)
-        let granted = true
-        #else
         let granted = AXIsProcessTrusted()
-        #endif
         DispatchQueue.main.async { [weak self] in
             self?.isAccessibilityPermissionGranted = granted
         }
     }
 
-    func checkInputMonitoringPermission() {
-        let granted = CGPreflightListenEventAccess()
+    /// A listen-only CGEvent tap may be authorized by either TCC grant. Rhino already needs
+    /// Accessibility to insert the finished text, so Input Monitoring must never become a
+    /// second mandatory permission. Keep watching the combined capability so a modifier tap
+    /// can be armed immediately after the user grants Accessibility without relaunching Rhino.
+    func checkGlobalEventListeningPermission() {
+        let granted = GlobalEventListeningAccess.current
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            let becameGranted = granted && !self.isInputMonitoringPermissionGranted
-            self.isInputMonitoringPermissionGranted = granted
+            let becameGranted = granted && !self.isGlobalEventListeningPermissionGranted
+            self.isGlobalEventListeningPermissionGranted = granted
             if becameGranted {
-                NotificationCenter.default.post(name: .inputMonitoringPermissionChanged,
+                NotificationCenter.default.post(name: .globalEventListeningPermissionChanged,
                                                 object: nil)
             }
         }
@@ -161,16 +139,9 @@ class PermissionsManager: ObservableObject {
         }
     }
 
-    func requestInputMonitoringPermissionOrOpenSystemPreferences() {
-        if CGRequestListenEventAccess() {
-            checkInputMonitoringPermission()
-        } else {
-            openSystemPreferences(for: .inputMonitoring)
-        }
-    }
-
     @objc private func accessibilityPermissionChanged() {
         checkAccessibilityPermission()
+        checkGlobalEventListeningPermission()
     }
 
     func openSystemPreferences(for permission: Permission) {
@@ -181,8 +152,6 @@ class PermissionsManager: ObservableObject {
         case .accessibility:
             urlString =
                 "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-        case .inputMonitoring:
-            urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         }
 
         if let url = URL(string: urlString) {
@@ -190,5 +159,20 @@ class PermissionsManager: ObservableObject {
                 NSWorkspace.shared.open(url)
             }
         }
+    }
+}
+
+/// Capability-level authorization for a listen-only global event tap. Accessibility includes
+/// both event posting and listening; Input Monitoring grants listening only. Rhino needs the
+/// former for text insertion, but accepting either here keeps the monitor correct for existing
+/// installs that already granted Input Monitoring.
+enum GlobalEventListeningAccess {
+    static func isGranted(accessibility: Bool, inputMonitoring: Bool) -> Bool {
+        accessibility || inputMonitoring
+    }
+
+    static var current: Bool {
+        isGranted(accessibility: AXIsProcessTrusted(),
+                  inputMonitoring: CGPreflightListenEventAccess())
     }
 }

@@ -7,6 +7,17 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Input Monitoring false-negative fixed (2026-08-12):** Accessibility
+  already authorizes the listen-only Fn event tap and is required for text
+  insertion, so Rhino no longer forces a redundant Input Monitoring grant or
+  trusts its stale false result over Accessibility. The monitor accepts either
+  authorization for compatibility, the permission UI requests only
+  Accessibility, debug builds report real TCC state, and onboarding copy
+  matches. A full app build and all 16 focused trigger/authorization tests
+  pass. The Developer-ID-signed patched build was launched against the user's
+  existing grants and its contradictory banner is absent; installed v0.1.3
+  still needs this fix in the next release.
+
 - **AppSumo redemption is built and validated (2026-08-12):** 10,000 unique,
   high-entropy `RH-…` codes live in the gitignored
   `.context/rhino-appsumo-codes.csv`; only their SHA-256 hashes ship. The

@@ -257,3 +257,68 @@ rename now applies to source comments and project documentation as well as
 the shipped product. The historical decision entries were updated in place
 for this one explicit cleanup so repository-wide name searches cannot revive
 stale branding.
+
+**2026-08-11 — Rhino's homepage is a one-screen $20 purchase page.** The
+first site pass overbuilt the brief with feature, privacy, setup, FAQ, and
+repeat-CTA sections. Noah's screenshots clarified the target: retain only the
+header, product hero, PayPal purchase, and a compact footer; put release history
+on `/changelog` and the DMG on the post-purchase `/thanks` route. Checkout uses
+the same `paypal@okdork.com` account, one-time $20 price, and 30-day guarantee
+as MeetingCoach. The visible logo renders the system rhino emoji at its native
+display size instead of enlarging the app icon's cropped emoji bitmap, which
+keeps it sharp on Retina screens.
+
+**2026-08-11 — The public site lives in `website/` beside the app.** It
+is a self-contained Sites/vinext project so web dependencies and builds
+cannot disturb Xcode, while the product, release automation, and website
+copy still evolve in one repository. The first launch page is intentionally
+one route: direct notarized DMG download, concrete local-only privacy proof,
+three-step onboarding, product FAQ, and no account or payment flow. Its
+download URL is pinned to the tested v0.1.2 asset rather than resolved at
+request time; updating that one constant is part of each release until the
+release workflow automates it.
+
+**2026-08-11 — The website favicon uses a full rhino, not the app or tray
+crop.** The app artwork deliberately zooms into the emoji's face and the tray
+art reduces it to a monochrome silhouette; both become ambiguous in a browser
+tab. The site now generates a 512px coral tile with the full native rhino emoji
+and publishes it through Next's `app/icon.png` convention, which emits an
+explicit cache-busted favicon link that browsers reliably discover.
+
+**2026-08-11 — Shortcut hints read `recordingTriggers`, never legacy
+slots.** The recorder moved to a unified trigger list, but Home and the
+legacy recorder footer still read `modifierOnlyHotkey` / `toggleRecord`.
+Fresh installs therefore displayed an em dash even while hold-Fn was
+armed. Compact hints now use the first unified trigger (the complete list
+remains visible in Settings), so displayed instructions cannot drift from
+the keys ShortcutManager actually monitors.
+
+**2026-08-11 — Dictionary editor rows bind by UUID, not array position.**
+Deleting a rule synchronously removes its array slot while AppKit is still
+ending the popover's focused text-field edit; SwiftUI's generated
+`ForEach($entries)` binding then reads that stale slot and traps in
+`Array.subscript`. Each row binding now resolves the rule's UUID on every
+access. Once removed, teardown reads return the last rendered value and late
+text commits are ignored, so deletion remains immediate without retaining an
+invalid positional binding.
+
+**2026-08-11 — Modifier-only triggers require Input Monitoring, not just
+Accessibility.** Fn appeared to work only while Rhino was focused because its
+listen-only `flagsChanged` event tap was created but disabled for other apps by
+macOS TCC. Rhino now requests event-listening access when a modifier trigger is
+armed, shows Input Monitoring as its own missing permission, and rebuilds the
+tap when access arrives. Key-combination-only setups do not request it. We keep
+the tap listen-only and subscribe only to modifier-flag changes; switching to a
+more powerful active tap merely to reuse Accessibility would broaden capability
+without improving the product.
+
+**2026-08-11 — The changelog is the release command's source of truth;
+release tags are immutable.** `Scripts/cut-release.sh` derives the next version
+from the newest numbered changelog section, rejects versions that are not newer
+than the existing tags, and refuses to carry unmerged code or unrelated dirty
+files into a release. It selects the tag-driven CI publisher only when all
+eight signing/publishing secret names exist; otherwise it uses the proven local
+keychain publisher, so the same command works before and after CI credential
+setup without double-publishing. The release commit and tag push atomically to
+`origin/master`, and neither path force-moves a tag: a shipped version denotes
+one exact source commit forever.

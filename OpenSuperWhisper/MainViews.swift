@@ -1,4 +1,3 @@
-import KeyboardShortcuts
 import SwiftUI
 
 // The main window's sidebar navigation (mockup: Typeless-style — white-first,
@@ -147,6 +146,7 @@ struct HomeStatsView: View {
     @StateObject private var stats = DictationStats()
     @Environment(\.colorScheme) private var colorScheme
     @State private var modelMissing = false
+    @State private var shortcutDescription = "—"
 
     /// True when the first dictation would fail before it starts: the active engine is
     /// Whisper and no model file is on disk (never picked one, or the pref points at a
@@ -165,10 +165,10 @@ struct HomeStatsView: View {
         return false
     }
 
-    private var shortcutDescription: String {
-        let modifier = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
-        if modifier != .none { return modifier.shortSymbol }
-        return KeyboardShortcuts.getShortcut(for: .toggleRecord)?.description ?? "—"
+    private func reloadShortcutDescription() {
+        shortcutDescription = RecordingTriggerSet
+            .load(from: AppPreferences.shared.recordingTriggers)
+            .primaryDescription
     }
 
     var body: some View {
@@ -253,6 +253,10 @@ struct HomeStatsView: View {
         .onAppear {
             stats.reload()
             modelMissing = Self.isModelMissing()
+            reloadShortcutDescription()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hotkeySettingsChanged)) { _ in
+            reloadShortcutDescription()
         }
         .onReceive(NotificationCenter.default.publisher(
             for: RecordingStore.recordingsDidUpdateNotification)) { _ in stats.reload() }
@@ -355,28 +359,44 @@ extension Notification.Name {
 
 // MARK: - Permissions banner
 
-/// Slim banner shown at the top of the main window while mic/accessibility
-/// are missing. Replaces the old full-window "Required Permissions" wall.
+/// Slim banner shown at the top of the main window while microphone, Accessibility, or a
+/// configured modifier trigger's Input Monitoring permission is missing.
 struct PermissionsBanner: View {
     @ObservedObject var permissionsManager: PermissionsManager
 
     private var message: String {
         let mic = permissionsManager.isMicrophonePermissionGranted
         let ax = permissionsManager.isAccessibilityPermissionGranted
-        switch (mic, ax) {
-        case (false, false): return "Rhino needs Microphone (to hear you) and Accessibility (to type for you)."
-        case (false, true): return "Rhino needs Microphone access to hear you."
-        default: return "Rhino needs Accessibility access to type into other apps."
+        let input = !permissionsManager.isInputMonitoringRequired
+            || permissionsManager.isInputMonitoringPermissionGranted
+        switch (mic, input, ax) {
+        case (true, false, true):
+            return "Rhino needs Input Monitoring so Fn works while you're in other apps."
+        case (false, true, true):
+            return "Rhino needs Microphone access to hear you."
+        case (true, true, false):
+            return "Rhino needs Accessibility access to type into other apps."
+        default:
+            var missing: [String] = []
+            if !mic { missing.append("Microphone") }
+            if !input { missing.append("Input Monitoring") }
+            if !ax { missing.append("Accessibility") }
+            return "Rhino needs " + missing.joined(separator: ", ") + " permissions."
         }
     }
 
     /// Deep-link to the exact privacy pane instead of the Privacy & Security front
-    /// page. With both missing, mic goes first (matches the message's order); once
-    /// it's granted the banner re-renders and the button retargets Accessibility.
+    /// page. Microphone goes first; modifier triggers then need Input Monitoring;
+    /// Accessibility is last because it is used when the finished text is inserted.
     private var settingsPaneURL: String {
-        permissionsManager.isMicrophonePermissionGranted
-            ? "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-            : "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+        if !permissionsManager.isMicrophonePermissionGranted {
+            return "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+        }
+        if permissionsManager.isInputMonitoringRequired
+            && !permissionsManager.isInputMonitoringPermissionGranted {
+            return "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        }
+        return "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     }
 
     var body: some View {

@@ -1,8 +1,9 @@
 name: Release
 
-# Cut a release by pushing a version tag (after bumping the version and
-# writing the CHANGELOG section — see docs/RELEASING.md):
-#   git tag v0.1.1 && SKIP_GATE=1 git push origin v0.1.1
+# Normally cut a release from the newest CHANGELOG section (this bumps,
+# commits, tags, and pushes — see docs/RELEASING.md):
+#   ./Scripts/cut-release.sh
+# A manually pushed v* tag also triggers this workflow.
 # Or re-run/publish manually from the Actions tab (workflow_dispatch) with an
 # explicit version.
 #
@@ -44,11 +45,18 @@ jobs:
       - id: check
         env:
           CERT: ${{ secrets.MACOS_CERT_P12_BASE64 }}
-          NOTARY: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_ID_APP }}
+          TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+          NOTARY_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
           SPARKLE: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
           RELTOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
-          if [ -n "$CERT" ] && [ -n "$NOTARY" ] && [ -n "$SPARKLE" ] && [ -n "$RELTOKEN" ]; then
+          if [ -n "$CERT" ] && [ -n "$CERT_PASSWORD" ] \
+              && [ -n "$DEVELOPER_ID" ] && [ -n "$TEAM_ID" ] \
+              && [ -n "$NOTARY_ID" ] && [ -n "$NOTARY_PASSWORD" ] \
+              && [ -n "$SPARKLE" ] && [ -n "$RELTOKEN" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"

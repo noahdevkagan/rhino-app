@@ -401,13 +401,9 @@ struct ContentView: View {
     @State private var mainTab: MainTab = .home
 
     private var currentShortcutDescription: String {
-        let modifierKey = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
-        if modifierKey != .none {
-            return modifierKey.shortSymbol
-        } else if let shortcut = KeyboardShortcuts.getShortcut(for: .toggleRecord) {
-            return shortcut.description
-        }
-        return ""
+        RecordingTriggerSet
+            .load(from: AppPreferences.shared.recordingTriggers)
+            .primaryDescription
     }
     
     private func performSearch(_ query: String) {
@@ -437,7 +433,9 @@ struct ContentView: View {
         // says exactly what's missing and where to grant it.
         VStack(spacing: 0) {
             if !permissionsManager.isMicrophonePermissionGranted
-                || !permissionsManager.isAccessibilityPermissionGranted {
+                || !permissionsManager.isAccessibilityPermissionGranted
+                || (permissionsManager.isInputMonitoringRequired
+                    && !permissionsManager.isInputMonitoringPermissionGranted) {
                 PermissionsBanner(permissionsManager: permissionsManager)
             }
             HStack(spacing: 0) {
@@ -817,9 +815,20 @@ struct PermissionsView: View {
             PermissionRow(
                 isGranted: permissionsManager.isAccessibilityPermissionGranted,
                 title: "Accessibility Access",
-                description: "Required for global keyboard shortcuts",
+                description: "Required to type into other apps",
                 action: { permissionsManager.openSystemPreferences(for: .accessibility) }
             )
+
+            if permissionsManager.isInputMonitoringRequired {
+                PermissionRow(
+                    isGranted: permissionsManager.isInputMonitoringPermissionGranted,
+                    title: "Input Monitoring",
+                    description: "Required for a global Fn or modifier trigger",
+                    action: {
+                        permissionsManager.requestInputMonitoringPermissionOrOpenSystemPreferences()
+                    }
+                )
+            }
 
             Spacer()
         }

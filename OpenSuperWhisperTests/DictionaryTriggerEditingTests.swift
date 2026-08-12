@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 
 @testable import OpenSuperWhisper
 
@@ -60,5 +61,28 @@ final class DictionaryTriggerEditingTests: XCTestCase {
             XCTAssertEqual(CustomDictionary.apply("he said \(spoken) yes", entries: [entry]),
                            "he said \"yes")
         }
+    }
+
+    /// AppKit commits a focused text field once more while its popover is closing. If deleting
+    /// the rule invalidates an array-position binding first, that final read traps instead of
+    /// closing the editor.
+    func testRuleBindingSurvivesADeleteDuringTextFieldTeardown() {
+        let deleted = rule()
+        var entries = [deleted]
+        let entriesBinding = Binding(
+            get: { entries },
+            set: { entries = $0 }
+        )
+        let ruleBinding = stableDictionaryEntryBinding(entries: entriesBinding,
+                                                       fallback: deleted)
+
+        entries.removeAll()
+
+        XCTAssertEqual(ruleBinding.wrappedValue, deleted)
+
+        var lateCommit = deleted
+        lateCommit.replacement = "should be ignored"
+        ruleBinding.wrappedValue = lateCommit
+        XCTAssertTrue(entries.isEmpty)
     }
 }

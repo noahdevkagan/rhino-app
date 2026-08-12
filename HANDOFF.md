@@ -7,40 +7,77 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
-### Completed check (2026-08-11)
+- **Rhino v0.1.3 is live (2026-08-12):** immutable tag and `origin/master`
+  agreed at release commit `e5ae58a`; the 14 MB Developer ID DMG passed both
+  Apple notarizations and staple validation, the GitHub release and signed
+  Sparkle appcast publish 0.1.3, and the full local gate passed. The website's
+  post-purchase download and changelog were advanced to 0.1.3 and its four
+  production render tests pass.
+
+- **Changelog-driven releases are one command:** after adding the newest
+  numbered section, run `./Scripts/cut-release.sh`. It derives/validates the
+  version, forces the full gate, bumps/commits/tags, and atomically pushes to
+  `origin/master`. All eight CI secret names select the tag-driven publisher;
+  otherwise it transparently uses the proven local keychain publisher. Tags
+  are immutable. The non-publishing release regression suite passes.
+
+- **Global Fn trigger fixed:** modifier-only triggers use a listen-only CGEvent
+  tap, so they now request and surface macOS Input Monitoring separately from
+  Accessibility. Rhino deep-links the right pane and arms the modifier tap
+  once access arrives; ordinary key combos do not request the extra permission.
+  The app builds and all 13 `RecordingTriggerSetTests` pass.
+
+- **Latest `origin/master` marketing-site launch merged into the
+  dictionary-crash branch:** the incoming `website/` tree is unchanged and
+  the handoff conflict preserves both features. The site production build and
+  4 render tests pass, as do all 35 dictionary tests.
+
+- Fixed Home shortcut hint rendering the default Fn trigger as a dash: hints
+  now read the unified `recordingTriggers` source used by ShortcutManager,
+  refresh after settings changes, and have focused regression coverage. App
+  build and all 11 `RecordingTriggerSetTests` pass.
+
+### rhinovoice.app launch site
+
+- Revised site is live at `https://rhinovoice.app`: one
+  header + hero + compact footer, sharp native-size rhino emoji mark, and a
+  one-time $20 PayPal checkout through `paypal@okdork.com`.
+- `/thanks` delivers the v0.1.2 DMG after purchase; `/changelog` lists the three
+  Rhino releases. Production render tests and live-route checks all pass.
+- Cloudflare DNS, the custom hostname, and TLS are all active. The browser tab
+  uses a cache-busted, full-rhino coral favicon generated at 512px through
+  Next's `app/icon.png` convention; its deployed bytes match the tested asset.
+
+- **Dictionary editor crash fixed:** deleting a rule while one of its text
+  fields was focused left SwiftUI's positional `ForEach($entries)` binding
+  pointing past the end of the array. Rows now bind by UUID, using their last
+  rendered value for AppKit's teardown read and ignoring a late commit after
+  deletion. The focused editor regression and all 35 dictionary tests pass.
+
+### Completed benchmark check (2026-08-11)
 
 - Retired working-name references are gone from tracked source and docs.
 - Last complete personal-corpus comparison: Rhino 8/10 zero-fix (80%, 5.3%
   WER), Typeless 10/10 (100%), Wispr Flow 4/9 (44%; h03 was not captured).
-- Today's elided-word cleanup passed a live local-Qwen A/B and fixes the known
-  h01 miss, so Rhino projects to 9/10 (90%); a fresh full-corpus score still
-  needs the private audio/results from the original benchmark Mac.
-- Fresh gate run: 1.47% mean WER, zero silence hallucinations, and 410ms p50 /
-  870ms max ASR latency across four clips.
-
-### Completed local-audio benchmark rerun (2026-08-11)
-
-- Rhino's 4-clip synthetic gate: every installed engine scored 3/4 zero-fix;
-  one “lunch”→“launch” substitution gives 1/122 errors (0.82% weighted WER).
-- Extended 24-clip synthetic set (509 words), Rhino's standard output pipeline
-  with AI cleanup off (no Rhino cleanup model is installed on this Mac):
-  Whisper large-v3-turbo 20/24 zero-fix (83.3%), 1.57% weighted WER;
-  Parakeet v2 17/24 (70.8%), 1.57%; Parakeet v3 17/24, 1.96%.
-- Whisper is best for zero-fix usability and technical names; v2 ties its raw
-  WER because Whisper's few misses include a long-clip truncation. These are
-  macOS synthesized voices, useful for regression testing but not a substitute
-  for the missing 10-item natural-voice personal corpus.
+- The elided-word cleanup passed a live local-Qwen A/B and fixes the known h01
+  miss, so Rhino projects to 9/10; a fresh full-corpus score still needs the
+  private audio/results from the original benchmark Mac.
+- Fresh synthetic gate: 1.47% mean WER, zero silence hallucinations, and 410ms
+  p50 / 870ms max ASR latency across four clips.
+- Extended 24-clip synthetic set (509 words), with AI cleanup off: Whisper
+  large-v3-turbo reached 20/24 zero-fix and 1.57% weighted WER; Parakeet v2
+  reached 17/24 and 1.57%; Parakeet v3 reached 17/24 and 1.96%.
 
 ### Completed natural-voice / 8→9 experiments (2026-08-11)
 
 - Balanced ten-clip sample from locally stored Typeless recordings (392 reference words):
   Q5 Whisper 3/10 exact agreement and 10.71% WER-to-Typeless. This is an
-  agreement metric, not ground truth; the separate human-reviewed personal corpus remains 8/10.
+  agreement metric, not ground truth; the human-reviewed personal corpus remains 8/10.
 - Full 1.6GB large-v3-turbo produced the same 3/10 and 10.71% WER, while steady-state
   p50 rose from 1.91s (Q5) to 2.52s. Do not make it the default on this evidence.
 - Alternate decodes: beam 10.46% WER, temperature 0.2/0.4 10.20%, Parakeet 12.50%.
-  Even an impossible ground-truth oracle choosing the best decoder per clip only reached
-  9.44% WER and still 3/10 exact, so confidence retry cannot supply the missing +1 alone.
+  Even an oracle choosing the best decoder per clip reached only 9.44% WER and
+  still 3/10 exact, so confidence retry cannot supply the missing +1 alone.
 - Qwen raised WER from 10.71% to 11.22%; a perfect raw-vs-Qwen guard merely restores
   10.71%. It is a safety requirement, not an accuracy gain on this sample.
 - A local vocabulary/context prompt fixed `Yu` and improved WER to 10.20%, but not exact
@@ -76,9 +113,9 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 - Next quality lever: elided-word reconstruction in cleanup ("Schedule
   the review" — Rhino AND Wispr both dropped the "the"; Typeless's LLM
   reconstructs). Then email-tier polish.
-- Release pipeline (tag → CI gate → sign/notarize → DMG → Sparkle
-  appcast → site): creds exist locally; needs the workflow + rhinovoice
-  .app registration + site. Crib docs/PUBLISHING.md + MeetingCoach.
+- CI release secrets are still absent (the one-command release transparently
+  uses local signing meanwhile). Upload the eight values in
+  `docs/RELEASING.md` when ready to move signing/notarization into Actions.
 - Localizable.xcstrings still carries orphaned keys for cut features
   (harmless); prune someday.
 - CI test-gate.yml still builds with old assumptions (submodule list

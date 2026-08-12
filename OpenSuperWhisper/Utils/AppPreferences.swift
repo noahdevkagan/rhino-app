@@ -91,7 +91,7 @@ final class AppPreferences {
         }
     }
 
-    /// Toucan is all-local: the remote (OpenAI-compatible/Groq) ASR engine was deleted.
+    /// Rhino is all-local: the remote (OpenAI-compatible/Groq) ASR engine was deleted.
     /// Installs that still point at "remote" or the legacy "groq" fall back to Whisper,
     /// and every remote secret is scrubbed from the Keychain — the app has no code left
     /// that could use them. Idempotent: rewrites only when a remote value is present.

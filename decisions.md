@@ -14,7 +14,7 @@ is stripping remote paths, grafting process, rebranding — not rewriting
 solved problems.
 
 **2026-08-10 — This is a product to distribute, not a personal tool.**
-Own brand (Toucan), own site, signed/notarized DMG, full release
+Own brand (now Rhino), own site, signed/notarized DMG, full release
 pipeline. Cribbed from MeetingCoach's pipeline in Phase 3.
 
 **2026-08-10 — HARD CONSTRAINT: private, all-local.** Nothing goes to any
@@ -25,7 +25,7 @@ downloads. Remote ASR and remote LLM cleanup get deleted (code paths, not
 just UI) in Phase 1, and a hygiene gate makes the promise regression-proof.
 
 **2026-08-10 — Private mirror, not a GitHub fork.** GitHub can't make a
-fork of a public repo private, so `noahdevkagan/toucan-app` is a fresh
+fork of a public repo private, so `noahdevkagan/rhino-app` is a fresh
 private repo holding the full upstream history, with upstream kept as a
 git remote (`upstream`) for future pulls.
 
@@ -51,7 +51,7 @@ always-false flag so old history rows keep decoding.
 had Sparkle AND an unauthenticated GitHub-releases poll that pinged
 api.github.com with the user's IP when Settings opened. Sparkle to our own
 appcast is the ONE sanctioned update channel; the Updates tab is now
-Sparkle-only and the release-notes feed will live on the Toucan site.
+Sparkle-only and the release-notes feed will live on the Rhino site.
 
 **2026-08-10 — Ollama cleanup endpoint is loopback-pinned in code.** The
 endpoint field is free text, so `OllamaBackend` refuses any host that
@@ -70,7 +70,7 @@ new plan instead: no Ollama in v1, no post-record hook, history off by
 default, layered privacy verification, personal-corpus benchmark before
 public quality claims, rebrand last.
 
-**2026-08-10 — App renamed Toucan → Rhino** (Noah: "it just goes
+**2026-08-10 — The app's final name is Rhino** (Noah: "it just goes
 forward"). Repos are noahdevkagan/rhino (plan) and noahdevkagan/rhino-app
 (code); local clones ~/rhino and ~/rhino-app. In-app rebrand (bundle id,
 icon, Sparkle feed) still deferred to the productization phase per plan.
@@ -251,6 +251,12 @@ once. Every install from 0.1.1 forward updates normally. The Developer
 ID cert was likewise re-issued from the laptop (new CSR) rather than
 exported — Gatekeeper/notarization accept any valid team cert, so that
 rotation costs nothing.
+
+**2026-08-11 — Retired working-name references were scrubbed.** The Rhino
+rename now applies to source comments and project documentation as well as
+the shipped product. The historical decision entries were updated in place
+for this one explicit cleanup so repository-wide name searches cannot revive
+stale branding.
 
 **2026-08-11 — Rhino's homepage is a one-screen $20 purchase page.** The
 first site pass overbuilt the brief with feature, privacy, setup, FAQ, and

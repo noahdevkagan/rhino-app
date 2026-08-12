@@ -7,6 +7,14 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **AppSumo redemption is built and validated (2026-08-12):** 10,000 unique,
+  high-entropy `RH-…` codes live in the gitignored
+  `.context/rhino-appsumo-codes.csv`; only their SHA-256 hashes ship. The
+  branded `/appsumo` page gates the v0.1.3 download, is noindexed, and handles
+  loading, invalid, unavailable, and successful redemption states. The website
+  production build and all seven render/generator tests pass, and the page is
+  published at `https://rhinovoice.app/appsumo`.
+
 - **Rhino v0.1.3 is live (2026-08-12):** immutable tag and `origin/master`
   agreed at release commit `e5ae58a`; the 14 MB Developer ID DMG passed both
   Apple notarizations and staple validation, the GitHub release and signed

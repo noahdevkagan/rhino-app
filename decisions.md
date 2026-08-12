@@ -316,3 +316,13 @@ keychain publisher, so the same command works before and after CI credential
 setup without double-publishing. The release commit and tag push atomically to
 `origin/master`, and neither path force-moves a tag: a shipped version denotes
 one exact source commit forever.
+
+**2026-08-12 — AppSumo redemption mirrors MeetingCoach's hashed static gate.**
+Rhino's 10,000 random `RH-XXXX-XXXX-XXXX` codes are delivered as a private,
+gitignored CSV while the website ships only their SHA-256 hashes. The browser
+hashes an entered code locally before revealing the already-public signed DMG;
+no plaintext codes, customer data, account system, telemetry, or new backend
+exist. This deliberately is a lightweight AppSumo fulfillment gate rather than
+one-time license enforcement: it matches the proven MeetingCoach flow and the
+download itself is public, so a database would add personal-data and operating
+surface without protecting a private asset.

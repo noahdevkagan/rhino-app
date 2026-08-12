@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -92,4 +93,41 @@ test("advertises the Rhino favicon in rendered HTML", async () => {
     html,
     /<link rel="icon" href="https:\/\/rhinovoice\.app\/icon\.png[^\"]*"/i,
   );
+});
+
+test("renders the AppSumo redemption route", async () => {
+  const response = await render("/appsumo");
+  assert.equal(response.status, 200);
+
+  const html = await response.text();
+  assert.match(html, /Redeem your Rhino code/);
+  assert.match(html, /AppSumo purchase/);
+  assert.match(html, /RH-XXXX-XXXX-XXXX/);
+  assert.match(html, /Getting ready…/);
+  assert.match(html, /noahkagan@gmail\.com/);
+  assert.match(html, /name="robots" content="noindex, nofollow"/i);
+});
+
+test("ships exactly 10,000 unique, well-formed redemption hashes", async () => {
+  const payload = await readFile(
+    new URL("../public/appsumo-hashes.json", import.meta.url),
+    "utf8",
+  );
+  const hashes = JSON.parse(payload);
+
+  assert.equal(hashes.length, 10_000);
+  assert.equal(new Set(hashes).size, 10_000);
+  assert.ok(hashes.every((hash) => /^[a-f0-9]{64}$/.test(hash)));
+  assert.deepEqual(hashes, [...hashes].sort());
+});
+
+test("generates AppSumo codes whose hashes match the published format", async () => {
+  const { generateCodeBatch, hashCode } = await import(
+    "../scripts/generate-appsumo-codes.mjs"
+  );
+  const codes = generateCodeBatch(100);
+
+  assert.equal(new Set(codes).size, 100);
+  assert.ok(codes.every((code) => /^RH-[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){2}$/.test(code)));
+  assert.ok(codes.every((code) => hashCode(code) === createHash("sha256").update(code).digest("hex")));
 });

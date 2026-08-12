@@ -15,3 +15,17 @@ npm run dev
 
 Run `npm test` before publishing. The production download URL is kept in
 `app/page.tsx`; update it when a new Rhino release ships.
+
+## AppSumo redemption codes
+
+The `/appsumo` page validates codes against the SHA-256 hashes in
+`public/appsumo-hashes.json`; plaintext codes never ship with the site or enter
+Git. The private upload batch is generated into the workspace's ignored
+`.context/` directory:
+
+```bash
+cd website
+node scripts/generate-appsumo-codes.mjs
+```
+
+The generator refuses to replace an existing batch unless `--force` is passed.

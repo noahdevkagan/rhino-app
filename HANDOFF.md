@@ -7,6 +7,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **In progress, v0.1.4 release:** reconcile PR #17 with current `master`,
+  merge the AppSumo packet and crisp app icon, add the 0.1.4 changelog notes,
+  run the full release gate, tag, notarize, publish, and verify the GitHub
+  release, Sparkle appcast, and downloadable DMG.
+
 - **App icon refresh complete:** Rhino now uses the crisp coral-and-gray
   illustration from `Scripts/Assets/rhino-app-icon.png`; `make-icon.swift`
   generates every ICNS size inside the existing native macOS squircle. The

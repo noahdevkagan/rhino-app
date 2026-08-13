@@ -7,6 +7,12 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 (nothing yet)
 
+## 0.1.4 — 2026-08-12
+
+- Fixed the Fn shortcut getting stuck in an Input Monitoring permission loop
+  even after access was enabled. Rhino now uses its existing Accessibility
+  permission for both global Fn detection and typing into other apps.
+
 ## 0.1.3 — 2026-08-12
 
 - Fixed the Fn shortcut permission flow so dictation works while other apps

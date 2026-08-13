@@ -7,8 +7,8 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
-- **In progress, v0.1.4 release:** reconcile PR #17 with current `master`,
-  merge the AppSumo packet and crisp app icon, add the 0.1.4 changelog notes,
+- **In progress, v0.1.5 release:** reconcile PR #17 with current `master`,
+  merge the AppSumo packet and crisp app icon, add the 0.1.5 changelog notes,
   run the full release gate, tag, notarize, publish, and verify the GitHub
   release, Sparkle appcast, and downloadable DMG.
 
@@ -28,6 +28,33 @@ The durable "why" behind choices goes in `decisions.md`, not here.
   upload-ready assets. All 12 pages were rendered in Microsoft Word and
   visually verified. Do not publish until a real AppSumo code passes the
   end-to-end redemption test.
+
+- **Rhino v0.1.4 shipped (2026-08-12):** immutable tag `v0.1.4` points to
+  release commit `70fe399`; `origin/master` also includes the subsequent site
+  rollout. The 15 MB Developer ID DMG and app passed Apple notarization and
+  staple validation, the GitHub release and signed Sparkle appcast publish
+  0.1.4, and both the full local and tag-triggered CI gates passed. The website
+  download, AppSumo fulfillment, and changelog point to 0.1.4; its production
+  build and seven render tests pass and the Sites deployment is live.
+
+- **Input Monitoring false-negative fixed (2026-08-12):** Accessibility
+  already authorizes the listen-only Fn event tap and is required for text
+  insertion, so Rhino no longer forces a redundant Input Monitoring grant or
+  trusts its stale false result over Accessibility. The monitor accepts either
+  authorization for compatibility, the permission UI requests only
+  Accessibility, debug builds report real TCC state, and onboarding copy
+  matches. A full app build and all 16 focused trigger/authorization tests
+  pass. The Developer-ID-signed patched build was launched against the user's
+  existing grants and its contradictory banner is absent; installed v0.1.3
+  still needs this fix in the next release.
+
+- **AppSumo redemption is built and validated (2026-08-12):** 10,000 unique,
+  high-entropy `RH-…` codes live in the gitignored
+  `.context/rhino-appsumo-codes.csv`; only their SHA-256 hashes ship. The
+  branded `/appsumo` page gates the v0.1.3 download, is noindexed, and handles
+  loading, invalid, unavailable, and successful redemption states. The website
+  production build and all seven render/generator tests pass, and the page is
+  published at `https://rhinovoice.app/appsumo`.
 
 - **Rhino v0.1.3 is live (2026-08-12):** immutable tag and `origin/master`
   agreed at release commit `e5ae58a`; the 14 MB Developer ID DMG passed both
@@ -75,6 +102,39 @@ The durable "why" behind choices goes in `decisions.md`, not here.
   pointing past the end of the array. Rows now bind by UUID, using their last
   rendered value for AppKit's teardown read and ignoring a late commit after
   deletion. The focused editor regression and all 35 dictionary tests pass.
+
+### Completed benchmark check (2026-08-11)
+
+- Retired working-name references are gone from tracked source and docs.
+- Last complete personal-corpus comparison: Rhino 8/10 zero-fix (80%, 5.3%
+  WER), Typeless 10/10 (100%), Wispr Flow 4/9 (44%; h03 was not captured).
+- The elided-word cleanup passed a live local-Qwen A/B and fixes the known h01
+  miss, so Rhino projects to 9/10; a fresh full-corpus score still needs the
+  private audio/results from the original benchmark Mac.
+- Fresh synthetic gate: 1.47% mean WER, zero silence hallucinations, and 410ms
+  p50 / 870ms max ASR latency across four clips.
+- Extended 24-clip synthetic set (509 words), with AI cleanup off: Whisper
+  large-v3-turbo reached 20/24 zero-fix and 1.57% weighted WER; Parakeet v2
+  reached 17/24 and 1.57%; Parakeet v3 reached 17/24 and 1.96%.
+
+### Completed natural-voice / 8→9 experiments (2026-08-11)
+
+- Balanced ten-clip sample from locally stored Typeless recordings (392 reference words):
+  Q5 Whisper 3/10 exact agreement and 10.71% WER-to-Typeless. This is an
+  agreement metric, not ground truth; the human-reviewed personal corpus remains 8/10.
+- Full 1.6GB large-v3-turbo produced the same 3/10 and 10.71% WER, while steady-state
+  p50 rose from 1.91s (Q5) to 2.52s. Do not make it the default on this evidence.
+- Alternate decodes: beam 10.46% WER, temperature 0.2/0.4 10.20%, Parakeet 12.50%.
+  Even an oracle choosing the best decoder per clip reached only 9.44% WER and
+  still 3/10 exact, so confidence retry cannot supply the missing +1 alone.
+- Qwen raised WER from 10.71% to 11.22%; a perfect raw-vs-Qwen guard merely restores
+  10.71%. It is a safety requirement, not an accuracy gain on this sample.
+- A local vocabulary/context prompt fixed `Yu` and improved WER to 10.20%, but not exact
+  agreement. Universal product direction: locally learned per-user terms plus contextual
+  correction; do not hard-code Noah-specific names.
+- Simulating one learned correction (`Aemon`/`Amen` → `AppSumo`) increased exact agreement
+  from 3/10 to 4/10. This was the only tested mechanism that converted a failed clip into
+  a perfect clip, supporting correction learning as the most credible universal +1 lever.
 
 - The app is **Rhino v0.1.0**: rebranded (bundle id com.noahkagan.rhino,
   coral face icon, menu-bar rhino silhouette, forced light mode), main

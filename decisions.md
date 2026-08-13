@@ -28,7 +28,7 @@ is stripping remote paths, grafting process, rebranding — not rewriting
 solved problems.
 
 **2026-08-10 — This is a product to distribute, not a personal tool.**
-Own brand (Toucan), own site, signed/notarized DMG, full release
+Own brand (now Rhino), own site, signed/notarized DMG, full release
 pipeline. Cribbed from MeetingCoach's pipeline in Phase 3.
 
 **2026-08-10 — HARD CONSTRAINT: private, all-local.** Nothing goes to any
@@ -39,7 +39,7 @@ downloads. Remote ASR and remote LLM cleanup get deleted (code paths, not
 just UI) in Phase 1, and a hygiene gate makes the promise regression-proof.
 
 **2026-08-10 — Private mirror, not a GitHub fork.** GitHub can't make a
-fork of a public repo private, so `noahdevkagan/toucan-app` is a fresh
+fork of a public repo private, so `noahdevkagan/rhino-app` is a fresh
 private repo holding the full upstream history, with upstream kept as a
 git remote (`upstream`) for future pulls.
 
@@ -65,7 +65,7 @@ always-false flag so old history rows keep decoding.
 had Sparkle AND an unauthenticated GitHub-releases poll that pinged
 api.github.com with the user's IP when Settings opened. Sparkle to our own
 appcast is the ONE sanctioned update channel; the Updates tab is now
-Sparkle-only and the release-notes feed will live on the Toucan site.
+Sparkle-only and the release-notes feed will live on the Rhino site.
 
 **2026-08-10 — Ollama cleanup endpoint is loopback-pinned in code.** The
 endpoint field is free text, so `OllamaBackend` refuses any host that
@@ -84,7 +84,7 @@ new plan instead: no Ollama in v1, no post-record hook, history off by
 default, layered privacy verification, personal-corpus benchmark before
 public quality claims, rebrand last.
 
-**2026-08-10 — App renamed Toucan → Rhino** (Noah: "it just goes
+**2026-08-10 — The app's final name is Rhino** (Noah: "it just goes
 forward"). Repos are noahdevkagan/rhino (plan) and noahdevkagan/rhino-app
 (code); local clones ~/rhino and ~/rhino-app. In-app rebrand (bundle id,
 icon, Sparkle feed) still deferred to the productization phase per plan.
@@ -266,6 +266,12 @@ ID cert was likewise re-issued from the laptop (new CSR) rather than
 exported — Gatekeeper/notarization accept any valid team cert, so that
 rotation costs nothing.
 
+**2026-08-11 — Retired working-name references were scrubbed.** The Rhino
+rename now applies to source comments and project documentation as well as
+the shipped product. The historical decision entries were updated in place
+for this one explicit cleanup so repository-wide name searches cannot revive
+stale branding.
+
 **2026-08-11 — Rhino's homepage is a one-screen $20 purchase page.** The
 first site pass overbuilt the brief with feature, privacy, setup, FAQ, and
 repeat-CTA sections. Noah's screenshots clarified the target: retain only the
@@ -330,3 +336,25 @@ keychain publisher, so the same command works before and after CI credential
 setup without double-publishing. The release commit and tag push atomically to
 `origin/master`, and neither path force-moves a tag: a shipped version denotes
 one exact source commit forever.
+
+**2026-08-12 — AppSumo redemption mirrors MeetingCoach's hashed static gate.**
+Rhino's 10,000 random `RH-XXXX-XXXX-XXXX` codes are delivered as a private,
+gitignored CSV while the website ships only their SHA-256 hashes. The browser
+hashes an entered code locally before revealing the already-public signed DMG;
+no plaintext codes, customer data, account system, telemetry, or new backend
+exist. This deliberately is a lightweight AppSumo fulfillment gate rather than
+one-time license enforcement: it matches the proven MeetingCoach flow and the
+download itself is public, so a database would add personal-data and operating
+surface without protecting a private asset.
+
+**2026-08-12 — Accessibility is Rhino's single required keyboard TCC grant
+(reverses the separate Input Monitoring requirement).** Apple DTS confirms
+that Accessibility authorizes both event posting and listening, while Input
+Monitoring authorizes listening only. Rhino already needs Accessibility to
+insert dictated text, so forcing a second permission for the listen-only Fn
+tap was redundant and produced a false-negative loop when System Settings
+showed Input Monitoring enabled but the running process still saw cached TCC
+state. The tap remains listen-only and watches only modifier flags; it now
+accepts either grant for compatibility, while Rhino requests and displays only
+Accessibility. Debug builds also use the real TCC result so permission UI can
+never claim a global trigger will work when macOS will block it.

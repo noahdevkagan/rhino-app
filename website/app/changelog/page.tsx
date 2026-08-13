@@ -1,5 +1,12 @@
 const releases = [
   {
+    version: "0.1.4",
+    date: "August 12, 2026",
+    changes: [
+      "The Fn shortcut no longer gets stuck in an Input Monitoring permission loop; Rhino now uses its existing Accessibility permission for global Fn detection and text insertion.",
+    ],
+  },
+  {
     version: "0.1.3",
     date: "August 12, 2026",
     changes: [

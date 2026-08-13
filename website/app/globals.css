@@ -364,6 +364,139 @@ footer span { color: var(--ink); font-weight: 700; }
 .download-button::before { content: "↓"; margin-right: 9px; font-family: var(--font-geist-mono), monospace; }
 .install-note { margin-top: 22px; font-size: 13px; }
 
+.redemption-page {
+  min-height: 100svh;
+  padding: 42px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(255, 112, 95, 0.13), transparent 31rem),
+    var(--paper);
+}
+
+.redemption-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 760;
+  letter-spacing: -0.04em;
+}
+
+.redemption-mark {
+  width: 38px;
+  height: 38px;
+  font-size: 24px;
+}
+
+.redemption-card {
+  width: min(560px, 100%);
+  margin-top: clamp(62px, 10vh, 112px);
+  padding: clamp(30px, 7vw, 54px);
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24px 70px rgba(58, 40, 33, 0.09);
+  text-align: center;
+}
+
+.appsumo-badge,
+.redemption-eyebrow {
+  width: fit-content;
+  margin: 0 auto 20px;
+  padding: 7px 11px;
+  border-radius: 99px;
+  background: #ffbc00;
+  color: #241c08;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+.redemption-card h1 {
+  margin: 0;
+  font-size: clamp(38px, 8vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.redemption-copy {
+  max-width: 420px;
+  margin: 20px auto 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.redemption-form { margin-top: 32px; }
+.redemption-form label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.redemption-input {
+  width: 100%;
+  min-height: 58px;
+  padding: 0 16px;
+  border: 2px solid var(--line);
+  border-radius: 13px;
+  background: white;
+  color: var(--ink);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: clamp(16px, 4.5vw, 20px);
+  font-weight: 620;
+  letter-spacing: 0.045em;
+  text-align: center;
+  text-transform: uppercase;
+  outline: none;
+}
+
+.redemption-input::placeholder { color: #aaa29c; }
+.redemption-input:focus { border-color: var(--coral); box-shadow: 0 0 0 4px rgba(255, 112, 95, 0.12); }
+.redemption-input[aria-invalid="true"] { border-color: #c94e43; }
+.redemption-button { width: 100%; margin-top: 14px; }
+.redemption-button:disabled { cursor: wait; opacity: 0.55; transform: none; }
+
+.redemption-error {
+  margin: 16px 0 0;
+  color: #b43f36;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.redemption-help {
+  margin: 24px 0 0;
+  color: #8a837e;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.redemption-help a { text-decoration: underline; text-underline-offset: 3px; }
+.success-check {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e8f5ec;
+  color: #348454;
+  font-size: 27px;
+  font-weight: 800;
+}
+
+.redemption-success .redemption-eyebrow { background: #e8f5ec; color: #348454; }
+.redemption-success .download-button { margin-top: 28px; }
+
 @media (max-width: 980px) {
   .hero { grid-template-columns: 1fr; padding-top: 70px; text-align: center; gap: 55px; }
   .hero-copy { display: flex; flex-direction: column; align-items: center; }
@@ -387,6 +520,8 @@ footer span { color: var(--ink); font-weight: 700; }
   .local-badge { top: 10px; right: 10px; }
   footer { width: calc(100% - 28px); padding: 20px 0; }
   .purchase-card { padding: 30px; }
+  .redemption-page { padding-top: 28px; }
+  .redemption-card { margin-top: 48px; border-radius: 21px; }
   .release-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
 }
 

@@ -53,8 +53,8 @@ class ShortcutManager {
 
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(inputMonitoringPermissionChanged),
-            name: .inputMonitoringPermissionChanged,
+            selector: #selector(globalEventListeningPermissionChanged),
+            name: .globalEventListeningPermissionChanged,
             object: nil
         )
         
@@ -76,9 +76,9 @@ class ShortcutManager {
         setupRecordingTrigger()
     }
 
-    @objc private func inputMonitoringPermissionChanged() {
-        // The modifier monitor stays unarmed until TCC approves event listening. Build its
-        // event tap as soon as permission arrives so Fn works without a Rhino relaunch.
+    @objc private func globalEventListeningPermissionChanged() {
+        // The modifier monitor stays unarmed until TCC approves event listening. Build its tap
+        // as soon as Accessibility (or an existing Input Monitoring grant) becomes available.
         setupRecordingTrigger()
     }
 

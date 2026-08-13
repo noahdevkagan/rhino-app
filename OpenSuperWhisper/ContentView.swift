@@ -433,9 +433,7 @@ struct ContentView: View {
         // says exactly what's missing and where to grant it.
         VStack(spacing: 0) {
             if !permissionsManager.isMicrophonePermissionGranted
-                || !permissionsManager.isAccessibilityPermissionGranted
-                || (permissionsManager.isInputMonitoringRequired
-                    && !permissionsManager.isInputMonitoringPermissionGranted) {
+                || !permissionsManager.isAccessibilityPermissionGranted {
                 PermissionsBanner(permissionsManager: permissionsManager)
             }
             HStack(spacing: 0) {
@@ -815,20 +813,9 @@ struct PermissionsView: View {
             PermissionRow(
                 isGranted: permissionsManager.isAccessibilityPermissionGranted,
                 title: "Accessibility Access",
-                description: "Required to type into other apps",
+                description: "Required for global Fn and typing into other apps",
                 action: { permissionsManager.openSystemPreferences(for: .accessibility) }
             )
-
-            if permissionsManager.isInputMonitoringRequired {
-                PermissionRow(
-                    isGranted: permissionsManager.isInputMonitoringPermissionGranted,
-                    title: "Input Monitoring",
-                    description: "Required for a global Fn or modifier trigger",
-                    action: {
-                        permissionsManager.requestInputMonitoringPermissionOrOpenSystemPreferences()
-                    }
-                )
-            }
 
             Spacer()
         }

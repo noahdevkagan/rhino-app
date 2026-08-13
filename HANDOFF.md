@@ -7,6 +7,23 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **App icon refresh complete:** Rhino now uses the crisp coral-and-gray
+  illustration from `Scripts/Assets/rhino-app-icon.png`; `make-icon.swift`
+  generates every ICNS size inside the existing native macOS squircle. The
+  Debug app builds, is validly signed, and contains the exact regenerated
+  `AppIcon.icns`. The monochrome menu-bar silhouette is unchanged.
+
+- **AppSumo listing complete:** `appsumo-listing.md` contains the validated
+  copy-paste brief for one $5 AppSumo code with unlimited Apple-silicon Mac
+  usage, and `appsumo-media-plan.md` covers the required icon, hero, and four
+  product screenshots.
+
+- **AppSumo submitter packet complete:** `Rhino-AppSumo-submission/` contains
+  the polished Word/PDF handoff, exact listing copy, media plan, and six
+  upload-ready assets. All 12 pages were rendered in Microsoft Word and
+  visually verified. Do not publish until a real AppSumo code passes the
+  end-to-end redemption test.
+
 - **Rhino v0.1.3 is live (2026-08-12):** immutable tag and `origin/master`
   agreed at release commit `e5ae58a`; the 14 MB Developer ID DMG passed both
   Apple notarizations and staple validation, the GitHub release and signed

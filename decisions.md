@@ -372,3 +372,32 @@ and covered the model picker in the default 900-point window. The two shortcut
 cards already communicate the complete choice and remain the single control;
 removing the decorative duplicate makes onboarding shorter and eliminates the
 fragile custom keyboard layout.
+
+**2026-08-13 — Dictation hot path: insert before history save; kill dead I/O
+probes.** Three fixed overheads sat between the engine finishing and the text
+landing, none of which affected transcription quality: (1) `transcribeAudio`
+serially awaited an `AVAsset.load(.duration)` whose result (`totalDuration`)
+was never read anywhere — removed; (2) `DictationPipeline.process` moved the
+WAV into history and awaited a second `AVURLAsset` duration probe BEFORE
+pasting — reordered so insertion (what the user is watching) comes first and
+the bookkeeping after, with a history-save failure logged instead of surfacing
+as a failed dictation (the text already reached the user); (3)
+`AudioRecorder.stopRecording` re-opened the just-written file with
+`AVAudioPlayer` only to discard sub-1s clips — it now uses the recorder's own
+`currentTime` captured before `stop()`. The Silero VAD context is also built
+at engine load rather than lazily inside the first dictation. Decode params
+were deliberately left untouched (greedy, temp 0, GPU+flash-attn already on):
+every remaining millisecond in the bench is whisper decode, and shrinking that
+means a smaller model or fewer fallback retries — an accuracy trade this
+change refuses. Gate bench (tiny.en, 4 clips, warm): p50 ~470ms → ~435ms;
+WER unchanged (0.0% on all main cases, no silence hallucination).
+
+**2026-08-13 — Keep Silero VAD lazy; zero-length recorder output is short
+audio.** This reverses only the VAD warm-up portion of the latency decision
+above. Whisper engines are themselves created lazily inside the first
+`transcribeAudio` call, so building the VAD in `initialize()` merely moved the
+same work earlier within that hot path; it also loaded VAD unnecessarily when
+timestamps bypass speech detection. VAD therefore remains lazy in
+`detectSpeech`. The recorder still avoids reopening its WAV, but a measured
+duration of zero (or a missing/non-finite duration) is now discarded alongside
+all other sub-second clips instead of sending empty audio into transcription.

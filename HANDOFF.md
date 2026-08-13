@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Rhino v0.1.7 release in progress (2026-08-13):** publish the merged
+  feedback, dictation-latency, and smart-formatting work. Add user-facing
+  changelog notes, commit the release prep onto `origin/master`, run the
+  guarded local signing/notarization publisher, atomically push the release
+  commit and `v0.1.7`, then verify GitHub, Sparkle, and notarization state.
+
 - **Master sync complete (2026-08-13):** merged `origin/master` at `488c80a`,
   preserving both its dictation-latency work and this branch's smart formatting
   behavior. Only this handoff conflicted; all Swift changes merged cleanly, and

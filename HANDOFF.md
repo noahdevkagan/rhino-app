@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **First-use onboarding overlay removed (2026-08-12):** the oversized custom
+  keyboard visualization and its fragile geometry are gone; the two compact
+  shortcut choices remain. The app builds, all four focused onboarding tests
+  pass, and a visual check at the default 900×640 window confirms the model
+  picker now follows the shortcut cards without overlap.
+
 - **Rhino v0.1.5 shipped (2026-08-12):** PR #17 merged at `9e354ba` and
   immutable tag `v0.1.5` points to release commit `13013bb`. The 15.7 MB app
   and DMG passed Apple notarization and staple validation; the GitHub release,

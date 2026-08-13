@@ -1,4 +1,3 @@
-import AVFoundation
 import Foundation
 
 @MainActor
@@ -24,7 +23,6 @@ class TranscriptionService: ObservableObject {
 
     private var currentEngine: TranscriptionEngine?
     private var loadedEngineKind: String?
-    private var totalDuration: Float = 0.0
 
     /// The model that actually produced the most recent transcription. Read by the
     /// recording-save paths so history shows the real model. Set on the main actor per
@@ -202,16 +200,6 @@ class TranscriptionService: ObservableObject {
             }
         }
         
-        let durationInSeconds: Float = await (try? Task.detached(priority: .userInitiated) {
-            let asset = AVAsset(url: url)
-            let duration = try await asset.load(.duration)
-            return Float(CMTimeGetSeconds(duration))
-        }.value) ?? 0.0
-        
-        await MainActor.run {
-            self.totalDuration = durationInSeconds
-        }
-
         return try await transcribe(url: url, settings: settings)
     }
 

@@ -15,6 +15,7 @@ enum CLI {
     Usage:
       Rhino transcribe <audio-file> [--json]
       Rhino bench <dir-of-wavs>
+      Rhino cleanup <text>
 
     Options:
       --json       Print a JSON object ({ "file", "text" }) instead of plain text.
@@ -23,13 +24,16 @@ enum CLI {
     `bench` loads the configured model once and transcribes every .wav in the directory, printing a
     JSON array of { "file", "ms" (transcription time), "text" } — used to benchmark engines.
 
-    Both use the engine and settings configured in the app. Set up a model in the app first.
+    `cleanup` skips audio entirely and runs the app's LLM cleanup pass (honoring its settings,
+    including smart formatting) over the given text — for testing cleanup without recording.
+
+    All use the engine and settings configured in the app. Set up a model in the app first.
     """
 
     /// Returns true if these arguments are a CLI invocation (and the GUI should not launch).
     static func shouldHandle(_ args: [String]) -> Bool {
         guard args.count >= 2 else { return false }
-        return ["transcribe", "bench", "--help", "-h"].contains(args[1])
+        return ["transcribe", "bench", "cleanup", "--help", "-h"].contains(args[1])
     }
 
     static func run(_ args: [String]) -> Never {
@@ -37,14 +41,10 @@ enum CLI {
             print(usage); exit(0)
         }
         let mode = args[1]
-        guard mode == "transcribe" || mode == "bench", args.count >= 3 else {
+        guard ["transcribe", "bench", "cleanup"].contains(mode), args.count >= 3 else {
             fail(usage, code: 2)
         }
         let json = args.dropFirst(3).contains("--json")
-        let target = URL(fileURLWithPath: (args[2] as NSString).expandingTildeInPath)
-        guard FileManager.default.fileExists(atPath: target.path) else {
-            fail("error: not found: \(target.path)")
-        }
 
         // The engines + FluidAudio's logger print to stdout. Keep stdout clean & pipeable by
         // redirecting it to stderr, and writing only the final result to the real stdout.
@@ -54,6 +54,28 @@ enum CLI {
 
         // No dock icon / activation for a CLI run.
         NSApplication.shared.setActivationPolicy(.prohibited)
+
+        if mode == "cleanup" {
+            // No ASR engine involved: run the post-transcription cleanup pass alone. `process`
+            // silently passes text through when it can't run, which is right for dictation but
+            // misleading in a test command — surface those cases on stderr.
+            let input = args[2]
+            Task { @MainActor in
+                if !AppPreferences.shared.aiPostProcessingEnabled {
+                    warn("note: LLM cleanup is off in settings — text passes through unchanged")
+                } else if !BuiltInLlamaBackend.shared.isReady {
+                    warn("note: built-in model not downloaded — text passes through unchanged")
+                }
+                emit(await LLMPostProcessor.process(input), file: "-", json: json)
+                exit(0)
+            }
+            dispatchMain()
+        }
+
+        let target = URL(fileURLWithPath: (args[2] as NSString).expandingTildeInPath)
+        guard FileManager.default.fileExists(atPath: target.path) else {
+            fail("error: not found: \(target.path)")
+        }
 
         Task { @MainActor in
             let service = TranscriptionService.shared
@@ -128,6 +150,10 @@ enum CLI {
         }
         resultOut.write(out)
         resultOut.write(Data("\n".utf8))
+    }
+
+    private static func warn(_ message: String) {
+        FileHandle.standardError.write((message + "\n").data(using: .utf8)!)
     }
 
     private static func fail(_ message: String, code: Int32 = 1) -> Never {

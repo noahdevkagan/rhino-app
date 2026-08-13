@@ -203,6 +203,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var smartFormattingEnabled: Bool {
+        didSet {
+            AppPreferences.shared.smartFormattingEnabled = smartFormattingEnabled
+        }
+    }
+
     /// Whether the built-in model's GGUF is present on disk.
     @Published var builtInModelDownloaded: Bool = LLMModelManager.shared.isDefaultModelDownloaded()
     /// Download progress in 0...1 while the built-in model is downloading; nil when idle.
@@ -363,6 +369,7 @@ class SettingsViewModel: ObservableObject {
         self.doubleTapLock = prefs.doubleTapLock
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
+        self.smartFormattingEnabled = prefs.smartFormattingEnabled
         self.removeFillerWords = prefs.removeFillerWords
         self.autoCopyToClipboard = prefs.autoCopyToClipboard
         self.autoPasteTranscription = prefs.autoPasteTranscription
@@ -1238,6 +1245,15 @@ struct SettingsView: View {
                 .frame(minHeight: 26)
                 if viewModel.aiPostProcessingEnabled {
                     builtInCleanupFields
+                    HStack(spacing: 8) {
+                        Text("Smart formatting")
+                            .scaledFont(size: 12).foregroundColor(STheme.text)
+                        InfoButton(text: "Lay dictated lists out as lists: “item 1, yes, item 2, no” becomes bulleted lines instead of one run-on sentence. Normal sentences stay prose.")
+                        Spacer()
+                        SToggle(isOn: $viewModel.smartFormattingEnabled)
+                    }
+                    .padding(.leading, 16)
+                    .frame(minHeight: 24)
                 }
             }
 

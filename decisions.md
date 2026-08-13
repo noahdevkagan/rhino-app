@@ -8,6 +8,29 @@ Read this before re-litigating anything.
 
 ---
 
+**2026-08-13 — The smart-formatting stray-marker backstop is input-aware.**
+The small cleanup model sometimes prefixes ordinary one-line prose with a list
+marker, but a one-item list is valid output. Rhino strips a one-line marker only
+when the original transcription has no explicit list cue; spoken “bullet” /
+“number one” cues and existing markers are preserved. This keeps the prose
+backstop without undoing formatting the user requested.
+
+**2026-08-13 — Smart formatting is a prompt section inside LLM cleanup, not a
+separate pipeline pass.** Turning "item 1, yes, item 2, no" into a list needs
+semantic judgment (is this an enumeration or prose?), which deterministic
+regexes get wrong in both directions — so the feature rides the existing
+cleanup LLM as an extra system-prompt section plus a carve-out in the
+user-message wrapper (whose blanket "do not add anything" would otherwise
+forbid the bullets). It is off by default and nested under "Clean up with an
+LLM" in Settings because it loosens the transform-only contract and requires
+the ~1 GB model anyway; onboarding does not flip it on.
+
+**2026-08-13 — Feedback is direct email, not a hosted form or upstream link.**
+Rhino mirrors Meeting Coach's small menu-bar feedback form and hands a
+prefilled `mailto:` draft to the user's email client at
+`noahkagan@gmail.com`. This restores an intentional Rhino-owned feedback path
+without adding telemetry, a backend, or any network request made by Rhino.
+
 **2026-08-12 — The app icon uses a committed illustration master, not Apple
 Color Emoji.** `Scripts/Assets/rhino-app-icon.png` is the reproducible source;
 `Scripts/make-icon.swift` downsamples it with high-quality interpolation and
@@ -374,3 +397,32 @@ embedded release notes and refuse to publish an appcast without the Markdown
 description. Embedding makes the standard Sparkle update prompt show what
 changed without adding another network request or a second source of release
 copy; GitHub releases consume the same extracted text.
+
+**2026-08-13 — Dictation hot path: insert before history save; kill dead I/O
+probes.** Three fixed overheads sat between the engine finishing and the text
+landing, none of which affected transcription quality: (1) `transcribeAudio`
+serially awaited an `AVAsset.load(.duration)` whose result (`totalDuration`)
+was never read anywhere — removed; (2) `DictationPipeline.process` moved the
+WAV into history and awaited a second `AVURLAsset` duration probe BEFORE
+pasting — reordered so insertion (what the user is watching) comes first and
+the bookkeeping after, with a history-save failure logged instead of surfacing
+as a failed dictation (the text already reached the user); (3)
+`AudioRecorder.stopRecording` re-opened the just-written file with
+`AVAudioPlayer` only to discard sub-1s clips — it now uses the recorder's own
+`currentTime` captured before `stop()`. The Silero VAD context is also built
+at engine load rather than lazily inside the first dictation. Decode params
+were deliberately left untouched (greedy, temp 0, GPU+flash-attn already on):
+every remaining millisecond in the bench is whisper decode, and shrinking that
+means a smaller model or fewer fallback retries — an accuracy trade this
+change refuses. Gate bench (tiny.en, 4 clips, warm): p50 ~470ms → ~435ms;
+WER unchanged (0.0% on all main cases, no silence hallucination).
+
+**2026-08-13 — Keep Silero VAD lazy; zero-length recorder output is short
+audio.** This reverses only the VAD warm-up portion of the latency decision
+above. Whisper engines are themselves created lazily inside the first
+`transcribeAudio` call, so building the VAD in `initialize()` merely moved the
+same work earlier within that hot path; it also loaded VAD unnecessarily when
+timestamps bypass speech detection. VAD therefore remains lazy in
+`detectSpeech`. The recorder still avoids reopening its WAV, but a measured
+duration of zero (or a missing/non-finite duration) is now discarded alongside
+all other sub-second clips instead of sending empty audio into transcription.

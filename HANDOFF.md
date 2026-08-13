@@ -5,7 +5,38 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-11, end of the two-day marathon)
+## Current state (2026-08-13)
+
+- **Rhino v0.1.7 shipped (2026-08-13):** immutable tag `v0.1.7` points to
+  release commit `b658fa5`. The Developer ID app and DMG passed Apple
+  notarization, staple, and Gatekeeper validation; the GitHub release, signed
+  Sparkle appcast, tag-triggered CI gate, purchase download, AppSumo
+  fulfillment, public changelog, and Sites deployment all publish 0.1.7.
+
+- **Master sync complete (2026-08-13):** merged `origin/master` at `488c80a`,
+  preserving both its dictation-latency work and this branch's smart formatting
+  behavior. Only this handoff conflicted; all Swift changes merged cleanly, and
+  all 29 combined smart-formatting/cleanup/recorder/VAD/pipeline tests pass.
+
+- **Smart-formatting one-item lists fixed (2026-08-13):** the one-line
+  stray-marker backstop now preserves intentional spoken and existing
+  bullet/number markers, while still removing model-added markers from prose.
+  All 11 focused prompt tests pass. Embedded-model checks return `- Buy milk`
+  for “bullet buy milk,” `1. Buy milk` for “number one buy milk,” and unchanged
+  prose layout for the Priya scheduling sentence.
+
+- **Latency review fixes complete (2026-08-13):** Silero VAD creation is lazy
+  again because engine initialization itself is still on the first-
+  transcription path, and the recorder now discards zero/invalid-duration
+  clips alongside other sub-second clips. The build and all 13 focused
+  recorder/VAD/pipeline tests pass; ASR remains unchanged (0% WER on the main
+  cases, 5.9% short, zero silence hallucination) and the latency gate passes.
+
+- **Feedback email link complete (2026-08-13):** the menu-bar “Send
+  Feedback…” action opens a compact Meeting Coach-style form, then hands a
+  versioned, pre-addressed draft for `noahkagan@gmail.com` to the user's mail
+  client. Rhino sends no telemetry or network request itself. The Debug app
+  builds and the focused URL/encoding test passes.
 
 - **Always-visible update notes complete (2026-08-12):** both the local and
   GitHub Actions release paths now extract the matching CHANGELOG section and

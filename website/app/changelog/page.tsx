@@ -1,5 +1,14 @@
 const releases = [
   {
+    version: "0.1.7",
+    date: "August 13, 2026",
+    changes: [
+      "Optional Smart formatting turns dictated enumerations into bulleted or numbered lists entirely on-device.",
+      "Finished dictations now appear sooner by removing redundant audio work and moving history bookkeeping after text insertion.",
+      "The menu-bar feedback form opens a prefilled email to Noah with the running Rhino version.",
+    ],
+  },
+  {
     version: "0.1.6",
     date: "August 12, 2026",
     changes: [

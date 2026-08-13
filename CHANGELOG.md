@@ -8,6 +8,15 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 - Update prompts now include the matching changelog notes, so you can see
   what's new before installing each Rhino update.
 
+## 0.1.7 — 2026-08-13
+
+- Added a menu-bar feedback form that opens a prefilled email straight to
+  Noah, including the running Rhino version.
+- Added optional Smart formatting under Settings → Output → Cleanup, turning
+  dictated enumerations into bulleted or numbered lists entirely on-device.
+- Made finished dictations appear sooner by removing redundant audio work and
+  moving history bookkeeping after text insertion.
+
 ## 0.1.6 — 2026-08-12
 
 - Removed the oversized keyboard diagram from first-time setup so it no longer

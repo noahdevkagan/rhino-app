@@ -7,6 +7,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Smart-formatting one-item lists fixed (2026-08-13):** the one-line
+  stray-marker backstop now preserves intentional spoken and existing
+  bullet/number markers, while still removing model-added markers from prose.
+  All 11 focused prompt tests pass. Embedded-model checks return `- Buy milk`
+  for “bullet buy milk,” `1. Buy milk` for “number one buy milk,” and unchanged
+  prose layout for the Priya scheduling sentence.
+
 - **Feedback email link complete (2026-08-13):** the menu-bar “Send
   Feedback…” action opens a compact Meeting Coach-style form, then hands a
   versioned, pre-addressed draft for `noahkagan@gmail.com` to the user's mail

@@ -305,6 +305,13 @@ final class AppPreferences {
     @UserDefault(key: "aiPostProcessingEnabled", defaultValue: false)
     var aiPostProcessingEnabled: Bool
 
+    /// Lay dictated enumerations out as lists ("item 1, yes, item 2, no" → bulleted lines)
+    /// during LLM cleanup. Opt-in: it loosens the transform-only contract by letting the
+    /// model add layout, so it stays off until asked for. No effect unless
+    /// `aiPostProcessingEnabled` is also on.
+    @UserDefault(key: "smartFormattingEnabled", defaultValue: false)
+    var smartFormattingEnabled: Bool
+
     /// Historical cleanup-backend selector. The embedded llama.cpp model is now the only
     /// backend; the key survives solely so `migrateAIProviderToBackend()` can normalize
     /// old values, and everything reads "builtin" regardless.

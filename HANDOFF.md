@@ -7,6 +7,18 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Master sync complete (2026-08-13):** merged `origin/master` at `488c80a`,
+  preserving both its dictation-latency work and this branch's smart formatting
+  behavior. Only this handoff conflicted; all Swift changes merged cleanly, and
+  all 29 combined smart-formatting/cleanup/recorder/VAD/pipeline tests pass.
+
+- **Smart-formatting one-item lists fixed (2026-08-13):** the one-line
+  stray-marker backstop now preserves intentional spoken and existing
+  bullet/number markers, while still removing model-added markers from prose.
+  All 11 focused prompt tests pass. Embedded-model checks return `- Buy milk`
+  for “bullet buy milk,” `1. Buy milk` for “number one buy milk,” and unchanged
+  prose layout for the Priya scheduling sentence.
+
 - **Latency review fixes complete (2026-08-13):** Silero VAD creation is lazy
   again because engine initialization itself is still on the first-
   transcription path, and the recorder now discards zero/invalid-duration

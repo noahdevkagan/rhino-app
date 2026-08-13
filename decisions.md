@@ -8,6 +8,23 @@ Read this before re-litigating anything.
 
 ---
 
+**2026-08-13 — The smart-formatting stray-marker backstop is input-aware.**
+The small cleanup model sometimes prefixes ordinary one-line prose with a list
+marker, but a one-item list is valid output. Rhino strips a one-line marker only
+when the original transcription has no explicit list cue; spoken “bullet” /
+“number one” cues and existing markers are preserved. This keeps the prose
+backstop without undoing formatting the user requested.
+
+**2026-08-13 — Smart formatting is a prompt section inside LLM cleanup, not a
+separate pipeline pass.** Turning "item 1, yes, item 2, no" into a list needs
+semantic judgment (is this an enumeration or prose?), which deterministic
+regexes get wrong in both directions — so the feature rides the existing
+cleanup LLM as an extra system-prompt section plus a carve-out in the
+user-message wrapper (whose blanket "do not add anything" would otherwise
+forbid the bullets). It is off by default and nested under "Clean up with an
+LLM" in Settings because it loosens the transform-only contract and requires
+the ~1 GB model anyway; onboarding does not flip it on.
+
 **2026-08-13 — Feedback is direct email, not a hosted form or upstream link.**
 Rhino mirrors Meeting Coach's small menu-bar feedback form and hands a
 prefilled `mailto:` draft to the user's email client at

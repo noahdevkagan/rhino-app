@@ -14,10 +14,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
   confirm future update prompts receive the notes. Existing v0.1.6 appcast
   metadata is unchanged; this takes effect with the next published release.
 
-- **In progress — Rhino v0.1.6 release (2026-08-12):** PR #18 is merged and
-  its full CI gate passed. Prepare the 0.1.6 changelog and website delivery
-  links, run the release gate, create and publish the immutable tag, then
-  verify the notarized DMG, Sparkle appcast, site deployment, and downloads.
+- **Rhino v0.1.6 shipped (2026-08-12):** PR #18 merged at `4488d43` and
+  immutable tag `v0.1.6` points to release commit `68b60be`. The 15.7 MB app
+  and DMG passed Apple notarization and staple validation; the GitHub release,
+  signed Sparkle appcast, tag-triggered CI gate, purchase download, AppSumo
+  fulfillment, public changelog, and Sites deployment all publish 0.1.6.
 
 - **First-use onboarding overlay removed (2026-08-12):** the oversized custom
   keyboard visualization and its fragile geometry are gone; the two compact

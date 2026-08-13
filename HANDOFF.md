@@ -7,10 +7,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
-- **In progress, v0.1.5 release:** reconcile PR #17 with current `master`,
-  merge the AppSumo packet and crisp app icon, add the 0.1.5 changelog notes,
-  run the full release gate, tag, notarize, publish, and verify the GitHub
-  release, Sparkle appcast, and downloadable DMG.
+- **Rhino v0.1.5 shipped (2026-08-12):** PR #17 merged at `9e354ba` and
+  immutable tag `v0.1.5` points to release commit `13013bb`. The 15.7 MB app
+  and DMG passed Apple notarization and staple validation; the GitHub release,
+  signed Sparkle appcast, tag-triggered CI gate, purchase download, AppSumo
+  fulfillment, public changelog, and Sites deployment all publish 0.1.5.
 
 - **App icon refresh complete:** Rhino now uses the crisp coral-and-gray
   illustration from `Scripts/Assets/rhino-app-icon.png`; `make-icon.swift`

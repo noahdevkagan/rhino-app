@@ -8,6 +8,8 @@ extension Notification.Name {
     static let globalEventListeningPermissionChanged = Notification.Name("GlobalEventListeningPermissionChanged")
     static let indicatorWindowDidHide = Notification.Name("IndicatorWindowDidHide")
     static let openSettings = Notification.Name("OpenSettings")
+    /// Bridges the AppKit-owned menu-bar item to SwiftUI's feedback Window scene.
+    static let openFeedback = Notification.Name("OpenFeedback")
     /// Posted when the active engine/model changes outside the Settings view (the
     /// menu-bar Model picker), so an open Settings window re-syncs from AppPreferences.
     static let modelSelectionDidChange = Notification.Name("ModelSelectionDidChange")

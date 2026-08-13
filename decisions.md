@@ -8,6 +8,12 @@ Read this before re-litigating anything.
 
 ---
 
+**2026-08-13 — Feedback is direct email, not a hosted form or upstream link.**
+Rhino mirrors Meeting Coach's small menu-bar feedback form and hands a
+prefilled `mailto:` draft to the user's email client at
+`noahkagan@gmail.com`. This restores an intentional Rhino-owned feedback path
+without adding telemetry, a backend, or any network request made by Rhino.
+
 **2026-08-12 — The app icon uses a committed illustration master, not Apple
 Color Emoji.** `Scripts/Assets/rhino-app-icon.png` is the reproducible source;
 `Scripts/make-icon.swift` downsamples it with high-quality interpolation and

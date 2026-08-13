@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- Update prompts now include the matching changelog notes, so you can see
+  what's new before installing each Rhino update.
+
 ## 0.1.7 — 2026-08-13
 
 - Added a menu-bar feedback form that opens a prefilled email straight to

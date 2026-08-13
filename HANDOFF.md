@@ -38,6 +38,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
   client. Rhino sends no telemetry or network request itself. The Debug app
   builds and the focused URL/encoding test passes.
 
+- **Always-visible update notes complete (2026-08-12):** both the local and
+  GitHub Actions release paths now extract the matching CHANGELOG section and
+  embed it as Markdown in Sparkle's signed appcast. A publish-time assertion,
+  focused release regression, and real Sparkle 2.9.3 generator fixture all
+  confirm future update prompts receive the notes. Existing v0.1.6 appcast
+  metadata is unchanged; this takes effect with the next published release.
+
 - **Rhino v0.1.6 shipped (2026-08-12):** PR #18 merged at `4488d43` and
   immutable tag `v0.1.6` points to release commit `68b60be`. The 15.7 MB app
   and DMG passed Apple notarization and staple validation; the GitHub release,

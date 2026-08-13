@@ -390,6 +390,14 @@ cards already communicate the complete choice and remain the single control;
 removing the decorative duplicate makes onboarding shorter and eliminates the
 fragile custom keyboard layout.
 
+**2026-08-12 — Sparkle release notes are embedded from the canonical
+CHANGELOG section.** Both local and CI publishers extract the exact version's
+Markdown into a sidecar matching the DMG name, then run `generate_appcast` with
+embedded release notes and refuse to publish an appcast without the Markdown
+description. Embedding makes the standard Sparkle update prompt show what
+changed without adding another network request or a second source of release
+copy; GitHub releases consume the same extracted text.
+
 **2026-08-13 — Dictation hot path: insert before history save; kill dead I/O
 probes.** Three fixed overheads sat between the engine finishing and the text
 landing, none of which affected transcription quality: (1) `transcribeAudio`

@@ -6,6 +6,7 @@ cd "$(dirname "$0")/../.."
 echo "release: shell syntax"
 bash -n Scripts/bump-release-version.sh
 bash -n Scripts/cut-release.sh
+bash -n Scripts/release-notes.sh
 bash -n Scripts/release.sh
 
 fixture_dir="$(mktemp -d)"
@@ -28,6 +29,10 @@ EOF
 version="$(./Scripts/cut-release.sh --print-version "$fixture_dir/valid.md")"
 [ "$version" = "2.4.1" ] \
     || { echo "release FAIL: expected 2.4.1, got $version"; exit 1; }
+
+notes="$(./Scripts/release-notes.sh 2.4.1 "$fixture_dir/valid.md")"
+[ "$notes" = "- Fixed the thing." ] \
+    || { echo "release FAIL: extracted the wrong Sparkle release notes"; exit 1; }
 
 cat > "$fixture_dir/no-notes.md" <<'EOF'
 # Changelog
@@ -69,6 +74,15 @@ fi
 
 grep -q 'FORCE_GATE=1 ./Scripts/push-gate.sh' Scripts/release.sh \
     || { echo "release FAIL: local releases can skip the full gate"; exit 1; }
+
+grep -q 'release-notes.sh.*>.*NOTES_FILE' Scripts/release.sh \
+    || { echo "release FAIL: local publisher does not create Sparkle release notes"; exit 1; }
+grep -q -- '--embed-release-notes' Scripts/release.sh \
+    || { echo "release FAIL: local publisher does not embed Sparkle release notes"; exit 1; }
+grep -q 'release-notes.sh.*>.*NOTES_FILE' .github/workflows/release.yml \
+    || { echo "release FAIL: CI publisher does not create Sparkle release notes"; exit 1; }
+grep -q -- '--embed-release-notes' .github/workflows/release.yml \
+    || { echo "release FAIL: CI publisher does not embed Sparkle release notes"; exit 1; }
 
 for secret in \
     MACOS_CERT_P12_BASE64 MACOS_CERT_PASSWORD MACOS_DEVELOPER_ID_APP \

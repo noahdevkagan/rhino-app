@@ -32,15 +32,14 @@ echo "== version $VERSION"
 echo "== notarized dmg"
 ./Scripts/make-test-dmg.sh
 mkdir -p "$ARCHIVE"
-rm -f "$ARCHIVE"/*.dmg   # archive holds ONLY this release; appcast history merges from the feed
+rm -f "$ARCHIVE"/*.dmg "$ARCHIVE"/*.md  # only this release; history merges from the feed
 DMG="$ARCHIVE/Rhino-$VERSION.dmg"
 mv "dist/Rhino-$VERSION-test.dmg" "$DMG"
+NOTES_FILE="$ARCHIVE/Rhino-$VERSION.md"
+./Scripts/release-notes.sh "$VERSION" > "$NOTES_FILE"
 
 echo "== publish to $RELEASES_REPO"
-NOTES="$(awk -v ver="$VERSION" '
-  $0 ~ "^##[[:space:]]+"ver"([^0-9.]|$)" {on=1; next}
-  on && /^##[[:space:]]/ {exit}
-  on {print}' CHANGELOG.md)"
+NOTES="$(cat "$NOTES_FILE")"
 gh release create "v$VERSION" "$DMG" --repo "$RELEASES_REPO" \
     --title "Rhino $VERSION" --notes "$NOTES" \
     || gh release upload "v$VERSION" "$DMG" --repo "$RELEASES_REPO" --clobber
@@ -55,10 +54,12 @@ SPARKLE_BIN=$(find SourcePackages/artifacts -type d -name bin -path "*parkle*" |
 # from a shell (per-binary keychain ACLs), so export-sign-shred each run.
 KEYFILE="$(mktemp -u)"
 "$SPARKLE_BIN/generate_keys" -x "$KEYFILE" --account Rhino
-"$SPARKLE_BIN/generate_appcast" --ed-key-file "$KEYFILE" \
+"$SPARKLE_BIN/generate_appcast" --ed-key-file "$KEYFILE" --embed-release-notes \
     --download-url-prefix "https://github.com/$RELEASES_REPO/releases/download/v$VERSION/" \
     -o dist/appcast.xml "$ARCHIVE"
 rm -f "$KEYFILE"
+grep -q '<description[^>]*sparkle:format="markdown"' dist/appcast.xml \
+    || { echo "RELEASE BLOCKED: Sparkle appcast is missing embedded changelog notes"; exit 1; }
 
 SHA=$(gh api "repos/$RELEASES_REPO/contents/appcast.xml" -q .sha 2>/dev/null || true)
 gh api -X PUT "repos/$RELEASES_REPO/contents/appcast.xml" \

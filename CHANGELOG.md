@@ -7,6 +7,11 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 (nothing yet)
 
+## 0.1.6 — 2026-08-12
+
+- Removed the oversized keyboard diagram from first-time setup so it no longer
+  covers the shortcut and speech-model choices.
+
 ## 0.1.5 — 2026-08-12
 
 - Updated Rhino's app icon with crisp high-resolution artwork that stays sharp

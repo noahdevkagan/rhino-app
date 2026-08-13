@@ -1,5 +1,12 @@
 const releases = [
   {
+    version: "0.1.6",
+    date: "August 12, 2026",
+    changes: [
+      "First-time setup no longer shows an oversized keyboard diagram over the shortcut and speech-model choices.",
+    ],
+  },
+  {
     version: "0.1.5",
     date: "August 12, 2026",
     changes: [

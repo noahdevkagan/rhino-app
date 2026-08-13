@@ -7,6 +7,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **In progress — Rhino v0.1.6 release (2026-08-12):** PR #18 is merged and
+  its full CI gate passed. Prepare the 0.1.6 changelog and website delivery
+  links, run the release gate, create and publish the immutable tag, then
+  verify the notarized DMG, Sparkle appcast, site deployment, and downloads.
+
 - **First-use onboarding overlay removed (2026-08-12):** the oversized custom
   keyboard visualization and its fragile geometry are gone; the two compact
   shortcut choices remain. The app builds, all four focused onboarding tests

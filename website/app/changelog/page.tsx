@@ -1,5 +1,12 @@
 const releases = [
   {
+    version: "0.1.5",
+    date: "August 12, 2026",
+    changes: [
+      "Rhino's app icon now uses crisp high-resolution artwork that stays sharp at every macOS icon size.",
+    ],
+  },
+  {
     version: "0.1.4",
     date: "August 12, 2026",
     changes: [

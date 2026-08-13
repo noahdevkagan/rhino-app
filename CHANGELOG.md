@@ -7,6 +7,11 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 (nothing yet)
 
+## 0.1.5 — 2026-08-12
+
+- Updated Rhino's app icon with crisp high-resolution artwork that stays sharp
+  at every macOS icon size.
+
 ## 0.1.4 — 2026-08-12
 
 - Fixed the Fn shortcut getting stuck in an Input Monitoring permission loop

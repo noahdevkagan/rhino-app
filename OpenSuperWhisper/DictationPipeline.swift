@@ -193,6 +193,23 @@ final class DictationPipeline: ObservableObject {
             let shouldSubmit = spokenSubmit || item.submitAfterInsert
             let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
+            // Insert BEFORE the history save: the user is watching the cursor, not the history
+            // list, so the file move + duration probe below must not sit between the engine
+            // finishing and the text landing. (#latency)
+            let pasteTargetMissing = hasText ? insertText(text) : false
+
+            // Submit only when auto-paste actually inserted text somewhere. A short settle delay lets
+            // the pasted text land in the field before Return reaches it.
+            if shouldSubmit && AppPreferences.shared.autoPasteTranscription && !pasteTargetMissing {
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                TextInserter.pressReturn()
+            }
+
+            // No editable target was found — the text is on the clipboard; tell the user to paste it.
+            if pasteTargetMissing {
+                IndicatorWindowManager.shared.flash(.info("Copied — press ⌘V to paste"))
+            }
+
             if hasText && AppPreferences.shared.saveTranscriptionHistory {
                 // Use the record-start time as the row timestamp (when the user actually dictated),
                 // not the later processing time. The id suffix keeps two clips that finish within
@@ -211,29 +228,21 @@ final class DictationPipeline: ObservableObject {
                     sourceFileURL: nil
                 ).url
 
-                try recorder.moveTemporaryRecording(from: item.tempURL, to: finalURL)
-
-                await storeRecording(
-                    id: recordingId, timestamp: timestamp, fileName: fileName,
-                    finalURL: finalURL, transcription: text,
-                    status: .completed, progress: 1.0, context: item.context,
-                    modelUsed: modelUsed, wasFallback: wasFallback)
+                do {
+                    try recorder.moveTemporaryRecording(from: item.tempURL, to: finalURL)
+                    await storeRecording(
+                        id: recordingId, timestamp: timestamp, fileName: fileName,
+                        finalURL: finalURL, transcription: text,
+                        status: .completed, progress: 1.0, context: item.context,
+                        modelUsed: modelUsed, wasFallback: wasFallback)
+                } catch {
+                    // The text already reached the user, so a failed history save must not surface
+                    // as a failed dictation. Drop the audio and keep the successful insertion.
+                    print("Failed to save dictation to history: \(error)")
+                    try? FileManager.default.removeItem(at: item.tempURL)
+                }
             } else {
                 try? FileManager.default.removeItem(at: item.tempURL)
-            }
-
-            let pasteTargetMissing = hasText ? insertText(text) : false
-
-            // Submit only when auto-paste actually inserted text somewhere. A short settle delay lets
-            // the pasted text land in the field before Return reaches it.
-            if shouldSubmit && AppPreferences.shared.autoPasteTranscription && !pasteTargetMissing {
-                try? await Task.sleep(nanoseconds: 120_000_000)
-                TextInserter.pressReturn()
-            }
-
-            // No editable target was found — the text is on the clipboard; tell the user to paste it.
-            if pasteTargetMissing {
-                IndicatorWindowManager.shared.flash(.info("Copied — press ⌘V to paste"))
             }
         } catch {
             print("Dictation transcription failed: \(error)")

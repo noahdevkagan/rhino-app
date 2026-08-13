@@ -22,3 +22,21 @@ final class RecorderComboTests: XCTestCase {
         XCTAssertFalse(RecorderCombo.isValid(modifiers: [], keyCode: kVK_Escape))
     }
 }
+
+final class AudioRecorderDurationTests: XCTestCase {
+    func testDiscardsZeroAndOtherSubSecondDurations() {
+        XCTAssertTrue(AudioRecorder.shouldDiscardRecording(duration: 0))
+        XCTAssertTrue(AudioRecorder.shouldDiscardRecording(duration: 0.999))
+    }
+
+    func testKeepsRecordingsAtLeastOneSecondLong() {
+        XCTAssertFalse(AudioRecorder.shouldDiscardRecording(duration: 1.0))
+        XCTAssertFalse(AudioRecorder.shouldDiscardRecording(duration: 12.5))
+    }
+
+    func testDiscardsMissingOrInvalidDuration() {
+        XCTAssertTrue(AudioRecorder.shouldDiscardRecording(duration: nil))
+        XCTAssertTrue(AudioRecorder.shouldDiscardRecording(duration: .nan))
+        XCTAssertTrue(AudioRecorder.shouldDiscardRecording(duration: .infinity))
+    }
+}

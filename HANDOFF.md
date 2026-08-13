@@ -7,6 +7,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Master sync in progress (2026-08-13):** merge `origin/master` at
+  `488c80a`, preserve both its dictation-latency work and this branch's smart
+  formatting behavior, resolve overlapping pipeline/settings/docs changes,
+  rerun the focused tests, then push the merge result.
+
 - **Smart-formatting one-item lists fixed (2026-08-13):** the one-line
   stray-marker backstop now preserves intentional spoken and existing
   bullet/number markers, while still removing model-added markers from prose.

@@ -213,6 +213,9 @@ class AudioRecorder: NSObject, ObservableObject {
     }
     
     func stopRecording() -> URL? {
+        // Capture the elapsed time BEFORE stop() (currentTime only reports while recording):
+        // it's the clip duration, without re-opening the just-written file to ask.
+        let recordedDuration = audioRecorder?.currentTime ?? 0
         audioRecorder?.stop()
         updateRecordingState(isRecording: false, isConnecting: false)
         Task { @MainActor in SpectrumAnalyzer.shared.stop() }
@@ -226,8 +229,7 @@ class AudioRecorder: NSObject, ObservableObject {
         }
 
         if let url = currentRecordingURL,
-           let duration = try? AVAudioPlayer(contentsOf: url).duration,
-           duration < 1.0
+           recordedDuration > 0, recordedDuration < 1.0
         {
             try? FileManager.default.removeItem(at: url)
             currentRecordingURL = nil

@@ -79,6 +79,9 @@ class WhisperEngine: TranscriptionEngine {
     
     func initialize() async throws {
         try loadModel()
+        // Build the Silero VAD context now (~0.9 MB) so the first dictation doesn't pay its
+        // load inside the hotkey-release → text hot path. Kept across idle unloads — it's tiny.
+        _ = ensureVadContext()
         // Opt-in RAM saver (#171): the model just validated, so free it (~1GB) until a
         // dictation actually needs it. Off by default — the model normally stays hot.
         if AppPreferences.shared.unloadWhisperModelWhenIdle {
@@ -293,18 +296,21 @@ class WhisperEngine: TranscriptionEngine {
     /// nothing. Deliberately non-throwing: a missing bundle resource or a failed context must
     /// degrade to transcribing the whole clip, not take the main engine down with it.
     private func detectSpeech(in samples: [Float]) -> [WhisperVadSegment] {
-        if vadContext == nil {
-            guard let path = Self.vadModelPath,
-                  let vad = MyWhisperVadContext(modelPath: path) else {
-                return []
-            }
-            vadContext = vad
-        }
+        guard let vadContext = ensureVadContext() else { return [] }
         // whisper.cpp discards speech shorter than 250ms, which is about the length of "yes"
         // or "non" — fine when transcribing an hour of audio, wrong when someone is dictating
         // one. The wider padding likewise protects word onsets, since Whisper mistranscribes a
         // word whose first consonant got clipped. Both trade a little kept silence for words.
-        return vadContext?.speechSegments(in: samples, minSpeechMs: 100, padMs: 100) ?? []
+        return vadContext.speechSegments(in: samples, minSpeechMs: 100, padMs: 100) ?? []
+    }
+
+    /// The lazily-built Silero context, or nil when the bundle resource is missing or the
+    /// context can't be created — then the caller degrades to transcribing the whole clip.
+    private func ensureVadContext() -> MyWhisperVadContext? {
+        if vadContext == nil, let path = Self.vadModelPath {
+            vadContext = MyWhisperVadContext(modelPath: path)
+        }
+        return vadContext
     }
 
     /// True when the whole clip's peak amplitude is below any plausible speech —

@@ -7,6 +7,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Latency review fixes complete (2026-08-13):** Silero VAD creation is lazy
+  again because engine initialization itself is still on the first-
+  transcription path, and the recorder now discards zero/invalid-duration
+  clips alongside other sub-second clips. The build and all 13 focused
+  recorder/VAD/pipeline tests pass; ASR remains unchanged (0% WER on the main
+  cases, 5.9% short, zero silence hallucination) and the latency gate passes.
+
 - **Feedback email link complete (2026-08-13):** the menu-bar “Send
   Feedback…” action opens a compact Meeting Coach-style form, then hands a
   versioned, pre-addressed draft for `noahkagan@gmail.com` to the user's mail

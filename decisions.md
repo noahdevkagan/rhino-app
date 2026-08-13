@@ -391,3 +391,13 @@ every remaining millisecond in the bench is whisper decode, and shrinking that
 means a smaller model or fewer fallback retries — an accuracy trade this
 change refuses. Gate bench (tiny.en, 4 clips, warm): p50 ~470ms → ~435ms;
 WER unchanged (0.0% on all main cases, no silence hallucination).
+
+**2026-08-13 — Keep Silero VAD lazy; zero-length recorder output is short
+audio.** This reverses only the VAD warm-up portion of the latency decision
+above. Whisper engines are themselves created lazily inside the first
+`transcribeAudio` call, so building the VAD in `initialize()` merely moved the
+same work earlier within that hot path; it also loaded VAD unnecessarily when
+timestamps bypass speech detection. VAD therefore remains lazy in
+`detectSpeech`. The recorder still avoids reopening its WAV, but a measured
+duration of zero (or a missing/non-finite duration) is now discarded alongside
+all other sub-second clips instead of sending empty audio into transcription.

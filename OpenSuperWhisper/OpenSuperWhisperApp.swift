@@ -29,13 +29,7 @@ struct OpenSuperWhisperApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if !appState.hasCompletedOnboarding {
-                    OnboardingView()
-                } else {
-                    ContentView()
-                }
-            }
+            AppRootView()
             .frame(minWidth: 780, minHeight: 540)
             .environmentObject(appState)
         }
@@ -62,12 +56,40 @@ struct OpenSuperWhisperApp: App {
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 780, height: 600)
+
+        // Direct-email feedback, matching Meeting Coach: Rhino never uploads
+        // the message itself; Send hands a prefilled draft to the user's mail app.
+        Window("Send Feedback", id: "feedback") {
+            FeedbackFormView()
+        }
+        .windowResizability(.contentSize)
     }
 
     init() {
         MainThreadWatchdog.shared.start()
         _ = ShortcutManager.shared
         _ = MicrophoneService.shared
+    }
+}
+
+/// Keeps window-routing alive during both onboarding and normal use. The status
+/// menu is AppKit-owned, so it posts a notification that this SwiftUI root turns
+/// into the scene-level `openWindow` action.
+private struct AppRootView: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Group {
+            if !appState.hasCompletedOnboarding {
+                OnboardingView()
+            } else {
+                ContentView()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openFeedback)) { _ in
+            openWindow(id: "feedback")
+        }
     }
 }
 
@@ -362,6 +384,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         updateItem.target = self
         menu.addItem(updateItem)
 
+        let feedbackItem = NSMenuItem(title: "Send Feedback…",
+                                      action: #selector(openFeedback), keyEquivalent: "")
+        feedbackItem.target = self
+        menu.addItem(feedbackItem)
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: NSLocalizedString("Quit", comment: ""), action: #selector(quitApp), keyEquivalent: "q"))
 
@@ -505,6 +532,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     @objc private func openSettings() {
         showMainWindow()
         NotificationCenter.default.post(name: .openSettings, object: nil)
+    }
+
+    @objc private func openFeedback() {
+        NotificationCenter.default.post(name: .openFeedback, object: nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func quitApp() {

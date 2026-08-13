@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Feedback email link complete (2026-08-13):** the menu-bar “Send
+  Feedback…” action opens a compact Meeting Coach-style form, then hands a
+  versioned, pre-addressed draft for `noahkagan@gmail.com` to the user's mail
+  client. Rhino sends no telemetry or network request itself. The Debug app
+  builds and the focused URL/encoding test passes.
+
 - **Rhino v0.1.6 shipped (2026-08-12):** PR #18 merged at `4488d43` and
   immutable tag `v0.1.6` points to release commit `68b60be`. The 15.7 MB app
   and DMG passed Apple notarization and staple validation; the GitHub release,

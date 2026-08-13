@@ -5,7 +5,8 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
-(nothing yet)
+- Added a menu-bar feedback form that opens a prefilled email straight to
+  Noah, including the running Rhino version.
 
 ## 0.1.6 — 2026-08-12
 

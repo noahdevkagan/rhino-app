@@ -5,7 +5,8 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
-(nothing yet)
+- Update prompts now include the matching changelog notes, so you can see
+  what's new before installing each Rhino update.
 
 ## 0.1.6 — 2026-08-12
 

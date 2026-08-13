@@ -7,6 +7,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **Always-visible update notes complete (2026-08-12):** both the local and
+  GitHub Actions release paths now extract the matching CHANGELOG section and
+  embed it as Markdown in Sparkle's signed appcast. A publish-time assertion,
+  focused release regression, and real Sparkle 2.9.3 generator fixture all
+  confirm future update prompts receive the notes. Existing v0.1.6 appcast
+  metadata is unchanged; this takes effect with the next published release.
+
 - **In progress — Rhino v0.1.6 release (2026-08-12):** PR #18 is merged and
   its full CI gate passed. Prepare the 0.1.6 changelog and website delivery
   links, run the release gate, create and publish the immutable tag, then

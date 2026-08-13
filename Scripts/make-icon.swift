@@ -1,12 +1,17 @@
 // Generates the Rhino icons:
-//   build/AppIcon.iconset/*        — app icon: rhino FACE, big, on a coral squircle
+//   build/AppIcon.iconset/*        — app icon: crisp illustrated rhino on coral
 //   build/tray_icon_18.png / 36    — menu bar template: rhino silhouette (from emoji alpha)
 //   build/icon-preview.png         — 256px preview for eyeballing
 // Driven by: swift Scripts/make-icon.swift && iconutil -c icns build/AppIcon.iconset -o OpenSuperWhisper/AppIcon.icns
 import AppKit
 
 let outDir = URL(fileURLWithPath: "build/AppIcon.iconset")
+let appIconSourceURL = URL(fileURLWithPath: "Scripts/Assets/rhino-app-icon.png")
 try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+
+guard let appIconSource = NSImage(contentsOf: appIconSourceURL) else {
+    fatalError("Missing app icon source at \(appIconSourceURL.path)")
+}
 
 func bitmap(_ px: Int) -> NSBitmapImageRep {
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: px, pixelsHigh: px,
@@ -29,38 +34,29 @@ func writePNG(_ rep: NSBitmapImageRep, _ name: String, dir: URL = outDir) {
         .write(to: dir.appendingPathComponent(name))
 }
 
-// MARK: - App icon: face-forward rhino on coral
+// MARK: - App icon: crisp illustrated rhino on coral
 
 func renderAppIcon(_ px: Int) -> NSBitmapImageRep {
     let rep = bitmap(px)
     draw(into: rep) { s in
         let inset = s * 0.049
         let rect = NSRect(x: inset, y: inset, width: s - inset * 2, height: s - inset * 2)
-        let squircle = NSBezierPath(roundedRect: rect, xRadius: rect.width * 0.2237,
-                                    yRadius: rect.width * 0.2237)
+        let squircle = NSBezierPath(
+            roundedRect: rect,
+            xRadius: rect.width * 0.2237,
+            yRadius: rect.width * 0.2237
+        )
+        squircle.addClip()
 
-        // Warm coral, tiger-icon energy — the gray face pops against it.
-        let top = NSColor(calibratedRed: 1.00, green: 0.47, blue: 0.37, alpha: 1)
-        let bottom = NSColor(calibratedRed: 0.93, green: 0.26, blue: 0.31, alpha: 1)
-        NSGradient(starting: top, ending: bottom)?.draw(in: squircle, angle: -90)
-
-        // Everything after this stays inside the squircle (the zoomed face bleeds).
-        squircle.setClip()
-
-        // The rhino faces LEFT in the emoji; its head is the left ~40% of the
-        // glyph. Scale way past the tile and shift right/down so just the face
-        // fills the frame, Evernote-style.
-        let glyph = "🦏" as NSString
-        let fontSize = s * 2.15
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont(name: "Apple Color Emoji", size: fontSize)
-                ?? NSFont.systemFont(ofSize: fontSize)
-        ]
-        let gsize = glyph.size(withAttributes: attrs)
-        // Head-center in glyph space ≈ (0.24 * w, 0.62 * h). Land it on tile center.
-        let x = s * 0.53 - gsize.width * 0.26
-        let y = s * 0.45 - gsize.height * 0.60
-        glyph.draw(at: NSPoint(x: x, y: y), withAttributes: attrs)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        appIconSource.draw(
+            in: rect,
+            from: NSRect(origin: .zero, size: appIconSource.size),
+            operation: .copy,
+            fraction: 1,
+            respectFlipped: true,
+            hints: [.interpolation: NSImageInterpolation.high]
+        )
     }
     return rep
 }

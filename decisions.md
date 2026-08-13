@@ -8,6 +8,20 @@ Read this before re-litigating anything.
 
 ---
 
+**2026-08-12 — The app icon uses a committed illustration master, not Apple
+Color Emoji.** `Scripts/Assets/rhino-app-icon.png` is the reproducible source;
+`Scripts/make-icon.swift` downsamples it with high-quality interpolation and
+clips it to Rhino's native macOS squircle for every ICNS size. This removes the
+emoji-source blur and keeps the app icon aligned with the AppSumo artwork. The
+menu-bar icon remains a monochrome template silhouette because that is the
+native macOS treatment for status items.
+
+**2026-08-12 — AppSumo uses Codes, not Licensing.** The marketplace offer is
+one $5 AppSumo redemption code with lifetime product updates and usage on
+unlimited Apple-silicon Macs. The redemption system is being built. Since the
+base code is already unlimited and no higher allowance exists, the initial
+listing does not enable code stacking.
+
 **2026-08-10 — Fork OpenSuperWhisper, don't rebuild.** 467 commits of
 working hotkey/audio/text-insertion/engine code (MIT-licensed). The work
 is stripping remote paths, grafting process, rebranding — not rewriting

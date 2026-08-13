@@ -13,8 +13,9 @@ npm install
 npm run dev
 ```
 
-Run `npm test` before publishing. The production download URL is kept in
-`app/page.tsx`; update it when a new Rhino release ships.
+Run `npm test` before publishing. The production download URLs are kept in
+`app/thanks/page.tsx` and `app/appsumo/redeem-form.tsx`; update both when a new
+Rhino release ships.
 
 ## AppSumo redemption codes
 

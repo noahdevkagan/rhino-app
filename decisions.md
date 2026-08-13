@@ -358,3 +358,11 @@ state. The tap remains listen-only and watches only modifier flags; it now
 accepts either grant for compatibility, while Rhino requests and displays only
 Accessibility. Debug builds also use the real TCC result so permission UI can
 never claim a global trigger will work when macOS will block it.
+
+**2026-08-12 — First-use shortcut setup uses compact choice cards, without a
+full keyboard diagram.** The diagram scaled its keys from the live window width
+but reserved height from a hard-coded narrower width, so it escaped its bounds
+and covered the model picker in the default 900-point window. The two shortcut
+cards already communicate the complete choice and remain the single control;
+removing the decorative duplicate makes onboarding shorter and eliminates the
+fragile custom keyboard layout.

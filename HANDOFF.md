@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-08-11, end of the two-day marathon)
 
+- **First-use onboarding overlay removed (2026-08-12):** the oversized custom
+  keyboard visualization and its fragile geometry are gone; the two compact
+  shortcut choices remain. The app builds, all four focused onboarding tests
+  pass, and a visual check at the default 900×640 window confirms the model
+  picker now follows the shortcut cards without overlap.
+
 - **In progress, v0.1.5 release:** reconcile PR #17 with current `master`,
   merge the AppSumo packet and crisp app icon, add the 0.1.5 changelog notes,
   run the full release gate, tag, notarize, publish, and verify the GitHub

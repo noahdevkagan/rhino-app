@@ -197,9 +197,16 @@ class SettingsViewModel: ObservableObject {
     @Published var aiPostProcessingEnabled: Bool {
         didSet {
             AppPreferences.shared.aiPostProcessingEnabled = aiPostProcessingEnabled
-            // Warm the ~1 GB context now, while the user is here in Settings, so their first
-            // dictation doesn't wait several seconds for it. Released again after an idle spell.
-            if aiPostProcessingEnabled { BuiltInLlamaBackend.shared.preload() }
+            guard aiPostProcessingEnabled else { return }
+            if builtInModelDownloaded {
+                // Warm the ~1 GB context now, while the user is here in Settings, so their first
+                // dictation doesn't wait several seconds for it. Released again after an idle spell.
+                BuiltInLlamaBackend.shared.preload()
+            } else if builtInModelDownloadProgress == nil {
+                // Without the model every cleanup pass silently no-ops, and testers read that as
+                // "formatting doesn't work" — so the toggle itself is the consent to download.
+                downloadBuiltInModel()
+            }
         }
     }
 
@@ -1196,7 +1203,7 @@ struct SettingsView: View {
             } else {
                 Button("Download model (~1 GB)") { viewModel.downloadBuiltInModel() }
                     .controlSize(.small)
-                Text("Qwen2.5 1.5B, Apache-2.0. One-time download; no server needed.")
+                Text("Required — cleanup is skipped until it's downloaded. Qwen2.5 1.5B, Apache-2.0. One-time download; no server needed.")
                     .scaledFont(size: 11).foregroundColor(STheme.hint)
                     .fixedSize(horizontal: false, vertical: true)
             }

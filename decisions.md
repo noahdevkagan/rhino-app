@@ -426,3 +426,14 @@ timestamps bypass speech detection. VAD therefore remains lazy in
 `detectSpeech`. The recorder still avoids reopening its WAV, but a measured
 duration of zero (or a missing/non-finite duration) is now discarded alongside
 all other sub-second clips instead of sending empty audio into transcription.
+
+**2026-08-18 — Enabling LLM cleanup auto-starts the model download.** With no
+model on disk the whole cleanup pass (smart formatting included) silently
+returns the text unchanged, and the first v0.1.7 tester read that as
+"formatting doesn't work": both toggles sat green while doing nothing. The
+toggle is now the consent to fetch the ~1 GB model — flipping it on starts the
+download immediately with inline progress, instead of relying on the user to
+notice a separate button. The button stays as the retry/fallback path (failed
+download, or a relaunch that finds the toggle on with no model), and its hint
+now states that cleanup is skipped until the model is present. Explicitly
+user-initiated, so it stays within the all-local/no-surprise-network rule.

@@ -1,5 +1,13 @@
 const releases = [
   {
+    version: "0.1.8",
+    date: "August 18, 2026",
+    changes: [
+      "Turning on \"Clean up with an LLM\" now downloads the on-device cleanup model automatically, so cleanup and Smart formatting work right away.",
+      "Update prompts now include the matching changelog notes, so you can see what's new before installing each update.",
+    ],
+  },
+  {
     version: "0.1.7",
     date: "August 13, 2026",
     changes: [

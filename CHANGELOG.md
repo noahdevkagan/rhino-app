@@ -3,8 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
-## Unreleased
+## 0.1.8 — 2026-08-18
 
+- Turning on "Clean up with an LLM" now downloads the on-device cleanup model
+  automatically, so cleanup and Smart formatting work right away instead of
+  silently doing nothing until the model was fetched by hand.
 - Update prompts now include the matching changelog notes, so you can see
   what's new before installing each Rhino update.
 

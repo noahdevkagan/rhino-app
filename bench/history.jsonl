@@ -36,3 +36,4 @@
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 454, "machine": "ip-192-168-1-160.us-west-2.compute.internal", "model": "ggml-tiny.en", "commit": "f1d3b1d", "date": "2026-08-13T22:08:48Z"}
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 445, "machine": "ip-192-168-4-26.us-west-2.compute.internal", "model": "ggml-tiny.en", "commit": "a7eb646", "date": "2026-08-18T18:54:36Z"}
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 681, "machine": "ip-192-168-4-26.us-west-2.compute.internal", "model": "ggml-tiny.en", "commit": "4e60514", "date": "2026-08-18T18:55:10Z"}
+{"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 527, "machine": "ip-192-168-4-26.us-west-2.compute.internal", "model": "ggml-tiny.en", "commit": "1ffb7a0", "date": "2026-08-18T18:55:44Z"}

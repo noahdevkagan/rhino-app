@@ -23,6 +23,18 @@ if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1
     exit 1
 fi
 
+# Website pre-flight, up front on purpose: these same conditions used to be
+# checked only in the deploy step, which sits AFTER the gate and ~10 minutes of
+# notarization — a stale link meant discovering the block with a DMG already
+# published (v0.1.10). Checked per-file: a multi-file `grep -q` passes when ANY
+# file matches, which would wave through a half-updated site.
+for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx; do
+    grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
+        || { echo "RELEASE BLOCKED: $f doesn't link v$VERSION — update the website download links before releasing"; exit 1; }
+done
+grep -q "\"$VERSION\"" website/app/changelog/page.tsx \
+    || { echo "RELEASE BLOCKED: website/app/changelog/page.tsx has no $VERSION entry — add the release notes before releasing"; exit 1; }
+
 echo "== gate"
 FORCE_GATE=1 ./Scripts/push-gate.sh
 
@@ -78,8 +90,13 @@ echo "== website (download links + changelog ship with every release)"
 # account (custom domain rhinovoice.app; cutover 2026-08-18). Deploying here
 # means AppSumo redeemers and site downloads always get the release just
 # published — no separate manual step.
-grep -q "v$VERSION/Rhino-$VERSION.dmg" website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx \
-    || { echo "RELEASE BLOCKED: website download links don't point at v$VERSION — update thanks/page.tsx and appsumo/redeem-form.tsx (+ changelog page/tests)"; exit 1; }
+# Re-checked here (already pre-flighted up top) so the deploy can never ship
+# stale links even if this script is entered mid-way. Per-file: a multi-file
+# `grep -q` passes when ANY file matches.
+for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx; do
+    grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
+        || { echo "RELEASE BLOCKED: $f doesn't link v$VERSION — update the website download links (+ changelog page/tests)"; exit 1; }
+done
 (cd website && npm ci --no-audit --no-fund >/dev/null && npm test >/dev/null && npx wrangler deploy -c dist/server/wrangler.json)
 curl -fsS --max-time 15 https://rhinovoice.app/thanks | grep -q "Rhino-$VERSION.dmg" \
     || { echo "RELEASE BLOCKED: live site is not serving v$VERSION after deploy"; exit 1; }

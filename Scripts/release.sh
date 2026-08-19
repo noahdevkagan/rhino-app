@@ -73,6 +73,18 @@ gh api -X PUT "repos/$RELEASES_REPO/contents/appcast.xml" \
     -f content="$(base64 -i dist/appcast.xml)" ${SHA:+-f sha="$SHA"} >/dev/null
 echo "== feed updated"
 
+echo "== website (download links + changelog ship with every release)"
+# The site is served by the rhinovoice-website Worker in Noah's Cloudflare
+# account (custom domain rhinovoice.app; cutover 2026-08-18). Deploying here
+# means AppSumo redeemers and site downloads always get the release just
+# published — no separate manual step.
+grep -q "v$VERSION/Rhino-$VERSION.dmg" website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx \
+    || { echo "RELEASE BLOCKED: website download links don't point at v$VERSION — update thanks/page.tsx and appsumo/redeem-form.tsx (+ changelog page/tests)"; exit 1; }
+(cd website && npm ci --no-audit --no-fund >/dev/null && npm test >/dev/null && npx wrangler deploy -c dist/server/wrangler.json)
+curl -fsS --max-time 15 https://rhinovoice.app/thanks | grep -q "Rhino-$VERSION.dmg" \
+    || { echo "RELEASE BLOCKED: live site is not serving v$VERSION after deploy"; exit 1; }
+echo "== website live at v$VERSION"
+
 git add -A
 git -c user.name="Noah Kagan" -c user.email="noahkagan@gmail.com" \
     commit -q -m "Release v$VERSION" || true

@@ -457,3 +457,14 @@ key and cannot verify the next update — they re-download once from the
 website; v0.1.0 installs regain auto-update. v0.1.9 re-ships 0.1.8's code
 with the new embedded key. If the laptop's key is ever needed again it still
 exists there; nothing signed by it is trusted by 0.1.9+ installs.
+
+**2026-08-18 — rhinovoice.app serves from Noah's own Cloudflare account; the
+release script deploys it.** The launch site had been a custom hostname on an
+external "Sites" hosting account nobody could reach, so shipped releases
+(0.1.8/0.1.9) left the live site handing AppSumo redeemers a stale 0.1.7 DMG
+pinned to the dead laptop signing key. Cut over: deleted the two SaaS A
+records on the rhinovoice.app zone and attached the domain to the
+rhinovoice-website Worker (account 2d4c2bd3…, deployed with wrangler from the
+release machine). release.sh now blocks a release whose website links don't
+match the version, deploys the site, and verifies the live /thanks page
+serves the new DMG — the site can no longer drift behind the app.

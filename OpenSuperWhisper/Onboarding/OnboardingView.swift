@@ -518,7 +518,20 @@ struct OnboardingUnifiedModelItemView: View {
                     Text(model.name)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    
+
+                    if model.isRecommended {
+                        Text("Recommended")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(Color.accentColor.opacity(0.12))
+                            )
+                    }
+
                     if model.isDownloaded {
                         Image(systemName: "arrow.down.circle.fill")
                             .foregroundColor(.blue)

@@ -468,3 +468,31 @@ rhinovoice-website Worker (account 2d4c2bd3…, deployed with wrangler from the
 release machine). release.sh now blocks a release whose website links don't
 match the version, deploys the site, and verifies the live /thanks page
 serves the new DMG — the site can no longer drift behind the app.
+
+**2026-08-18 — Paul Stamatiou feedback round: main-window UX reshaped around
+his review.** Four structural choices, all reversible but intentional:
+(1) *Settings is a sheet in the main window*, not a separate window — the
+dedicated `Window("Settings")` scene is gone; menu-bar/⌘, still post
+`.openSettings`, which `ContentView` now turns into `showSettings = true`.
+Deep-links pass an `initialTab` into `SettingsView` because the old
+notification (`.openSettingsModelsTab`) fires before a fresh sheet's view
+exists and was silently missed. (2) *History merged into Home* (Willow-style:
+stats strip up top, history list below); the History tab and the
+`HistoryKeepBar` are gone — the keep-history toggle already lives in
+Settings → History & Privacy, and duplicating it on the main screen was
+clutter. (3) *The recording bubble defaults to the industry-standard look*:
+small black pill, no "Recording…" text, frontmost-app icon + waveform (new
+`.appIcon` `IndicatorElement`; icon captured in `RecordingContext` at
+record-start). Users who customized their layout keep it — only the default
+changed, and the element-repair path appends `.appIcon` to stored orders.
+The bubble now always renders dark-scheme content on solid black; the
+translucent light-mode material is gone. (4) *Settings sections render as
+grouped cells* (gray label above a white rounded card) via `SSection` alone,
+so every pane restyled at once; the hairline-rule headers are gone.
+Also: Parakeet live-preview cadence tightened (chunk 1.5→1.0s, hypothesis
+0.5→0.3s) — preview-only quality tradeoff, inserted text still comes from the
+file pass; caption expansion animates at the *content* layer while the window
+keeps snapping via non-animated `setContentSize` (macOS 26 recursion guard
+untouched). Deferred from his list: cursor-follow placement fix (he prefers
+docked), input-aware capitalization (needs AX focused-field read — design
+first), app-icon refresh (needs design assets).

@@ -393,7 +393,11 @@ struct ContentView: View {
     @StateObject private var viewModel = ContentViewModel()
     @StateObject private var permissionsManager = PermissionsManager()
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.openWindow) private var openSettingsWindow
+    // Settings presents as a sheet in this window (not a separate window) —
+    // Paul S. feedback. The initial tab survives the present-animation race:
+    // notifications that target a tab land before the sheet's SettingsView exists.
+    @State private var showSettings = false
+    @State private var settingsInitialTab: SettingsTab? = nil
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var showDeleteConfirmation = false
@@ -438,11 +442,10 @@ struct ContentView: View {
             }
             HStack(spacing: 0) {
                 MainSidebar(selection: $mainTab,
-                            openSettings: { openSettingsWindow(id: "settings") })
+                            openSettings: { showSettings = true })
                 Divider()
                 switch mainTab {
-                case .home: HomeStatsView()
-                case .history: historyPane
+                case .home: homePane
                 case .dictionary: DictionaryTabView()
                 }
             }
@@ -480,7 +483,15 @@ struct ContentView: View {
         // no dimming overlay — the sidebar shows a small "warming up" pill instead.
         .fileDropHandler()
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
-            openSettingsWindow(id: "settings")
+            showSettings = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsModelsTab)) { _ in
+            settingsInitialTab = .models
+            showSettings = true
+        }
+        .sheet(isPresented: $showSettings, onDismiss: { settingsInitialTab = nil }) {
+            SettingsView(initialTab: settingsInitialTab)
+                .frame(width: 720, height: 540)
         }
         .onChange(of: viewModel.shouldClearSearch) { _, shouldClear in
             if shouldClear {
@@ -491,43 +502,60 @@ struct ContentView: View {
             }
         }
     }
-    /// The pre-redesign main screen: search + recording list + record button.
+    /// The merged Home tab (Willow-style): stats header on top, history below.
+    private var homePane: some View {
+        VStack(spacing: 0) {
+            HomeHeaderView()
+            historyPane
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(ThemePalette.windowBackground(colorScheme))
+    }
+
+    /// The history section: title + search, recording list, record button.
     private var historyPane: some View {
         VStack(spacing: 0) {
-            HistoryKeepBar()
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
+                    // Section header: "History" + right-aligned search (Willow-style).
+                    HStack(spacing: 12) {
+                        Text("History")
+                            .scaledFont(size: 18, weight: .bold)
+                        Spacer()
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
 
-                        TextField("Search in transcriptions", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .onChange(of: searchText) { _, newValue in
-                                performSearch(newValue)
-                            }
+                            TextField("Search in transcriptions", text: $searchText)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .onChange(of: searchText) { _, newValue in
+                                    performSearch(newValue)
+                                }
 
-                        if !searchText.isEmpty {
-                            Button(action: {
-                                searchText = ""
-                                debouncedSearchText = ""
-                                searchTask?.cancel()
-                                viewModel.search(query: "")
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
-                                    .imageScale(.medium)
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                    debouncedSearchText = ""
+                                    searchTask?.cancel()
+                                    viewModel.search(query: "")
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                        .imageScale(.medium)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(ThemePalette.panelSurface(colorScheme))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18)
+                                .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
+                        )
+                        .cornerRadius(18)
+                        .frame(maxWidth: 280)
                     }
-                    .padding(10)
-                    .background(ThemePalette.panelSurface(colorScheme))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
-                    )
-                    .cornerRadius(20)
-                    .padding([.horizontal, .top])
+                    .padding(.horizontal, 24)
+                    .padding(.top, 22)
 
                     ScrollView(showsIndicators: false) {
                         if viewModel.recordings.isEmpty {
@@ -624,7 +652,7 @@ struct ContentView: View {
                                         .padding()
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 24)
                             .padding(.top, 16)
                         }
                     }
@@ -767,7 +795,7 @@ struct ContentView: View {
                                 }
                                 
                                 Button(action: {
-                                    openSettingsWindow(id: "settings")
+                                    showSettings = true
                                 }) {
                                     Image(systemName: "gear")
                                         .font(.title3)

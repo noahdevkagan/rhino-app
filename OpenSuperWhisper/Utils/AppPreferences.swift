@@ -273,7 +273,10 @@ final class AppPreferences {
     @UserDefault(key: "textScale", defaultValue: TextScale.default)
     var textScale: Double
 
-    @UserDefault(key: "indicatorPosition", defaultValue: "cursor")
+    // Bottom-docked by default: cursor-follow places the bubble badly in apps whose
+    // caret can't be located (Obsidian pins it to a corner — Paul S.), and the docked
+    // style is what dictation apps converged on. Cursor mode remains selectable.
+    @UserDefault(key: "indicatorPosition", defaultValue: "bottom")
     var indicatorPosition: String
 
     /// The bubble's contents as JSON (`IndicatorLayout`): which elements it shows and in

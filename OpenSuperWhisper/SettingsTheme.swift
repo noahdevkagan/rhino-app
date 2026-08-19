@@ -42,19 +42,16 @@ enum STheme {
 
 // MARK: - Reusable pieces
 
-/// Uppercase section header with a trailing hairline, per the design.
+/// Plain gray section label above each cell group (Apple/Willow style — the
+/// hairline-rule header went away with the cell redesign).
 struct SSectionHeader: View {
     let title: LocalizedStringKey
     init(_ title: LocalizedStringKey) { self.title = title }
     var body: some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .scaledFont(size: 11, weight: .bold)
-                .tracking(0.8)
-                .textCase(.uppercase)
-                .foregroundColor(STheme.sectionTitle)
-            Rectangle().fill(STheme.border).frame(height: 1)
-        }
+        Text(title)
+            .scaledFont(size: 12, weight: .medium)
+            .foregroundColor(STheme.sectionTitle)
+            .padding(.leading, 2)
     }
 }
 
@@ -140,16 +137,18 @@ struct SPane<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(title)
-                    .scaledFont(size: 16, weight: .bold)
+                    .scaledFont(size: 19, weight: .bold)
                     .foregroundColor(STheme.textBright)
                 Spacer()
                 if let subtitle {
                     Text(subtitle).scaledFont(size: 11).foregroundColor(STheme.hint)
                 }
             }
-            .padding(.horizontal, 24).padding(.top, 16).padding(.bottom, 4)
+            // Modest top padding: the sheet's close-button strip above already
+            // provides ~34pt of headroom (SettingsView).
+            .padding(.horizontal, 24).padding(.top, 2).padding(.bottom, 4)
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) { content() }
+                VStack(alignment: .leading, spacing: 20) { content() }
                     .padding(.horizontal, 24).padding(.vertical, 14)
             }
         }
@@ -173,14 +172,29 @@ struct SEditor: View {
     }
 }
 
-/// A titled group of rows with the hairline header.
+/// A titled group of rows. Each group renders as its own rounded cell —
+/// gray label above, white card with the rows inside (Apple-style grouped
+/// settings; Paul S.: "everything in its own little cell").
 struct SSection<Content: View>: View {
     let title: LocalizedStringKey
     @ViewBuilder let content: () -> Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             SSectionHeader(title)
-            content()
+            VStack(alignment: .leading, spacing: 12) {
+                content()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(STheme.cardBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(STheme.border, lineWidth: 1)
+            )
         }
     }
 }

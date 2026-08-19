@@ -11,6 +11,9 @@ final class RecordingContext {
     private(set) var bundleID: String?
     /// Focused window title at capture time (for transcript metadata).
     private(set) var windowTitle: String?
+    /// Icon of the frontmost app at capture time — shown in the recording bubble
+    /// so it's obvious where the dictation will land.
+    private(set) var appIcon: NSImage?
     /// Browser-tab URL capture was cut with the Rules feature (it needed an
     /// Apple Events permission). Kept as always-nil so history rows written by
     /// older versions still render their stored URLs.
@@ -27,6 +30,7 @@ final class RecordingContext {
         else { return }
         appName = front.localizedName
         bundleID = bundle
+        appIcon = front.icon
         windowTitle = SourceCapture.focusedWindowTitle()
     }
 }

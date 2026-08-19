@@ -903,6 +903,15 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
+    /// Tab to land on when the sheet opens (e.g. Home's "Get a model" → .models).
+    /// Passed in rather than via notification: the notification fires before the
+    /// sheet's SettingsView exists, so a fresh sheet would miss it.
+    private let initialTab: SettingsTab?
+
+    init(initialTab: SettingsTab? = nil) {
+        self.initialTab = initialTab
+    }
+
     @StateObject private var viewModel = SettingsViewModel()
     @ObservedObject private var launchAtLogin = LaunchAtLoginManager.shared
     @Environment(\.dismiss) var dismiss
@@ -1030,24 +1039,47 @@ struct SettingsView: View {
 
             Rectangle().fill(STheme.border).frame(width: 1)
 
-            detailContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .background(STheme.windowBg)
-                // The old footer's Done button carried this legacy reload; the window now
-                // just closes, so run it when the view goes away instead. (Model selection
-                // reloads through ModelSelectionStore anyway — this is belt-and-suspenders
-                // for a Whisper path that predates the stores.)
-                .onDisappear {
-                    if viewModel.selectedEngine == "whisper",
-                       viewModel.selectedModelURL != previousModelURL,
-                       let modelPath = viewModel.selectedModelURL?.path {
-                        TranscriptionService.shared.reloadModel(with: modelPath)
-                    }
+            // The ✕ gets its own strip above the pane content (not an overlay), so
+            // trailing header items — the Models "● Active" pill, SPane subtitles —
+            // can never slide under it at any window width. Esc works too.
+            VStack(alignment: .trailing, spacing: 0) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .scaledFont(size: 11, weight: .semibold)
+                        .foregroundColor(STheme.hint)
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(STheme.controlBg))
+                        .overlay(Circle().stroke(STheme.controlBorder, lineWidth: 1))
+                        .contentShape(Circle())
                 }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .help("Close settings")
+                .padding(.top, 10)
+                .padding(.trailing, 12)
+
+                detailContent
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(STheme.windowBg)
+            // The old footer's Done button carried this legacy reload; the sheet now
+            // just closes, so run it when the view goes away instead. (Model selection
+            // reloads through ModelSelectionStore anyway — this is belt-and-suspenders
+            // for a Whisper path that predates the stores.)
+            .onDisappear {
+                if viewModel.selectedEngine == "whisper",
+                   viewModel.selectedModelURL != previousModelURL,
+                   let modelPath = viewModel.selectedModelURL?.path {
+                    TranscriptionService.shared.reloadModel(with: modelPath)
+                }
+            }
         }
         .tint(STheme.accent)
         .frame(minWidth: 720, idealWidth: 780, minHeight: 540, idealHeight: 600)
         .onAppear {
+            if let initialTab { selectedTab = initialTab }
             previousModelURL = viewModel.selectedModelURL
             launchAtLogin.refresh()
             if viewModel.selectedEngine == "fluidaudio" {
@@ -1141,12 +1173,14 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Models")
-                    .scaledFont(size: 16, weight: .bold)
+                    .scaledFont(size: 19, weight: .bold)
                     .foregroundColor(STheme.textBright)
                 Spacer()
                 activeModelPill
             }
-            .padding(.horizontal, 24).padding(.top, 16)
+            // Modest top padding, matching SPane: the close-button strip above
+            // already provides the headroom.
+            .padding(.horizontal, 24).padding(.top, 2)
 
             HStack(spacing: 8) {
                 engineCard(tag: "fluidaudio", name: "Parakeet", sub: "Fast, on-device")
@@ -1744,8 +1778,16 @@ struct FluidAudioModelDownloadItemView: View {
             }
         }
         .padding(12)
-        .background(isActive ? Color(.controlBackgroundColor).opacity(0.7) : Color(.controlBackgroundColor).opacity(0.5))
-        .cornerRadius(8)
+        // Inset surface inside the white section cell; the active model gets the
+        // soft accent tint so the selection reads at a glance.
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(isActive ? STheme.accentSoft : STheme.windowBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(isActive ? STheme.accent.opacity(0.4) : STheme.border, lineWidth: 1)
+        )
         .contentShape(Rectangle())
         .onTapGesture {
             // Activate on tap whenever this isn't already the *active* model — even if it's the
@@ -1867,8 +1909,16 @@ struct ModelDownloadItemView: View {
             }
         }
         .padding(12)
-        .background(isActive ? Color(.controlBackgroundColor).opacity(0.7) : Color(.controlBackgroundColor).opacity(0.5))
-        .cornerRadius(8)
+        // Inset surface inside the white section cell; the active model gets the
+        // soft accent tint so the selection reads at a glance.
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(isActive ? STheme.accentSoft : STheme.windowBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(isActive ? STheme.accent.opacity(0.4) : STheme.border, lineWidth: 1)
+        )
         .contentShape(Rectangle())
         .onTapGesture {
             // Activate on tap whenever this isn't the active model (works even if it's the selected

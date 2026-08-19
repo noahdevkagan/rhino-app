@@ -410,10 +410,10 @@ struct IndicatorWindow: View {
     /// however large the text is set. Notch mode is excluded: its geometry is the hardware's.
     @Environment(\.textScaleFactor) private var scale
     
+    // Solid black pill in every appearance — the style dictation overlays converged
+    // on (Paul S. feedback) — so the bubble reads instantly against any wallpaper.
     private var backgroundColor: Color {
-        colorScheme == .dark
-            ? Color.black.opacity(0.24)
-            : Color.white.opacity(0.24)
+        Color.black.opacity(0.92)
     }
 
     /// Wider while live-recording so the growing caption fits inside the bubble; compact otherwise.
@@ -473,7 +473,7 @@ struct IndicatorWindow: View {
         // Notch mode uses the real notch silhouette (concave top wings + rounded bottom).
         let rect: AnyShape = isNotchMode
             ? AnyShape(NotchShape(topRadius: notch.topRadius, bottomRadius: notch.bottomRadius))
-            : AnyShape(RoundedRectangle(cornerRadius: 24))
+            : AnyShape(RoundedRectangle(cornerRadius: 16))
 
         VStack(spacing: 12) {
             switch viewModel.state {
@@ -528,8 +528,15 @@ struct IndicatorWindow: View {
                     // Center-aligned: with the (taller) on-bubble buttons enabled, .top
                     // alignment pinned a single caption line above the vertical middle.
                     HStack(alignment: .center, spacing: 10) {
-                        RecordingIndicator(isBlinking: viewModel.isBlinking)
-                            .frame(width: 16)
+                        // Keep the layout's leading identity mark next to the caption:
+                        // the app icon when it's enabled, else the classic dot.
+                        if layout.contains(.appIcon) {
+                            IndicatorElementView(element: .appIcon,
+                                                 isBlinking: viewModel.isBlinking)
+                        } else {
+                            RecordingIndicator(isBlinking: viewModel.isBlinking)
+                                .frame(width: 16)
+                        }
                         (Text(streaming.confirmedText).foregroundColor(.primary)
                             + Text(streaming.confirmedText.isEmpty ? "" : " ")
                             + Text(streaming.volatileText).foregroundColor(.secondary))
@@ -613,13 +620,13 @@ struct IndicatorWindow: View {
         // Spacer eats it, so a waveform plus two buttons stretched into a mostly empty bar.
         // Fixing the horizontal size collapses the Spacer to its 8pt minimum.
         .fixedSize(horizontal: bubbleWidth == nil, vertical: false)
-        .padding(.horizontal, isNotchMode ? 22 : 16 * scale)
-        .padding(.vertical, isNotchMode ? 10 : 7 * scale)
+        .padding(.horizontal, isNotchMode ? 22 : 12 * scale)
+        .padding(.vertical, isNotchMode ? 10 : 6 * scale)
         // Width must be set *before* the background so the bubble itself fills it (not just the
         // surrounding frame). Notch content is centred; the others stay leading.
-        .frame(minHeight: isNotchMode ? notch.height : 36 * scale)
+        .frame(minHeight: isNotchMode ? notch.height : 30 * scale)
         // A floor so a single small element still reads as a bubble rather than a chip.
-        .frame(minWidth: bubbleWidth == nil ? 76 * scale : nil)
+        .frame(minWidth: bubbleWidth == nil ? 64 * scale : nil)
         .frame(width: bubbleWidth, alignment: isNotchMode ? .center : .leading)
         .background {
             if isNotchMode {
@@ -629,11 +636,7 @@ struct IndicatorWindow: View {
             } else {
                 rect
                     .fill(backgroundColor)
-                    .background {
-                        rect
-                            .fill(Material.thinMaterial)
-                    }
-                    .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
+                    .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 4)
             }
         }
         .overlay(alignment: .bottom) {
@@ -642,6 +645,13 @@ struct IndicatorWindow: View {
             }
         }
         .clipShape(rect)
+        // The live caption appearing (and the bubble widening for it) animates instead of
+        // snapping — Paul S.: "the UI expanding to show the text needs to animate". The window
+        // itself still resizes via non-animated setContentSize per layout pass (the macOS 26
+        // recursion guard); animating the *content* width drives those passes smoothly.
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: bubbleWidth)
+        .animation(.easeOut(duration: 0.18),
+                   value: streaming.confirmedText.isEmpty && streaming.volatileText.isEmpty)
         // Measure the bubble here, *before* the entrance transforms below, so the reported size is
         // the real layout size (scaleEffect/offset are render-only and don't affect this).
         .background(
@@ -649,7 +659,8 @@ struct IndicatorWindow: View {
                 Color.clear.preference(key: IndicatorContentSizeKey.self, value: proxy.size)
             }
         )
-        .environment(\.colorScheme, isNotchMode ? .dark : colorScheme)
+        // Black pill in every mode → content always renders in dark-scheme colors.
+        .environment(\.colorScheme, .dark)
         // Notch drops in from the top edge; the others rise from below.
         .scaleEffect(viewModel.isVisible ? 1 : (isNotchMode ? 0.85 : 0.5), anchor: isNotchMode ? .top : .center)
         .offset(y: viewModel.isVisible ? 0 : (isNotchMode ? -20 : 20))

@@ -5,13 +5,14 @@ import SwiftUI
 // separate window reached from the sidebar footer.
 
 enum MainTab: String, CaseIterable, Identifiable {
-    case home, history, dictionary
+    // History lives inside Home now (Willow-style: stats strip on top, history
+    // below) — Paul S.: "you can merge the home tab with history to simplify".
+    case home, dictionary
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .home: return "Home"
-        case .history: return "History"
         case .dictionary: return "Dictionary"
         }
     }
@@ -19,7 +20,6 @@ enum MainTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .home: return "house"
-        case .history: return "clock.arrow.circlepath"
         case .dictionary: return "character.book.closed"
         }
     }
@@ -142,11 +142,34 @@ final class DictationStats: ObservableObject {
     }
 }
 
-struct HomeStatsView: View {
+/// The fixed header of the merged Home tab: title, stats strip, and the
+/// shortcut + active-model row. The history list scrolls below it (ContentView).
+struct HomeHeaderView: View {
     @StateObject private var stats = DictationStats()
     @Environment(\.colorScheme) private var colorScheme
     @State private var modelMissing = false
     @State private var shortcutDescription = "—"
+    @State private var modelInfo: (name: String, description: String)? = Self.activeModelInfo()
+
+    /// Name + one-line description of the model that will transcribe the next
+    /// dictation. Shown on Home so quality tradeoffs are attributable to the model
+    /// choice ("I picked the fast model") instead of reading as the app being bad.
+    private static func activeModelInfo() -> (name: String, description: String)? {
+        guard let option = ModelCatalog.activeOption() else { return nil }
+        switch option.engine {
+        case "fluidaudio":
+            let match = SettingsFluidAudioModels.availableModels
+                .first { $0.version == option.identifier }
+            return (match?.name ?? "Parakeet \(option.identifier)",
+                    match?.description ?? "Fast, on-device")
+        default:
+            let filename = URL(fileURLWithPath: option.identifier).lastPathComponent
+            let match = SettingsDownloadableModels.availableModels
+                .first { $0.filename == filename }
+            return (match?.name ?? option.displayName,
+                    match?.description ?? "Whisper, on-device")
+        }
+    }
 
     /// True when the first dictation would fail before it starts: the active engine is
     /// Whisper and no model file is on disk (never picked one, or the pref points at a
@@ -172,84 +195,113 @@ struct HomeStatsView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Speak, don't type")
-                        .scaledFont(size: 34, weight: .bold)
-                    HStack(spacing: 6) {
-                        Image(systemName: "lock")
-                            .imageScale(.small)
-                        Text("Everything stays on this Mac.")
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Speak, don't type")
+                    .scaledFont(size: 26, weight: .bold)
+                HStack(spacing: 6) {
+                    Image(systemName: "lock")
+                        .imageScale(.small)
+                    Text("Everything stays on this Mac.")
+                }
+                .scaledFont(size: 12.5)
+                .foregroundColor(.secondary)
+            }
+            .padding(.top, 22)
+
+            if modelMissing {
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("No speech model installed")
+                            .scaledFont(size: 13, weight: .semibold)
+                        Text("Dictation won't work until a model is downloaded to this Mac.")
+                            .scaledFont(size: 12)
+                            .foregroundColor(.secondary)
                     }
+                    Spacer()
+                    Button("Get a model") {
+                        NotificationCenter.default.post(name: .openSettingsModelsTab, object: nil)
+                    }
+                    .controlSize(.regular)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.10)))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.35), lineWidth: 1))
+            }
+
+            // One-row stats strip (Willow-style) — label above, value below.
+            let time = DictationStats.format(seconds: stats.totalSeconds)
+            let saved = DictationStats.format(seconds: stats.secondsSaved)
+            HStack(alignment: .top, spacing: 0) {
+                statColumn(label: "Dictated words", big: compact(stats.totalWords), small: "words")
+                statColumn(label: "Time saved", big: saved.0, small: saved.1)
+                statColumn(label: "Dictation time", big: time.0, small: time.1)
+                statColumn(label: "Average speed",
+                           big: stats.averageWPM > 0 ? "\(stats.averageWPM)" : "—", small: "wpm")
+            }
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(ThemePalette.panelSurface(colorScheme))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
+            )
+
+            HStack(spacing: 10) {
+                Text("Dictate")
                     .scaledFont(size: 12.5)
                     .foregroundColor(.secondary)
-                }
-                .padding(.top, 26)
+                Text(shortcutDescription)
+                    .scaledFont(size: 12.5, weight: .semibold, design: .monospaced)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(ThemePalette.panelSurface(colorScheme))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
+                    )
+                Text("anywhere, in any app")
+                    .scaledFont(size: 12.5)
+                    .foregroundColor(.secondary)
+                Spacer()
 
-                if modelMissing {
-                    HStack(spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("No speech model installed")
-                                .scaledFont(size: 13, weight: .semibold)
-                            Text("Dictation won't work until a model is downloaded to this Mac.")
+                // The active model, always visible — so "transcription felt off" can be
+                // traced to "ah, I picked the fast model" without opening Settings.
+                if let modelInfo {
+                    Button {
+                        NotificationCenter.default.post(name: .openSettingsModelsTab, object: nil)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "cpu")
+                                .imageScale(.small)
+                                .foregroundColor(.secondary)
+                            Text(modelInfo.name)
+                                .scaledFont(size: 12, weight: .semibold)
+                            Text(modelInfo.description)
                                 .scaledFont(size: 12)
                                 .foregroundColor(.secondary)
+                                .lineLimit(1)
+                            Image(systemName: "chevron.right")
+                                .scaledFont(size: 9, weight: .semibold)
+                                .foregroundColor(.secondary)
                         }
-                        Spacer()
-                        Button("Get a model") {
-                            NotificationCenter.default.post(name: .openSettings, object: nil)
-                            NotificationCenter.default.post(name: .openSettingsModelsTab, object: nil)
-                        }
-                        .controlSize(.regular)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Capsule().fill(ThemePalette.panelSurface(colorScheme)))
+                        .overlay(Capsule().stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1))
+                        .contentShape(Capsule())
                     }
-                    .padding(12)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.10)))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.35), lineWidth: 1))
+                    .buttonStyle(.plain)
+                    .help("Change the dictation model")
                 }
-
-                let time = DictationStats.format(seconds: stats.totalSeconds)
-                let saved = DictationStats.format(seconds: stats.secondsSaved)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible())],
-                          spacing: 14) {
-                    statTile(icon: "clock", big: time.0, small: time.1, label: "Total dictation time")
-                    statTile(icon: "mic", big: compact(stats.totalWords), small: "words",
-                             label: "Words dictated")
-                    statTile(icon: "hourglass", big: saved.0, small: saved.1, label: "Time saved vs typing")
-                    statTile(icon: "bolt", big: stats.averageWPM > 0 ? "\(stats.averageWPM)" : "—",
-                             small: "WPM", label: "Average dictation speed")
-                }
-
-                HStack(spacing: 10) {
-                    Text("Dictate")
-                        .scaledFont(size: 12.5)
-                        .foregroundColor(.secondary)
-                    Text(shortcutDescription)
-                        .scaledFont(size: 12.5, weight: .semibold, design: .monospaced)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(ThemePalette.panelSurface(colorScheme))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
-                        )
-                    Text("anywhere, in any app")
-                        .scaledFont(size: 12.5)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-                .padding(.top, 2)
-
-                Spacer(minLength: 20)
             }
-            .padding(.horizontal, 28)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(ThemePalette.windowBackground(colorScheme))
+        .padding(.horizontal, 24)
         .onAppear {
             stats.reload()
             modelMissing = Self.isModelMissing()
@@ -262,12 +314,14 @@ struct HomeStatsView: View {
             for: RecordingStore.recordingsDidUpdateNotification)) { _ in stats.reload() }
         .onReceive(NotificationCenter.default.publisher(for: .modelSelectionDidChange)) { _ in
             modelMissing = Self.isModelMissing()
+            modelInfo = Self.activeModelInfo()
         }
         // Re-check when the main window comes back to front — the user typically fixes
-        // this in the Settings window and returns here expecting the banner gone.
+        // this in Settings and returns here expecting the banner gone.
         .onReceive(NotificationCenter.default.publisher(
             for: NSWindow.didBecomeKeyNotification)) { _ in
             modelMissing = Self.isModelMissing()
+            modelInfo = Self.activeModelInfo()
         }
     }
 
@@ -275,32 +329,22 @@ struct HomeStatsView: View {
         n >= 10_000 ? String(format: "%.1fK", Double(n) / 1000) : "\(n)"
     }
 
-    private func statTile(icon: String, big: String, small: String, label: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Image(systemName: icon)
-                    .imageScale(.medium)
-                    .foregroundColor(.secondary)
+    /// One column of the stats strip: small gray label above, value + unit below.
+    private func statColumn(label: String, big: String, small: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .scaledFont(size: 11.5)
+                .foregroundColor(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(big)
-                    .scaledFont(size: 26, weight: .bold)
+                    .scaledFont(size: 22, weight: .bold)
                 Text(small)
-                    .scaledFont(size: 13, weight: .medium)
+                    .scaledFont(size: 12, weight: .medium)
                     .foregroundColor(.secondary)
             }
-            Text(label)
-                .scaledFont(size: 12)
-                .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(ThemePalette.panelSurface(colorScheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
-        )
+        .padding(.horizontal, 18)
     }
 }
 
@@ -405,41 +449,5 @@ struct PermissionsBanner: View {
     }
 }
 
-// MARK: - History header (keep-history control, mockup-style)
-
-struct HistoryKeepBar: View {
-    @State private var keep = AppPreferences.shared.saveTranscriptionHistory
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "internaldrive")
-                .imageScale(.small)
-                .foregroundColor(.secondary)
-            Text("Keep history on this Mac")
-                .scaledFont(size: 12, weight: .medium)
-            Text("— never leaves your device")
-                .scaledFont(size: 12)
-                .foregroundColor(.secondary)
-            Spacer()
-            Toggle("", isOn: $keep)
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .labelsHidden()
-                .onChange(of: keep) { _, on in
-                    AppPreferences.shared.saveTranscriptionHistory = on
-                }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(ThemePalette.panelSurface(colorScheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
-        )
-        .padding([.horizontal, .top])
-    }
-}
+// (HistoryKeepBar was retired when History merged into Home — the keep-history
+// toggle lives in Settings → History & Privacy.)

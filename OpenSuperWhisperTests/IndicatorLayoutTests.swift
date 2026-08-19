@@ -19,13 +19,29 @@ final class IndicatorLayoutTests: XCTestCase {
     }
 
     /// A stored order from an older build won't list every element. The missing ones have to
-    /// reappear, or the editor simply can't show them.
+    /// reappear — at their default position, not appended — or the editor can't show them
+    /// and a new leading element (the app icon) would render at the wrong edge.
     func testStoredOrderIsRepaired() {
         let partial = #"{"order":["label","label"],"hidden":[],"waveformHeight":30}"#
         let loaded = IndicatorLayout.load(from: partial)
-        XCTAssertEqual(loaded.order.first, .label)
         XCTAssertEqual(Set(loaded.order), Set(IndicatorElement.allCases))
         XCTAssertEqual(loaded.order.count, IndicatorElement.allCases.count, "no duplicates")
+        XCTAssertLessThan(loaded.order.firstIndex(of: .appIcon)!,
+                          loaded.order.firstIndex(of: .label)!,
+                          "missing elements slot in at their declared position")
+    }
+
+    /// The realistic upgrade: a layout saved before `.appIcon` existed. The icon must join
+    /// at the leading edge — the live-caption layout draws it first, so an icon appended to
+    /// the end would visibly jump sides the moment streamed text arrives.
+    func testPreAppIconLayoutGainsTheIconUpFront() {
+        let stored = #"{"order":["dot","waveform","label","stopButton","cancelButton"],"hidden":["dot","stopButton","cancelButton"],"waveformHeight":30}"#
+        let loaded = IndicatorLayout.load(from: stored)
+        XCTAssertEqual(loaded.order,
+                       [.appIcon, .dot, .waveform, .label, .stopButton, .cancelButton])
+        XCTAssertTrue(loaded.isVisible(.appIcon), "new elements appear by default")
+        XCTAssertEqual(loaded.leading.first, .appIcon,
+                       "matches the icon-first live-caption layout")
     }
 
     /// Switching an element off must not lose its position: switching it back on returns it

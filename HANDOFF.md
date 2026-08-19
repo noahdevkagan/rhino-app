@@ -5,7 +5,28 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-13)
+## Current state (2026-08-18)
+
+- **Paul Stamatiou feedback round implemented (2026-08-18, uncommitted):**
+  8 of his 10 items are code-complete and the Debug build passes: About-panel
+  credits thanking Paul; Home + History merged into one Willow-style tab
+  (stats strip on top, history + search below; HistoryKeepBar retired);
+  active-model chip on Home with click-through to Settings→Models; Settings
+  presents as a sheet in the main window (dedicated Window scene removed,
+  `SettingsView(initialTab:)` handles deep-links); Settings sections render
+  as Apple-style grouped cells (SSection/SSectionHeader in
+  SettingsTheme.swift); live-preview expansion animates and Parakeet preview
+  cadence tightened (chunk 1.0s / hypothesis 0.3s); recording bubble is now a
+  small solid-black pill showing the frontmost app's icon + waveform, no text
+  (new `.appIcon` IndicatorElement, icon captured in RecordingContext);
+  default indicator position changed cursor→bottom. See decisions.md
+  2026-08-18 entry for the why. NOT yet done from his list: input-aware
+  capitalization (#5 — needs AX read of the focused text field; design
+  first), app-icon refresh (#6 — needs design assets). Changes are
+  uncommitted on `crxnamja/bern`; needs a visual pass (run `./run.sh`) before
+  pushing — the settings-cell and indicator restyles were built blind.
+
+## Previous state (2026-08-13)
 
 - **Rhino v0.1.7 shipped (2026-08-13):** immutable tag `v0.1.7` points to
   release commit `b658fa5`. The Developer ID app and DMG passed Apple

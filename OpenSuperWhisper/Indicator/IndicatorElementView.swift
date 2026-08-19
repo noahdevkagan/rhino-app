@@ -23,6 +23,17 @@ struct IndicatorElementView: View {
 
     var body: some View {
         switch element {
+        case .appIcon:
+            // The app the dictation will land in, captured at record-start. The
+            // editor preview (and a bare launch) has no capture yet — show our own
+            // icon so the slot never renders empty.
+            Image(nsImage: RecordingContext.shared.appIcon
+                ?? NSApp.applicationIconImage
+                ?? NSImage())
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20 * scale, height: 20 * scale)
         case .dot:
             RecordingIndicator(isBlinking: isBlinking)
                 .frame(width: 16 * scale)

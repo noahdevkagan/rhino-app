@@ -23,14 +23,25 @@ final class DecodingLayoutTests: XCTestCase {
     }
 
     func testLabelOnlyStaysLabelOnly() {
-        let elements = layout(hiding: [.waveform, .stopButton, .cancelButton]).decodingLeading
+        // The label is hidden in the default (wordless-pill) layout, so this
+        // scenario asks for it explicitly rather than inheriting it.
+        var labelOnly = layout(hiding: [.appIcon, .waveform, .stopButton, .cancelButton])
+        labelOnly.setVisible(true, for: .label)
+
+        let elements = labelOnly.decodingLeading
 
         XCTAssertTrue(elements.contains(.label))
         XCTAssertFalse(elements.contains(.waveform))
     }
 
     func testBothStayBoth() {
-        let elements = layout(hiding: [.stopButton, .cancelButton]).decodingLeading
+        // Meter + label together — both enabled explicitly, since the default
+        // layout no longer shows the label.
+        var both = layout(hiding: [.stopButton, .cancelButton])
+        both.setVisible(true, for: .waveform)
+        both.setVisible(true, for: .label)
+
+        let elements = both.decodingLeading
 
         XCTAssertTrue(elements.contains(.waveform))
         XCTAssertTrue(elements.contains(.label))

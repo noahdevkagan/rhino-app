@@ -52,12 +52,13 @@ final class StreamingTranscriptionController: ObservableObject {
         let models = try await AsrModels.downloadAndLoad(version: version)
 
         // Small windows so a rough preview appears quickly (the default 11–15s window emits
-        // nothing for short dictations). First text lands at ~chunk+right ≈ 1.8s, then ~every
-        // 1.5s. Intentionally lower quality — the inserted text comes from the accurate file
-        // pass, not from here — so we trade accuracy for responsiveness.
+        // nothing for short dictations). First text lands at ~chunk+right ≈ 1.3s, then the
+        // volatile tail refreshes ~every 0.3s (tightened after tester feedback that the
+        // preview felt slow). Intentionally lower quality — the inserted text comes from the
+        // accurate file pass, not from here — so we trade accuracy for responsiveness.
         let previewConfig = SlidingWindowAsrConfig(
-            chunkSeconds: 1.5,
-            hypothesisChunkSeconds: 0.5,
+            chunkSeconds: 1.0,
+            hypothesisChunkSeconds: 0.3,
             leftContextSeconds: 4.0,
             rightContextSeconds: 0.3,
             minContextForConfirmation: 1.0,

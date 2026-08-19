@@ -6,6 +6,7 @@ import Foundation
 /// (show stop, show cancel, where the meter goes) and could combine into layouts nobody had
 /// ever looked at.
 enum IndicatorElement: String, Codable, CaseIterable, Identifiable {
+    case appIcon
     case dot
     case waveform
     case label
@@ -16,6 +17,7 @@ enum IndicatorElement: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .appIcon: return "App icon"
         case .dot: return "Blinking dot"
         case .waveform: return "Waveform"
         case .label: return "\"Recording…\" label"
@@ -26,6 +28,7 @@ enum IndicatorElement: String, Codable, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
+        case .appIcon: return "The app you're dictating into"
         case .dot: return "The classic red dot"
         case .waveform: return "Live spectrum of the mic input"
         case .label: return "Also shows how many clips are queued"
@@ -36,6 +39,7 @@ enum IndicatorElement: String, Codable, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .appIcon: return "app"
         case .dot: return "record.circle"
         case .waveform: return "waveform"
         case .label: return "textformat"
@@ -63,11 +67,14 @@ struct IndicatorLayout: Codable, Equatable {
     /// Height of the waveform bars. Also the tallest element, so it drives the bubble's height.
     var waveformHeight: Double
 
-    static let defaultWaveformHeight: Double = 30
+    static let defaultWaveformHeight: Double = 22
 
+    // Default bubble = app icon + waveform, nothing else — the compact, wordless
+    // style every dictation app converged on (Paul S.: "copy what everyone else
+    // does — smaller, no text, black background, current app icon").
     static let `default` = IndicatorLayout(
-        order: [.dot, .waveform, .label, .stopButton, .cancelButton],
-        hidden: [.dot, .stopButton, .cancelButton],
+        order: [.appIcon, .dot, .waveform, .label, .stopButton, .cancelButton],
+        hidden: [.dot, .label, .stopButton, .cancelButton],
         waveformHeight: defaultWaveformHeight)
 
     func isVisible(_ element: IndicatorElement) -> Bool { !hidden.contains(element) }
@@ -122,7 +129,15 @@ struct IndicatorLayout: Codable, Equatable {
         // defaults): every element must appear exactly once for the editor to list it.
         var seen = Set<IndicatorElement>()
         decoded.order = decoded.order.filter { seen.insert($0).inserted }
-        decoded.order += IndicatorElement.allCases.filter { !seen.contains($0) }
+        // Elements a newer build introduced slot in at their *declared* position, not the
+        // end: an appended `.appIcon` would render at the trailing edge of the leading run
+        // while the live-caption layout draws the icon first — the icon would visibly jump
+        // sides the moment text arrives. (`allCases` order matches `default.order`.)
+        for (index, element) in IndicatorElement.allCases.enumerated()
+        where !seen.contains(element) {
+            decoded.order.insert(element, at: min(index, decoded.order.count))
+            seen.insert(element)
+        }
         return decoded
     }
 

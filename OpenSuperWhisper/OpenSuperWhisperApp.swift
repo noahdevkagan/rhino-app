@@ -38,6 +38,20 @@ struct OpenSuperWhisperApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            // Standard About panel, plus credits — a thank-you to the people whose
+            // feedback shaped the app.
+            CommandGroup(replacing: .appInfo) {
+                Button("About Rhino") {
+                    NSApp.activate(ignoringOtherApps: true)
+                    let credits = NSMutableAttributedString(
+                        string: "Thank you to Paul Stamatiou for all the feedback.",
+                        attributes: [
+                            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                            .foregroundColor: NSColor.secondaryLabelColor,
+                        ])
+                    NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+                }
+            }
             CommandGroup(replacing: .appSettings) {
                 Button("Settings...") {
                     if let delegate = NSApplication.shared.delegate as? AppDelegate {
@@ -50,12 +64,8 @@ struct OpenSuperWhisperApp: App {
         }
         .handlesExternalEvents(matching: Set(arrayLiteral: "openMainWindow"))
 
-        // Dedicated, movable & closable settings window (sidebar layout).
-        Window("Settings", id: "settings") {
-            SettingsView()
-        }
-        .windowResizability(.contentMinSize)
-        .defaultSize(width: 780, height: 600)
+        // Settings is presented as a sheet inside the main window (ContentView) —
+        // Paul S.: "I don't like that the settings page opens up a new window."
 
         // Direct-email feedback, matching Meeting Coach: Rhino never uploads
         // the message itself; Send hands a prefilled draft to the user's mail app.
@@ -144,6 +154,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // mockups) — the whole app renders light regardless of system theme.
         NSApp.appearance = NSAppearance(named: .aqua)
 
+        #if DEBUG
+        applyDevDockBadge()
+        #endif
+
         setupStatusBarItem()
 
         if let window = NSApplication.shared.windows.first(where: { $0.title != "Settings" }) {
@@ -226,6 +240,36 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         return UTType(filenameExtension: url.pathExtension)?.conforms(to: .audio) ?? false
     }
     
+    #if DEBUG
+    /// Composites an orange "DEV" pill onto the Dock/app-switcher icon so a dev
+    /// build is never mistaken for the installed copy. Runtime-only — the bundle's
+    /// icon file is untouched, and Release builds never run this.
+    private func applyDevDockBadge() {
+        guard let base = NSApp.applicationIconImage else { return }
+        let badged = NSImage(size: base.size, flipped: false) { rect in
+            base.draw(in: rect)
+            let text = "DEV" as NSString
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.boldSystemFont(ofSize: rect.height * 0.18),
+                .foregroundColor: NSColor.white,
+            ]
+            let textSize = text.size(withAttributes: attrs)
+            let padX = textSize.height * 0.35
+            let pill = NSRect(x: rect.maxX - textSize.width - padX * 2 - rect.width * 0.05,
+                              y: rect.minY + rect.height * 0.05,
+                              width: textSize.width + padX * 2,
+                              height: textSize.height * 1.25)
+            NSColor.systemOrange.setFill()
+            NSBezierPath(roundedRect: pill, xRadius: pill.height / 2, yRadius: pill.height / 2).fill()
+            text.draw(at: NSPoint(x: pill.midX - textSize.width / 2,
+                                  y: pill.midY - textSize.height / 2),
+                      withAttributes: attrs)
+            return true
+        }
+        NSApp.applicationIconImage = badged
+    }
+    #endif
+
     private func observeMicrophoneChanges() {
         microphoneObserver = microphoneService.$availableMicrophones
             .sink { [weak self] _ in
@@ -234,8 +278,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     }
     
     private func setupStatusBarItem() {
+        // Debug builds get a wider item so the "DEV" tag fits next to the icon —
+        // the dev copy and the installed copy are otherwise indistinguishable up there.
+        #if DEBUG
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        #else
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        
+        #endif
+
         if let button = statusItem?.button {
             if let iconImage = NSImage(named: "tray_icon") {
                 iconImage.size = NSSize(width: 18, height: 18)
@@ -244,7 +294,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             } else {
                 button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Rhino")
             }
-            
+
+            #if DEBUG
+            button.title = " DEV"
+            button.imagePosition = .imageLeft
+            button.font = NSFont.systemFont(ofSize: 9, weight: .bold)
+            #endif
+
             button.action = #selector(statusBarButtonClicked(_:))
             button.target = self
         }

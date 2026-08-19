@@ -286,10 +286,23 @@ class TranscriptionService: ObservableObject {
 
 }
 
-enum TranscriptionError: Error {
+enum TranscriptionError: LocalizedError {
     case contextInitializationFailed
     case audioConversionFailed
     case processingFailed
+
+    // Without these, alerts render the useless bridged form
+    // "(OpenSuperWhisper.TranscriptionError error 0.)".
+    var errorDescription: String? {
+        switch self {
+        case .contextInitializationFailed:
+            return "The speech model could not be loaded."
+        case .audioConversionFailed:
+            return "The recorded audio could not be converted for transcription."
+        case .processingFailed:
+            return "Transcription stopped before it finished."
+        }
+    }
 }
 
 /// Minimal async counting semaphore. Used as a 1-permit mutex to serialize transcriptions across

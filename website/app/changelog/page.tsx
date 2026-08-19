@@ -1,5 +1,17 @@
 const releases = [
   {
+    version: "0.1.10",
+    date: "August 18, 2026",
+    changes: [
+      "Home and History are now one screen: your dictation stats sit on top with your history and search right below.",
+      "The active model is shown on Home so you can always see what's doing the transcribing — click it to switch models.",
+      "Settings opens inside the main window and was redesigned with Apple-style grouped cells.",
+      "The recording indicator is now a compact black pill docked at the bottom of the screen, showing the app you're dictating into and a live waveform.",
+      "The live transcription preview shows your words sooner and the bubble expands smoothly instead of snapping.",
+      "About Rhino: thank you to Paul Stamatiou for all the feedback.",
+    ],
+  },
+  {
     version: "0.1.9",
     date: "August 18, 2026",
     changes: [

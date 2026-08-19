@@ -496,3 +496,23 @@ keeps snapping via non-animated `setContentSize` (macOS 26 recursion guard
 untouched). Deferred from his list: cursor-follow placement fix (he prefers
 docked), input-aware capitalization (needs AX focused-field read — design
 first), app-icon refresh (needs design assets).
+
+**2026-08-18 — Onboarding "Model Error … TranscriptionError error 0" when
+Parakeet is chosen (user report via X).** Root cause: onboarding's
+`initializeUnifiedModels()` auto-selected the first already-downloaded model
+by setting only `selectedModelId`, never calling `selectModel()` — the sole
+place `AppPreferences.selectedEngine` gets written. If a Parakeet cache
+already existed at onboarding (interrupted first run, reinstall, shared
+FluidAudio cache dir), the UI checkmarked Parakeet while prefs stayed on the
+`"whisper"` default with no whisper model downloaded, so Continue's
+`verifyEngineLoads()` loaded `WhisperEngine` → `contextInitializationFailed`
+(case 0, no localizedDescription → the cryptic dialog). Fix is three layers:
+auto-select now commits through `selectModel()`; Continue re-commits the
+visible selection to prefs before verifying (belt and braces — selection and
+verify can never disagree again regardless of how `selectedModelId` was set);
+and `TranscriptionError` now conforms to `LocalizedError` so any future
+engine-load failure reads as a sentence, not "(OpenSuperWhisper.
+TranscriptionError error 0.)". Diagnostic tell for triage: a real Parakeet
+load failure surfaces as `FluidAudio.AsrModelsError`, never
+`OpenSuperWhisper.TranscriptionError` — seeing the latter during a Parakeet
+onboarding means the whisper engine was being loaded.

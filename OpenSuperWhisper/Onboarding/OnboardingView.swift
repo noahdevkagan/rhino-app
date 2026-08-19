@@ -75,7 +75,11 @@ class OnboardingViewModel: ObservableObject {
         }
         
         if selectedModelId == nil, let firstDownloaded = unifiedModels.first(where: { $0.isDownloaded }) {
-            selectedModelId = firstDownloaded.id
+            // Commit through selectModel so AppPreferences (engine + model) match the row
+            // the UI shows as selected. Setting only the id left prefs on the "whisper"
+            // default when a Parakeet cache already existed, so Continue's verify tried to
+            // load a Whisper model that was never downloaded ("TranscriptionError error 0").
+            selectModel(firstDownloaded)
         }
     }
     
@@ -484,6 +488,12 @@ struct OnboardingView: View {
         // so this also replaces the post-onboarding lazy load.
         isVerifyingModel = true
         Task { @MainActor in
+            // Re-commit the visible selection to AppPreferences before verifying, so the
+            // engine we load is always the one the checkmark points at — regardless of how
+            // selectedModelId was set (tap, download completion, or auto-select).
+            if let selected = viewModel.unifiedModels.first(where: { $0.id == viewModel.selectedModelId }) {
+                viewModel.selectModel(selected)
+            }
             let failure = await TranscriptionService.shared.verifyEngineLoads()
             isVerifyingModel = false
             if let failure {

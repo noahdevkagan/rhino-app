@@ -278,13 +278,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     }
     
     private func setupStatusBarItem() {
-        // Debug builds get a wider item so the "DEV" tag fits next to the icon —
-        // the dev copy and the installed copy are otherwise indistinguishable up there.
-        #if DEBUG
+        // Variable length: the icon may carry a "DEV" tag (debug builds) and/or a
+        // red update dot, both rendered as the button's attributed title.
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        #else
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        #endif
 
         if let button = statusItem?.button {
             if let iconImage = NSImage(named: "tray_icon") {
@@ -295,15 +291,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
                 button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Rhino")
             }
 
-            #if DEBUG
-            button.title = " DEV"
             button.imagePosition = .imageLeft
-            button.font = NSFont.systemFont(ofSize: 9, weight: .bold)
-            #endif
-
             button.action = #selector(statusBarButtonClicked(_:))
             button.target = self
         }
+        refreshStatusBadge()
         
         updateStatusBarMenu()
 
@@ -320,11 +312,58 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             name: RecordingStore.recordingsDidUpdateNotification,
             object: nil)
         refreshRecentTranscripts()
+
+        // Red dot + "Install Update…" item appear when a background Sparkle
+        // check finds a newer version, and clear once it's installed.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updateAvailabilityChanged),
+            name: .updateAvailabilityChanged,
+            object: nil)
+    }
+
+    @objc private func updateAvailabilityChanged() {
+        refreshStatusBadge()
+        updateStatusBarMenu()
+    }
+
+    /// The status button's text suffix: a "DEV" tag on debug builds, and a red
+    /// dot while an update is waiting — the quiet "something's new up here" cue.
+    private func refreshStatusBadge() {
+        guard let button = statusItem?.button else { return }
+        let badge = NSMutableAttributedString()
+        #if DEBUG
+        badge.append(NSAttributedString(
+            string: " DEV",
+            attributes: [.font: NSFont.systemFont(ofSize: 9, weight: .bold)]))
+        #endif
+        if MainActor.assumeIsolated({ SparkleUpdater.shared.updateAvailable }) {
+            badge.append(NSAttributedString(
+                string: " ●",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 8, weight: .bold),
+                    .foregroundColor: NSColor.systemRed,
+                    .baselineOffset: 3,
+                ]))
+        }
+        button.attributedTitle = badge
     }
 
     private func updateStatusBarMenu() {
         let menu = NSMenu()
-        
+
+        // Surfaced at the very top while an update is waiting, mirroring the red
+        // dot on the icon. Opens Sparkle's normal install prompt.
+        if MainActor.assumeIsolated({ SparkleUpdater.shared.updateAvailable }) {
+            let updateReady = NSMenuItem(title: "Install Update…",
+                                         action: #selector(checkForUpdates), keyEquivalent: "")
+            updateReady.target = self
+            updateReady.image = NSImage(systemSymbolName: "arrow.down.circle.fill",
+                                        accessibilityDescription: "Update available")
+            menu.addItem(updateReady)
+            menu.addItem(NSMenuItem.separator())
+        }
+
         let openItem = NSMenuItem(title: "Open Window", action: #selector(openApp), keyEquivalent: "o")
         openItem.target = self   // without a target macOS disables the item (it did nothing)
         menu.addItem(openItem)

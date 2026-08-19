@@ -437,3 +437,12 @@ notice a separate button. The button stays as the retry/fallback path (failed
 download, or a relaunch that finds the toggle on with no model), and its hint
 now states that cleanup is skipped until the model is present. Explicitly
 user-initiated, so it stays within the all-local/no-surprise-network rule.
+
+**2026-08-18 — Desktop release cuts must hard-fail on an unsigned appcast
+item.** v0.1.8 was cut from the desktop, whose keychain "Rhino" key is the
+pre-rotation one; `generate_appcast` only warned about the SUPublicEDKey
+mismatch and published the item with no `edSignature`, which installed apps
+download and then reject. `release.sh` now blocks the release before touching
+the feed when the new item lacks a signature. Sparkle signing remains
+laptop-only by design (see 2026-08-11 rotation entry) — a desktop cut gets
+everything ready and stops at the feed step.

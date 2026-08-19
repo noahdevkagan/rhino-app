@@ -62,11 +62,10 @@ grep -q '<description[^>]*sparkle:format="markdown"' dist/appcast.xml \
     || { echo "RELEASE BLOCKED: Sparkle appcast is missing embedded changelog notes"; exit 1; }
 # generate_appcast only WARNS when the keychain key doesn't match the app's
 # SUPublicEDKey and then emits the item unsigned — installed apps would fail
-# verification after downloading. The signing key lives only on the laptop
-# (decisions.md 2026-08-11), so a desktop cut must die here, before the feed
-# is touched.
+# verification after downloading. A cut from a machine without the matching
+# key must die here, before the feed is touched (decisions.md 2026-08-18).
 grep -E "url=\"[^\"]*v$VERSION/[^\"]*\.dmg\"" dist/appcast.xml | grep -q 'sparkle:edSignature="' \
-    || { echo "RELEASE BLOCKED: v$VERSION appcast item is unsigned — this Mac's Sparkle key does not match the app's SUPublicEDKey (sign on the laptop; see decisions.md 2026-08-11)"; exit 1; }
+    || { echo "RELEASE BLOCKED: v$VERSION appcast item is unsigned — this Mac's Sparkle key (account Rhino) does not match the app's SUPublicEDKey; see decisions.md 2026-08-18"; exit 1; }
 
 SHA=$(gh api "repos/$RELEASES_REPO/contents/appcast.xml" -q .sha 2>/dev/null || true)
 gh api -X PUT "repos/$RELEASES_REPO/contents/appcast.xml" \

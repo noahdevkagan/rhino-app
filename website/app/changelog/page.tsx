@@ -1,5 +1,12 @@
 const releases = [
   {
+    version: "0.1.9",
+    date: "August 18, 2026",
+    changes: [
+      "Same app as 0.1.8, re-issued with a new update-signing key after moving releases to a new machine. If your installed Rhino can't verify the update, download this version once and future updates work normally again.",
+    ],
+  },
+  {
     version: "0.1.8",
     date: "August 18, 2026",
     changes: [

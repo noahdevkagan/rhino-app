@@ -446,3 +446,14 @@ download and then reject. `release.sh` now blocks the release before touching
 the feed when the new item lacks a signature. Sparkle signing remains
 laptop-only by design (see 2026-08-11 rotation entry) — a desktop cut gets
 everything ready and stops at the feed step.
+
+**2026-08-18 — Releases move to the desktop; Sparkle key rotated back to the
+original keypair.** The laptop holding the 2026-08-11 rotated key is in
+another location and this desktop is now the release machine. Its keychain
+"Rhino" key turned out to be the ORIGINAL v0.1.0 keypair, so rather than
+generating a third key, SUPublicEDKey was rotated back to it. Cost, accepted
+knowingly (same shape as 2026-08-11): installs of 0.1.1–0.1.8 pin the laptop
+key and cannot verify the next update — they re-download once from the
+website; v0.1.0 installs regain auto-update. v0.1.9 re-ships 0.1.8's code
+with the new embedded key. If the laptop's key is ever needed again it still
+exists there; nothing signed by it is trusted by 0.1.9+ installs.

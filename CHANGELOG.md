@@ -3,6 +3,13 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.9 — 2026-08-18
+
+- Same app as 0.1.8, re-issued with a new update-signing key after moving
+  releases to a new machine. Installed 0.1.1–0.1.8 copies can't verify this
+  update automatically — download this version once from the website and
+  future updates work normally again.
+
 ## 0.1.8 — 2026-08-18
 
 - Turning on "Clean up with an LLM" now downloads the on-device cleanup model

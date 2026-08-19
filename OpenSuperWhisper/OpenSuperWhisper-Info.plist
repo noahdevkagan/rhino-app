@@ -30,7 +30,7 @@
 	<key>SUFeedURL</key>
 	<string>https://raw.githubusercontent.com/noahdevkagan/rhino-releases/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>GOcu74eJPIu03KM8tqf9PmJXtG+36SSD6jM36dRNWUg=</string>
+	<string>5pICUVveoLSZXI7/h90i8nBE4jOh74mx317W8jF7gfE=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

@@ -1,5 +1,14 @@
 const releases = [
   {
+    version: "0.1.11",
+    date: "August 19, 2026",
+    changes: [
+      "First-time setup no longer fails with a \"TranscriptionError error 0\" dialog when Parakeet was already downloaded: the checkmarked model is now the one Continue actually verifies.",
+      "The menu bar shows a red dot and an \"Install Update…\" item when an update is ready to install; both clear once you're up to date.",
+      "Speech-model load failures now explain what went wrong in plain words instead of a raw error code.",
+    ],
+  },
+  {
     version: "0.1.10",
     date: "August 18, 2026",
     changes: [

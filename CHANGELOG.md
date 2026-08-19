@@ -3,6 +3,16 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.11 — 2026-08-19
+
+- First-time setup no longer fails with a "TranscriptionError error 0" dialog
+  when Parakeet was already downloaded: the checkmarked model is now the one
+  Continue actually verifies, instead of the Whisper default.
+- The menu bar shows a red dot and an "Install Update…" item when an update
+  is ready to install; both clear once you're up to date.
+- Speech-model load failures now explain what went wrong in plain words
+  instead of a raw error code.
+
 ## 0.1.10 — 2026-08-18
 
 - Home and History are now one screen: your dictation stats sit on top with

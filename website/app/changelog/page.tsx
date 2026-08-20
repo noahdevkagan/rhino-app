@@ -1,5 +1,18 @@
 const releases = [
   {
+    version: "0.1.12",
+    date: "August 19, 2026",
+    changes: [
+      "First-time setup walks you through the two permissions Rhino needs, with live status — and registers Rhino in the Accessibility list for you.",
+      "Setup is simpler: pick one of two speech models (Parakeet v3 recommended), with punctuation cleanup as a clearly optional add-on.",
+      "The dictate-key choice in setup now actually applies, and the alternative key is Right \u2318.",
+      "After setup, pressing Fn no longer pops the Mac's emoji picker mid-dictation. Emoji stays available with \u2303\u2318Space.",
+      "Parakeet downloads show a real progress bar, plus a note while the model is optimized for your Mac.",
+      "Fixed a crash that could hit the next dictation after AirPods or your microphone changed, and a rare crash when cancelling with Esc just as a transcription finished.",
+      "Dictations no longer vanish silently when the Accessibility grant has gone stale: the text stays on the clipboard with a notice explaining the one-time fix.",
+    ],
+  },
+  {
     version: "0.1.11",
     date: "August 19, 2026",
     changes: [

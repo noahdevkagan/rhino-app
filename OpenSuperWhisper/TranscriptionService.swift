@@ -85,6 +85,12 @@ class TranscriptionService: ObservableObject {
         case .success(let engine):
             currentEngine = engine
             loadedEngineKind = (engine != nil) ? selectedEngine : nil
+            // Switching away from Parakeet frees its cached CoreML models, matching
+            // the pre-cache memory behavior (the cache otherwise keeps one set per
+            // version resident for reuse by dictations and live preview).
+            if selectedEngine != "fluidaudio" {
+                await ParakeetModelCache.shared.evictAll()
+            }
             print("Engine loaded: \(selectedEngine)")
         case .failure(let error):
             currentEngine = nil

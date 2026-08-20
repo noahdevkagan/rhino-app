@@ -30,7 +30,10 @@ class FluidAudioEngine: TranscriptionEngine {
         let versionString = versionOverride ?? AppPreferences.shared.fluidAudioModelVersion
         let version: AsrModelVersion = versionString == "v2" ? .v2 : .v3
 
-        let models = try await AsrModels.downloadAndLoad(version: version)
+        // Shared model set (ParakeetModelCache): the engine, live preview, and the
+        // boosting path all reference one loaded copy per version instead of each
+        // building their own MLModel instances.
+        let models = try await ParakeetModelCache.shared.models(for: version)
         let manager = AsrManager(config: .default)
         try await manager.loadModels(models)
 
@@ -148,9 +151,12 @@ class FluidAudioEngine: TranscriptionEngine {
     /// never a microphone — `startStreaming(source:)` only records the source as metadata and opens
     /// no input device. `finish()` returns the merged transcript.
     private func transcribeFileWithBoosting(url: URL, boostTerms: [String]) async throws -> String {
-        let versionString = AppPreferences.shared.fluidAudioModelVersion
+        // Same override-aware version as initialize(), so the cached set the engine
+        // already holds is reused instead of loading a second full copy per
+        // dictation (the boosting path used to do exactly that).
+        let versionString = versionOverride ?? AppPreferences.shared.fluidAudioModelVersion
         let version: AsrModelVersion = versionString == "v2" ? .v2 : .v3
-        let models = try await AsrModels.downloadAndLoad(version: version)
+        let models = try await ParakeetModelCache.shared.models(for: version)
 
         let manager = SlidingWindowAsrManager(config: .default)
         try await configureVocabulary(on: manager, boostTerms: boostTerms)

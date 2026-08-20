@@ -387,6 +387,15 @@ class ContentViewModel: ObservableObject {
         blinkTimer = nil
         isBlinking = false
     }
+
+    deinit {
+        // The timers capture self weakly (no cycle), but a repeating timer left
+        // scheduled outlives its owner: the run loop retains it and it fires no-ops
+        // forever — one leaked pair per window closed mid-recording.
+        blinkTimer?.invalidate()
+        durationTimer?.invalidate()
+        errorDismissTimer?.invalidate()
+    }
 }
 
 struct ContentView: View {

@@ -2,6 +2,11 @@ import Foundation
 import AVFoundation
 import FluidAudio
 
+enum StreamingStartError: Error {
+    /// The input device reported a 0 Hz / 0-channel format (unplugged or mid-switch).
+    case noAudioInput
+}
+
 /// Drives live (streaming) transcription on the Parakeet/FluidAudio engine.
 ///
 /// Owns a `SlidingWindowAsrManager` plus its own microphone tap (an `AVAudioEngine`), running in
@@ -102,12 +107,41 @@ final class StreamingTranscriptionController: ObservableObject {
 
         let input = audioEngine.inputNode
         let format = input.outputFormat(forBus: 0)
+        // A vanished input device reports a 0 Hz format; installTap would raise an
+        // uncatchable NSException. Fail as a normal error so callers fall back to
+        // the file-based flow (same guard as SpectrumAnalyzer).
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            await teardownFailedStart()
+            throw StreamingStartError.noAudioInput
+        }
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
             bufferContinuation.yield(buffer)
         }
         audioEngine.prepare()
-        try audioEngine.start()
+        do {
+            try audioEngine.start()
+        } catch {
+            // Leave nothing half-armed: an orphaned tap crashes the next installTap,
+            // and an orphaned manager keeps a full ASR model set resident.
+            input.removeTap(onBus: 0)
+            await teardownFailedStart()
+            throw error
+        }
         isRunning = true
+    }
+
+    /// Releases everything a failed `start()` had already built. Without this the
+    /// tap/tasks/manager linger with `isRunning == false`, so `cancel()`/`finish()`
+    /// (which guard on `isRunning`) would never tear them down.
+    private func teardownFailedStart() async {
+        bufferContinuation?.finish()
+        bufferContinuation = nil
+        feederTask?.cancel()
+        feederTask = nil
+        updatesTask?.cancel()
+        updatesTask = nil
+        await manager?.cancel()
+        manager = nil
     }
 
     /// Stops streaming and returns the complete transcript (nil if streaming wasn't running).
@@ -134,8 +168,13 @@ final class StreamingTranscriptionController: ObservableObject {
     }
 
     private func stopAudio() {
+        // Remove the tap unconditionally: AVAudioEngine stops *itself* on a configuration
+        // change (AirPods disconnect, default-input switch, sleep), which leaves
+        // `isRunning == false` with the tap still installed — the next start()'s
+        // installTap on the same bus would then raise an uncatchable NSException.
+        // removeTap is a safe no-op when no tap is installed.
+        audioEngine.inputNode.removeTap(onBus: 0)
         if audioEngine.isRunning {
-            audioEngine.inputNode.removeTap(onBus: 0)
             audioEngine.stop()
         }
         bufferContinuation?.finish()

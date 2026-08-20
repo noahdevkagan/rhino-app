@@ -10,8 +10,15 @@ import SwiftUI
 import FluidAudio
 
 enum OnboardingShortcutOption: String, CaseIterable {
-    case keyCombination
+    case fn
     case rightOption
+
+    var modifierKey: ModifierKey {
+        switch self {
+        case .fn: return .fn
+        case .rightOption: return .rightOption
+        }
+    }
 }
 
 class OnboardingViewModel: ObservableObject {
@@ -21,14 +28,16 @@ class OnboardingViewModel: ObservableObject {
         }
     }
 
+    /// Writes the choice into `recordingTriggers` — the set ShortcutManager actually arms.
+    /// (An earlier version wrote the legacy `modifierOnlyHotkey` slot, which nothing reads
+    /// anymore: the picker looked functional but the trigger silently stayed the seeded
+    /// hold-Fn default, whatever the user chose.)
     @Published var selectedShortcut: OnboardingShortcutOption {
         didSet {
-            switch selectedShortcut {
-            case .keyCombination:
-                AppPreferences.shared.modifierOnlyHotkey = ModifierKey.none.rawValue
-            case .rightOption:
-                AppPreferences.shared.modifierOnlyHotkey = ModifierKey.rightOption.rawValue
-            }
+            var set = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+            set.triggers.removeAll { if case .modifier = $0 { return true } else { return false } }
+            set.add(.modifier(selectedShortcut.modifierKey))
+            AppPreferences.shared.recordingTriggers = set.json
             NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
         }
     }
@@ -38,6 +47,11 @@ class OnboardingViewModel: ObservableObject {
     @Published var isDownloading: Bool = false
     @Published var downloadProgress: Double = 0.0
     @Published var downloadingModelName: String?
+    /// Sub-caption under the Parakeet progress bar. The download reports real byte
+    /// progress, but the bar alone would sit full during the CoreML compile that
+    /// follows (minutes on first install) — the exact "is it stuck?" moment the
+    /// spinner used to create.
+    @Published var downloadPhaseText: String?
 
     private let modelManager = WhisperModelManager.shared
     private var downloadTask: Task<Void, Error>?
@@ -47,17 +61,12 @@ class OnboardingViewModel: ObservableObject {
         AppPreferences.shared.whisperLanguage = systemLanguage
         self.selectedLanguage = systemLanguage
 
-        let currentHotkey = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
-        if currentHotkey == .none && !AppPreferences.shared.hasCompletedOnboarding {
-            // Default to key combination mode. Single modifiers use the same Accessibility
-            // permission Rhino already needs for insertion, so they require no extra TCC grant.
-            self.selectedShortcut = .keyCombination
-            AppPreferences.shared.modifierOnlyHotkey = ModifierKey.none.rawValue
-            NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
-        } else {
-            self.selectedShortcut = currentHotkey == .rightOption ? .rightOption : .keyCombination
-        }
-        
+        // Reflect what's actually armed: a fresh install's trigger set is seeded to
+        // hold-Fn (AppPreferences.migrateRecordingTriggers), so the Fn card starts
+        // selected and the UI agrees with the key that really starts a recording.
+        let armed = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+        self.selectedShortcut = armed.modifiers.contains(.rightOption) ? .rightOption : .fn
+
         initializeUnifiedModels()
     }
 
@@ -217,13 +226,27 @@ class OnboardingViewModel: ObservableObject {
                     throw CancellationError()
                 }
                 
-                let models = try await AsrModels.downloadAndLoad(version: asrVersion)
-                
+                let models = try await AsrModels.downloadAndLoad(version: asrVersion) { [weak self] progress in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.isDownloading else { return }
+                        self.downloadProgress = progress.fractionCompleted
+                        if let index = self.unifiedModels.firstIndex(where: { $0.id == model.id }) {
+                            self.unifiedModels[index].downloadProgress = progress.fractionCompleted
+                        }
+                        if case .compiling = progress.phase {
+                            self.downloadPhaseText = "Optimizing for this Mac… (one-time, can take a few minutes)"
+                        } else {
+                            self.downloadPhaseText = nil
+                        }
+                    }
+                }
+
                 guard !Task.isCancelled else {
                     await MainActor.run {
                         self.isDownloading = false
                         self.downloadingModelName = nil
                         self.downloadProgress = 0.0
+                        self.downloadPhaseText = nil
                         if let index = self.unifiedModels.firstIndex(where: { $0.id == model.id }) {
                             self.unifiedModels[index].downloadProgress = 0.0
                         }
@@ -231,9 +254,10 @@ class OnboardingViewModel: ObservableObject {
                     throw CancellationError()
                 }
                 
+                await MainActor.run { downloadPhaseText = "Loading model…" }
                 let manager = AsrManager(config: .default)
                 try await manager.loadModels(models)
-                
+
                 await MainActor.run {
                     if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
                         unifiedModels[index].isDownloaded = true
@@ -243,6 +267,7 @@ class OnboardingViewModel: ObservableObject {
                     isDownloading = false
                     downloadingModelName = nil
                     downloadProgress = 1.0
+                    downloadPhaseText = nil
                 }
             } catch is CancellationError {
                 wasCancelled = true
@@ -250,6 +275,7 @@ class OnboardingViewModel: ObservableObject {
                     isDownloading = false
                     downloadingModelName = nil
                     downloadProgress = 0.0
+                    downloadPhaseText = nil
                     if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
                         unifiedModels[index].downloadProgress = 0.0
                     }
@@ -261,6 +287,7 @@ class OnboardingViewModel: ObservableObject {
                         isDownloading = false
                         downloadingModelName = nil
                         downloadProgress = 0.0
+                        downloadPhaseText = nil
                         if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
                             unifiedModels[index].downloadProgress = 0.0
                         }
@@ -270,6 +297,7 @@ class OnboardingViewModel: ObservableObject {
                         isDownloading = false
                         downloadingModelName = nil
                         downloadProgress = 0.0
+                        downloadPhaseText = nil
                         if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
                             unifiedModels[index].downloadProgress = 0.0
                         }
@@ -306,11 +334,13 @@ class OnboardingViewModel: ObservableObject {
         isDownloading = false
         downloadingModelName = nil
         downloadProgress = 0.0
+        downloadPhaseText = nil
     }
 }
 
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
+    @StateObject private var permissionsManager = PermissionsManager()
     @EnvironmentObject private var appState: AppState
     @State private var showError = false
     @State private var errorMessage = ""
@@ -366,41 +396,66 @@ struct OnboardingView: View {
             // Content - Scrollable area
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Shortcut Selection
+                    // Permissions — first, because nothing works without them, and
+                    // Accessibility needs Rhino to register itself in System Settings
+                    // before the user can even find it there.
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Shortcut")
+                        Text("Permissions")
                             .font(.headline)
                             .fontWeight(.semibold)
-                        
-                        Text("Choose how to trigger recording")
+
+                        Text("Rhino runs entirely on this Mac — these let it hear you and type for you")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
+                        OnboardingPermissionRow(
+                            isGranted: permissionsManager.isMicrophonePermissionGranted,
+                            icon: "mic.fill",
+                            title: "Microphone",
+                            detail: "To hear your dictation"
+                        ) {
+                            permissionsManager.requestMicrophonePermissionOrOpenSystemPreferences()
+                        }
+
+                        OnboardingPermissionRow(
+                            isGranted: permissionsManager.isAccessibilityPermissionGranted,
+                            icon: "keyboard.fill",
+                            title: "Accessibility",
+                            detail: "So the dictate key works everywhere and text lands in the app you're using"
+                        ) {
+                            permissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences()
+                        }
+                    }
+
+                    // Shortcut Selection
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Dictate key")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+
+                        Text("Hold it down to talk, release to insert the text")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
                         HStack(spacing: 8) {
                             OnboardingShortcutCard(
-                                title: "⌥ + ~",
-                                subtitle: "Key Combination",
-                                isSelected: viewModel.selectedShortcut == .keyCombination
+                                title: "fn",
+                                subtitle: "Hold fn (default)",
+                                isSelected: viewModel.selectedShortcut == .fn
                             ) {
-                                viewModel.selectedShortcut = .keyCombination
+                                viewModel.selectedShortcut = .fn
                             }
-                            
+
                             OnboardingShortcutCard(
                                 title: "Right ⌥",
-                                subtitle: "Single Modifier Key",
+                                subtitle: "Hold Right Option",
                                 isSelected: viewModel.selectedShortcut == .rightOption
                             ) {
                                 viewModel.selectedShortcut = .rightOption
                             }
                         }
-                        
-                        if viewModel.selectedShortcut == .rightOption {
-                            Text("Single modifier mode uses Rhino's Accessibility permission to watch only modifier presses — no regular keystrokes are captured.")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
 
-                        Text("You can change this later in Settings")
+                        Text("Rhino watches only this one key — never your typing. You can pick any key or combination later in Settings.")
                             .font(.caption2)
                             .foregroundColor(Color(.tertiaryLabelColor))
                     }
@@ -516,11 +571,6 @@ struct OnboardingUnifiedModelItemView: View {
         viewModel.selectedModelId == model.id
     }
     
-    var isParakeet: Bool {
-        if case .parakeet = model.type { return true }
-        return false
-    }
-    
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -540,11 +590,19 @@ struct OnboardingUnifiedModelItemView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                if viewModel.isDownloading && viewModel.downloadingModelName == model.name && isParakeet {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.7)
+                if viewModel.isDownloading && viewModel.downloadingModelName == model.name {
+                    // Determinate bar for every engine. Parakeet used to show a bare
+                    // spinner here (its download API looked progress-less), which read
+                    // as "stuck" during the multi-minute fetch + CoreML compile.
+                    ProgressView(value: min(model.downloadProgress, 1.0))
+                        .progressViewStyle(LinearProgressViewStyle())
+                        .frame(height: 6)
                         .padding(.top, 4)
+                    if let phase = viewModel.downloadPhaseText {
+                        Text(phase)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 } else if model.downloadProgress > 0 && model.downloadProgress < 1 {
                     ProgressView(value: model.downloadProgress)
                         .progressViewStyle(LinearProgressViewStyle())
@@ -616,6 +674,55 @@ struct OnboardingUnifiedModelItemView: View {
         } message: {
             Text(errorMessage)
         }
+    }
+}
+
+/// A live permission status row: green check once granted, an Enable button until then.
+/// Status updates come from PermissionsManager's polling plus its app-activation re-check,
+/// so granting in System Settings flips the row without relaunching.
+struct OnboardingPermissionRow: View {
+    let isGranted: Bool
+    let icon: String
+    let title: String
+    let detail: String
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundColor(.accentColor)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            if isGranted {
+                Label("Granted", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .labelStyle(.titleAndIcon)
+            } else {
+                Button("Enable") { action() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.controlBackgroundColor).opacity(0.5))
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isGranted ? Color.green.opacity(0.25) : Color.orange.opacity(0.35), lineWidth: 1)
+        )
     }
 }
 

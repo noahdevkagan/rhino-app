@@ -23,6 +23,29 @@ The durable "why" behind choices goes in `decisions.md`, not here.
   `PermissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences()`
   rather than a raw System Settings link.
 
+- **User-feedback round implemented (2026-08-19, uncommitted on
+  `crxnamja/hyderabad`):** all four items of the external user report are
+  code-complete and the Debug build passes. (1) Onboarding gained a
+  Permissions section (live mic/AX rows via `PermissionsManager`;
+  `requestAccessibilityPermissionOrOpenSystemPreferences()` now registers
+  Rhino in the AX pane via `AXIsProcessTrustedWithOptions(prompt)` +
+  deep-links it; re-checks on app activation). (2) Onboarding shortcut cards
+  were dead UI (wrote legacy `modifierOnlyHotkey`); now honest Fn / Right ⌥
+  cards writing `recordingTriggers`. (3) Parakeet downloads show real
+  progress (`AsrModels.downloadAndLoad(progressHandler:)`) in onboarding and
+  Settings, with an "Optimizing for this Mac…" caption during CoreML
+  compile. (4) Crash audit found + fixed two crash-grade bugs: streaming
+  controller's orphaned mic tap after audio-device changes (NSException on
+  next dictation) and WhisperEngine's abort-flag use-after-free on
+  cancel-vs-completion races; plus ContentViewModel timer invalidation in
+  deinit. See decisions.md 2026-08-19 entries. **Known, not yet fixed:**
+  per-dictation Parakeet CoreML model reloads (StreamingTranscription-
+  Controller.start / FluidAudioEngine boosting path) cause RSS churn that
+  reads as a leak; AudioRecorder start (detached) vs stop (main) race can
+  orphan a hot mic on a very fast press-release. Needs a visual pass of the
+  new onboarding (`DevConfig` force-onboarding or fresh defaults) before
+  shipping.
+
 ## Previous state (2026-08-18)
 
 - **Paul Stamatiou feedback round implemented (2026-08-18, uncommitted):**

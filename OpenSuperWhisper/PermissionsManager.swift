@@ -63,7 +63,19 @@ class PermissionsManager: ObservableObject {
             self?.stopPermissionChecking()
         }
 
-        windowObservers = [showObserver, closeObserver, hideObserver]
+        // Re-check the instant the user comes back from System Settings, so a fresh
+        // grant shows green immediately instead of after the next timer tick.
+        let activateObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.checkMicrophonePermission()
+            self?.checkAccessibilityPermission()
+            self?.checkGlobalEventListeningPermission()
+        }
+
+        windowObservers = [showObserver, closeObserver, hideObserver, activateObserver]
 
         if let window = NSApplication.shared.mainWindow, window.isKeyWindow {
             startPermissionChecking()

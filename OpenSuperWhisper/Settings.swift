@@ -81,6 +81,9 @@ class SettingsViewModel: ObservableObject {
     @Published var isDownloading: Bool = false
     @Published var downloadProgress: Double = 0.0
     @Published var downloadingModelName: String?
+    /// Sub-caption under the Parakeet progress bar while FluidAudio compiles the
+    /// downloaded CoreML models — the bar sits full there and would look stuck.
+    @Published var downloadPhaseText: String?
     private var downloadTask: Task<Void, Error>?
     
     @Published var selectedLanguage: String {
@@ -575,8 +578,9 @@ class SettingsViewModel: ObservableObject {
         isDownloading = false
         downloadingModelName = nil
         downloadProgress = 0.0
+        downloadPhaseText = nil
     }
-    
+
     @MainActor
     func downloadFluidAudioModel(_ model: SettingsFluidAudioModel) async throws {
         guard !isDownloading else { return }
@@ -607,20 +611,35 @@ class SettingsViewModel: ObservableObject {
                     throw CancellationError()
                 }
                 
-                let models = try await AsrModels.downloadAndLoad(version: version)
-                
+                let models = try await AsrModels.downloadAndLoad(version: version) { [weak self] progress in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.isDownloading else { return }
+                        self.downloadProgress = progress.fractionCompleted
+                        if let index = self.downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
+                            self.downloadableFluidAudioModels[index].downloadProgress = progress.fractionCompleted
+                        }
+                        if case .compiling = progress.phase {
+                            self.downloadPhaseText = "Optimizing for this Mac… (one-time, can take a few minutes)"
+                        } else {
+                            self.downloadPhaseText = nil
+                        }
+                    }
+                }
+
                 guard !Task.isCancelled else {
                     await MainActor.run {
                         self.isDownloading = false
                         self.downloadingModelName = nil
                         self.downloadProgress = 0.0
+                        self.downloadPhaseText = nil
                         if let index = self.downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
                             self.downloadableFluidAudioModels[index].downloadProgress = 0.0
                         }
                     }
                     throw CancellationError()
                 }
-                
+
+                await MainActor.run { downloadPhaseText = "Loading model…" }
                 let manager = AsrManager(config: .default)
                 try await manager.loadModels(models)
                 
@@ -635,6 +654,7 @@ class SettingsViewModel: ObservableObject {
                     isDownloading = false
                     downloadingModelName = nil
                     downloadProgress = 1.0
+                    downloadPhaseText = nil
                 }
             } catch is CancellationError {
                 wasCancelled = true
@@ -642,6 +662,7 @@ class SettingsViewModel: ObservableObject {
                     isDownloading = false
                     downloadingModelName = nil
                     downloadProgress = 0.0
+                    downloadPhaseText = nil
                     if let index = downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
                         downloadableFluidAudioModels[index].downloadProgress = 0.0
                     }
@@ -655,6 +676,7 @@ class SettingsViewModel: ObservableObject {
                         isDownloading = false
                         downloadingModelName = nil
                         downloadProgress = 0.0
+                        downloadPhaseText = nil
                         if let index = downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
                             downloadableFluidAudioModels[index].downloadProgress = 0.0
                         }
@@ -664,6 +686,7 @@ class SettingsViewModel: ObservableObject {
                         isDownloading = false
                         downloadingModelName = nil
                         downloadProgress = 0.0
+                        downloadPhaseText = nil
                         if let index = downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
                             downloadableFluidAudioModels[index].downloadProgress = 0.0
                         }
@@ -1762,10 +1785,17 @@ struct FluidAudioModelDownloadItemView: View {
                 .foregroundColor(.secondary)
 
                 if viewModel.isDownloading && viewModel.downloadingModelName == model.name {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.7)
+                    // Real byte progress (was a bare spinner that read as "stuck"
+                    // through the multi-minute download + CoreML compile).
+                    ProgressView(value: min(model.downloadProgress, 1.0))
+                        .progressViewStyle(LinearProgressViewStyle())
+                        .frame(height: 6)
                         .padding(.top, 4)
+                    if let phase = viewModel.downloadPhaseText {
+                        Text(phase)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 } else if model.downloadProgress > 0 && model.downloadProgress < 1 {
                     ProgressView(value: model.downloadProgress)
                         .progressViewStyle(LinearProgressViewStyle())

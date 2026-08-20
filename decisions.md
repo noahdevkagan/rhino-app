@@ -543,3 +543,41 @@ Events anymore. Also deleted dead `PermissionsView`/`PermissionRow` in
 ContentView (never instantiated). User-side fix for stale grants, for support
 replies: remove Rhino with "−" in Privacy & Security → Accessibility, re-add,
 relaunch.
+
+**2026-08-19 — Onboarding feedback round (external user report).** Three
+decisions. (1) *Onboarding gained a Permissions section* (mic + Accessibility
+live-status rows) and the Accessibility button now calls
+`AXIsProcessTrustedWithOptions(prompt)` before deep-linking the pane: macOS
+does not list an app under Privacy & Security → Accessibility until the app
+registers itself via that prompt, which is why the user "had to search
+around" — the toggle they needed didn't exist yet. `PermissionsManager` also
+re-checks on `NSApplication.didBecomeActive` so a grant flips the row the
+moment the user switches back from System Settings. (2) *The onboarding
+shortcut cards now write `recordingTriggers`* (the set ShortcutManager arms),
+replacing writes to the legacy `modifierOnlyHotkey` slot that nothing reads —
+the old cards were dead UI and the trigger silently stayed the seeded
+hold-Fn whatever the user picked. Cards are now honest: "Hold fn (default)" /
+"Hold Right ⌥". (3) *Parakeet downloads show a determinate progress bar*:
+`AsrModels.downloadAndLoad` has taken a `progressHandler` since FluidAudio
+0.15+, we just never passed one; the bare spinner read as "stuck" through a
+multi-minute download + CoreML compile. The compile phase gets an explicit
+"Optimizing for this Mac…" caption because the bar sits at 100% during it.
+
+**2026-08-19 — Two crash-grade fixes from the "randomly crashes / memory
+leak" report (no traces; found by code audit).** (1) *StreamingTranscription-
+Controller now removes its mic tap unconditionally in `stopAudio()`*:
+AVAudioEngine stops itself on a configuration change (AirPods disconnect,
+default-input switch), leaving `isRunning == false` with the tap still
+installed, and the next `installTap` on the same bus raises an uncatchable
+NSException — a crash on the dictation *after* the device change, which
+presents as "random". Same path also gained a 0 Hz-format guard (vanished
+input device) and a teardown for half-built starts, which previously leaked
+a full Parakeet model set per failed start. Only reachable with live preview
+on (Parakeet + opt-in). (2) *WhisperEngine's abort flag is now an
+ARC-managed `AbortFlag` class instead of a malloc'd `Bool` pointer*:
+`cancelTranscription()` (main thread) wrote `pointee = true` outside the
+lock while the transcription thread's `defer` deallocated the buffer — a
+1-byte write into freed heap on an Esc-cancel racing completion, i.e.
+delayed corruption crashes with unrelated-looking traces. Known but not
+fixed this round (see HANDOFF): per-dictation Parakeet model reloads (RSS
+churn), AudioRecorder start/stop cross-thread race (orphaned mic session).

@@ -346,6 +346,11 @@ struct OnboardingView: View {
     @State private var errorMessage = ""
     @State private var isVerifyingModel = false
 
+    /// Setup reads as a centered column, not full-bleed rows: at the window's real
+    /// widths (780–900+) full-width cards push each row's trailing control (Grant…,
+    /// Download) far from the text it belongs to.
+    private let contentWidth: CGFloat = 620
+
     var body: some View {
         // Same visual system as Settings (Atelier / grouped cells): STheme window
         // background, gray section labels above white cards. The old gradient-header
@@ -370,6 +375,7 @@ struct OnboardingView: View {
                 .pickerStyle(.menu)
                 .frame(width: 150)
             }
+            .frame(maxWidth: contentWidth)
             .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 10)
 
             ScrollView {
@@ -433,13 +439,14 @@ struct OnboardingView: View {
                         OnboardingCleanupOffer()
                     }
                 }
+                .frame(maxWidth: contentWidth, alignment: .leading)
                 .padding(.horizontal, 24).padding(.vertical, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
 
             Divider().overlay(STheme.border)
 
-            // Footer with Continue button
+            // Footer with Continue button, right-aligned to the same column as the cards.
             HStack {
                 Spacer()
                 Button(action: {
@@ -461,6 +468,7 @@ struct OnboardingView: View {
                 .controlSize(.large)
                 .disabled(!viewModel.canContinue || viewModel.isDownloading || isVerifyingModel)
             }
+            .frame(maxWidth: contentWidth)
             .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

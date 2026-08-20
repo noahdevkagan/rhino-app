@@ -427,21 +427,15 @@ struct OnboardingView: View {
                         }
 
                         // macOS also acts on a lone Fn press (emoji palette by factory
-                        // default) and Rhino's listen-only tap can't consume the event —
-                        // so offer the one-click fix Wispr Flow makes users do by hand.
+                        // default) and Rhino's listen-only tap can't consume the event.
+                        // Continue fixes the setting automatically; this line just
+                        // discloses it — a mid-setup question box was one decision too
+                        // many (user feedback).
                         if viewModel.selectedShortcut == .fn && fnGlobeConflict {
-                            SWarnBox {
-                                HStack(spacing: 12) {
-                                    Text("Your Mac also opens the emoji picker when Fn is pressed on its own — it would pop up on every dictation. Turn that off? Emoji stays available with ⌃⌘Space.")
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    Spacer(minLength: 0)
-                                    Button("Turn Off") {
-                                        FnGlobeKeySetting.setDoNothing()
-                                        fnGlobeConflict = FnGlobeKeySetting.conflictsWithFnTrigger
-                                    }
-                                    .controlSize(.small)
-                                }
-                            }
+                            Text("Finishing setup also stops Fn from opening the Mac's emoji picker, so it won't pop up while you dictate. Emoji stays available with ⌃⌘Space.")
+                                .scaledFont(size: 11)
+                                .foregroundColor(STheme.hint)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
 
                         Text("Rhino watches only this one key — never your typing. You can pick any key or combination later in Settings.")
@@ -542,6 +536,11 @@ struct OnboardingView: View {
                 errorMessage = "The selected model didn't load: \(failure)\n\nTry re-downloading it, or pick a different model."
                 showError = true
             } else {
+                // Committing to Fn as the dictate key: stop macOS from also opening
+                // the emoji palette on it (disclosed in the Dictate key section).
+                if viewModel.selectedShortcut == .fn && FnGlobeKeySetting.conflictsWithFnTrigger {
+                    FnGlobeKeySetting.setDoNothing()
+                }
                 appState.hasCompletedOnboarding = true
             }
         }

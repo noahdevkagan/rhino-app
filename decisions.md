@@ -597,3 +597,14 @@ the alternative card is now Right ⌘, not Right ⌥ — Right Option is AltGr
 Right Command means nothing as a lone press on any layout. Known remainder:
 Apple Dictation's double-press-🌐 shortcut can race Rhino's double-tap-lock
 when both are enabled — deliberately not auto-fixed this round.
+
+**2026-08-19 — The Fn emoji-picker fix is automatic at Continue, not a
+button (reverses the click-to-fix shape from earlier today).** Noah: the
+warn box with "Turn Off" was confusing — a mid-setup question about a
+system setting the user hasn't hit yet is one decision too many. Now
+finishing onboarding with Fn selected writes AppleFnUsageType=Do Nothing
+itself; the Dictate key section discloses it in a quiet hint line ("…also
+stops Fn from opening the Mac's emoji picker; emoji stays on ⌃⌘Space").
+Disclosure stays because silently rewriting a system pref is off-brand for
+a trust-first app — but the action needs no click. Reversible in System
+Settings → Keyboard.

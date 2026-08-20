@@ -1694,14 +1694,23 @@ struct OnboardingUnifiedModel: Identifiable {
     let description: String
     let type: OnboardingModelType
     var downloadProgress: Double = 0.0
+    var isRecommended = false
 }
 
 struct OnboardingUnifiedModels {
-    /// The three Whisper rows are the *same* model at three compression levels, not three model
-    /// sizes. They were labelled "Large", "Medium" and "Small", which reads as an accuracy
-    /// ladder and is not one: all three are large-v3-turbo, and someone who picked "Medium"
-    /// expecting the medium model got a compressed large instead.
+    /// First-run is a two-choice decision: the recommended Parakeet v3 or best-accuracy
+    /// Whisper. The list used to also offer Parakeet v2 and two compression variants of
+    /// the same Whisper model — five near-identical rows that read as an accuracy ladder
+    /// and stalled new users on a choice that barely matters. The trimmed variants remain
+    /// available in Settings → Models.
     static let availableModels = [
+        OnboardingUnifiedModel(
+            name: "Parakeet v3",
+            isDownloaded: false,
+            description: "Fastest processing and accurate",
+            type: .parakeet(version: "v3"),
+            isRecommended: true
+        ),
         OnboardingUnifiedModel(
             name: "Whisper Large v3 Turbo",
             isDownloaded: false,
@@ -1709,36 +1718,6 @@ struct OnboardingUnifiedModels {
             type: .whisper(
                 url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin?download=true")!,
                 size: 1624
-            )
-        ),
-        OnboardingUnifiedModel(
-            name: "Parakeet v3",
-            isDownloaded: false,
-            description: "Fastest processing and accurate",
-            type: .parakeet(version: "v3")
-        ),
-        OnboardingUnifiedModel(
-            name: "Parakeet v2",
-            isDownloaded: false,
-            description: "Fastest processing and English-only, higher recall",
-            type: .parakeet(version: "v2")
-        ),
-        OnboardingUnifiedModel(
-            name: "Whisper Large v3 Turbo (compressed)",
-            isDownloaded: false,
-            description: "Nearly the same accuracy, 874 MB",
-            type: .whisper(
-                url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q8_0.bin?download=true")!,
-                size: 874
-            )
-        ),
-        OnboardingUnifiedModel(
-            name: "Whisper Large v3 Turbo (smallest)",
-            isDownloaded: false,
-            description: "Most compressed, 574 MB",
-            type: .whisper(
-                url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin?download=true")!,
-                size: 574
             )
         ),
     ]

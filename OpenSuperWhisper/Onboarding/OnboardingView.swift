@@ -529,15 +529,16 @@ struct OnboardingUnifiedModelItemView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 8) {
                     Text(model.name)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    
-                    if model.isDownloaded {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .foregroundColor(.blue)
-                            .imageScale(.small)
+
+                    // No downloaded-arrow icon here: on first run it read as a badge or
+                    // button. The row's trailing state (Select / checkmark / Download)
+                    // already says whether the model is on this Mac.
+                    if model.isRecommended {
+                        STag("Recommended")
                     }
                 }
                 
@@ -702,8 +703,11 @@ struct OnboardingCleanupOffer: View {
             }
             Spacer()
             if downloaded {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                // Explicit state, not a bare checkmark — users tried to click the
+                // check expecting something to happen.
+                Label("On", systemImage: "checkmark.circle.fill")
+                    .scaledFont(size: 12, weight: .medium)
+                    .foregroundColor(STheme.ok)
             } else if let progress {
                 ProgressView(value: progress)
                     .frame(width: 90)

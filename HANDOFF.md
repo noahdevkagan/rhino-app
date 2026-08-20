@@ -5,33 +5,29 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-19)
+## Current state (2026-08-19, late)
 
-- **PR #26 open (`crxnamja/address-user-feedback`, stacked on PR #25):**
-  addresses the 4-item external user report + Noah's onboarding review.
-  Onboarding: live-permissions section (AX self-registration via prompt),
-  honest Fn / Right ⌘ trigger cards writing `recordingTriggers`, two-model
-  pick (Parakeet v3 RECOMMENDED / Whisper Large v3 Turbo) + separate
-  "Optional add-on" cleanup section, grouped-cell restyle, centered 620pt
-  column, window sized to fit scroll-free, Fn/emoji-picker conflict
-  auto-fixed at Continue (disclosed one-line; full story + undo in
-  Settings → Dictation footnote). Parakeet downloads show real progress
-  (onboarding + Settings). Crash fixes: streaming mic-tap orphaned after
-  audio-device changes (NSException on next dictation), WhisperEngine
-  abort-flag use-after-free on cancel-vs-completion, ContentViewModel timer
-  deinit. Full push gate passed. **Upgrade impact:** existing installs get
-  only the crash fixes, Settings Parakeet progress, and the Fn-emoji
-  footnote (informational — the auto-fix runs only at onboarding Continue);
-  all onboarding changes are fresh-install-only.
-- **PR #25 (`crxnamja/fix-auto-paste-insertion`) must land first** — #26
-  contains its commits and shrinks once it merges.
+- **Rhino v0.1.12 shipped:** immutable tag `v0.1.12` at release commit
+  `c1b630c`. Notarized app+DMG published to rhino-releases, signed appcast
+  updated, rhinovoice.app (thanks/AppSumo/changelog) verified live at 0.1.12.
+  Contains the full user-feedback round (PR #26, which also carried PR #25's
+  auto-paste/permissions fixes; #25 closed as superseded): onboarding
+  overhaul, Parakeet download progress, crash fixes (mic-tap NSException,
+  abort-flag use-after-free). Release gotcha discovered: a release touches
+  FOUR version pins — CHANGELOG.md, thanks/redeem pages, changelog page,
+  and website/tests/rendered-html.test.mjs (the tests hardcode the DMG name;
+  release.sh fails its website step if stale).
+- **PR #27 open (`crxnamja/parakeet-model-cache`):** fixes the
+  memory-growth half of the user report — FluidAudio rebuilds all CoreML
+  MLModels on every downloadAndLoad (no internal cache); live preview
+  reloaded per dictation and boosting loaded a second copy per
+  transcription. New ParakeetModelCache actor shares one set per version;
+  evicted on engine switch. Gate green; wants a manual RSS check across ~10
+  live-preview dictations before merge.
 
 ## Outstanding
 
-- Audit findings deliberately not fixed (design first): per-dictation
-  Parakeet CoreML model reloads (StreamingTranscriptionController.start /
-  FluidAudioEngine boosting path — RSS churn that reads as a leak);
-  AudioRecorder start (detached) vs stop (main) race (orphaned hot mic on
+- Audit findings still open: AudioRecorder start (detached) vs stop (main) race (orphaned hot mic on
   fast press-release); Apple Dictation double-press-🌐 racing double-tap-lock.
 - Crash reporter had no traces — ask if they run live preview (gates the
   mic-tap bug) and for Console.app crash reports if it recurs.
@@ -40,6 +36,5 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Next session
 
-Merge PR #25, then rebase/merge PR #26. After both land, pick up the
-deferred Parakeet model-reload fix (cache one loaded AsrModels across
-dictations) — it's the likeliest explanation for "feels like a memory leak".
+Manually verify PR #27 (dictate ~10 times with live preview on, watch RSS
+stay flat), then merge it and consider tagging v0.1.13.

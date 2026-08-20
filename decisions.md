@@ -581,3 +581,19 @@ lock while the transcription thread's `defer` deallocated the buffer — a
 delayed corruption crashes with unrelated-looking traces. Known but not
 fixed this round (see HANDOFF): per-dictation Parakeet model reloads (RSS
 churn), AudioRecorder start/stop cross-thread race (orphaned mic session).
+
+**2026-08-19 — Fn stays the default dictate key; onboarding disarms the
+emoji-picker conflict instead of switching keys.** macOS acts on a lone Fn
+press itself ("Press 🌐 key to" defaults to Show Emoji & Symbols), and
+Rhino's tap is listen-only by design, so it cannot swallow the press — a
+factory-default Mac pops the emoji palette on every Fn dictation. Rather
+than abandoning Fn (the category convention, best ergonomics), onboarding
+now detects the conflict (`AppleFnUsageType` in com.apple.HIToolbox, unset
+= emoji) and shows a warn box with a one-click "Turn Off" that writes
+Do Nothing (0) via CFPreferences — the fix Wispr Flow makes users do by
+hand. Only ever written on explicit click; emoji stays on ⌃⌘Space. Also:
+the alternative card is now Right ⌘, not Right ⌥ — Right Option is AltGr
+(€ @ #) on European layouts, so it silently broke international typing;
+Right Command means nothing as a lone press on any layout. Known remainder:
+Apple Dictation's double-press-🌐 shortcut can race Rhino's double-tap-lock
+when both are enabled — deliberately not auto-fixed this round.

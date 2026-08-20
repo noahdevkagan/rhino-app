@@ -11,12 +11,15 @@ import FluidAudio
 
 enum OnboardingShortcutOption: String, CaseIterable {
     case fn
-    case rightOption
+    // Right ⌘, not Right ⌥: on European layouts Right Option is AltGr (€ @ #),
+    // so offering it as the alternative broke typing for international users.
+    // Right Command has no meaning as a lone press on any layout.
+    case rightCommand
 
     var modifierKey: ModifierKey {
         switch self {
         case .fn: return .fn
-        case .rightOption: return .rightOption
+        case .rightCommand: return .rightCommand
         }
     }
 }
@@ -65,7 +68,7 @@ class OnboardingViewModel: ObservableObject {
         // hold-Fn (AppPreferences.migrateRecordingTriggers), so the Fn card starts
         // selected and the UI agrees with the key that really starts a recording.
         let armed = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
-        self.selectedShortcut = armed.modifiers.contains(.rightOption) ? .rightOption : .fn
+        self.selectedShortcut = armed.modifiers.contains(.rightCommand) ? .rightCommand : .fn
 
         initializeUnifiedModels()
     }
@@ -345,6 +348,7 @@ struct OnboardingView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var isVerifyingModel = false
+    @State private var fnGlobeConflict = FnGlobeKeySetting.conflictsWithFnTrigger
 
     /// Setup reads as a centered column, not full-bleed rows: at the window's real
     /// widths (780–900+) full-width cards push each row's trailing control (Grant…,
@@ -414,11 +418,29 @@ struct OnboardingView: View {
                             }
 
                             OnboardingShortcutCard(
-                                title: "Right ⌥",
-                                subtitle: "Hold Right Option",
-                                isSelected: viewModel.selectedShortcut == .rightOption
+                                title: "Right ⌘",
+                                subtitle: "Hold Right Command",
+                                isSelected: viewModel.selectedShortcut == .rightCommand
                             ) {
-                                viewModel.selectedShortcut = .rightOption
+                                viewModel.selectedShortcut = .rightCommand
+                            }
+                        }
+
+                        // macOS also acts on a lone Fn press (emoji palette by factory
+                        // default) and Rhino's listen-only tap can't consume the event —
+                        // so offer the one-click fix Wispr Flow makes users do by hand.
+                        if viewModel.selectedShortcut == .fn && fnGlobeConflict {
+                            SWarnBox {
+                                HStack(spacing: 12) {
+                                    Text("Your Mac also opens the emoji picker when Fn is pressed on its own — it would pop up on every dictation. Turn that off? Emoji stays available with ⌃⌘Space.")
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Spacer(minLength: 0)
+                                    Button("Turn Off") {
+                                        FnGlobeKeySetting.setDoNothing()
+                                        fnGlobeConflict = FnGlobeKeySetting.conflictsWithFnTrigger
+                                    }
+                                    .controlSize(.small)
+                                }
                             }
                         }
 

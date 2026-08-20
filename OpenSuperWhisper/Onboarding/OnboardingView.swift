@@ -428,17 +428,17 @@ struct OnboardingView: View {
 
                         // macOS also acts on a lone Fn press (emoji palette by factory
                         // default) and Rhino's listen-only tap can't consume the event.
-                        // Continue fixes the setting automatically; this line just
-                        // discloses it — a mid-setup question box was one decision too
-                        // many (user feedback).
+                        // Continue fixes the setting automatically; onboarding keeps the
+                        // whisper-short version and Settings → Dictation carries the full
+                        // explanation (copy trimmed per Noah, 2026-08-19).
                         if viewModel.selectedShortcut == .fn && fnGlobeConflict {
-                            Text("Finishing setup also stops Fn from opening the Mac's emoji picker, so it won't pop up while you dictate. Emoji stays available with ⌃⌘Space.")
+                            Text("Emoji stays available with ⌃⌘Space.")
                                 .scaledFont(size: 11)
                                 .foregroundColor(STheme.hint)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
 
-                        Text("Rhino watches only this one key — never your typing. You can pick any key or combination later in Settings.")
+                        Text("You can pick any key or combination later in Settings.")
                             .scaledFont(size: 11)
                             .foregroundColor(STheme.hint)
                     }

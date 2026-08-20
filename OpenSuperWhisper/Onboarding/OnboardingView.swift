@@ -480,8 +480,9 @@ struct OnboardingView: View {
         }
     }
 
-    /// Same row Settings → Dictation → Permissions uses: green check when granted,
-    /// a Grant button when not.
+    /// Same row layout as Settings → Dictation → Permissions. The button is a
+    /// prominent "Enable" here (Settings uses a quiet "Grant…"): on a setup screen
+    /// these are the required next actions, not a repair tool.
     private func onboardingPermissionRow(granted: Bool,
                                          title: LocalizedStringKey,
                                          hint: LocalizedStringKey,
@@ -492,7 +493,8 @@ struct OnboardingView: View {
                     .scaledFont(size: 12, weight: .medium)
                     .foregroundColor(STheme.ok)
             } else {
-                Button("Grant…", action: grant)
+                Button("Enable", action: grant)
+                    .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             }
         }

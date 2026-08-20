@@ -54,7 +54,9 @@ final class StreamingTranscriptionController: ObservableObject {
 
         let versionString = AppPreferences.shared.fluidAudioModelVersion
         let version: AsrModelVersion = versionString == "v2" ? .v2 : .v3
-        let models = try await AsrModels.downloadAndLoad(version: version)
+        // Cached model set: this used to reload the full CoreML set per live-preview
+        // dictation — the biggest source of "memory keeps growing" reports.
+        let models = try await ParakeetModelCache.shared.models(for: version)
 
         // Small windows so a rough preview appears quickly (the default 11–15s window emits
         // nothing for short dictations). First text lands at ~chunk+right ≈ 1.3s, then the

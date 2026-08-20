@@ -347,95 +347,56 @@ struct OnboardingView: View {
     @State private var isVerifyingModel = false
 
     var body: some View {
+        // Same visual system as Settings (Atelier / grouped cells): STheme window
+        // background, gray section labels above white cards. The old gradient-header
+        // look predated the light-only restyle and read as a different app.
         VStack(spacing: 0) {
-            // Header with gradient background
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Welcome to")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    // .primary, not .white: the app renders light-only (white-first
-                    // restyle), so a white title vanishes into the header.
-                    Text("Rhino")
-                        .scaledFont(size: 32, weight: .bold)
-                        .foregroundStyle(.primary)
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Welcome to Rhino")
+                        .scaledFont(size: 19, weight: .bold)
+                        .foregroundColor(STheme.textBright)
+                    Text("Dictate anywhere on your Mac — everything stays on it")
+                        .scaledFont(size: 11)
+                        .foregroundColor(STheme.hint)
                 }
-                .padding(.bottom, 8)
-                
-                // Language Selection
-                HStack(spacing: 8) {
-                    
-                    Picker("Language", selection: $viewModel.selectedLanguage) {
-                        ForEach(LanguageUtil.availableLanguages, id: \.self) { code in
-                            Text(LanguageUtil.languageNames[code] ?? code)
-                                .tag(code)
-                        }
+                Spacer()
+                Picker("Language", selection: $viewModel.selectedLanguage) {
+                    ForEach(LanguageUtil.availableLanguages, id: \.self) { code in
+                        Text(LanguageUtil.languageNames[code] ?? code)
+                            .tag(code)
                     }
-                    .pickerStyle(.menu)
-                    .frame(width: 150)
                 }
+                .pickerStyle(.menu)
+                .frame(width: 150)
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.05),
-                        Color.white.opacity(0.03),
-                        Color.clear
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            
-            Divider()
-            
-            // Content - Scrollable area
+            .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 10)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Permissions — first, because nothing works without them, and
                     // Accessibility needs Rhino to register itself in System Settings
-                    // before the user can even find it there.
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Permissions")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-
-                        Text("Rhino runs entirely on this Mac — these let it hear you and type for you")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        OnboardingPermissionRow(
-                            isGranted: permissionsManager.isMicrophonePermissionGranted,
-                            icon: "mic.fill",
+                    // before the user can even find it there. Rows mirror Settings →
+                    // Dictation → Permissions so the two surfaces read as one app.
+                    SSection(title: "Permissions") {
+                        onboardingPermissionRow(
+                            granted: permissionsManager.isMicrophonePermissionGranted,
                             title: "Microphone",
-                            detail: "To hear your dictation"
-                        ) {
+                            hint: "To hear your dictation. Audio never leaves this Mac.") {
                             permissionsManager.requestMicrophonePermissionOrOpenSystemPreferences()
                         }
-
-                        OnboardingPermissionRow(
-                            isGranted: permissionsManager.isAccessibilityPermissionGranted,
-                            icon: "keyboard.fill",
+                        onboardingPermissionRow(
+                            granted: permissionsManager.isAccessibilityPermissionGranted,
                             title: "Accessibility",
-                            detail: "So the dictate key works everywhere and text lands in the app you're using"
-                        ) {
+                            hint: "So the dictate key works everywhere and text lands in the app you're using.") {
                             permissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences()
                         }
                     }
 
-                    // Shortcut Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Dictate key")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-
+                    SSection(title: "Dictate key") {
                         Text("Hold it down to talk, release to insert the text")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .scaledFont(size: 13)
+                            .foregroundColor(STheme.text)
 
                         HStack(spacing: 8) {
                             OnboardingShortcutCard(
@@ -456,37 +417,28 @@ struct OnboardingView: View {
                         }
 
                         Text("Rhino watches only this one key — never your typing. You can pick any key or combination later in Settings.")
-                            .font(.caption2)
-                            .foregroundColor(Color(.tertiaryLabelColor))
+                            .scaledFont(size: 11)
+                            .foregroundColor(STheme.hint)
                     }
-                    
-                    // Model Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Model")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
+
+                    SSection(title: "Model") {
                         Text("Download a model to get started")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
-                        VStack(spacing: 8) {
-                            ForEach($viewModel.unifiedModels) { $model in
-                                OnboardingUnifiedModelItemView(model: $model, viewModel: viewModel)
-                            }
+                            .scaledFont(size: 13)
+                            .foregroundColor(STheme.text)
+
+                        ForEach($viewModel.unifiedModels) { $model in
+                            OnboardingUnifiedModelItemView(model: $model, viewModel: viewModel)
                         }
 
                         OnboardingCleanupOffer()
-                            .padding(.top, 4)
-
                     }
                 }
-                .padding(12)
+                .padding(.horizontal, 24).padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            
-            Divider()
-            
+
+            Divider().overlay(STheme.border)
+
             // Footer with Continue button
             HStack {
                 Spacer()
@@ -512,26 +464,29 @@ struct OnboardingView: View {
             .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            ZStack {
-                Color(.windowBackgroundColor)
-                
-                // Subtle gradient overlay
-                LinearGradient(
-                    colors: [
-                        Color.blue.opacity(0.02),
-                        Color.clear,
-                        Color.purple.opacity(0.02)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        )
+        .background(STheme.windowBg)
         .alert("Model Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)
+        }
+    }
+
+    /// Same row Settings → Dictation → Permissions uses: green check when granted,
+    /// a Grant button when not.
+    private func onboardingPermissionRow(granted: Bool,
+                                         title: LocalizedStringKey,
+                                         hint: LocalizedStringKey,
+                                         grant: @escaping () -> Void) -> some View {
+        SRow(title: title, hint: hint) {
+            if granted {
+                Label("Granted", systemImage: "checkmark.circle.fill")
+                    .scaledFont(size: 12, weight: .medium)
+                    .foregroundColor(STheme.ok)
+            } else {
+                Button("Grant…", action: grant)
+                    .controlSize(.small)
+            }
         }
     }
 
@@ -653,15 +608,16 @@ struct OnboardingUnifiedModelItemView: View {
                 .disabled(viewModel.isDownloading)
             }
         }
-        .padding(14)
+        .padding(12)
+        // Inset surface inside the white section cell, same as Settings' model rows:
+        // the selected model gets the soft accent tint so the choice reads at a glance.
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isSelected ? Color(.controlBackgroundColor).opacity(0.8) : Color(.controlBackgroundColor).opacity(0.5))
-                .shadow(color: isSelected ? Color.blue.opacity(0.2) : Color.black.opacity(0.05), radius: isSelected ? 8 : 4, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(isSelected ? STheme.accentSoft : STheme.windowBg)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(isSelected ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(isSelected ? STheme.accent.opacity(0.4) : STheme.border, lineWidth: 1)
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -677,83 +633,34 @@ struct OnboardingUnifiedModelItemView: View {
     }
 }
 
-/// A live permission status row: green check once granted, an Enable button until then.
-/// Status updates come from PermissionsManager's polling plus its app-activation re-check,
-/// so granting in System Settings flips the row without relaunching.
-struct OnboardingPermissionRow: View {
-    let isGranted: Bool
-    let icon: String
-    let title: String
-    let detail: String
-    let action: () -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .foregroundColor(.accentColor)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(detail)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer()
-            if isGranted {
-                Label("Granted", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(.green)
-                    .labelStyle(.titleAndIcon)
-            } else {
-                Button("Enable") { action() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.controlBackgroundColor).opacity(0.5))
-                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(isGranted ? Color.green.opacity(0.25) : Color.orange.opacity(0.35), lineWidth: 1)
-        )
-    }
-}
-
 struct OnboardingShortcutCard: View {
     let title: String
     let subtitle: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
+                    .scaledFont(size: 13, weight: .semibold)
+                    .foregroundColor(STheme.textBright)
+
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .scaledFont(size: 11)
+                    .foregroundColor(STheme.hint)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .padding(.horizontal, 8)
+            // Same selected/idle surfaces as the model rows (copper tint, hairline).
             .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? Color(.controlBackgroundColor).opacity(0.8) : Color(.controlBackgroundColor).opacity(0.5))
-                    .shadow(color: isSelected ? Color.blue.opacity(0.2) : Color.black.opacity(0.05), radius: isSelected ? 8 : 4, x: 0, y: 2)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(isSelected ? STheme.accentSoft : STheme.windowBg)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(isSelected ? STheme.accent.opacity(0.4) : STheme.border, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -778,18 +685,19 @@ struct OnboardingCleanupOffer: View {
         HStack(spacing: 10) {
             Image(systemName: "wand.and.stars")
                 .scaledFont(size: 16)
-                .foregroundColor(.accentColor)
+                .foregroundColor(STheme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Punctuation & cleanup — recommended")
                     .scaledFont(size: 13, weight: .semibold)
+                    .foregroundColor(STheme.textBright)
                 Text(downloaded
                      ? "On: dictations come out tidy — punctuation, casing, numbers as digits. Runs on this Mac."
                      : "Tidies punctuation, casing, and numbers with an on-device model (~1 GB, one-time download). Your words never leave this Mac.")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .scaledFont(size: 11)
+                    .foregroundColor(STheme.hint)
                     .fixedSize(horizontal: false, vertical: true)
                 if let error {
-                    Text(error).font(.caption2).foregroundColor(.red)
+                    Text(error).scaledFont(size: 11).foregroundColor(.red)
                 }
             }
             Spacer()
@@ -820,10 +728,14 @@ struct OnboardingCleanupOffer: View {
                 .controlSize(.small)
             }
         }
-        .padding(10)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.accentColor.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(STheme.windowBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(STheme.border, lineWidth: 1)
         )
     }
 }

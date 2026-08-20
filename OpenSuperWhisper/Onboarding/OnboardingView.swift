@@ -510,9 +510,12 @@ struct OnboardingView: View {
                     .scaledFont(size: 12, weight: .medium)
                     .foregroundColor(STheme.ok)
             } else {
-                Button("Enable", action: grant)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                Button(action: grant) {
+                    Text("Enable")
+                        .frame(minWidth: 64)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
             }
         }
     }

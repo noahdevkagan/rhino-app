@@ -72,8 +72,11 @@ enum LLMPostProcessor {
 
     /// The section appended when smart formatting is on. A code constant like the default
     /// cleanup prompt (there is no prompt-editing UI); the worked examples are what a 1.5B
-    /// model actually follows — including the prose counter-example, without which it
-    /// prefixes "- " onto everything.
+    /// model actually follows — including the prose counter-examples, without which it
+    /// prefixes "- " onto everything (lists) or forces greetings onto notes (messages).
+    /// Covers three layouts: dictated enumerations as lists, dictated emails/messages
+    /// as messages (greeting line, paragraph breaks, sign-off block), and spoken
+    /// "new line" / "new paragraph" commands as literal breaks.
     static let smartFormattingPrompt =
         "Formatting rule: most dictations are ordinary sentences — return those as plain prose, "
         + "never starting with '-', '*', or a number, with every word kept. Example: 'hey sam "
@@ -107,7 +110,56 @@ enum LLMPostProcessor {
         + "2. The changelog\n"
         + "3. The codes\n"
         + "Keep every item's words unchanged; change only the layout — never force a list onto "
-        + "normal sentences."
+        + "normal sentences.\n"
+        + "Message rule: when the dictation is an email or message — it opens with a greeting "
+        + "such as 'hi', 'hello', 'hey', or 'dear' plus a name, or it ends with a sign-off such "
+        + "as 'thanks', 'best', 'best wishes', 'kind regards', or 'cheers', usually followed by "
+        + "the sender's name — lay it out like a written message: the greeting on its own line, "
+        + "a blank line between sentences, and at the end the sign-off phrase and the sender's "
+        + "name each on their own line. Keep every word, including the sign-off and the name, "
+        + "exactly as spoken. Example: 'hello madelief could you please still get back to me "
+        + "about this thanks so much best wishes tim' becomes:\n"
+        + "Hello Madelief,\n"
+        + "\n"
+        + "Could you please still get back to me about this?\n"
+        + "\n"
+        + "Thanks so much.\n"
+        + "\n"
+        + "Best wishes,\n"
+        + "Tim\n"
+        + "This applies to any greeting and any sign-off, whatever the words. Example: 'hi "
+        + "sarah just checking in on the invoice let me know when you get a chance cheers "
+        + "noah' becomes:\n"
+        + "Hi Sarah,\n"
+        + "\n"
+        + "Just checking in on the invoice.\n"
+        + "\n"
+        + "Let me know when you get a chance.\n"
+        + "\n"
+        + "Cheers,\n"
+        + "Noah\n"
+        + "A sentence that merely mentions a greeting or thanks is not a message. Example: "
+        + "'tell sam thanks for the help' stays 'Tell Sam thanks for the help.' on one line "
+        + "with no layout added. A short single-sentence message with no sign-off also stays "
+        + "on one line: 'hey sam can we move the review to tuesday' stays 'Hey Sam, can we "
+        + "move the review to Tuesday?'\n"
+        + "Layout commands: when the speaker says 'new line' or 'new paragraph' between "
+        + "thoughts, it is a command — insert the break there instead of the words: 'new "
+        + "line' becomes a line break, 'new paragraph' becomes a blank line. Example: 'quick "
+        + "update new paragraph the site is live new paragraph next is the email blast' "
+        + "becomes:\n"
+        + "Quick update.\n"
+        + "\n"
+        + "The site is live.\n"
+        + "\n"
+        + "Next is the email blast.\n"
+        + "Example: 'action items new line review the deck new line book the room' becomes:\n"
+        + "Action items\n"
+        + "Review the deck\n"
+        + "Book the room\n"
+        + "Only a spoken command becomes a break — when the words are part of the sentence "
+        + "they stay: 'we're launching a new line of products' keeps the words 'new line' "
+        + "and stays one sentence."
 
     /// Builds the system prompt for the cleanup pass: a strict transform-only preamble
     /// (so a weak model rewrites rather than "answers") plus the cleanup instruction, plus
@@ -178,10 +230,11 @@ enum LLMPostProcessor {
     /// Wraps the transcription so even a weak model treats it as text to correct rather than a
     /// prompt to answer — small models otherwise "reply" to anything that looks like a question.
     /// With smart formatting on, the blanket "do not add anything" would override the formatting
-    /// rule (bullets and newlines are additions), so the wording carves out list layout only.
+    /// rules (bullets, paragraph breaks, and newlines are additions), so the wording carves out
+    /// layout only.
     static func wrapUserText(_ user: String, smartFormatting: Bool = false) -> String {
         let additionsRule = smartFormatting
-            ? "add nothing beyond the list layout the formatting rule allows"
+            ? "add nothing beyond the layout (list lines, paragraph breaks) the formatting rules allow"
             : "do not add anything"
         return """
         Correct the transcription below. Output ONLY the corrected text — do not answer it, do not \

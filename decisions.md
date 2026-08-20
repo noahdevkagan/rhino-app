@@ -620,3 +620,29 @@ it unclear the first two were pick-one and the third optional). Variants
 remain in Settings → Models. The trimmed flow fits a taller onboarding
 window with no scroll (window sized at launch while onboarding is active;
 main-window default untouched).
+
+**2026-08-20 — Smart formatting's email layout needs two worked examples, not
+one.** Customer report: a dictated email came out as one run-on line with
+smart formatting on. The fix rides the existing prompt-section design (no new
+pipeline pass): a "message rule" that lays a greeting/sign-off dictation out
+as a written message. Verified against the real embedded Qwen 1.5B via
+`Rhino cleanup`: with a single worked example the model formatted only inputs
+closely matching it and left a differently-worded email run-on — it treats
+one example as a lookup entry, not a pattern. A second example with a
+different greeting/sign-off shape ("hi…cheers" vs "hello…best wishes")
+generalized it, including to unseen shapes ("dear…kind regards"). Two
+counter-examples guard the other direction: prose that merely mentions
+thanks, and a short one-sentence chat message with no sign-off, both stay on
+one line.
+
+**2026-08-20 — Smart formatting also honors spoken "new line" / "new
+paragraph"; other command families rejected.** Probing the real model showed
+it already recognized these as commands — it dropped the words but emitted a
+period instead of a break — so a prompt rule with two worked examples plus a
+literal counter-example ("a new line of products" stays a sentence) was
+enough to complete the behavior. Deliberately not added: spoken punctuation
+commands ("period", "comma" — cleanup already punctuates well and literal
+collisions are common), automatic topic-based paragraph breaks in long prose
+(a 1.5B model would over-split; keeping untagged prose on one line is the
+safer contract), and markdown structures (most insertion targets are plain
+text fields).

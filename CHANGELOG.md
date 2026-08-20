@@ -3,6 +3,18 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.13 — 2026-08-20
+
+- Smart formatting now lays dictated emails out as emails — greeting on its
+  own line, a blank line between thoughts, sign-off and name on their own
+  lines — instead of one long run-on line.
+- Say "new line" or "new paragraph" while dictating (with smart formatting
+  on) to insert real breaks. Sentences that just happen to contain those
+  words are left alone.
+- Memory no longer climbs dictation after dictation with Parakeet: the
+  speech model is loaded once and reused, instead of being rebuilt for every
+  dictation and live preview.
+
 ## 0.1.12 — 2026-08-19
 
 - First-time setup now walks you through the two permissions Rhino needs,

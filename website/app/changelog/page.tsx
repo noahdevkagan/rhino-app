@@ -1,5 +1,14 @@
 const releases = [
   {
+    version: "0.1.13",
+    date: "August 20, 2026",
+    changes: [
+      "Smart formatting now lays dictated emails out as emails — greeting on its own line, a blank line between thoughts, sign-off and name on their own lines — instead of one long run-on line.",
+      "Say “new line” or “new paragraph” while dictating (with smart formatting on) to insert real breaks. Sentences that just happen to contain those words are left alone.",
+      "Memory no longer climbs dictation after dictation with Parakeet: the speech model is loaded once and reused, instead of being rebuilt for every dictation and live preview.",
+    ],
+  },
+  {
     version: "0.1.12",
     date: "August 19, 2026",
     changes: [

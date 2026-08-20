@@ -426,32 +426,33 @@ struct OnboardingView: View {
                             }
                         }
 
-                        // macOS also acts on a lone Fn press (emoji palette by factory
-                        // default) and Rhino's listen-only tap can't consume the event.
-                        // Continue fixes the setting automatically; onboarding keeps the
-                        // whisper-short version and Settings → Dictation carries the full
-                        // explanation (copy trimmed per Noah, 2026-08-19).
-                        if viewModel.selectedShortcut == .fn && fnGlobeConflict {
-                            Text("Emoji stays available with ⌃⌘Space.")
-                                .scaledFont(size: 11)
-                                .foregroundColor(STheme.hint)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-
-                        Text("You can pick any key or combination later in Settings.")
+                        // One sentence, one line (Noah). The emoji clause appears only when
+                        // Continue will actually rewrite the Mac's Fn behavior — macOS acts
+                        // on a lone Fn press by factory default and Rhino's listen-only tap
+                        // can't consume it, so setup fixes the setting automatically.
+                        // Settings → Dictation carries the full explanation.
+                        Text(viewModel.selectedShortcut == .fn && fnGlobeConflict
+                             ? "Emoji stays available with ⌃⌘Space, and you can pick any key or combination later in Settings."
+                             : "You can pick any key or combination later in Settings.")
                             .scaledFont(size: 11)
                             .foregroundColor(STheme.hint)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    SSection(title: "Model") {
-                        Text("Download a model to get started")
+                    // Two sections, not one list: the models are a pick-ONE choice and
+                    // the cleanup pass is a separate optional add-on — in one card the
+                    // three rows read as three peers (user feedback).
+                    SSection(title: "Speech model") {
+                        Text("Pick one to get started — you can switch anytime")
                             .scaledFont(size: 13)
                             .foregroundColor(STheme.text)
 
                         ForEach($viewModel.unifiedModels) { $model in
                             OnboardingUnifiedModelItemView(model: $model, viewModel: viewModel)
                         }
+                    }
 
+                    SSection(title: "Optional add-on") {
                         OnboardingCleanupOffer()
                     }
                 }
@@ -719,9 +720,12 @@ struct OnboardingCleanupOffer: View {
                 .scaledFont(size: 16)
                 .foregroundColor(STheme.accent)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Punctuation & cleanup — recommended")
-                    .scaledFont(size: 13, weight: .semibold)
-                    .foregroundColor(STheme.textBright)
+                HStack(spacing: 8) {
+                    Text("Punctuation & cleanup")
+                        .scaledFont(size: 13, weight: .semibold)
+                        .foregroundColor(STheme.textBright)
+                    STag("Recommended")
+                }
                 Text(downloaded
                      ? "On: dictations come out tidy — punctuation, casing, numbers as digits. Runs on this Mac."
                      : "Tidies punctuation, casing, and numbers with an on-device model (~1 GB, one-time download). Your words never leave this Mac.")

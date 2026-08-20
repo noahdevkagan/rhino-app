@@ -3,6 +3,29 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.12 — 2026-08-19
+
+- First-time setup now walks you through the two permissions Rhino needs,
+  with live status — and it registers Rhino in the Accessibility list for
+  you, so the toggle is right there instead of a hunt through System
+  Settings.
+- Setup is simpler: pick one of two speech models (Parakeet v3 is
+  recommended), with punctuation cleanup as a clearly optional add-on. The
+  other model variants still live in Settings → Models.
+- The dictate-key choice in setup now actually applies — it silently stayed
+  Fn before, whatever you picked. The alternative key is now Right ⌘.
+- After setup, pressing Fn no longer pops the Mac's emoji picker
+  mid-dictation. Emoji stays available with ⌃⌘Space; undo anytime in
+  System Settings → Keyboard.
+- Parakeet downloads show a real progress bar, plus a note while the model
+  is optimized for your Mac — no more wondering if the spinner is stuck.
+- Fixed a crash that could hit the next dictation after AirPods or your
+  microphone changed, and a rare crash when cancelling with Esc just as a
+  transcription finished.
+- Dictations no longer vanish silently when the Accessibility grant has
+  gone stale: the text stays on the clipboard with a notice explaining the
+  one-time fix, and Settings → Dictation shows live permission status.
+
 ## 0.1.11 — 2026-08-19
 
 - First-time setup no longer fails with a "TranscriptionError error 0" dialog

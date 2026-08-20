@@ -171,6 +171,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             if AppPreferences.shared.startHidden && AppPreferences.shared.hasCompletedOnboarding {
                 window.orderOut(nil)
                 NSApplication.shared.setActivationPolicy(.accessory)
+            } else if !AppPreferences.shared.hasCompletedOnboarding {
+                // Setup fits without scrolling: the trimmed flow is ~800pt tall (~860 with
+                // the Fn-conflict notice), but the scene default (640) was sized for the
+                // main window. Clamp to the screen so small displays still fit; the
+                // ScrollView stays as the fallback.
+                let visible = (window.screen ?? NSScreen.main)?.visibleFrame.height ?? 860
+                window.setContentSize(NSSize(width: 900, height: min(860, visible - 24)))
+                window.center()
             }
         }
 

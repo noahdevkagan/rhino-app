@@ -81,6 +81,9 @@ class SettingsViewModel: ObservableObject {
     @Published var isDownloading: Bool = false
     @Published var downloadProgress: Double = 0.0
     @Published var downloadingModelName: String?
+    /// Sub-caption under the Parakeet progress bar while FluidAudio compiles the
+    /// downloaded CoreML models — the bar sits full there and would look stuck.
+    @Published var downloadPhaseText: String?
     private var downloadTask: Task<Void, Error>?
     
     @Published var selectedLanguage: String {
@@ -575,8 +578,9 @@ class SettingsViewModel: ObservableObject {
         isDownloading = false
         downloadingModelName = nil
         downloadProgress = 0.0
+        downloadPhaseText = nil
     }
-    
+
     @MainActor
     func downloadFluidAudioModel(_ model: SettingsFluidAudioModel) async throws {
         guard !isDownloading else { return }
@@ -607,20 +611,35 @@ class SettingsViewModel: ObservableObject {
                     throw CancellationError()
                 }
                 
-                let models = try await AsrModels.downloadAndLoad(version: version)
-                
+                let models = try await AsrModels.downloadAndLoad(version: version) { [weak self] progress in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.isDownloading else { return }
+                        self.downloadProgress = progress.fractionCompleted
+                        if let index = self.downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
+                            self.downloadableFluidAudioModels[index].downloadProgress = progress.fractionCompleted
+                        }
+                        if case .compiling = progress.phase {
+                            self.downloadPhaseText = "Optimizing for this Mac… (one-time, can take a few minutes)"
+                        } else {
+                            self.downloadPhaseText = nil
+                        }
+                    }
+                }
+
                 guard !Task.isCancelled else {
                     await MainActor.run {
                         self.isDownloading = false
                         self.downloadingModelName = nil
                         self.downloadProgress = 0.0
+                        self.downloadPhaseText = nil
                         if let index = self.downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
                             self.downloadableFluidAudioModels[index].downloadProgress = 0.0
                         }
                     }
                     throw CancellationError()
                 }
-                
+
+                await MainActor.run { downloadPhaseText = "Loading model…" }
                 let manager = AsrManager(config: .default)
                 try await manager.loadModels(models)
                 
@@ -635,6 +654,7 @@ class SettingsViewModel: ObservableObject {
                     isDownloading = false
                     downloadingModelName = nil
                     downloadProgress = 1.0
+                    downloadPhaseText = nil
                 }
             } catch is CancellationError {
                 wasCancelled = true
@@ -642,6 +662,7 @@ class SettingsViewModel: ObservableObject {
                     isDownloading = false
                     downloadingModelName = nil
                     downloadProgress = 0.0
+                    downloadPhaseText = nil
                     if let index = downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
                         downloadableFluidAudioModels[index].downloadProgress = 0.0
                     }
@@ -655,6 +676,7 @@ class SettingsViewModel: ObservableObject {
                         isDownloading = false
                         downloadingModelName = nil
                         downloadProgress = 0.0
+                        downloadPhaseText = nil
                         if let index = downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
                             downloadableFluidAudioModels[index].downloadProgress = 0.0
                         }
@@ -664,6 +686,7 @@ class SettingsViewModel: ObservableObject {
                         isDownloading = false
                         downloadingModelName = nil
                         downloadProgress = 0.0
+                        downloadPhaseText = nil
                         if let index = downloadableFluidAudioModels.firstIndex(where: { $0.id == model.id }) {
                             downloadableFluidAudioModels[index].downloadProgress = 0.0
                         }
@@ -919,6 +942,9 @@ struct SettingsView: View {
     @State private var sidebarSearch = ""
     @FocusState private var sidebarSearchFocused: Bool
     @ObservedObject private var micService = MicrophoneService.shared
+    /// Live permission state for the Dictation tab's Permissions section. The manager re-checks
+    /// every second while a window is key, so the rows flip to green as soon as macOS grants.
+    @StateObject private var permissions = PermissionsManager()
     /// The engine whose models are currently being *browsed* (navigation only — the active engine
     /// in `viewModel.selectedEngine` changes only when the user clicks a model).
     @State private var browseEngine: String = AppPreferences.shared.selectedEngine
@@ -1479,6 +1505,28 @@ struct SettingsView: View {
     /// Trigger / Recording bar / Input, in the Atelier style.
     private var dictationSettings: some View {
         SPane(title: "Dictation") {
+            // The complete permission story in one place: Rhino needs exactly these two.
+            // (Input Monitoring rows some users see in System Settings are not needed —
+            // Accessibility covers event listening too. Apple Events / Automation went
+            // away with browser-URL capture.)
+            SSection(title: "Permissions") {
+                permissionRow(granted: permissions.isMicrophonePermissionGranted,
+                              title: "Microphone",
+                              hint: "To hear your dictation. Audio never leaves this Mac.") {
+                    permissions.requestMicrophonePermissionOrOpenSystemPreferences()
+                }
+                permissionRow(granted: permissions.isAccessibilityPermissionGranted,
+                              title: "Accessibility",
+                              hint: "To paste text into other apps and watch the recording shortcut. These two are the only permissions Rhino needs.") {
+                    permissions.requestAccessibilityPermissionOrOpenSystemPreferences()
+                }
+                if !permissions.isAccessibilityPermissionGranted {
+                    SWarnBox {
+                        Text("Checkbox already on in System Settings but pasting doesn't work? The grant has gone stale — in Privacy & Security → Accessibility, remove Rhino with the − button, add it back, then relaunch Rhino.")
+                    }
+                }
+            }
+
             SSection(title: "Trigger") {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Recording trigger")
@@ -1492,6 +1540,13 @@ struct SettingsView: View {
                                          modifierKey: $viewModel.modifierOnlyHotkey,
                                          allowsMultiple: true)
                         .padding(.top, 2)
+                    if let note = fnEmojiFootnote {
+                        Text(note)
+                            .scaledFont(size: 11)
+                            .foregroundColor(STheme.hint)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 4)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 SRow(title: "Cancel shortcut",
@@ -1579,6 +1634,36 @@ struct SettingsView: View {
             }
         }
     }
+
+    /// Footnote under the trigger field when Fn is a dictate key: what happened to the
+    /// Mac's "press 🌐 for emoji" behavior, or how to stop it if it's still active.
+    /// Onboarding only whispers about this ("Emoji stays available with ⌃⌘Space") —
+    /// the full story lives here for the few who go looking.
+    private var fnEmojiFootnote: String? {
+        let triggers = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+        guard triggers.modifiers.contains(.fn) else { return nil }
+        if FnGlobeKeySetting.conflictsWithFnTrigger {
+            return "Your Mac also opens the emoji picker when Fn is pressed on its own, so it will pop up when you dictate. Stop it in System Settings → Keyboard → “Press 🌐 key to” → Do Nothing."
+        }
+        return "Setup turned off the Mac's press-Fn-for-emoji shortcut so it doesn't pop up mid-dictation. Emoji stays available with ⌃⌘Space; undo in System Settings → Keyboard."
+    }
+
+    /// One permission row: green check when granted, a Grant button when not.
+    private func permissionRow(granted: Bool,
+                               title: LocalizedStringKey,
+                               hint: LocalizedStringKey,
+                               grant: @escaping () -> Void) -> some View {
+        SRow(title: title, hint: hint) {
+            if granted {
+                Label("Granted", systemImage: "checkmark.circle.fill")
+                    .scaledFont(size: 12, weight: .medium)
+                    .foregroundColor(STheme.ok)
+            } else {
+                Button("Grant…", action: grant)
+                    .controlSize(.small)
+            }
+        }
+    }
 }
 
 struct SettingsFluidAudioModel: Identifiable {
@@ -1629,14 +1714,23 @@ struct OnboardingUnifiedModel: Identifiable {
     let description: String
     let type: OnboardingModelType
     var downloadProgress: Double = 0.0
+    var isRecommended = false
 }
 
 struct OnboardingUnifiedModels {
-    /// The three Whisper rows are the *same* model at three compression levels, not three model
-    /// sizes. They were labelled "Large", "Medium" and "Small", which reads as an accuracy
-    /// ladder and is not one: all three are large-v3-turbo, and someone who picked "Medium"
-    /// expecting the medium model got a compressed large instead.
+    /// First-run is a two-choice decision: the recommended Parakeet v3 or best-accuracy
+    /// Whisper. The list used to also offer Parakeet v2 and two compression variants of
+    /// the same Whisper model — five near-identical rows that read as an accuracy ladder
+    /// and stalled new users on a choice that barely matters. The trimmed variants remain
+    /// available in Settings → Models.
     static let availableModels = [
+        OnboardingUnifiedModel(
+            name: "Parakeet v3",
+            isDownloaded: false,
+            description: "Fastest processing and accurate",
+            type: .parakeet(version: "v3"),
+            isRecommended: true
+        ),
         OnboardingUnifiedModel(
             name: "Whisper Large v3 Turbo",
             isDownloaded: false,
@@ -1644,36 +1738,6 @@ struct OnboardingUnifiedModels {
             type: .whisper(
                 url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin?download=true")!,
                 size: 1624
-            )
-        ),
-        OnboardingUnifiedModel(
-            name: "Parakeet v3",
-            isDownloaded: false,
-            description: "Fastest processing and accurate",
-            type: .parakeet(version: "v3")
-        ),
-        OnboardingUnifiedModel(
-            name: "Parakeet v2",
-            isDownloaded: false,
-            description: "Fastest processing and English-only, higher recall",
-            type: .parakeet(version: "v2")
-        ),
-        OnboardingUnifiedModel(
-            name: "Whisper Large v3 Turbo (compressed)",
-            isDownloaded: false,
-            description: "Nearly the same accuracy, 874 MB",
-            type: .whisper(
-                url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q8_0.bin?download=true")!,
-                size: 874
-            )
-        ),
-        OnboardingUnifiedModel(
-            name: "Whisper Large v3 Turbo (smallest)",
-            isDownloaded: false,
-            description: "Most compressed, 574 MB",
-            type: .whisper(
-                url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin?download=true")!,
-                size: 574
             )
         ),
     ]
@@ -1720,10 +1784,17 @@ struct FluidAudioModelDownloadItemView: View {
                 .foregroundColor(.secondary)
 
                 if viewModel.isDownloading && viewModel.downloadingModelName == model.name {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.7)
+                    // Real byte progress (was a bare spinner that read as "stuck"
+                    // through the multi-minute download + CoreML compile).
+                    ProgressView(value: min(model.downloadProgress, 1.0))
+                        .progressViewStyle(LinearProgressViewStyle())
+                        .frame(height: 6)
                         .padding(.top, 4)
+                    if let phase = viewModel.downloadPhaseText {
+                        Text(phase)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 } else if model.downloadProgress > 0 && model.downloadProgress < 1 {
                     ProgressView(value: model.downloadProgress)
                         .progressViewStyle(LinearProgressViewStyle())

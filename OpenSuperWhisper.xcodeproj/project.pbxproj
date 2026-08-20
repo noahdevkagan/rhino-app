@@ -826,7 +826,6 @@
 				);
 				INFOPLIST_FILE = "OpenSuperWhisper/OpenSuperWhisper-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Rhino needs this to know which app you are dictating into.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rhino needs microphone access to hear your dictation. Audio never leaves this Mac.";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -892,7 +891,6 @@
 				);
 				INFOPLIST_FILE = "OpenSuperWhisper/OpenSuperWhisper-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Rhino needs this to know which app you are dictating into.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rhino needs microphone access to hear your dictation. Audio never leaves this Mac.";
 				LD_RUNPATH_SEARCH_PATHS = (

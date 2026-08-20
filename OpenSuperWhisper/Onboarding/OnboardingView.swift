@@ -10,8 +10,18 @@ import SwiftUI
 import FluidAudio
 
 enum OnboardingShortcutOption: String, CaseIterable {
-    case keyCombination
-    case rightOption
+    case fn
+    // Right ⌘, not Right ⌥: on European layouts Right Option is AltGr (€ @ #),
+    // so offering it as the alternative broke typing for international users.
+    // Right Command has no meaning as a lone press on any layout.
+    case rightCommand
+
+    var modifierKey: ModifierKey {
+        switch self {
+        case .fn: return .fn
+        case .rightCommand: return .rightCommand
+        }
+    }
 }
 
 class OnboardingViewModel: ObservableObject {
@@ -21,14 +31,16 @@ class OnboardingViewModel: ObservableObject {
         }
     }
 
+    /// Writes the choice into `recordingTriggers` — the set ShortcutManager actually arms.
+    /// (An earlier version wrote the legacy `modifierOnlyHotkey` slot, which nothing reads
+    /// anymore: the picker looked functional but the trigger silently stayed the seeded
+    /// hold-Fn default, whatever the user chose.)
     @Published var selectedShortcut: OnboardingShortcutOption {
         didSet {
-            switch selectedShortcut {
-            case .keyCombination:
-                AppPreferences.shared.modifierOnlyHotkey = ModifierKey.none.rawValue
-            case .rightOption:
-                AppPreferences.shared.modifierOnlyHotkey = ModifierKey.rightOption.rawValue
-            }
+            var set = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+            set.triggers.removeAll { if case .modifier = $0 { return true } else { return false } }
+            set.add(.modifier(selectedShortcut.modifierKey))
+            AppPreferences.shared.recordingTriggers = set.json
             NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
         }
     }
@@ -38,6 +50,11 @@ class OnboardingViewModel: ObservableObject {
     @Published var isDownloading: Bool = false
     @Published var downloadProgress: Double = 0.0
     @Published var downloadingModelName: String?
+    /// Sub-caption under the Parakeet progress bar. The download reports real byte
+    /// progress, but the bar alone would sit full during the CoreML compile that
+    /// follows (minutes on first install) — the exact "is it stuck?" moment the
+    /// spinner used to create.
+    @Published var downloadPhaseText: String?
 
     private let modelManager = WhisperModelManager.shared
     private var downloadTask: Task<Void, Error>?
@@ -47,17 +64,12 @@ class OnboardingViewModel: ObservableObject {
         AppPreferences.shared.whisperLanguage = systemLanguage
         self.selectedLanguage = systemLanguage
 
-        let currentHotkey = ModifierKey(rawValue: AppPreferences.shared.modifierOnlyHotkey) ?? .none
-        if currentHotkey == .none && !AppPreferences.shared.hasCompletedOnboarding {
-            // Default to key combination mode. Single modifiers use the same Accessibility
-            // permission Rhino already needs for insertion, so they require no extra TCC grant.
-            self.selectedShortcut = .keyCombination
-            AppPreferences.shared.modifierOnlyHotkey = ModifierKey.none.rawValue
-            NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
-        } else {
-            self.selectedShortcut = currentHotkey == .rightOption ? .rightOption : .keyCombination
-        }
-        
+        // Reflect what's actually armed: a fresh install's trigger set is seeded to
+        // hold-Fn (AppPreferences.migrateRecordingTriggers), so the Fn card starts
+        // selected and the UI agrees with the key that really starts a recording.
+        let armed = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+        self.selectedShortcut = armed.modifiers.contains(.rightCommand) ? .rightCommand : .fn
+
         initializeUnifiedModels()
     }
 
@@ -217,13 +229,27 @@ class OnboardingViewModel: ObservableObject {
                     throw CancellationError()
                 }
                 
-                let models = try await AsrModels.downloadAndLoad(version: asrVersion)
-                
+                let models = try await AsrModels.downloadAndLoad(version: asrVersion) { [weak self] progress in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.isDownloading else { return }
+                        self.downloadProgress = progress.fractionCompleted
+                        if let index = self.unifiedModels.firstIndex(where: { $0.id == model.id }) {
+                            self.unifiedModels[index].downloadProgress = progress.fractionCompleted
+                        }
+                        if case .compiling = progress.phase {
+                            self.downloadPhaseText = "Optimizing for this Mac… (one-time, can take a few minutes)"
+                        } else {
+                            self.downloadPhaseText = nil
+                        }
+                    }
+                }
+
                 guard !Task.isCancelled else {
                     await MainActor.run {
                         self.isDownloading = false
                         self.downloadingModelName = nil
                         self.downloadProgress = 0.0
+                        self.downloadPhaseText = nil
                         if let index = self.unifiedModels.firstIndex(where: { $0.id == model.id }) {
                             self.unifiedModels[index].downloadProgress = 0.0
                         }
@@ -231,9 +257,10 @@ class OnboardingViewModel: ObservableObject {
                     throw CancellationError()
                 }
                 
+                await MainActor.run { downloadPhaseText = "Loading model…" }
                 let manager = AsrManager(config: .default)
                 try await manager.loadModels(models)
-                
+
                 await MainActor.run {
                     if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
                         unifiedModels[index].isDownloaded = true
@@ -243,6 +270,7 @@ class OnboardingViewModel: ObservableObject {
                     isDownloading = false
                     downloadingModelName = nil
                     downloadProgress = 1.0
+                    downloadPhaseText = nil
                 }
             } catch is CancellationError {
                 wasCancelled = true
@@ -250,6 +278,7 @@ class OnboardingViewModel: ObservableObject {
                     isDownloading = false
                     downloadingModelName = nil
                     downloadProgress = 0.0
+                    downloadPhaseText = nil
                     if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
                         unifiedModels[index].downloadProgress = 0.0
                     }
@@ -261,6 +290,7 @@ class OnboardingViewModel: ObservableObject {
                         isDownloading = false
                         downloadingModelName = nil
                         downloadProgress = 0.0
+                        downloadPhaseText = nil
                         if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
                             unifiedModels[index].downloadProgress = 0.0
                         }
@@ -270,6 +300,7 @@ class OnboardingViewModel: ObservableObject {
                         isDownloading = false
                         downloadingModelName = nil
                         downloadProgress = 0.0
+                        downloadPhaseText = nil
                         if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
                             unifiedModels[index].downloadProgress = 0.0
                         }
@@ -306,133 +337,133 @@ class OnboardingViewModel: ObservableObject {
         isDownloading = false
         downloadingModelName = nil
         downloadProgress = 0.0
+        downloadPhaseText = nil
     }
 }
 
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
+    @StateObject private var permissionsManager = PermissionsManager()
     @EnvironmentObject private var appState: AppState
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var isVerifyingModel = false
+    @State private var fnGlobeConflict = FnGlobeKeySetting.conflictsWithFnTrigger
+
+    /// Setup reads as a centered column, not full-bleed rows: at the window's real
+    /// widths (780–900+) full-width cards push each row's trailing control (Grant…,
+    /// Download) far from the text it belongs to.
+    private let contentWidth: CGFloat = 620
 
     var body: some View {
+        // Same visual system as Settings (Atelier / grouped cells): STheme window
+        // background, gray section labels above white cards. The old gradient-header
+        // look predated the light-only restyle and read as a different app.
         VStack(spacing: 0) {
-            // Header with gradient background
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Welcome to")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    Text("Rhino")
-                        .scaledFont(size: 32, weight: .bold)
-                        .foregroundStyle(
-                            .white
-                        )
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Welcome to Rhino")
+                        .scaledFont(size: 19, weight: .bold)
+                        .foregroundColor(STheme.textBright)
+                    Text("Dictate anywhere on your Mac — everything stays on it")
+                        .scaledFont(size: 11)
+                        .foregroundColor(STheme.hint)
                 }
-                .padding(.bottom, 8)
-                
-                // Language Selection
-                HStack(spacing: 8) {
-                    
-                    Picker("Language", selection: $viewModel.selectedLanguage) {
-                        ForEach(LanguageUtil.availableLanguages, id: \.self) { code in
-                            Text(LanguageUtil.languageNames[code] ?? code)
-                                .tag(code)
-                        }
+                Spacer()
+                Picker("Language", selection: $viewModel.selectedLanguage) {
+                    ForEach(LanguageUtil.availableLanguages, id: \.self) { code in
+                        Text(LanguageUtil.languageNames[code] ?? code)
+                            .tag(code)
                     }
-                    .pickerStyle(.menu)
-                    .frame(width: 150)
                 }
+                .pickerStyle(.menu)
+                .frame(width: 150)
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.05),
-                        Color.white.opacity(0.03),
-                        Color.clear
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            
-            Divider()
-            
-            // Content - Scrollable area
+            .frame(maxWidth: contentWidth)
+            .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 10)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Shortcut Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Shortcut")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        Text("Choose how to trigger recording")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
+                    // Permissions — first, because nothing works without them, and
+                    // Accessibility needs Rhino to register itself in System Settings
+                    // before the user can even find it there. Rows mirror Settings →
+                    // Dictation → Permissions so the two surfaces read as one app.
+                    SSection(title: "Permissions") {
+                        onboardingPermissionRow(
+                            granted: permissionsManager.isMicrophonePermissionGranted,
+                            title: "Microphone",
+                            hint: "To hear your dictation. Audio never leaves this Mac.") {
+                            permissionsManager.requestMicrophonePermissionOrOpenSystemPreferences()
+                        }
+                        onboardingPermissionRow(
+                            granted: permissionsManager.isAccessibilityPermissionGranted,
+                            title: "Accessibility",
+                            hint: "So the dictate key works everywhere and text lands in the app you're using.") {
+                            permissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences()
+                        }
+                    }
+
+                    SSection(title: "Dictate key") {
+                        Text("Hold it down to talk, release to insert the text")
+                            .scaledFont(size: 13)
+                            .foregroundColor(STheme.text)
+
                         HStack(spacing: 8) {
                             OnboardingShortcutCard(
-                                title: "⌥ + ~",
-                                subtitle: "Key Combination",
-                                isSelected: viewModel.selectedShortcut == .keyCombination
+                                title: "fn",
+                                subtitle: "Hold fn (default)",
+                                isSelected: viewModel.selectedShortcut == .fn
                             ) {
-                                viewModel.selectedShortcut = .keyCombination
+                                viewModel.selectedShortcut = .fn
                             }
-                            
+
                             OnboardingShortcutCard(
-                                title: "Right ⌥",
-                                subtitle: "Single Modifier Key",
-                                isSelected: viewModel.selectedShortcut == .rightOption
+                                title: "Right ⌘",
+                                subtitle: "Hold Right Command",
+                                isSelected: viewModel.selectedShortcut == .rightCommand
                             ) {
-                                viewModel.selectedShortcut = .rightOption
+                                viewModel.selectedShortcut = .rightCommand
                             }
                         }
-                        
-                        if viewModel.selectedShortcut == .rightOption {
-                            Text("Single modifier mode uses Rhino's Accessibility permission to watch only modifier presses — no regular keystrokes are captured.")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
 
-                        Text("You can change this later in Settings")
-                            .font(.caption2)
-                            .foregroundColor(Color(.tertiaryLabelColor))
+                        // One sentence, one line (Noah). The emoji clause appears only when
+                        // Continue will actually rewrite the Mac's Fn behavior — macOS acts
+                        // on a lone Fn press by factory default and Rhino's listen-only tap
+                        // can't consume it, so setup fixes the setting automatically.
+                        // Settings → Dictation carries the full explanation.
+                        Text(viewModel.selectedShortcut == .fn && fnGlobeConflict
+                             ? "Emoji stays available with ⌃⌘Space, and you can pick any key or combination later in Settings."
+                             : "You can pick any key or combination later in Settings.")
+                            .scaledFont(size: 11)
+                            .foregroundColor(STheme.hint)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    
-                    // Model Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Model")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        Text("Download a model to get started")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
-                        VStack(spacing: 8) {
-                            ForEach($viewModel.unifiedModels) { $model in
-                                OnboardingUnifiedModelItemView(model: $model, viewModel: viewModel)
-                            }
+
+                    // Two sections, not one list: the models are a pick-ONE choice and
+                    // the cleanup pass is a separate optional add-on — in one card the
+                    // three rows read as three peers (user feedback).
+                    SSection(title: "Speech model") {
+                        Text("Pick one to get started — you can switch anytime")
+                            .scaledFont(size: 13)
+                            .foregroundColor(STheme.text)
+
+                        ForEach($viewModel.unifiedModels) { $model in
+                            OnboardingUnifiedModelItemView(model: $model, viewModel: viewModel)
                         }
+                    }
 
+                    SSection(title: "Optional add-on") {
                         OnboardingCleanupOffer()
-                            .padding(.top, 4)
-
                     }
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: contentWidth, alignment: .leading)
+                .padding(.horizontal, 24).padding(.vertical, 14)
+                .frame(maxWidth: .infinity)
             }
-            
-            Divider()
-            
-            // Footer with Continue button
+
+            Divider().overlay(STheme.border)
+
+            // Footer with Continue button, right-aligned to the same column as the cards.
             HStack {
                 Spacer()
                 Button(action: {
@@ -454,29 +485,38 @@ struct OnboardingView: View {
                 .controlSize(.large)
                 .disabled(!viewModel.canContinue || viewModel.isDownloading || isVerifyingModel)
             }
+            .frame(maxWidth: contentWidth)
             .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            ZStack {
-                Color(.windowBackgroundColor)
-                
-                // Subtle gradient overlay
-                LinearGradient(
-                    colors: [
-                        Color.blue.opacity(0.02),
-                        Color.clear,
-                        Color.purple.opacity(0.02)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        )
+        .background(STheme.windowBg)
         .alert("Model Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)
+        }
+    }
+
+    /// Same row layout as Settings → Dictation → Permissions. The button is a
+    /// prominent "Enable" here (Settings uses a quiet "Grant…"): on a setup screen
+    /// these are the required next actions, not a repair tool.
+    private func onboardingPermissionRow(granted: Bool,
+                                         title: LocalizedStringKey,
+                                         hint: LocalizedStringKey,
+                                         grant: @escaping () -> Void) -> some View {
+        SRow(title: title, hint: hint) {
+            if granted {
+                Label("Granted", systemImage: "checkmark.circle.fill")
+                    .scaledFont(size: 12, weight: .medium)
+                    .foregroundColor(STheme.ok)
+            } else {
+                Button(action: grant) {
+                    Text("Enable")
+                        .frame(minWidth: 64)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+            }
         }
     }
 
@@ -500,6 +540,11 @@ struct OnboardingView: View {
                 errorMessage = "The selected model didn't load: \(failure)\n\nTry re-downloading it, or pick a different model."
                 showError = true
             } else {
+                // Committing to Fn as the dictate key: stop macOS from also opening
+                // the emoji palette on it (disclosed in the Dictate key section).
+                if viewModel.selectedShortcut == .fn && FnGlobeKeySetting.conflictsWithFnTrigger {
+                    FnGlobeKeySetting.setDoNothing()
+                }
                 appState.hasCompletedOnboarding = true
             }
         }
@@ -516,23 +561,19 @@ struct OnboardingUnifiedModelItemView: View {
         viewModel.selectedModelId == model.id
     }
     
-    var isParakeet: Bool {
-        if case .parakeet = model.type { return true }
-        return false
-    }
-    
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 8) {
                     Text(model.name)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    
-                    if model.isDownloaded {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .foregroundColor(.blue)
-                            .imageScale(.small)
+
+                    // No downloaded-arrow icon here: on first run it read as a badge or
+                    // button. The row's trailing state (Select / checkmark / Download)
+                    // already says whether the model is on this Mac.
+                    if model.isRecommended {
+                        STag("Recommended")
                     }
                 }
                 
@@ -540,11 +581,19 @@ struct OnboardingUnifiedModelItemView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                if viewModel.isDownloading && viewModel.downloadingModelName == model.name && isParakeet {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.7)
+                if viewModel.isDownloading && viewModel.downloadingModelName == model.name {
+                    // Determinate bar for every engine. Parakeet used to show a bare
+                    // spinner here (its download API looked progress-less), which read
+                    // as "stuck" during the multi-minute fetch + CoreML compile.
+                    ProgressView(value: min(model.downloadProgress, 1.0))
+                        .progressViewStyle(LinearProgressViewStyle())
+                        .frame(height: 6)
                         .padding(.top, 4)
+                    if let phase = viewModel.downloadPhaseText {
+                        Text(phase)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 } else if model.downloadProgress > 0 && model.downloadProgress < 1 {
                     ProgressView(value: model.downloadProgress)
                         .progressViewStyle(LinearProgressViewStyle())
@@ -595,15 +644,16 @@ struct OnboardingUnifiedModelItemView: View {
                 .disabled(viewModel.isDownloading)
             }
         }
-        .padding(14)
+        .padding(12)
+        // Inset surface inside the white section cell, same as Settings' model rows:
+        // the selected model gets the soft accent tint so the choice reads at a glance.
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isSelected ? Color(.controlBackgroundColor).opacity(0.8) : Color(.controlBackgroundColor).opacity(0.5))
-                .shadow(color: isSelected ? Color.blue.opacity(0.2) : Color.black.opacity(0.05), radius: isSelected ? 8 : 4, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(isSelected ? STheme.accentSoft : STheme.windowBg)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(isSelected ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(isSelected ? STheme.accent.opacity(0.4) : STheme.border, lineWidth: 1)
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -624,29 +674,29 @@ struct OnboardingShortcutCard: View {
     let subtitle: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
+                    .scaledFont(size: 13, weight: .semibold)
+                    .foregroundColor(STheme.textBright)
+
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .scaledFont(size: 11)
+                    .foregroundColor(STheme.hint)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .padding(.horizontal, 8)
+            // Same selected/idle surfaces as the model rows (copper tint, hairline).
             .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? Color(.controlBackgroundColor).opacity(0.8) : Color(.controlBackgroundColor).opacity(0.5))
-                    .shadow(color: isSelected ? Color.blue.opacity(0.2) : Color.black.opacity(0.05), radius: isSelected ? 8 : 4, x: 0, y: 2)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(isSelected ? STheme.accentSoft : STheme.windowBg)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(isSelected ? STheme.accent.opacity(0.4) : STheme.border, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -671,24 +721,31 @@ struct OnboardingCleanupOffer: View {
         HStack(spacing: 10) {
             Image(systemName: "wand.and.stars")
                 .scaledFont(size: 16)
-                .foregroundColor(.accentColor)
+                .foregroundColor(STheme.accent)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Punctuation & cleanup — recommended")
-                    .scaledFont(size: 13, weight: .semibold)
+                HStack(spacing: 8) {
+                    Text("Punctuation & cleanup")
+                        .scaledFont(size: 13, weight: .semibold)
+                        .foregroundColor(STheme.textBright)
+                    STag("Recommended")
+                }
                 Text(downloaded
                      ? "On: dictations come out tidy — punctuation, casing, numbers as digits. Runs on this Mac."
                      : "Tidies punctuation, casing, and numbers with an on-device model (~1 GB, one-time download). Your words never leave this Mac.")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .scaledFont(size: 11)
+                    .foregroundColor(STheme.hint)
                     .fixedSize(horizontal: false, vertical: true)
                 if let error {
-                    Text(error).font(.caption2).foregroundColor(.red)
+                    Text(error).scaledFont(size: 11).foregroundColor(.red)
                 }
             }
             Spacer()
             if downloaded {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                // Explicit state, not a bare checkmark — users tried to click the
+                // check expecting something to happen.
+                Label("On", systemImage: "checkmark.circle.fill")
+                    .scaledFont(size: 12, weight: .medium)
+                    .foregroundColor(STheme.ok)
             } else if let progress {
                 ProgressView(value: progress)
                     .frame(width: 90)
@@ -713,10 +770,14 @@ struct OnboardingCleanupOffer: View {
                 .controlSize(.small)
             }
         }
-        .padding(10)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.accentColor.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(STheme.windowBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(STheme.border, lineWidth: 1)
         )
     }
 }

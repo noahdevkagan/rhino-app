@@ -2,6 +2,30 @@ import Foundation
 import AVFoundation
 import CoreAudioTypes
 
+/// The abort signal handed to whisper.cpp's C abort callback. A class (not a raw
+/// malloc'd Bool) so its lifetime is ARC-managed: `cancelTranscription()` runs on a
+/// different thread than the transcription that owns the flag, and with a raw pointer
+/// a cancel landing just as the transcription finished wrote into freed heap memory —
+/// delayed, unattributable corruption crashes. Any thread that read the property gets
+/// a strong reference, so the write is always into live memory.
+private final class AbortFlag {
+    private let lock = NSLock()
+    private var _value = false
+
+    var value: Bool {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _value
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            _value = newValue
+        }
+    }
+}
+
 private class ProgressContext {
     var onProgress: ((Float) -> Void)?
     private var _lastReportedProgress: Float = 0.0
@@ -34,7 +58,7 @@ class WhisperEngine: TranscriptionEngine {
     private var vadContext: MyWhisperVadContext?
     private let stateLock = NSLock()
     private var _isCancelled = false
-    private var _abortFlag: UnsafeMutablePointer<Bool>?
+    private var _abortFlag: AbortFlag?
     private var progressContext: ProgressContext?
 
     /// When set, overrides the pref-selected model path — lets the remote local-fallback
@@ -58,7 +82,7 @@ class WhisperEngine: TranscriptionEngine {
         }
     }
     
-    private var abortFlag: UnsafeMutablePointer<Bool>? {
+    private var abortFlag: AbortFlag? {
         get {
             stateLock.lock()
             defer { stateLock.unlock() }
@@ -118,20 +142,18 @@ class WhisperEngine: TranscriptionEngine {
         }
         
         isCancelled = false
-        
-        if abortFlag != nil {
-            abortFlag?.deallocate()
-        }
-        abortFlag = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
-        abortFlag?.initialize(to: false)
-        
+
+        // Held strongly by this scope for the whole transcription, so the raw pointer
+        // handed to the C callback below stays valid until full() returns.
+        let abortFlag = AbortFlag()
+        self.abortFlag = abortFlag
+
         // Setup progress context for callback
         progressContext = ProgressContext()
         progressContext?.onProgress = onProgressUpdate
-        
+
         defer {
-            abortFlag?.deallocate()
-            abortFlag = nil
+            self.abortFlag = nil
             progressContext = nil
         }
         
@@ -198,8 +220,7 @@ class WhisperEngine: TranscriptionEngine {
         typealias GGMLAbortCallback = @convention(c) (UnsafeMutableRawPointer?) -> Bool
         let abortCallback: GGMLAbortCallback = { userData in
             guard let userData = userData else { return false }
-            let flag = userData.assumingMemoryBound(to: Bool.self)
-            return flag.pointee
+            return Unmanaged<AbortFlag>.fromOpaque(userData).takeUnretainedValue().value
         }
         
         // Progress callback: whisper reports 0-100%, we map to 10-95%
@@ -232,10 +253,7 @@ class WhisperEngine: TranscriptionEngine {
         
         var cParams = params.toC()
         cParams.abort_callback = abortCallback
-        
-        if let abortFlag = abortFlag {
-            cParams.abort_callback_user_data = UnsafeMutableRawPointer(abortFlag)
-        }
+        cParams.abort_callback_user_data = Unmanaged.passUnretained(abortFlag).toOpaque()
         
         try Task.checkCancellation()
         
@@ -278,9 +296,9 @@ class WhisperEngine: TranscriptionEngine {
     
     func cancelTranscription() {
         isCancelled = true
-        if let abortFlag = abortFlag {
-            abortFlag.pointee = true
-        }
+        // The property read hands back a strong reference, so this write stays valid
+        // even if the transcription finishes (and clears the property) concurrently.
+        abortFlag?.value = true
     }
     
     func getSupportedLanguages() -> [String] {

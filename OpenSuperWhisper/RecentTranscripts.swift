@@ -56,10 +56,16 @@ enum RecentTranscripts {
 
         // `honorAutoPastePreference: false` — asking for this insertion *is* the request, so a
         // user who dictates to the clipboard only still gets text where the cursor is.
-        let targetMissing = TranscriptInserter.insert(IndicatorViewModel.applyPostProcessing(text),
-                                                      honorAutoPastePreference: false)
-        if targetMissing {
+        let outcome = TranscriptInserter.insert(IndicatorViewModel.applyPostProcessing(text),
+                                                honorAutoPastePreference: false)
+        switch outcome {
+        case .noTarget:
             IndicatorWindowManager.shared.flash(.info("Copied — press ⌘V"))
+        case .noPermission:
+            IndicatorWindowManager.shared.flash(.error(
+                "Couldn't paste — re-add Rhino in System Settings → Accessibility. Copied — press ⌘V"))
+        case .inserted, .skipped:
+            break
         }
     }
 

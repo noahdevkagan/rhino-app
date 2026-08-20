@@ -414,19 +414,10 @@ struct PermissionsBanner: View {
         case (false, true):
             return "Rhino needs Microphone access to hear you."
         case (true, false):
-            return "Rhino needs Accessibility so Fn works globally and text can be typed into other apps."
+            return "Rhino needs Accessibility to paste text into other apps. Already on? The grant went stale — remove Rhino from the list and re-add it."
         default:
             return "Rhino needs Microphone and Accessibility permissions."
         }
-    }
-
-    /// Deep-link to the exact privacy pane instead of the Privacy & Security front
-    /// page. Microphone goes first, then Accessibility for global Fn and text insertion.
-    private var settingsPaneURL: String {
-        if !permissionsManager.isMicrophonePermissionGranted {
-            return "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
-        }
-        return "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     }
 
     var body: some View {
@@ -437,8 +428,13 @@ struct PermissionsBanner: View {
                 .scaledFont(size: 12, weight: .medium)
             Spacer()
             Button("Open System Settings") {
-                if let url = URL(string: settingsPaneURL) {
-                    NSWorkspace.shared.open(url)
+                // Microphone first, then Accessibility. The accessibility path also asks macOS to
+                // register this binary in the list (see PermissionsManager) so the user doesn't
+                // add the wrong copy by hand.
+                if !permissionsManager.isMicrophonePermissionGranted {
+                    permissionsManager.requestMicrophonePermissionOrOpenSystemPreferences()
+                } else {
+                    permissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences()
                 }
             }
             .controlSize(.small)

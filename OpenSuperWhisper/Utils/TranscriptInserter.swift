@@ -1,3 +1,4 @@
+import ApplicationServices
 import Foundation
 
 /// The single place that decides *how* a finished transcription reaches the focused app:
@@ -7,6 +8,19 @@ import Foundation
 /// explicit, user-triggered insertion, so the two can't drift apart.
 enum TranscriptInserter {
 
+    /// What actually happened to the text, so callers can tell the user the right thing.
+    enum Outcome {
+        /// Sent to the focused app (paste or typing).
+        case inserted
+        /// Auto-paste preference is off and this was an automatic insertion — nothing sent.
+        case skipped
+        /// Typing mode found no editable field; the text is on the clipboard instead.
+        case noTarget
+        /// Accessibility trust is missing or stale, so macOS would silently drop the synthetic
+        /// keystrokes. The text is on the clipboard instead.
+        case noPermission
+    }
+
     /// Inserts `text` into the focused app.
     ///
     /// - Parameters:
@@ -15,11 +29,9 @@ enum TranscriptInserter {
     ///     "Auto-paste transcription" preference decides whether anything is inserted at all.
     ///     `false` when the user explicitly asked for this insertion — the request itself is the
     ///     intent, so a clipboard-only workflow still gets text where the cursor is.
-    /// - Returns: `true` when insertion was skipped because no editable field was focused, so the
-    ///   caller can leave the text on the clipboard and notify ⌘V.
     @MainActor
     @discardableResult
-    static func insert(_ text: String, honorAutoPastePreference: Bool) -> Bool {
+    static func insert(_ text: String, honorAutoPastePreference: Bool) -> Outcome {
         let prefs = AppPreferences.shared
 
         // Optional, independent clipboard stash (never the insertion mechanism).
@@ -27,7 +39,19 @@ enum TranscriptInserter {
             ClipboardUtil.copyToClipboard(text)
         }
 
-        guard prefs.autoPasteTranscription || !honorAutoPastePreference else { return false }
+        guard prefs.autoPasteTranscription || !honorAutoPastePreference else { return .skipped }
+
+        // Both insertion modes post synthetic keyboard events, and macOS drops those without a
+        // *live* Accessibility grant — silently, no error anywhere. The System Settings checkbox
+        // can show ON while the grant is stale (app updated, moved, or a different copy granted),
+        // so preflight here and fall back to the clipboard with an explicit outcome instead of
+        // letting the text vanish. (#silent-paste)
+        guard AXIsProcessTrusted() else {
+            if !prefs.autoCopyToClipboard {
+                ClipboardUtil.copyToClipboard(text)
+            }
+            return .noPermission
+        }
 
         if prefs.pasteInsteadOfTyping {
             // Paste is universal: ⌘V lands in any text field, including apps the accessibility check
@@ -42,7 +66,7 @@ enum TranscriptInserter {
                     Diag.measure("TextInserter.paste") { TextInserter.paste() }
                 }
             }
-            return false
+            return .inserted
         }
 
         // Typing mode: synthetic keystrokes go wherever focus is, so only type when we're confident
@@ -53,9 +77,9 @@ enum TranscriptInserter {
             if !prefs.autoCopyToClipboard {
                 ClipboardUtil.copyToClipboard(text)
             }
-            return true
+            return .noTarget
         }
         Diag.measure("TextInserter.type") { TextInserter.type(text) }
-        return false
+        return .inserted
     }
 }

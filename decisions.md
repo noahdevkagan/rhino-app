@@ -516,3 +516,107 @@ TranscriptionError error 0.)". Diagnostic tell for triage: a real Parakeet
 load failure surfaces as `FluidAudio.AsrModelsError`, never
 `OpenSuperWhisper.TranscriptionError` — seeing the latter during a Parakeet
 onboarding means the whisper engine was being loaded.
+
+**2026-08-19 — Silent auto-paste failure (user report: "doesn't auto-paste
+into any app", Accessibility toggle showing ON).** Root cause: both insertion
+modes post synthetic keyboard events, and macOS drops those *silently* when
+the Accessibility grant is stale — the System Settings checkbox can show ON
+while `AXIsProcessTrusted()` is false (grant recorded against a different
+copy: dev build vs /Applications, or app updated/moved). Nothing in the
+insertion path checked, so the dictation appeared to vanish (it was on the
+clipboard via the auto-copy default, which is why "⌘V works" is the telltale
+symptom). Fix: (1) `TranscriptInserter.insert` now returns an `Outcome` enum
+(`inserted/skipped/noTarget/noPermission`) and preflights `AXIsProcessTrusted`
+before posting — on failure the text is stashed on the clipboard and callers
+flash "Couldn't paste — re-add Rhino in System Settings → Accessibility.
+Copied — press ⌘V". Return-after-insert now only fires on `.inserted`.
+(2) `PermissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences`
+uses `AXIsProcessTrustedWithOptions(prompt)` so *this* binary registers itself
+in the Accessibility list — hand-adding is how the wrong copy gets granted in
+the first place; banner button now goes through it. (3) New Settings →
+Dictation → Permissions section: live status rows for the only two
+permissions Rhino needs (Microphone, Accessibility) + a stale-grant warn box.
+(4) Stripped the vestigial third permission: `NSAppleEventsUsageDescription`
+(Info.plist + pbxproj) and the apple-events entitlements described the
+browser-URL capture that was removed in the 80/20 cut — nothing sends Apple
+Events anymore. Also deleted dead `PermissionsView`/`PermissionRow` in
+ContentView (never instantiated). User-side fix for stale grants, for support
+replies: remove Rhino with "−" in Privacy & Security → Accessibility, re-add,
+relaunch.
+
+**2026-08-19 — Onboarding feedback round (external user report).** Three
+decisions. (1) *Onboarding gained a Permissions section* (mic + Accessibility
+live-status rows) and the Accessibility button now calls
+`AXIsProcessTrustedWithOptions(prompt)` before deep-linking the pane: macOS
+does not list an app under Privacy & Security → Accessibility until the app
+registers itself via that prompt, which is why the user "had to search
+around" — the toggle they needed didn't exist yet. `PermissionsManager` also
+re-checks on `NSApplication.didBecomeActive` so a grant flips the row the
+moment the user switches back from System Settings. (2) *The onboarding
+shortcut cards now write `recordingTriggers`* (the set ShortcutManager arms),
+replacing writes to the legacy `modifierOnlyHotkey` slot that nothing reads —
+the old cards were dead UI and the trigger silently stayed the seeded
+hold-Fn whatever the user picked. Cards are now honest: "Hold fn (default)" /
+"Hold Right ⌥". (3) *Parakeet downloads show a determinate progress bar*:
+`AsrModels.downloadAndLoad` has taken a `progressHandler` since FluidAudio
+0.15+, we just never passed one; the bare spinner read as "stuck" through a
+multi-minute download + CoreML compile. The compile phase gets an explicit
+"Optimizing for this Mac…" caption because the bar sits at 100% during it.
+
+**2026-08-19 — Two crash-grade fixes from the "randomly crashes / memory
+leak" report (no traces; found by code audit).** (1) *StreamingTranscription-
+Controller now removes its mic tap unconditionally in `stopAudio()`*:
+AVAudioEngine stops itself on a configuration change (AirPods disconnect,
+default-input switch), leaving `isRunning == false` with the tap still
+installed, and the next `installTap` on the same bus raises an uncatchable
+NSException — a crash on the dictation *after* the device change, which
+presents as "random". Same path also gained a 0 Hz-format guard (vanished
+input device) and a teardown for half-built starts, which previously leaked
+a full Parakeet model set per failed start. Only reachable with live preview
+on (Parakeet + opt-in). (2) *WhisperEngine's abort flag is now an
+ARC-managed `AbortFlag` class instead of a malloc'd `Bool` pointer*:
+`cancelTranscription()` (main thread) wrote `pointee = true` outside the
+lock while the transcription thread's `defer` deallocated the buffer — a
+1-byte write into freed heap on an Esc-cancel racing completion, i.e.
+delayed corruption crashes with unrelated-looking traces. Known but not
+fixed this round (see HANDOFF): per-dictation Parakeet model reloads (RSS
+churn), AudioRecorder start/stop cross-thread race (orphaned mic session).
+
+**2026-08-19 — Fn stays the default dictate key; onboarding disarms the
+emoji-picker conflict instead of switching keys.** macOS acts on a lone Fn
+press itself ("Press 🌐 key to" defaults to Show Emoji & Symbols), and
+Rhino's tap is listen-only by design, so it cannot swallow the press — a
+factory-default Mac pops the emoji palette on every Fn dictation. Rather
+than abandoning Fn (the category convention, best ergonomics), onboarding
+now detects the conflict (`AppleFnUsageType` in com.apple.HIToolbox, unset
+= emoji) and shows a warn box with a one-click "Turn Off" that writes
+Do Nothing (0) via CFPreferences — the fix Wispr Flow makes users do by
+hand. Only ever written on explicit click; emoji stays on ⌃⌘Space. Also:
+the alternative card is now Right ⌘, not Right ⌥ — Right Option is AltGr
+(€ @ #) on European layouts, so it silently broke international typing;
+Right Command means nothing as a lone press on any layout. Known remainder:
+Apple Dictation's double-press-🌐 shortcut can race Rhino's double-tap-lock
+when both are enabled — deliberately not auto-fixed this round.
+
+**2026-08-19 — The Fn emoji-picker fix is automatic at Continue, not a
+button (reverses the click-to-fix shape from earlier today).** Noah: the
+warn box with "Turn Off" was confusing — a mid-setup question about a
+system setting the user hasn't hit yet is one decision too many. Now
+finishing onboarding with Fn selected writes AppleFnUsageType=Do Nothing
+itself; the Dictate key section discloses it in a quiet hint line ("…also
+stops Fn from opening the Mac's emoji picker; emoji stays on ⌃⌘Space").
+Disclosure stays because silently rewriting a system pref is off-brand for
+a trust-first app — but the action needs no click. Reversible in System
+Settings → Keyboard.
+
+**2026-08-19 — Onboarding offers exactly two models plus a separated
+optional add-on.** First-run listed five near-identical rows (Parakeet
+v2 + two compression variants of the same Whisper large-v3-turbo alongside
+the two real choices) — it read as an accuracy ladder and stalled new users
+on a choice that barely matters. Now: Parakeet v3 (STag "Recommended") and
+Whisper Large v3 Turbo in a "Speech model — pick one" section; the cleanup
+pass moved to its own "Optional add-on" section (Noah: three peer rows made
+it unclear the first two were pick-one and the third optional). Variants
+remain in Settings → Models. The trimmed flow fits a taller onboarding
+window with no scroll (window sized at launch while onboarding is active;
+main-window default untouched).

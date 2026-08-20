@@ -63,7 +63,19 @@ class PermissionsManager: ObservableObject {
             self?.stopPermissionChecking()
         }
 
-        windowObservers = [showObserver, closeObserver, hideObserver]
+        // Re-check the instant the user comes back from System Settings, so a fresh
+        // grant shows green immediately instead of after the next timer tick.
+        let activateObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.checkMicrophonePermission()
+            self?.checkAccessibilityPermission()
+            self?.checkGlobalEventListeningPermission()
+        }
+
+        windowObservers = [showObserver, closeObserver, hideObserver, activateObserver]
 
         if let window = NSApplication.shared.mainWindow, window.isKeyWindow {
             startPermissionChecking()
@@ -137,6 +149,21 @@ class PermissionsManager: ObservableObject {
         default:
             openSystemPreferences(for: .microphone)
         }
+    }
+
+    /// Asks macOS to register *this* binary in the Accessibility list and show the system prompt
+    /// (`AXIsProcessTrustedWithOptions`), then opens the Accessibility pane. Registering ourselves
+    /// matters: making the user add Rhino by hand is how the wrong copy (dev build vs /Applications)
+    /// ends up granted — the classic "checkbox is on but pasting doesn't work" stale-TCC state,
+    /// which only remove-and-re-add fixes.
+    func requestAccessibilityPermissionOrOpenSystemPreferences() {
+        guard !AXIsProcessTrusted() else {
+            isAccessibilityPermissionGranted = true
+            return
+        }
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        AXIsProcessTrustedWithOptions(options)
+        openSystemPreferences(for: .accessibility)
     }
 
     @objc private func accessibilityPermissionChanged() {

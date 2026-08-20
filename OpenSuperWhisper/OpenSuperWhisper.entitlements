@@ -6,8 +6,6 @@
 	<true/>
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
-	<key>com.apple.security.automation.apple-events</key>
-	<true/>
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
 	<key>com.apple.security.device.microphone</key>
@@ -18,9 +16,5 @@
 	<true/>
 	<key>com.apple.security.temporary-exception.accessibility.monitor</key>
 	<true/>
-	<key>com.apple.security.temporary-exception.apple-events</key>
-	<array>
-		<string>com.apple.systempreferences</string>
-	</array>
 </dict>
 </plist>

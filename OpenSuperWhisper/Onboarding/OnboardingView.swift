@@ -356,11 +356,11 @@ struct OnboardingView: View {
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
                     
+                    // .primary, not .white: the app renders light-only (white-first
+                    // restyle), so a white title vanishes into the header.
                     Text("Rhino")
                         .scaledFont(size: 32, weight: .bold)
-                        .foregroundStyle(
-                            .white
-                        )
+                        .foregroundStyle(.primary)
                 }
                 .padding(.bottom, 8)
                 

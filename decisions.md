@@ -608,3 +608,15 @@ stops Fn from opening the Mac's emoji picker; emoji stays on ⌃⌘Space").
 Disclosure stays because silently rewriting a system pref is off-brand for
 a trust-first app — but the action needs no click. Reversible in System
 Settings → Keyboard.
+
+**2026-08-19 — Onboarding offers exactly two models plus a separated
+optional add-on.** First-run listed five near-identical rows (Parakeet
+v2 + two compression variants of the same Whisper large-v3-turbo alongside
+the two real choices) — it read as an accuracy ladder and stalled new users
+on a choice that barely matters. Now: Parakeet v3 (STag "Recommended") and
+Whisper Large v3 Turbo in a "Speech model — pick one" section; the cleanup
+pass moved to its own "Optional add-on" section (Noah: three peer rows made
+it unclear the first two were pick-one and the third optional). Variants
+remain in Settings → Models. The trimmed flow fits a taller onboarding
+window with no scroll (window sized at launch while onboarding is active;
+main-window default untouched).

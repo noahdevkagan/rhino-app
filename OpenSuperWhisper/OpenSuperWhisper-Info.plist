@@ -23,8 +23,6 @@
 	<string>Rhino needs microphone access to record your dictation. Audio never leaves this Mac.</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>Rhino needs accessibility access to type your dictated text into other apps.</string>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>Rhino reads the active browser tab's URL to record where a dictation happened and to apply per-site model rules.</string>
 	<!-- Rhino's live feed (public releases repo). Private signing key: login
 	     keychain, account "Rhino". Moves to rhinovoice.app when the site exists. -->
 	<key>SUFeedURL</key>

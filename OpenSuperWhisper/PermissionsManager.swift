@@ -139,6 +139,21 @@ class PermissionsManager: ObservableObject {
         }
     }
 
+    /// Asks macOS to register *this* binary in the Accessibility list and show the system prompt
+    /// (`AXIsProcessTrustedWithOptions`), then opens the Accessibility pane. Registering ourselves
+    /// matters: making the user add Rhino by hand is how the wrong copy (dev build vs /Applications)
+    /// ends up granted — the classic "checkbox is on but pasting doesn't work" stale-TCC state,
+    /// which only remove-and-re-add fixes.
+    func requestAccessibilityPermissionOrOpenSystemPreferences() {
+        guard !AXIsProcessTrusted() else {
+            isAccessibilityPermissionGranted = true
+            return
+        }
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        AXIsProcessTrustedWithOptions(options)
+        openSystemPreferences(for: .accessibility)
+    }
+
     @objc private func accessibilityPermissionChanged() {
         checkAccessibilityPermission()
         checkGlobalEventListeningPermission()

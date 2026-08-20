@@ -5,7 +5,25 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-18)
+## Current state (2026-08-19)
+
+- **Silent auto-paste fix + permission clarity (branch `crxnamja/port-vila`,
+  PR pending):** user report "doesn't auto-paste into any app" with the
+  Accessibility toggle showing ON = stale TCC grant; macOS drops synthetic
+  keystrokes silently. `TranscriptInserter.insert` now returns an `Outcome`
+  enum and preflights `AXIsProcessTrusted()` — on failure the text stays on
+  the clipboard and the indicator flashes a re-add-Rhino notice. Banner button
+  self-registers the binary via `AXIsProcessTrustedWithOptions(prompt)`. New
+  Settings → Dictation → Permissions section (Mic + Accessibility rows +
+  stale-grant warn box). Removed the vestigial Apple Events permission
+  (Info.plist, pbxproj, entitlements — described the removed browser-URL
+  capture) and dead `PermissionsView`/`PermissionRow`. See decisions.md
+  2026-08-19. **Deliberately untouched: onboarding** — a permissions step
+  there is being handled in a parallel workspace; if it lands, wire it to
+  `PermissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences()`
+  rather than a raw System Settings link.
+
+## Previous state (2026-08-18)
 
 - **Paul Stamatiou feedback round implemented (2026-08-18, uncommitted):**
   8 of his 10 items are code-complete and the Debug build passes: About-panel

@@ -196,18 +196,25 @@ final class DictationPipeline: ObservableObject {
             // Insert BEFORE the history save: the user is watching the cursor, not the history
             // list, so the file move + duration probe below must not sit between the engine
             // finishing and the text landing. (#latency)
-            let pasteTargetMissing = hasText ? insertText(text) : false
+            let outcome: TranscriptInserter.Outcome = hasText ? insertText(text) : .skipped
 
             // Submit only when auto-paste actually inserted text somewhere. A short settle delay lets
             // the pasted text land in the field before Return reaches it.
-            if shouldSubmit && AppPreferences.shared.autoPasteTranscription && !pasteTargetMissing {
+            if shouldSubmit && outcome == .inserted {
                 try? await Task.sleep(nanoseconds: 120_000_000)
                 TextInserter.pressReturn()
             }
 
-            // No editable target was found — the text is on the clipboard; tell the user to paste it.
-            if pasteTargetMissing {
+            // The text could not be inserted but is on the clipboard — tell the user what happened
+            // and what to do, instead of letting the dictation appear to vanish.
+            switch outcome {
+            case .noTarget:
                 IndicatorWindowManager.shared.flash(.info("Copied — press ⌘V to paste"))
+            case .noPermission:
+                IndicatorWindowManager.shared.flash(.error(
+                    "Couldn't paste — re-add Rhino in System Settings → Accessibility. Copied — press ⌘V"))
+            case .inserted, .skipped:
+                break
             }
 
             if hasText && AppPreferences.shared.saveTranscriptionHistory {
@@ -330,11 +337,11 @@ final class DictationPipeline: ObservableObject {
         }
     }
 
-    /// Returns `true` when auto-paste ran but no editable field was focused, so the caller can leave
-    /// the text on the clipboard and notify ⌘V. When no target is found, typing is skipped. The
-    /// insertion policy itself lives in `TranscriptInserter`, shared with the re-paste shortcut.
+    /// Runs the shared insertion policy (`TranscriptInserter`, shared with the re-paste shortcut)
+    /// and reports what happened, so the caller can flash the right notice when the text ended up
+    /// on the clipboard instead of in the focused app.
     @discardableResult
-    private func insertText(_ text: String) -> Bool {
+    private func insertText(_ text: String) -> TranscriptInserter.Outcome {
         TranscriptInserter.insert(IndicatorViewModel.applyPostProcessing(text),
                                   honorAutoPastePreference: true)
     }

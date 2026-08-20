@@ -919,6 +919,9 @@ struct SettingsView: View {
     @State private var sidebarSearch = ""
     @FocusState private var sidebarSearchFocused: Bool
     @ObservedObject private var micService = MicrophoneService.shared
+    /// Live permission state for the Dictation tab's Permissions section. The manager re-checks
+    /// every second while a window is key, so the rows flip to green as soon as macOS grants.
+    @StateObject private var permissions = PermissionsManager()
     /// The engine whose models are currently being *browsed* (navigation only — the active engine
     /// in `viewModel.selectedEngine` changes only when the user clicks a model).
     @State private var browseEngine: String = AppPreferences.shared.selectedEngine
@@ -1479,6 +1482,28 @@ struct SettingsView: View {
     /// Trigger / Recording bar / Input, in the Atelier style.
     private var dictationSettings: some View {
         SPane(title: "Dictation") {
+            // The complete permission story in one place: Rhino needs exactly these two.
+            // (Input Monitoring rows some users see in System Settings are not needed —
+            // Accessibility covers event listening too. Apple Events / Automation went
+            // away with browser-URL capture.)
+            SSection(title: "Permissions") {
+                permissionRow(granted: permissions.isMicrophonePermissionGranted,
+                              title: "Microphone",
+                              hint: "To hear your dictation. Audio never leaves this Mac.") {
+                    permissions.requestMicrophonePermissionOrOpenSystemPreferences()
+                }
+                permissionRow(granted: permissions.isAccessibilityPermissionGranted,
+                              title: "Accessibility",
+                              hint: "To paste text into other apps and watch the recording shortcut. These two are the only permissions Rhino needs.") {
+                    permissions.requestAccessibilityPermissionOrOpenSystemPreferences()
+                }
+                if !permissions.isAccessibilityPermissionGranted {
+                    SWarnBox {
+                        Text("Checkbox already on in System Settings but pasting doesn't work? The grant has gone stale — in Privacy & Security → Accessibility, remove Rhino with the − button, add it back, then relaunch Rhino.")
+                    }
+                }
+            }
+
             SSection(title: "Trigger") {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Recording trigger")
@@ -1576,6 +1601,23 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
+            }
+        }
+    }
+
+    /// One permission row: green check when granted, a Grant button when not.
+    private func permissionRow(granted: Bool,
+                               title: LocalizedStringKey,
+                               hint: LocalizedStringKey,
+                               grant: @escaping () -> Void) -> some View {
+        SRow(title: title, hint: hint) {
+            if granted {
+                Label("Granted", systemImage: "checkmark.circle.fill")
+                    .scaledFont(size: 12, weight: .medium)
+                    .foregroundColor(STheme.ok)
+            } else {
+                Button("Grant…", action: grant)
+                    .controlSize(.small)
             }
         }
     }

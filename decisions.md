@@ -516,3 +516,30 @@ TranscriptionError error 0.)". Diagnostic tell for triage: a real Parakeet
 load failure surfaces as `FluidAudio.AsrModelsError`, never
 `OpenSuperWhisper.TranscriptionError` — seeing the latter during a Parakeet
 onboarding means the whisper engine was being loaded.
+
+**2026-08-19 — Silent auto-paste failure (user report: "doesn't auto-paste
+into any app", Accessibility toggle showing ON).** Root cause: both insertion
+modes post synthetic keyboard events, and macOS drops those *silently* when
+the Accessibility grant is stale — the System Settings checkbox can show ON
+while `AXIsProcessTrusted()` is false (grant recorded against a different
+copy: dev build vs /Applications, or app updated/moved). Nothing in the
+insertion path checked, so the dictation appeared to vanish (it was on the
+clipboard via the auto-copy default, which is why "⌘V works" is the telltale
+symptom). Fix: (1) `TranscriptInserter.insert` now returns an `Outcome` enum
+(`inserted/skipped/noTarget/noPermission`) and preflights `AXIsProcessTrusted`
+before posting — on failure the text is stashed on the clipboard and callers
+flash "Couldn't paste — re-add Rhino in System Settings → Accessibility.
+Copied — press ⌘V". Return-after-insert now only fires on `.inserted`.
+(2) `PermissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences`
+uses `AXIsProcessTrustedWithOptions(prompt)` so *this* binary registers itself
+in the Accessibility list — hand-adding is how the wrong copy gets granted in
+the first place; banner button now goes through it. (3) New Settings →
+Dictation → Permissions section: live status rows for the only two
+permissions Rhino needs (Microphone, Accessibility) + a stale-grant warn box.
+(4) Stripped the vestigial third permission: `NSAppleEventsUsageDescription`
+(Info.plist + pbxproj) and the apple-events entitlements described the
+browser-URL capture that was removed in the 80/20 cut — nothing sends Apple
+Events anymore. Also deleted dead `PermissionsView`/`PermissionRow` in
+ContentView (never instantiated). User-side fix for stale grants, for support
+replies: remove Rhino with "−" in Privacy & Security → Accessibility, re-add,
+relaunch.

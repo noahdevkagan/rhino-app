@@ -820,72 +820,8 @@ struct ContentView: View {
 
 }
 
-struct PermissionsView: View {
-    @ObservedObject var permissionsManager: PermissionsManager
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("Required Permissions")
-                .font(.title)
-                .padding()
-
-            PermissionRow(
-                isGranted: permissionsManager.isMicrophonePermissionGranted,
-                title: "Microphone Access",
-                description: "Required for audio recording",
-                action: {
-                    permissionsManager.requestMicrophonePermissionOrOpenSystemPreferences()
-                }
-            )
-
-            PermissionRow(
-                isGranted: permissionsManager.isAccessibilityPermissionGranted,
-                title: "Accessibility Access",
-                description: "Required for global Fn and typing into other apps",
-                action: { permissionsManager.openSystemPreferences(for: .accessibility) }
-            )
-
-            Spacer()
-        }
-        .padding()
-    }
-}
-
-struct PermissionRow: View {
-    let isGranted: Bool
-    let title: String
-    let description: String
-    let action: () -> Void
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: isGranted ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundColor(isGranted ? .green : .red)
-
-                Text(title)
-                    .font(.headline)
-
-                Spacer()
-
-                if !isGranted {
-                    Button("Grant Access") {
-                        action()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-
-            Text(description)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .padding()
-        .background(ThemePalette.panelSurface(colorScheme))
-        .cornerRadius(10)
-    }
-}
+// (PermissionsView/PermissionRow were removed — permission state lives in the
+// main-window banner (MainViews.PermissionsBanner) and Settings → Dictation → Permissions.)
 
 struct RecordingRow: View {
     let recording: Recording

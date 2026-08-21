@@ -5,36 +5,39 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-19, late)
+## Current state (2026-08-20, late)
 
-- **Rhino v0.1.12 shipped:** immutable tag `v0.1.12` at release commit
-  `c1b630c`. Notarized app+DMG published to rhino-releases, signed appcast
-  updated, rhinovoice.app (thanks/AppSumo/changelog) verified live at 0.1.12.
-  Contains the full user-feedback round (PR #26, which also carried PR #25's
-  auto-paste/permissions fixes; #25 closed as superseded): onboarding
-  overhaul, Parakeet download progress, crash fixes (mic-tap NSException,
-  abort-flag use-after-free). Release gotcha discovered: a release touches
-  FOUR version pins — CHANGELOG.md, thanks/redeem pages, changelog page,
-  and website/tests/rendered-html.test.mjs (the tests hardcode the DMG name;
-  release.sh fails its website step if stale).
-- **PR #27 open (`crxnamja/parakeet-model-cache`):** fixes the
-  memory-growth half of the user report — FluidAudio rebuilds all CoreML
-  MLModels on every downloadAndLoad (no internal cache); live preview
-  reloaded per dictation and boosting loaded a second copy per
-  transcription. New ParakeetModelCache actor shares one set per version;
-  evicted on engine switch. Gate green; wants a manual RSS check across ~10
-  live-preview dictations before merge.
+- **Rhino v0.1.14 shipped:** immutable tag `v0.1.14` at release commit
+  `202e4e6`. Notarized app+DMG on rhino-releases, appcast item signed and
+  live, rhinovoice.app verified at 0.1.14. Contents: onboarding rebuilt as
+  a numbered 1-2-3 wizard with auto-advance (#31, from tester feedback
+  "looked like a settings screen"), update badge drawn on the rhino
+  menu-bar icon (#29), menu-bar "Dictionary…" ⌘D item (#30).
+- Release pins are now FIVE files: CHANGELOG.md, thanks page, AppSumo
+  redeem form, website changelog page, and website/tests/
+  rendered-html.test.mjs (TWO hardcoded DMG names, lines ~71 and ~115).
+  release.sh pre-flights the first four; the tests fail the website step
+  on the fifth.
+- Dev preview recipe for onboarding/fresh-install states (isolated prefs
+  via RHINO_PREFS_SUITE, macOS missing-window-at-launch quirk, System
+  Events driving) is saved in Claude's project memory.
 
 ## Outstanding
 
-- Audit findings still open: AudioRecorder start (detached) vs stop (main) race (orphaned hot mic on
-  fast press-release); Apple Dictation double-press-🌐 racing double-tap-lock.
+- Wizard onboarding hasn't been re-tested by the tester whose feedback
+  drove it — ask them to redo fresh setup on 0.1.14.
+- PR #27's Parakeet model cache shipped in 0.1.13, but the planned manual
+  RSS check (~10 live-preview dictations, flat memory) was never recorded
+  — watch for memory-growth reports.
+- Audit findings still open: AudioRecorder start (detached) vs stop (main)
+  race (orphaned hot mic on fast press-release); Apple Dictation
+  double-press-🌐 racing double-tap-lock.
 - Crash reporter had no traces — ask if they run live preview (gates the
   mic-tap bug) and for Console.app crash reports if it recurs.
-- From the 2026-08-18 session (branch `crxnamja/bern`): input-aware
-  capitalization and app-icon refresh still open.
+- From branch `crxnamja/bern`: input-aware capitalization and app-icon
+  refresh still open.
 
 ## Next session
 
-Manually verify PR #27 (dictate ~10 times with live preview on, watch RSS
-stay flat), then merge it and consider tagging v0.1.13.
+Ask the onboarding tester to redo fresh setup on v0.1.14 and collect
+feedback; then take the AudioRecorder start/stop race audit finding.

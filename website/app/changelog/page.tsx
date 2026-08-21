@@ -1,5 +1,14 @@
 const releases = [
   {
+    version: "0.1.14",
+    date: "August 20, 2026",
+    changes: [
+      "Setup is now three numbered steps shown one at a time — Permissions → Dictate key → Speech model — moving forward automatically as you complete each, instead of one long screen that read like settings.",
+      "When an update is available, the red dot now sits on the rhino icon in the menu bar like a notification badge, instead of floating as a stray dot beside it.",
+      "A new “Dictionary…” item in the menu bar (⌘D while the menu is open) opens the main window already on the Dictionary tab, so you can add or fix a word immediately.",
+    ],
+  },
+  {
     version: "0.1.13",
     date: "August 20, 2026",
     changes: [

@@ -3,6 +3,19 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.14 — 2026-08-20
+
+- Setup is now three numbered steps shown one at a time — Permissions →
+  Dictate key → Speech model — moving forward automatically as you complete
+  each, instead of one long screen that read like settings. Completed steps
+  stay clickable if you want to go back.
+- When an update is available, the red dot now sits on the rhino icon in the
+  menu bar like a notification badge, instead of floating as a stray dot
+  beside it. The icon still adapts to light and dark menu bars.
+- A new "Dictionary…" item in the menu bar (⌘D while the menu is open) opens
+  the main window already on the Dictionary tab, so you can add or fix a
+  word immediately.
+
 ## 0.1.13 — 2026-08-20
 
 - Smart formatting now lays dictated emails out as emails — greeting on its

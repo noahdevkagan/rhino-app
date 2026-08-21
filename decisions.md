@@ -646,3 +646,14 @@ collisions are common), automatic topic-based paragraph breaks in long prose
 (a 1.5B model would over-split; keeping untagged prose on one line is the
 safer contract), and markdown structures (most insertion targets are plain
 text fields).
+
+## 2026-08-20 — Onboarding is a 1-2-3 wizard, not a page of sections
+Tester: the single screen "looked like a settings screen … wasn't sure I was
+supposed to action on it." Steps now show one at a time with a numbered rail.
+Choices: step 1 auto-advances 0.7s after both permissions turn green (poll
+timer makes it live) but keeps a quiet "Set up later" so managed Macs aren't
+blocked — the old screen never gated on permissions; step 2 advances on
+key-card click because picking IS completing (Next covers keep-the-default);
+the language picker moved from the window header into step 3 — it configures
+the model, not the window. Completed rail steps are clickable to go back;
+jumping forward stays disabled so required actions can't be skipped.

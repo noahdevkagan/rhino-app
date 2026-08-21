@@ -341,6 +341,23 @@ class OnboardingViewModel: ObservableObject {
     }
 }
 
+/// The three setup steps, shown one at a time. User feedback on the old
+/// single-screen layout: it "looked like a settings screen … I wasn't sure
+/// that I was supposed to action on it" — numbered steps that advance on
+/// completion make the required actions unmissable.
+enum OnboardingStep: Int, CaseIterable, Comparable {
+    case permissions = 0, dictateKey, speechModel
+    static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .permissions: return "Permissions"
+        case .dictateKey: return "Dictate key"
+        case .speechModel: return "Speech model"
+        }
+    }
+}
+
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
     @StateObject private var permissionsManager = PermissionsManager()
@@ -350,18 +367,27 @@ struct OnboardingView: View {
     @State private var isVerifyingModel = false
     @State private var fnGlobeConflict = FnGlobeKeySetting.conflictsWithFnTrigger
 
+    @State private var step: OnboardingStep = .permissions
+    /// Slide direction for the step transition (forward = new step enters from the right).
+    @State private var movingForward = true
+
     /// Setup reads as a centered column, not full-bleed rows: at the window's real
     /// widths (780–900+) full-width cards push each row's trailing control (Grant…,
     /// Download) far from the text it belongs to.
     private let contentWidth: CGFloat = 620
+
+    private var permissionsComplete: Bool {
+        permissionsManager.isMicrophonePermissionGranted
+            && permissionsManager.isAccessibilityPermissionGranted
+    }
 
     var body: some View {
         // Same visual system as Settings (Atelier / grouped cells): STheme window
         // background, gray section labels above white cards. The old gradient-header
         // look predated the light-only restyle and read as a different app.
         VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: 16) {
+                VStack(spacing: 3) {
                     Text("Welcome to Rhino")
                         .scaledFont(size: 19, weight: .bold)
                         .foregroundColor(STheme.textBright)
@@ -369,103 +395,184 @@ struct OnboardingView: View {
                         .scaledFont(size: 11)
                         .foregroundColor(STheme.hint)
                 }
-                Spacer()
-                Picker("Language", selection: $viewModel.selectedLanguage) {
-                    ForEach(LanguageUtil.availableLanguages, id: \.self) { code in
-                        Text(LanguageUtil.languageNames[code] ?? code)
-                            .tag(code)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 150)
+                OnboardingStepIndicator(current: step) { go(to: $0) }
             }
-            .frame(maxWidth: contentWidth)
-            .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 10)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24).padding(.top, 22).padding(.bottom, 14)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Permissions — first, because nothing works without them, and
-                    // Accessibility needs Rhino to register itself in System Settings
-                    // before the user can even find it there. Rows mirror Settings →
-                    // Dictation → Permissions so the two surfaces read as one app.
-                    SSection(title: "Permissions") {
-                        onboardingPermissionRow(
-                            granted: permissionsManager.isMicrophonePermissionGranted,
-                            title: "Microphone",
-                            hint: "To hear your dictation. Audio never leaves this Mac.") {
-                            permissionsManager.requestMicrophonePermissionOrOpenSystemPreferences()
-                        }
-                        onboardingPermissionRow(
-                            granted: permissionsManager.isAccessibilityPermissionGranted,
-                            title: "Accessibility",
-                            hint: "So the dictate key works everywhere and text lands in the app you're using.") {
-                            permissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences()
-                        }
-                    }
-
-                    SSection(title: "Dictate key") {
-                        Text("Hold it down to talk, release to insert the text")
-                            .scaledFont(size: 13)
-                            .foregroundColor(STheme.text)
-
-                        HStack(spacing: 8) {
-                            OnboardingShortcutCard(
-                                title: "fn",
-                                subtitle: "Hold fn (default)",
-                                isSelected: viewModel.selectedShortcut == .fn
-                            ) {
-                                viewModel.selectedShortcut = .fn
-                            }
-
-                            OnboardingShortcutCard(
-                                title: "Right ⌘",
-                                subtitle: "Hold Right Command",
-                                isSelected: viewModel.selectedShortcut == .rightCommand
-                            ) {
-                                viewModel.selectedShortcut = .rightCommand
-                            }
-                        }
-
-                        // One sentence, one line (Noah). The emoji clause appears only when
-                        // Continue will actually rewrite the Mac's Fn behavior — macOS acts
-                        // on a lone Fn press by factory default and Rhino's listen-only tap
-                        // can't consume it, so setup fixes the setting automatically.
-                        // Settings → Dictation carries the full explanation.
-                        Text(viewModel.selectedShortcut == .fn && fnGlobeConflict
-                             ? "Emoji stays available with ⌃⌘Space, and you can pick any key or combination later in Settings."
-                             : "You can pick any key or combination later in Settings.")
-                            .scaledFont(size: 11)
-                            .foregroundColor(STheme.hint)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    // Two sections, not one list: the models are a pick-ONE choice and
-                    // the cleanup pass is a separate optional add-on — in one card the
-                    // three rows read as three peers (user feedback).
-                    SSection(title: "Speech model") {
-                        Text("Pick one to get started — you can switch anytime")
-                            .scaledFont(size: 13)
-                            .foregroundColor(STheme.text)
-
-                        ForEach($viewModel.unifiedModels) { $model in
-                            OnboardingUnifiedModelItemView(model: $model, viewModel: viewModel)
-                        }
-                    }
-
-                    SSection(title: "Optional add-on") {
-                        OnboardingCleanupOffer()
+                Group {
+                    switch step {
+                    case .permissions: permissionsStep
+                    case .dictateKey: dictateKeyStep
+                    case .speechModel: speechModelStep
                     }
                 }
+                .id(step)
+                .transition(.asymmetric(
+                    insertion: .move(edge: movingForward ? .trailing : .leading).combined(with: .opacity),
+                    removal: .move(edge: movingForward ? .leading : .trailing).combined(with: .opacity)))
                 .frame(maxWidth: contentWidth, alignment: .leading)
-                .padding(.horizontal, 24).padding(.vertical, 14)
+                .padding(.horizontal, 24).padding(.vertical, 16)
                 .frame(maxWidth: .infinity)
             }
 
             Divider().overlay(STheme.border)
 
-            // Footer with Continue button, right-aligned to the same column as the cards.
-            HStack {
-                Spacer()
+            footer
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(STheme.windowBg)
+        .alert("Model Error", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
+        .onAppear {
+            // Both permissions already granted (reinstall, or the seeded prefs of a
+            // shared Mac): don't replay a completed step.
+            if permissionsComplete { step = .dictateKey }
+        }
+        .onChange(of: permissionsComplete) { done in
+            // Auto-advance the moment both rows turn green (the tester's ask). The
+            // pause lets the second checkmark land before the slide — an instant
+            // jump reads as a glitch, not a completion.
+            guard done, step == .permissions else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                if step == .permissions && permissionsComplete { advance() }
+            }
+        }
+    }
+
+    // MARK: Steps
+
+    private var permissionsStep: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            stepHeading("First, two permissions",
+                        "Rhino needs to hear you and type for you. Once both are granted, setup moves on by itself.")
+            stepCard {
+                // Accessibility second: it needs Rhino to register itself in System
+                // Settings before the user can even find it there. Rows mirror
+                // Settings → Dictation → Permissions so the surfaces read as one app.
+                onboardingPermissionRow(
+                    granted: permissionsManager.isMicrophonePermissionGranted,
+                    title: "Microphone",
+                    hint: "To hear your dictation. Audio never leaves this Mac.") {
+                    permissionsManager.requestMicrophonePermissionOrOpenSystemPreferences()
+                }
+                onboardingPermissionRow(
+                    granted: permissionsManager.isAccessibilityPermissionGranted,
+                    title: "Accessibility",
+                    hint: "So the dictate key works everywhere and text lands in the app you're using.") {
+                    permissionsManager.requestAccessibilityPermissionOrOpenSystemPreferences()
+                }
+            }
+        }
+    }
+
+    private var dictateKeyStep: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            stepHeading("Choose your dictate key",
+                        "Hold it down to talk, release to insert the text.")
+            stepCard {
+                HStack(spacing: 8) {
+                    OnboardingShortcutCard(
+                        title: "fn",
+                        subtitle: "Hold fn (default)",
+                        isSelected: viewModel.selectedShortcut == .fn
+                    ) {
+                        viewModel.selectedShortcut = .fn
+                        advanceAfterKeyPick()
+                    }
+
+                    OnboardingShortcutCard(
+                        title: "Right ⌘",
+                        subtitle: "Hold Right Command",
+                        isSelected: viewModel.selectedShortcut == .rightCommand
+                    ) {
+                        viewModel.selectedShortcut = .rightCommand
+                        advanceAfterKeyPick()
+                    }
+                }
+
+                // One sentence, one line (Noah). The emoji clause appears only when
+                // Continue will actually rewrite the Mac's Fn behavior — macOS acts
+                // on a lone Fn press by factory default and Rhino's listen-only tap
+                // can't consume it, so setup fixes the setting automatically.
+                // Settings → Dictation carries the full explanation.
+                Text(viewModel.selectedShortcut == .fn && fnGlobeConflict
+                     ? "Emoji stays available with ⌃⌘Space, and you can pick any key or combination later in Settings."
+                     : "You can pick any key or combination later in Settings.")
+                    .scaledFont(size: 11)
+                    .foregroundColor(STheme.hint)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var speechModelStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                stepHeading("Pick a speech model",
+                            "This is what turns your voice into text, right on this Mac. You can switch anytime.")
+                stepCard {
+                    // Language lives with the model (it tells the engine what to
+                    // listen for), not in the window header like the old layout.
+                    SRow(title: "Language", hint: "The language you'll dictate in") {
+                        Picker("Language", selection: $viewModel.selectedLanguage) {
+                            ForEach(LanguageUtil.availableLanguages, id: \.self) { code in
+                                Text(LanguageUtil.languageNames[code] ?? code)
+                                    .tag(code)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 150)
+                    }
+
+                    ForEach($viewModel.unifiedModels) { $model in
+                        OnboardingUnifiedModelItemView(model: $model, viewModel: viewModel)
+                    }
+                }
+            }
+
+            // Separate section, not another model row: the cleanup pass is an
+            // optional add-on, and in one card the rows read as peers (user feedback).
+            SSection(title: "Optional add-on") {
+                OnboardingCleanupOffer()
+            }
+        }
+    }
+
+    // MARK: Footer
+
+    private var footer: some View {
+        HStack(spacing: 10) {
+            if step > .permissions {
+                Button("Back") {
+                    go(to: OnboardingStep(rawValue: step.rawValue - 1) ?? .permissions)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(viewModel.isDownloading || isVerifyingModel)
+            }
+
+            Spacer()
+
+            switch step {
+            case .permissions:
+                // Quiet escape for Macs where Accessibility can't be granted right
+                // now (managed devices) — the old screen never blocked on permissions.
+                if !permissionsComplete {
+                    Button("Set up later") { advance() }
+                        .buttonStyle(.plain)
+                        .scaledFont(size: 12)
+                        .foregroundColor(STheme.hint)
+                }
+                nextButton(enabled: permissionsComplete)
+            case .dictateKey:
+                nextButton(enabled: true)
+            case .speechModel:
                 Button(action: {
                     handleContinueButtonTap()
                 }) {
@@ -474,7 +581,7 @@ struct OnboardingView: View {
                             ProgressView().controlSize(.small)
                             Text("Checking model…")
                         } else {
-                            Text("Continue")
+                            Text("Finish")
                             Image(systemName: "arrow.right")
                                 .scaledFont(size: 12, weight: .semibold)
                         }
@@ -485,16 +592,74 @@ struct OnboardingView: View {
                 .controlSize(.large)
                 .disabled(!viewModel.canContinue || viewModel.isDownloading || isVerifyingModel)
             }
-            .frame(maxWidth: contentWidth)
-            .padding(16)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(STheme.windowBg)
-        .alert("Model Error", isPresented: $showError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(errorMessage)
+        .frame(maxWidth: contentWidth)
+        .padding(16)
+    }
+
+    private func nextButton(enabled: Bool) -> some View {
+        Button(action: { advance() }) {
+            HStack(spacing: 6) {
+                Text("Next")
+                Image(systemName: "arrow.right")
+                    .scaledFont(size: 12, weight: .semibold)
+            }
+            .frame(minWidth: 100)
         }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .disabled(!enabled)
+    }
+
+    // MARK: Step plumbing
+
+    private func advance() {
+        guard let next = OnboardingStep(rawValue: step.rawValue + 1) else { return }
+        movingForward = true
+        withAnimation(.easeInOut(duration: 0.28)) { step = next }
+    }
+
+    private func go(to target: OnboardingStep) {
+        guard target != step else { return }
+        movingForward = target > step
+        withAnimation(.easeInOut(duration: 0.28)) { step = target }
+    }
+
+    /// Picking a key IS completing the step — pause just long enough for the
+    /// selection tint to land, then slide on.
+    private func advanceAfterKeyPick() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            if step == .dictateKey { advance() }
+        }
+    }
+
+    private func stepHeading(_ title: LocalizedStringKey, _ sub: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .scaledFont(size: 15, weight: .semibold)
+                .foregroundColor(STheme.textBright)
+            Text(sub)
+                .scaledFont(size: 12)
+                .foregroundColor(STheme.hint)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// SSection's white cell without the gray header — the step indicator
+    /// already names the step, a second label would echo it.
+    private func stepCard<C: View>(@ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 12) { content() }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(STheme.cardBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(STheme.border, lineWidth: 1)
+            )
     }
 
     /// Same row layout as Settings → Dictation → Permissions. The button is a
@@ -700,6 +865,62 @@ struct OnboardingShortcutCard: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Numbered 1·2·3 progress rail. Current step: filled copper circle; done:
+/// soft copper with a checkmark (clickable to go back); upcoming: hairline
+/// outline. The numbers are the point — they say "this is a sequence you
+/// act through", which the old settings-like layout never did.
+struct OnboardingStepIndicator: View {
+    let current: OnboardingStep
+    let onSelect: (OnboardingStep) -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(OnboardingStep.allCases, id: \.rawValue) { s in
+                if s != .permissions {
+                    Rectangle()
+                        .fill(s <= current ? STheme.accent.opacity(0.45) : STheme.border)
+                        .frame(width: 28, height: 1)
+                }
+                stepPill(s)
+            }
+        }
+    }
+
+    private func stepPill(_ s: OnboardingStep) -> some View {
+        let done = s < current
+        let active = s == current
+        return Button(action: { onSelect(s) }) {
+            HStack(spacing: 7) {
+                ZStack {
+                    Circle().fill(active ? STheme.accent : (done ? STheme.accentSoft : Color.clear))
+                    if done {
+                        Image(systemName: "checkmark")
+                            .scaledFont(size: 10, weight: .bold)
+                            .foregroundColor(STheme.accent)
+                    } else {
+                        Text(verbatim: "\(s.rawValue + 1)")
+                            .scaledFont(size: 11, weight: .semibold)
+                            .foregroundColor(active ? .white : STheme.hint)
+                    }
+                }
+                .frame(width: 22, height: 22)
+                .overlay(
+                    Circle().stroke(active || done ? Color.clear : STheme.controlBorder, lineWidth: 1)
+                )
+
+                Text(s.label)
+                    .scaledFont(size: 12, weight: active ? .semibold : .regular)
+                    .foregroundColor(active ? STheme.textBright : (done ? STheme.text : STheme.hint))
+            }
+            .padding(.horizontal, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // Only completed steps navigate — jumping ahead would skip required actions.
+        .disabled(!done)
     }
 }
 

@@ -172,12 +172,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
                 window.orderOut(nil)
                 NSApplication.shared.setActivationPolicy(.accessory)
             } else if !AppPreferences.shared.hasCompletedOnboarding {
-                // Setup fits without scrolling: the trimmed flow is ~800pt tall (~860 with
-                // the Fn-conflict notice), but the scene default (640) was sized for the
-                // main window. Clamp to the screen so small displays still fit; the
-                // ScrollView stays as the fallback.
-                let visible = (window.screen ?? NSScreen.main)?.visibleFrame.height ?? 860
-                window.setContentSize(NSSize(width: 900, height: min(860, visible - 24)))
+                // Setup is a one-step-at-a-time wizard now; the tallest step (Speech
+                // model, mid-download with the add-on card) fits in ~740pt. Clamp to
+                // the screen so small displays still fit; the ScrollView stays as
+                // the fallback.
+                let visible = (window.screen ?? NSScreen.main)?.visibleFrame.height ?? 740
+                window.setContentSize(NSSize(width: 900, height: min(740, visible - 24)))
                 window.center()
             }
         }

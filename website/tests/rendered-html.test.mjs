@@ -117,15 +117,15 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });
 
-test("ships exactly 10,000 unique, well-formed redemption hashes", async () => {
+test("ships exactly 20,000 unique, well-formed redemption hashes", async () => {
   const payload = await readFile(
     new URL("../public/appsumo-hashes.json", import.meta.url),
     "utf8",
   );
   const hashes = JSON.parse(payload);
 
-  assert.equal(hashes.length, 10_000);
-  assert.equal(new Set(hashes).size, 10_000);
+  assert.equal(hashes.length, 20_000);
+  assert.equal(new Set(hashes).size, 20_000);
   assert.ok(hashes.every((hash) => /^[a-f0-9]{64}$/.test(hash)));
   assert.deepEqual(hashes, [...hashes].sort());
 });

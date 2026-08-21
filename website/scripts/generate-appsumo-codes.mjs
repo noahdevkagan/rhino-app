@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -21,11 +21,18 @@ export function generateCode() {
   return `RH-${randomGroup()}-${randomGroup()}-${randomGroup()}`;
 }
 
-export function generateCodeBatch(count = DEFAULT_COUNT) {
+export function generateCodeBatch(count = DEFAULT_COUNT, existingHashes = new Set()) {
   const codes = new Set();
+  const seenHashes = new Set(existingHashes);
 
   while (codes.size < count) {
-    codes.add(generateCode());
+    const code = generateCode();
+    const hash = hashCode(code);
+
+    if (seenHashes.has(hash)) continue;
+
+    seenHashes.add(hash);
+    codes.add(code);
   }
 
   return [...codes];
@@ -51,6 +58,7 @@ function parseArguments(args) {
     codes: resolve("../.context/rhino-appsumo-codes.csv"),
     hashes: resolve("public/appsumo-hashes.json"),
     force: false,
+    append: false,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -58,6 +66,8 @@ function parseArguments(args) {
 
     if (argument === "--force") {
       options.force = true;
+    } else if (argument === "--append") {
+      options.append = true;
     } else if (argument === "--count") {
       options.count = Number.parseInt(args[++index] ?? "", 10);
     } else if (argument === "--codes") {
@@ -80,14 +90,16 @@ async function main() {
   const options = parseArguments(process.argv.slice(2));
 
   if (!options.force) {
-    await Promise.all([
-      assertDoesNotExist(options.codes),
-      assertDoesNotExist(options.hashes),
-    ]);
+    const checks = [assertDoesNotExist(options.codes)];
+    if (!options.append) checks.push(assertDoesNotExist(options.hashes));
+    await Promise.all(checks);
   }
 
-  const codes = generateCodeBatch(options.count);
-  const hashes = codes.map(hashCode).sort();
+  const existingHashes = options.append
+    ? JSON.parse(await readFile(options.hashes, "utf8"))
+    : [];
+  const codes = generateCodeBatch(options.count, new Set(existingHashes));
+  const hashes = [...existingHashes, ...codes.map(hashCode)].sort();
 
   await Promise.all([
     mkdir(dirname(options.codes), { recursive: true }),

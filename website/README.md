@@ -30,3 +30,13 @@ node scripts/generate-appsumo-codes.mjs
 ```
 
 The generator refuses to replace an existing batch unless `--force` is passed.
+
+To add codes to an existing batch instead of replacing it, pass `--append`:
+new codes are checked against the published hashes so no duplicates are
+possible, the new hashes are merged into `public/appsumo-hashes.json`, and the
+CSV contains only the new batch (write it to a fresh `--codes` path):
+
+```bash
+node scripts/generate-appsumo-codes.mjs --append --count 10000 \
+  --codes ../.context/rhino-appsumo-codes-batch2.csv
+```

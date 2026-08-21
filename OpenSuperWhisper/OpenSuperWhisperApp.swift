@@ -291,14 +291,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem?.button {
-            if let iconImage = NSImage(named: "tray_icon") {
-                iconImage.size = NSSize(width: 18, height: 18)
-                iconImage.isTemplate = true
-                button.image = iconImage
-            } else {
-                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Rhino")
-            }
-
             button.imagePosition = .imageLeft
             button.action = #selector(statusBarButtonClicked(_:))
             button.target = self
@@ -335,8 +327,49 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         updateStatusBarMenu()
     }
 
-    /// The status button's text suffix: a "DEV" tag on debug builds, and a red
-    /// dot while an update is waiting — the quiet "something's new up here" cue.
+    /// The tray glyph (rhino), template so the menu bar tints it for light/dark.
+    private static func trayIcon() -> NSImage? {
+        if let icon = NSImage(named: "tray_icon") {
+            icon.size = NSSize(width: 18, height: 18)
+            icon.isTemplate = true
+            return icon
+        }
+        return NSImage(systemSymbolName: "waveform", accessibilityDescription: "Rhino")
+    }
+
+    /// The tray glyph with a red update dot badged onto its top-right corner —
+    /// on the rhino, not trailing behind it. A colored badge forces the image
+    /// out of template mode, so the glyph is tinted with `labelColor` inside a
+    /// drawing handler; that block re-runs per draw, so it re-resolves when the
+    /// menu bar switches between light and dark.
+    private static func badgedTrayIcon() -> NSImage? {
+        guard let base = trayIcon() else { return nil }
+        let badged = NSImage(size: base.size, flipped: false) { rect in
+            base.draw(in: rect)
+            NSColor.labelColor.set()
+            rect.fill(using: .sourceAtop)
+
+            // Placed to overlap the rhino's back — the glyph doesn't reach the
+            // frame's top-right corner, so a corner-anchored dot floats in space.
+            let dot = NSRect(x: rect.maxX - 7, y: rect.maxY - 9, width: 6, height: 6)
+            // Punch a thin gap around the dot so it reads as a badge sitting on
+            // the glyph rather than a blob merged into it.
+            if let ctx = NSGraphicsContext.current?.cgContext {
+                ctx.setBlendMode(.clear)
+                NSBezierPath(ovalIn: dot.insetBy(dx: -1.25, dy: -1.25)).fill()
+                ctx.setBlendMode(.normal)
+            }
+            NSColor.systemRed.setFill()
+            NSBezierPath(ovalIn: dot).fill()
+            return true
+        }
+        badged.isTemplate = false
+        return badged
+    }
+
+    /// Keeps the status button current: the plain rhino normally, the badged one
+    /// while an update is waiting — the quiet "something's new up here" cue —
+    /// plus a "DEV" text suffix on debug builds.
     private func refreshStatusBadge() {
         guard let button = statusItem?.button else { return }
         let badge = NSMutableAttributedString()
@@ -345,16 +378,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             string: " DEV",
             attributes: [.font: NSFont.systemFont(ofSize: 9, weight: .bold)]))
         #endif
-        if MainActor.assumeIsolated({ SparkleUpdater.shared.updateAvailable }) {
-            badge.append(NSAttributedString(
-                string: " ●",
-                attributes: [
-                    .font: NSFont.systemFont(ofSize: 8, weight: .bold),
-                    .foregroundColor: NSColor.systemRed,
-                    .baselineOffset: 3,
-                ]))
-        }
         button.attributedTitle = badge
+
+        let updateWaiting = MainActor.assumeIsolated { SparkleUpdater.shared.updateAvailable }
+        button.image = (updateWaiting ? Self.badgedTrayIcon() : nil) ?? Self.trayIcon()
     }
 
     private func updateStatusBarMenu() {
@@ -375,6 +402,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         let openItem = NSMenuItem(title: "Open Window", action: #selector(openApp), keyEquivalent: "o")
         openItem.target = self   // without a target macOS disables the item (it did nothing)
         menu.addItem(openItem)
+
+        // Direct route to dictionary editing — adding a word mid-dictation otherwise
+        // costs Open Window → sidebar → Dictionary.
+        let dictionaryItem = NSMenuItem(title: "Dictionary…", action: #selector(openDictionary), keyEquivalent: "d")
+        dictionaryItem.target = self
+        menu.addItem(dictionaryItem)
 
         let transcriptionLanguageItem = NSMenuItem(title: NSLocalizedString("Language", comment: ""), action: nil, keyEquivalent: "")
         languageSubmenu = NSMenu()
@@ -635,6 +668,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     @objc private func openSettings() {
         showMainWindow()
         NotificationCenter.default.post(name: .openSettings, object: nil)
+    }
+
+    @objc private func openDictionary() {
+        showMainWindow()
+        NotificationCenter.default.post(name: .openDictionary, object: nil)
     }
 
     @objc private func openFeedback() {

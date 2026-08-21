@@ -16,4 +16,7 @@ extension Notification.Name {
     /// Posted alongside .openSettings to land the window on the Models tab (Home's
     /// missing-model banner deep-links there).
     static let openSettingsModelsTab = Notification.Name("OpenSettingsModelsTab")
+    /// Deep-links the main window straight to the Dictionary tab (menu-bar item),
+    /// skipping Open Window → sidebar navigation.
+    static let openDictionary = Notification.Name("OpenDictionary")
 }

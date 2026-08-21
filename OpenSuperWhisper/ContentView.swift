@@ -498,6 +498,11 @@ struct ContentView: View {
             settingsInitialTab = .models
             showSettings = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openDictionary)) { _ in
+            // Dismiss an open Settings sheet — the tab is invisible behind it.
+            showSettings = false
+            mainTab = .dictionary
+        }
         .sheet(isPresented: $showSettings, onDismiss: { settingsInitialTab = nil }) {
             SettingsView(initialTab: settingsInitialTab)
                 .frame(width: 720, height: 540)

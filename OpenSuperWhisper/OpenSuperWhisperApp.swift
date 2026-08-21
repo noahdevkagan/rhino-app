@@ -376,6 +376,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         openItem.target = self   // without a target macOS disables the item (it did nothing)
         menu.addItem(openItem)
 
+        // Direct route to dictionary editing — adding a word mid-dictation otherwise
+        // costs Open Window → sidebar → Dictionary.
+        let dictionaryItem = NSMenuItem(title: "Dictionary…", action: #selector(openDictionary), keyEquivalent: "d")
+        dictionaryItem.target = self
+        menu.addItem(dictionaryItem)
+
         let transcriptionLanguageItem = NSMenuItem(title: NSLocalizedString("Language", comment: ""), action: nil, keyEquivalent: "")
         languageSubmenu = NSMenu()
         
@@ -635,6 +641,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     @objc private func openSettings() {
         showMainWindow()
         NotificationCenter.default.post(name: .openSettings, object: nil)
+    }
+
+    @objc private func openDictionary() {
+        showMainWindow()
+        NotificationCenter.default.post(name: .openDictionary, object: nil)
     }
 
     @objc private func openFeedback() {

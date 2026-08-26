@@ -657,3 +657,41 @@ key-card click because picking IS completing (Next covers keep-the-default);
 the language picker moved from the window header into step 3 — it configures
 the model, not the window. Completed rail steps are clickable to go back;
 jumping forward stays disabled so required actions can't be skipped.
+
+## 2026-08-26 — Spoken edits: self-corrections become a fourth prompt section,
+opt-in like smart formatting
+Noah (dictating real emails): he uses Rhino less than Wispr because he can't
+"talk to the AI" — "wait scrap that, instead say XXX" gets typed out in full.
+The fix rides the existing prompt-section design (no new pipeline pass, no
+second model call): a "Self-correction rule" section, gated by a new
+`spokenEditsEnabled` pref (own toggle under LLM cleanup, off by default —
+same contract-loosening logic as smart formatting, and it carves a hole in
+the never-follow-instructions rule, so it must be explicit consent). Shape
+follows the 2026-08-20 lesson: multiple worked examples with different
+correction shapes (tail replacement via 'scrap that', value fix via 'make
+that', mid-sentence 'I mean', full restart via 'scrap all of that') plus two
+counter-examples for literal uses ('she said we should scrap that feature',
+adverbial 'actually'). Both the system preamble carve-out and the per-request
+user wrapper carve-out are scoped to "the speaker's own spoken corrections"
+only — everything else in the text stays instructions-not-to-follow. The
+length guard gets a cue-gated condensing carve-out (`containsSpokenEditCue`,
+regex on scrap/scratch/delete/forget/I mean/make that/…): an applied edit
+legitimately shrinks output below the 0.3x prose floor, but the floor only
+relaxes (to 0.05x) when the input actually carries a cue, so an off-contract
+one-word reply to a normal dictation is still rejected. NOT verified against
+the real embedded Qwen 1.5B yet (authored off-Mac) — probe with `Rhino
+cleanup` before shipping, same as the message rule was.
+
+## 2026-08-26 — Message rule gains a long worked example and a no-period
+sign-off rule
+Noah's real dictated intro email came out as one solid block with a period
+after the sign-off name ("Tim."). Both short message-rule examples are one to
+two sentences, and per the 2026-08-20 lookup-not-pattern lesson the 1.5B
+model doesn't stretch them to multi-sentence emails. Added a third worked
+example modeled directly on his dictation (five sentences grouped into short
+paragraphs) plus explicit prose rules: never one solid block, and the
+sender's name is the last line and never takes a period. Deliberately NOT
+added: dropping filler sentences the speaker "didn't mean" (his "I think it
+makes sense.") — deciding which sentence is noise is editorial judgment a
+1.5B model will misfire on; spoken edits ("scrap that") is the sanctioned
+way to remove content.

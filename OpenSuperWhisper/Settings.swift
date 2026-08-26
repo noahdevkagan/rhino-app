@@ -219,6 +219,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var spokenEditsEnabled: Bool {
+        didSet {
+            AppPreferences.shared.spokenEditsEnabled = spokenEditsEnabled
+        }
+    }
+
     /// Whether the built-in model's GGUF is present on disk.
     @Published var builtInModelDownloaded: Bool = LLMModelManager.shared.isDefaultModelDownloaded()
     /// Download progress in 0...1 while the built-in model is downloading; nil when idle.
@@ -380,6 +386,7 @@ class SettingsViewModel: ObservableObject {
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
         self.smartFormattingEnabled = prefs.smartFormattingEnabled
+        self.spokenEditsEnabled = prefs.spokenEditsEnabled
         self.removeFillerWords = prefs.removeFillerWords
         self.autoCopyToClipboard = prefs.autoCopyToClipboard
         self.autoPasteTranscription = prefs.autoPasteTranscription
@@ -1318,6 +1325,15 @@ struct SettingsView: View {
                         InfoButton(text: "Lay dictated lists out as lists (“item 1, yes, item 2, no” becomes bulleted lines) and dictated emails out as emails — greeting on its own line, paragraph breaks, sign-off and name on their own lines. You can also say “new line” or “new paragraph” to insert breaks. Normal sentences stay prose.")
                         Spacer()
                         SToggle(isOn: $viewModel.smartFormattingEnabled)
+                    }
+                    .padding(.leading, 16)
+                    .frame(minHeight: 24)
+                    HStack(spacing: 8) {
+                        Text("Spoken edits")
+                            .scaledFont(size: 12).foregroundColor(STheme.text)
+                        InfoButton(text: "Correct yourself out loud and the fix is applied instead of typed out: “the demo is Tuesday — wait, scrap that, it moved to Thursday” inserts only the Thursday version. Works with “scrap that”, “I mean”, “actually, make that…”, and “scrap all of that” to restart.")
+                        Spacer()
+                        SToggle(isOn: $viewModel.spokenEditsEnabled)
                     }
                     .padding(.leading, 16)
                     .frame(minHeight: 24)

@@ -657,3 +657,18 @@ key-card click because picking IS completing (Next covers keep-the-default);
 the language picker moved from the window header into step 3 — it configures
 the model, not the window. Completed rail steps are clickable to go back;
 jumping forward stays disabled so required actions can't be skipped.
+
+**2026-08-26 — Media resume decision moved off MediaRemote reads.** The
+pause-media-on-record resume never fired in shipped builds: since macOS
+15.4 `MRMediaRemoteGetNowPlayingInfo` is entitlement-gated, and Developer
+ID signing does NOT satisfy it (only Apple platform binaries read — which
+is why the original "signed swift toolchain reads fine" experiment
+misled; send commands stay ungated, so pause kept working). The
+was-something-playing snapshot now falls back to a public CoreAudio
+probe — is the default output device rendering for any process
+(`kAudioDevicePropertyDeviceIsRunningSomewhere`) — sampled just before
+the pause is sent. Coarser than a now-playing read (an active call
+counts as "playing" and would arm a resume), accepted over the
+alternatives: never resuming (the reported bug) or blind always-resume
+(wakes stale now-playing owners). The precise MediaRemote path is kept
+for systems where reads still work.

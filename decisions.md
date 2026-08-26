@@ -658,6 +658,23 @@ the language picker moved from the window header into step 3 — it configures
 the model, not the window. Completed rail steps are clickable to go back;
 jumping forward stays disabled so required actions can't be skipped.
 
+## 2026-08-26 — Non-English cleanup pins the output language in the prompt
+User report: with German selected, roughly every third dictation came back
+translated into English. Whisper itself was ruled out (`translate` is forced
+off and the language is passed as "de"); the translator is the LLM cleanup
+pass — its system prompt and every worked example are English, and against
+that wall of English few-shot text the small built-in model's generic "never
+translate" clause loses intermittently. Fix chosen: pin the language twice —
+a named "Language rule" appended as the LAST system-prompt section (recency
+wins for a 1.5B model), and a one-line "Keep the text in German — do not
+translate it" restated in the per-request wrapper next to the text. "auto"
+gets language-agnostic wording ("the language it was dictated in"); "en"
+appends nothing so the tuned English prompt stays byte-identical.
+Deliberately NOT done: a post-hoc language-detection guard on the output
+(comparing input/output language reliably needs another model or brittle
+stopword heuristics, and a false positive would silently discard a good
+cleanup) — if reports continue, that guard is the next escalation.
+
 ## 2026-08-26 — Spoken edits: self-corrections become a fourth prompt section,
 opt-in like smart formatting
 Noah (dictating real emails): he uses Rhino less than Wispr because he can't
@@ -695,3 +712,8 @@ added: dropping filler sentences the speaker "didn't mean" (his "I think it
 makes sense.") — deciding which sentence is noise is editorial judgment a
 1.5B model will misfire on; spoken edits ("scrap that") is the sanctioned
 way to remove content.
+
+Merge note (same day): this landed alongside the language-pin change above;
+prompt sections now stack transform preamble → cleanup → smart formatting →
+self-correction → language rule, keeping the language rule last per its own
+recency rationale.

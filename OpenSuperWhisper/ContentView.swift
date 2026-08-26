@@ -207,9 +207,9 @@ class ContentViewModel: ObservableObject {
             startDurationTimerIfNeeded()
         }
         
-        Task.detached { [recorder] in
-            recorder.startRecording()
-        }
+        // Returns immediately: the recorder does the slow AVFoundation work on its own
+        // serial queue, so this never blocks the main thread (#freeze).
+        recorder.startRecording()
     }
 
     /// Discard the in-progress main-window recording (Esc): throw the audio away instead

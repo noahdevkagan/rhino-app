@@ -135,17 +135,15 @@ class IndicatorViewModel: ObservableObject {
 
         // Show recording immediately and optimistically. Whether the mic needs a
         // connection is decided off the main thread inside `recorder.startRecording()`
-        // (it touches AVFoundation/CoreAudio, which can stall); the recorder then
-        // publishes `isConnecting`/`isRecording` and the Combine bindings above
-        // flip this to `.connecting` when needed. Querying it here would put that
-        // blocking call on the main thread — and the hotkey tap runs there (#freeze).
+        // (it runs on the recorder's serial queue — AVFoundation/CoreAudio can stall);
+        // the recorder then publishes `isConnecting`/`isRecording` and the Combine
+        // bindings above flip this to `.connecting` when needed. Querying it here would
+        // put that blocking call on the main thread — and the hotkey tap runs there (#freeze).
         state = .recording
         startBlinking()
         recordingStartedAt = Date()
 
-        Task.detached { [recorder] in
-            recorder.startRecording()
-        }
+        recorder.startRecording()
 
         // Live transcription (Parakeet only): stream in parallel with the WAV recorder so the
         // indicator can show the text as the user speaks. Falls back to the file pass on stop.

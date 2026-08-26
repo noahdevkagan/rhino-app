@@ -717,3 +717,23 @@ Merge note (same day): this landed alongside the language-pin change above;
 prompt sections now stack transform preamble → cleanup → smart formatting →
 self-correction → language rule, keeping the language rule last per its own
 recency rationale.
+
+## 2026-08-26 — CI is the gate for phone-driven work: claude/** push trigger
+plus unit tests wired into both gates
+Noah wants to work from his phone (Claude sessions on Linux containers) and
+still have fixes verified and speed/accuracy/functionality tested before
+tagging. Two gaps closed: (1) Build Check gains a push trigger scoped to
+claude/** branches — those pushes come from session containers where the
+local push gate can't run (no macOS), so they previously got NO gate at all;
+concurrency cancel-in-progress bounds the 10x macOS minutes. The blanket
+no-per-push-trigger rule stands for human branches, where the local gate
+covers development. (2) The XCTest bundle (OpenSuperWhisperTests) is now
+gate stage 2 in BOTH Scripts/push-gate.sh (FAST=1 skips it) and
+test-gate.yml — closing the long-standing "unit tests not wired into the
+gate" HANDOFF gap, so the prompt-contract tests actually guard releases.
+The WhisperCppBindingTests testable is deliberately NOT included yet
+(-only-testing scopes to OpenSuperWhisperTests): unverified on CI, one new
+variable at a time. Known caveat: pushes made by the Claude integration may
+not fire push-event workflows (GitHub suppresses some integration-token
+events) — the fallback is one tap in the GitHub mobile app (Actions → Build
+Check → Run workflow), and the v* tag gate is unaffected.

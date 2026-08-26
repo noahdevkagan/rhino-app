@@ -657,3 +657,24 @@ key-card click because picking IS completing (Next covers keep-the-default);
 the language picker moved from the window header into step 3 — it configures
 the model, not the window. Completed rail steps are clickable to go back;
 jumping forward stays disabled so required actions can't be skipped.
+
+## 2026-08-26 — Single-instance guard: newest launch wins, no plist key
+Customer report: every dictation pasted twice, 5-6 dictations in a row, gone
+after a restart. Audit of the in-process paths found them all single-fire
+(stopRecording nils currentRecordingURL so a second stop can't re-enqueue;
+KeyboardShortcuts slot handlers register once; the pipeline runs one loop;
+ModifierKeyMonitor's pressedKey guard swallows even a duplicated tap) — but
+nothing stopped TWO Rhino instances from running at once, and two instances
+reproduce the symptom exactly: both hear the trigger, both record the shared
+mic, both transcribe, both paste, until one is quit. Real-world sources: an
+old instance that failed to exit during a Sparkle update relaunch, or a
+second copy run from Downloads/DMG/dev build (LaunchServices dedupes by
+bundle *path*, not bundle id). Chosen fix: at launch, terminate other
+instances of our bundle id, newest launch winning (total order: launch date,
+then pid, unknown date ranks oldest — so racing guards can never both win or
+both yield), with a 3s grace before force-kill. Rejected:
+LSMultipleInstancesProhibited — it would keep a FRESH copy from launching
+while a wedged old instance lingers, trading double-paste for "app won't
+open"; deferring to the existing instance — the just-launched copy is the
+one the user (or the updater) wants, and a dev build should take over the
+installed copy while testing.

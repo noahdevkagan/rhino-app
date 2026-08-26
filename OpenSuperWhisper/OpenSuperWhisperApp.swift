@@ -150,6 +150,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     private var microphoneObserver: AnyCancellable?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Two live instances double every dictation's paste (both hear the trigger, both insert)
+        // — take over from any older instance before arming anything. (#duplicate-paste)
+        SingleInstanceGuard.terminateOtherInstances()
+
         // White-first product (design: Gebbia minimal, per the Typeless-style
         // mockups) — the whole app renders light regardless of system theme.
         NSApp.appearance = NSAppearance(named: .aqua)

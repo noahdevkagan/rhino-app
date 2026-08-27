@@ -797,3 +797,17 @@ custom-dictionary boosting path and the live preview run on
 patching FluidAudio for those is the escalation if reports continue
 (boosting is double-opt-in; preview text only reaches the document via the
 short-clip streamed fallback).
+
+## 2026-08-27 — Onboarding recommends Parakeet v2, not v3 (reverses 08-19's
+pick)
+Noah, releasing 0.1.15: "v2 should be default as english is majority." His
+un-pushed 08-18 commit (shelved as branch parakeet-v2-recommended) had the
+same intent from customer feedback (Yan on X) plus the strongest argument:
+v2 is the exact config that won the published Wispr Flow head-to-head. The
+08-19 two-row decision stands — this only changes WHICH Parakeet leads:
+v2 with the Recommended badge and "for English" wording; Whisper turbo's
+row now says "Best for non-English languages" so non-English users
+self-select correctly at setup; v3 (multilingual) stays in Settings →
+Models. The 08-27 language-hint fix makes v3 safer than it was, but
+recommended-by-default goes to the benchmark-winning English config, not
+the multilingual generalist.

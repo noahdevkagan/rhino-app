@@ -1734,23 +1734,25 @@ struct OnboardingUnifiedModel: Identifiable {
 }
 
 struct OnboardingUnifiedModels {
-    /// First-run is a two-choice decision: the recommended Parakeet v3 or best-accuracy
-    /// Whisper. The list used to also offer Parakeet v2 and two compression variants of
-    /// the same Whisper model — five near-identical rows that read as an accuracy ladder
-    /// and stalled new users on a choice that barely matters. The trimmed variants remain
-    /// available in Settings → Models.
+    /// First-run is a two-choice decision, with each row saying who it is for rather than
+    /// spec-sheet language. Parakeet v2 leads with the Recommended badge (Noah,
+    /// 2026-08-27): most users dictate in English, and v2 is the config that won the
+    /// published Wispr Flow head-to-head. Whisper is the non-English pick; Parakeet v3
+    /// (multilingual) and the compression variants remain in Settings → Models. The list
+    /// used to be five near-identical rows that read as an accuracy ladder and stalled
+    /// new users on a choice that barely matters.
     static let availableModels = [
         OnboardingUnifiedModel(
-            name: "Parakeet v3",
+            name: "Parakeet v2",
             isDownloaded: false,
-            description: "Fastest processing and accurate",
-            type: .parakeet(version: "v3"),
+            description: "Fastest and most accurate for English",
+            type: .parakeet(version: "v2"),
             isRecommended: true
         ),
         OnboardingUnifiedModel(
             name: "Whisper Large v3 Turbo",
             isDownloaded: false,
-            description: "Best accuracy, 1.6 GB",
+            description: "Best for non-English languages, 1.6 GB",
             type: .whisper(
                 url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin?download=true")!,
                 size: 1624

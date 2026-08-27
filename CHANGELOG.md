@@ -20,6 +20,10 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
   in English or Russian at times: the cleanup pass is pinned to your
   dictation language, and the Parakeet model now gets told which language
   you selected instead of guessing per phrase.
+- Setup now recommends Parakeet v2 — the fastest, most accurate pick for
+  English and the model behind our published accuracy benchmark. Dictating
+  in another language? Pick Whisper Large v3 Turbo in setup, or Parakeet
+  v3 (multilingual) any time in Settings → Models.
 
 ## 0.1.14 — 2026-08-20
 

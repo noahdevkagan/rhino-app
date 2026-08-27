@@ -51,6 +51,15 @@ final class SmartFormattingPromptTests: XCTestCase {
                       "the worked email example is what a 1.5B model actually follows")
         XCTAssertTrue(system!.contains("merely mentions a greeting or thanks is not a message"),
                       "the counter-example keeps ordinary prose out of email layout")
+        // Real dictated emails run several sentences; without a long worked example the
+        // model formats only short inputs shaped like the short examples (see decisions.md
+        // on one-example lookup behavior) and returns long emails as a single block.
+        XCTAssertTrue(system!.contains("never one solid block"))
+        XCTAssertTrue(system!.contains(
+            "Thanks for your message. Please be introduced to Jamie, my partner for Contaktly."),
+                      "the long email example carries the paragraph-grouping behavior")
+        XCTAssertTrue(system!.contains("never takes a period"),
+                      "the sign-off name must not gain a period from sentence punctuation")
     }
 
     func testSystemPromptIncludesLayoutCommandsWhenOn() {

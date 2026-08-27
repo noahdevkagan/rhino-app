@@ -25,7 +25,8 @@ enum CLI {
     JSON array of { "file", "ms" (transcription time), "text" } — used to benchmark engines.
 
     `cleanup` skips audio entirely and runs the app's LLM cleanup pass (honoring its settings,
-    including smart formatting) over the given text — for testing cleanup without recording.
+    including smart formatting and spoken edits) over the given text — for testing cleanup
+    without recording.
 
     All use the engine and settings configured in the app. Set up a model in the app first.
     """

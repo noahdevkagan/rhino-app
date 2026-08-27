@@ -315,6 +315,14 @@ final class AppPreferences {
     @UserDefault(key: "smartFormattingEnabled", defaultValue: false)
     var smartFormattingEnabled: Bool
 
+    /// Apply spoken self-corrections ("wait, scrap that — the demo is Thursday") as edits
+    /// during LLM cleanup instead of transcribing them. Opt-in for the same reason as smart
+    /// formatting: it loosens the transform-only contract by letting the model act on
+    /// (exactly one family of) in-text commands. No effect unless `aiPostProcessingEnabled`
+    /// is also on.
+    @UserDefault(key: "spokenEditsEnabled", defaultValue: false)
+    var spokenEditsEnabled: Bool
+
     /// Historical cleanup-backend selector. The embedded llama.cpp model is now the only
     /// backend; the key survives solely so `migrateAIProviderToBackend()` can normalize
     /// old values, and everything reads "builtin" regardless.

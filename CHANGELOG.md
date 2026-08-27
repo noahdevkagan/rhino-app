@@ -3,6 +3,24 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.15 — 2026-08-27
+
+- New: Spoken edits (Settings → Output → Cleanup). Correct yourself out
+  loud — "the demo is Tuesday… wait, scrap that, it moved to Thursday" —
+  and Rhino types only the corrected version. Works with "scrap that",
+  "scratch that", "I mean", "actually, make that…", and "scrap all of
+  that" to start over. Off by default.
+- Dictated emails now format properly at real length: longer messages come
+  out in short paragraphs instead of one solid block, and the sign-off name
+  no longer picks up a stray period.
+- Music and podcasts resume again after dictating when "pause audio while
+  dictating" is on — macOS 15.4 broke the old resume check in shipped
+  builds; the new one doesn't rely on the API Apple locked down.
+- Dictating in German (or any non-English language) no longer comes back
+  in English or Russian at times: the cleanup pass is pinned to your
+  dictation language, and the Parakeet model now gets told which language
+  you selected instead of guessing per phrase.
+
 ## 0.1.14 — 2026-08-20
 
 - Setup is now three numbered steps shown one at a time — Permissions →

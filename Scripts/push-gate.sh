@@ -3,8 +3,9 @@
 # Wired up as the pre-push hook (Scripts/githooks/pre-push).
 #
 #   1. Build     — the app compiles / typechecks
-#   2. Suites    — every tests/*/run.sh passes (hygiene, asr, latency, …)
-#   3. Scorecard — WER/latency vs the previous record (informational)
+#   2. Unit tests — the XCTest bundle passes (skipped by FAST=1)
+#   3. Suites    — every tests/*/run.sh passes (hygiene, asr, latency, …)
+#   4. Scorecard — WER/latency vs the previous record (informational)
 #
 # Skip in an emergency with: SKIP_GATE=1 git push
 # Faster run (suites may honor it to skip slow cases): FAST=1 git push
@@ -35,10 +36,27 @@ fi
 echo "=== push gate ==="
 start=$(date +%s)
 
-echo "--- [1/3] build"
+echo "--- [1/4] build"
 ./run.sh build || { echo "BUILD FAILED"; exit 1; }
 
-echo "--- [2/3] test suites"
+echo "--- [2/4] unit tests"
+if [ "${FAST:-0}" = "1" ]; then
+    echo "(FAST=1 — skipping unit tests)"
+else
+    # Same invocation as test-gate.yml's "Unit tests" step — change one,
+    # change both. Reuses run.sh's derived data, so only the test bundle
+    # builds on top of stage 1.
+    xcodebuild test -scheme OpenSuperWhisper -configuration Debug \
+        -derivedDataPath build -quiet \
+        -destination 'platform=macOS,arch=arm64' \
+        -clonedSourcePackagesDirPath SourcePackages \
+        -skipPackagePluginValidation -skipMacroValidation \
+        -only-testing:OpenSuperWhisperTests \
+        CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
+        || { echo "GATE FAILED: unit tests"; exit 1; }
+fi
+
+echo "--- [3/4] test suites"
 found=0
 for runner in tests/*/run.sh; do
     [ -f "$runner" ] || continue
@@ -48,7 +66,7 @@ for runner in tests/*/run.sh; do
 done
 [ "$found" = "1" ] || echo "(no tests/*/run.sh suites yet)"
 
-echo "--- [3/3] scorecard (informational)"
+echo "--- [4/4] scorecard (informational)"
 python3 bench/scorecard.py --record || true
 # Commit the appended record so the trend survives; rides with the next
 # push (the record-only skip above keeps that from looping).

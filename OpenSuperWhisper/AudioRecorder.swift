@@ -156,8 +156,11 @@ class AudioRecorder: NSObject, ObservableObject {
         }
 
         if AppPreferences.shared.pauseMediaOnRecord {
-            // MediaPlaybackController's poll timer and callbacks live on main — keep it there.
-            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia() }
+            // Sample the output probe NOW, before `.record()` or the chime can make sound or
+            // disturb the output device (#32's invariant); the pause itself hops to main,
+            // where MediaPlaybackController's poll timer and callbacks live.
+            let outputActive = MediaPlaybackController.isSystemOutputActive()
+            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia(outputActiveHint: outputActive) }
         }
 
         if AppPreferences.shared.playSoundOnRecordStart {

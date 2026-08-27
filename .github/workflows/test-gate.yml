@@ -32,6 +32,20 @@ jobs:
           # Same build command as Scripts/push-gate.sh stage 1.
           ./run.sh build
 
+      # Same invocation as Scripts/push-gate.sh stage 2 — change one, change
+      # both. Reuses the Build step's derived data, so this only builds the
+      # test bundle on top.
+      - name: Unit tests
+        run: |
+          set -euo pipefail
+          xcodebuild test -scheme OpenSuperWhisper -configuration Debug \
+            -derivedDataPath build -quiet \
+            -destination 'platform=macOS,arch=arm64' \
+            -clonedSourcePackagesDirPath SourcePackages \
+            -skipPackagePluginValidation -skipMacroValidation \
+            -only-testing:OpenSuperWhisperTests \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+
       - name: Test suites
         run: |
           set -euo pipefail

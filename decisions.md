@@ -675,6 +675,129 @@ Deliberately NOT done: a post-hoc language-detection guard on the output
 stopword heuristics, and a false positive would silently discard a good
 cleanup) — if reports continue, that guard is the next escalation.
 
+## 2026-08-26 — Spoken edits: self-corrections become a fourth prompt section,
+opt-in like smart formatting
+Noah (dictating real emails): he uses Rhino less than Wispr because he can't
+"talk to the AI" — "wait scrap that, instead say XXX" gets typed out in full.
+The fix rides the existing prompt-section design (no new pipeline pass, no
+second model call): a "Self-correction rule" section, gated by a new
+`spokenEditsEnabled` pref (own toggle under LLM cleanup, off by default —
+same contract-loosening logic as smart formatting, and it carves a hole in
+the never-follow-instructions rule, so it must be explicit consent). Shape
+follows the 2026-08-20 lesson: multiple worked examples with different
+correction shapes (tail replacement via 'scrap that', value fix via 'make
+that', mid-sentence 'I mean', full restart via 'scrap all of that') plus two
+counter-examples for literal uses ('she said we should scrap that feature',
+adverbial 'actually'). Both the system preamble carve-out and the per-request
+user wrapper carve-out are scoped to "the speaker's own spoken corrections"
+only — everything else in the text stays instructions-not-to-follow. The
+length guard gets a cue-gated condensing carve-out (`containsSpokenEditCue`,
+regex on scrap/scratch/delete/forget/I mean/make that/…): an applied edit
+legitimately shrinks output below the 0.3x prose floor, but the floor only
+relaxes (to 0.05x) when the input actually carries a cue, so an off-contract
+one-word reply to a normal dictation is still rejected. NOT verified against
+the real embedded Qwen 1.5B yet (authored off-Mac) — probe with `Rhino
+cleanup` before shipping, same as the message rule was.
+
+## 2026-08-26 — Message rule gains a long worked example and a no-period
+sign-off rule
+Noah's real dictated intro email came out as one solid block with a period
+after the sign-off name ("Tim."). Both short message-rule examples are one to
+two sentences, and per the 2026-08-20 lookup-not-pattern lesson the 1.5B
+model doesn't stretch them to multi-sentence emails. Added a third worked
+example modeled directly on his dictation (five sentences grouped into short
+paragraphs) plus explicit prose rules: never one solid block, and the
+sender's name is the last line and never takes a period. Deliberately NOT
+added: dropping filler sentences the speaker "didn't mean" (his "I think it
+makes sense.") — deciding which sentence is noise is editorial judgment a
+1.5B model will misfire on; spoken edits ("scrap that") is the sanctioned
+way to remove content.
+
+Merge note (same day): this landed alongside the language-pin change above;
+prompt sections now stack transform preamble → cleanup → smart formatting →
+self-correction → language rule, keeping the language rule last per its own
+recency rationale.
+
+## 2026-08-26 — CI is the gate for phone-driven work: claude/** push trigger
+plus unit tests wired into both gates
+Noah wants to work from his phone (Claude sessions on Linux containers) and
+still have fixes verified and speed/accuracy/functionality tested before
+tagging. Two gaps closed: (1) Build Check gains a push trigger scoped to
+claude/** branches — those pushes come from session containers where the
+local push gate can't run (no macOS), so they previously got NO gate at all;
+concurrency cancel-in-progress bounds the 10x macOS minutes. The blanket
+no-per-push-trigger rule stands for human branches, where the local gate
+covers development. (2) The XCTest bundle (OpenSuperWhisperTests) is now
+gate stage 2 in BOTH Scripts/push-gate.sh (FAST=1 skips it) and
+test-gate.yml — closing the long-standing "unit tests not wired into the
+gate" HANDOFF gap, so the prompt-contract tests actually guard releases.
+The WhisperCppBindingTests testable is deliberately NOT included yet
+(-only-testing scopes to OpenSuperWhisperTests): unverified on CI, one new
+variable at a time. Known caveat: pushes made by the Claude integration may
+not fire push-event workflows (GitHub suppresses some integration-token
+events) — the fallback is one tap in the GitHub mobile app (Actions → Build
+Check → Run workflow), and the v* tag gate is unaffected.
+
+## 2026-08-26 — Spoken edits become a dedicated pre-cleanup pass (reverses the
+section design from earlier today)
+Live probes on the real embedded 1.5B (Noah's Mac, `Rhino cleanup`, toggles
+verified via `defaults read`, smart formatting's own worked example
+reproducing perfectly in the same session) killed the prompt-section design:
+the model transcribed "wait scrap that" literally even when the probe matched
+the section's worked example VERBATIM, and stripping smart formatting from
+the prompt changed nothing — so it was not dilution. Root cause: the cleanup
+contract states "keep every word / never remove information" five different
+ways, and a 1.5B resolves that conflict against an instruction to delete
+words, no matter how the exception is phrased. New design: when
+`spokenEditsEnabled` AND the input matches `containsSpokenEditCue`, a
+dedicated first pass runs with its own small system prompt
+(`spokenEditsPassPrompt`) whose ONLY job is applying corrections — no
+transform-only preamble, no keep-every-word language, lowercase unpunctuated
+worked examples so it doesn't try to polish. Its output (validated by the
+condensing-floor length guard) then feeds the normal cleanup/formatting pass.
+The cue gate keeps ordinary dictations at one model call, so the 2026-08-13
+"prompt section, not a separate pass" latency rationale survives for
+everything except dictations that actually ask for an edit. Cost when cued:
+one extra generation (~1s). NOT yet re-probed on the real model — same
+verification loop applies before shipping.
+**2026-08-26 — Media resume decision moved off MediaRemote reads.** The
+pause-media-on-record resume never fired in shipped builds: since macOS
+15.4 `MRMediaRemoteGetNowPlayingInfo` is entitlement-gated, and Developer
+ID signing does NOT satisfy it (only Apple platform binaries read — which
+is why the original "signed swift toolchain reads fine" experiment
+misled; send commands stay ungated, so pause kept working). The
+was-something-playing snapshot now falls back to a public CoreAudio
+probe — is the default output device rendering for any process
+(`kAudioDevicePropertyDeviceIsRunningSomewhere`) — sampled just before
+the pause is sent. Coarser than a now-playing read (an active call
+counts as "playing" and would arm a resume), accepted over the
+alternatives: never resuming (the reported bug) or blind always-resume
+(wakes stale now-playing owners). The precise MediaRemote path is kept
+for systems where reads still work.
+
+## 2026-08-27 — Parakeet v3 gets a script-filter language hint + no mel prepend
+Second wrong-language report (German dictation, output "translated into
+Russian at times") ruled out both whisper (language pinned, translate forced
+off) and the LLM cleanup (an English-prompt bias can't produce Russian).
+The path that CAN: `FluidAudioEngine` never passed the selected language to
+the Parakeet decoder, so the v3 multilingual model auto-detects per chunk
+and can drift scripts mid-dictation. FluidAudio 0.15.4 already ships the
+purpose-built fix — a `language:` hint on `transcribe` driving a
+TokenLanguageFilter (their #512: Cyrillic output on Polish audio) — we just
+weren't calling it. Now derived from `settings.selectedLanguage` via
+`Language(rawValue:)`, which gives the right degrade-to-nil for "auto" and
+for codes the filter doesn't cover (tr/ar/zh/ja/ca). Also switched v3 to
+`melChunkContext: false` per upstream's own doc on the flag (their #594:
+the 80ms mel prepend pushes the v3 decoder back to its English-biased
+prior — plausibly the German→English half of these reports when the user is
+on Parakeet); v2 keeps the default since the prepend is its all-blank-chunk
+fix and v2 is English-only anyway. Known gaps, deliberately left: the
+custom-dictionary boosting path and the live preview run on
+`SlidingWindowAsrManager`, which has no language parameter in 0.15.4 —
+patching FluidAudio for those is the escalation if reports continue
+(boosting is double-opt-in; preview text only reaches the document via the
+short-clip streamed fallback).
+
 ## 2026-08-26 — AudioRecorder capture state is confined to a serial queue
 The audit's start/stop race was real and in the hot path of every dictation:
 start ran on a detached task (so the hotkey tap never blocks — #freeze) while

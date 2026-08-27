@@ -737,3 +737,26 @@ variable at a time. Known caveat: pushes made by the Claude integration may
 not fire push-event workflows (GitHub suppresses some integration-token
 events) — the fallback is one tap in the GitHub mobile app (Actions → Build
 Check → Run workflow), and the v* tag gate is unaffected.
+
+## 2026-08-26 — Spoken edits become a dedicated pre-cleanup pass (reverses the
+section design from earlier today)
+Live probes on the real embedded 1.5B (Noah's Mac, `Rhino cleanup`, toggles
+verified via `defaults read`, smart formatting's own worked example
+reproducing perfectly in the same session) killed the prompt-section design:
+the model transcribed "wait scrap that" literally even when the probe matched
+the section's worked example VERBATIM, and stripping smart formatting from
+the prompt changed nothing — so it was not dilution. Root cause: the cleanup
+contract states "keep every word / never remove information" five different
+ways, and a 1.5B resolves that conflict against an instruction to delete
+words, no matter how the exception is phrased. New design: when
+`spokenEditsEnabled` AND the input matches `containsSpokenEditCue`, a
+dedicated first pass runs with its own small system prompt
+(`spokenEditsPassPrompt`) whose ONLY job is applying corrections — no
+transform-only preamble, no keep-every-word language, lowercase unpunctuated
+worked examples so it doesn't try to polish. Its output (validated by the
+condensing-floor length guard) then feeds the normal cleanup/formatting pass.
+The cue gate keeps ordinary dictations at one model call, so the 2026-08-13
+"prompt section, not a separate pass" latency rationale survives for
+everything except dictations that actually ask for an edit. Cost when cued:
+one extra generation (~1s). NOT yet re-probed on the real model — same
+verification loop applies before shipping.

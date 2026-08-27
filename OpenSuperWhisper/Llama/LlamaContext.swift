@@ -1,6 +1,6 @@
 //
 //  LlamaContext.swift
-//  OpenSuperWhisper
+//  Rhino
 //
 //  Swift wrapper over the llama.cpp C API (pinned tag b9878, 2026-07-05), mirroring
 //  the structure of Whis/Whis.swift. Holds OpaquePointers for the llama_model and

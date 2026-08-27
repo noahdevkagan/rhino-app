@@ -1,6 +1,6 @@
 //
 //  Bridge.h
-//  OpenSuperWhisper
+//  Rhino
 //
 //  Created by user on 07.02.2025.
 //

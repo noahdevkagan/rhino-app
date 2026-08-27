@@ -1,6 +1,6 @@
 //
 //  Whis.swift
-//  OpenSuperWhisper
+//  Rhino
 //
 //  Created by user on 07.02.2025.
 //

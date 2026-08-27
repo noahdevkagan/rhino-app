@@ -1,6 +1,6 @@
 //
 //  LLMModelManager.swift
-//  OpenSuperWhisper
+//  Rhino
 //
 //  Manages local GGUF LLM models for the built-in llama.cpp cleanup backend.
 //  Mirrors WhisperModelManager: models live in

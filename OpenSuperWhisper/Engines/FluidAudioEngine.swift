@@ -235,7 +235,7 @@ class FluidAudioEngine: TranscriptionEngine {
         guard !terms.isEmpty else { return }
 
         let vocabularyURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("OpenSuperWhisper-ParakeetVocabulary-\(UUID().uuidString)")
+            .appendingPathComponent("Rhino-ParakeetVocabulary-\(UUID().uuidString)")
             .appendingPathExtension("txt")
         try terms.joined(separator: "\n").write(to: vocabularyURL, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: vocabularyURL) }

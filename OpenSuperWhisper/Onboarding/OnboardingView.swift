@@ -1,6 +1,6 @@
 //
 //  OnboardingView.swift
-//  OpenSuperWhisper
+//  Rhino
 //
 //  Created by user on 08.02.2025.
 //

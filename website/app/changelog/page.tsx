@@ -1,5 +1,15 @@
 const releases = [
   {
+    version: "0.1.15",
+    date: "August 27, 2026",
+    changes: [
+      "New: Spoken edits. Correct yourself out loud — “the demo is Tuesday… wait, scrap that, it moved to Thursday” — and Rhino types only the corrected version. Works with “scrap that”, “I mean”, “actually, make that…”, and “scrap all of that” to start over. Off by default in Settings → Output → Cleanup.",
+      "Dictated emails now format properly at real length: longer messages come out in short paragraphs instead of one solid block, and the sign-off name no longer picks up a stray period.",
+      "Music and podcasts resume again after dictating when “pause audio while dictating” is on.",
+      "Dictating in German (or any non-English language) no longer comes back in English or Russian at times: cleanup is pinned to your dictation language, and Parakeet is told which language you selected instead of guessing per phrase.",
+    ],
+  },
+  {
     version: "0.1.14",
     date: "August 20, 2026",
     changes: [

@@ -34,7 +34,7 @@ class FluidAudioEngine: TranscriptionEngine {
         // boosting path all reference one loaded copy per version instead of each
         // building their own MLModel instances.
         let models = try await ParakeetModelCache.shared.models(for: version)
-        let manager = AsrManager(config: .default)
+        let manager = AsrManager(config: Self.asrConfig(for: version))
         try await manager.loadModels(models)
 
         asrManager = manager
@@ -95,8 +95,12 @@ class FluidAudioEngine: TranscriptionEngine {
         if boostTerms.isEmpty {
             // A fresh TDT decoder state per file keeps transcriptions independent.
             var decoderState = TdtDecoderState.make(decoderLayers: await asrManager.decoderLayerCount)
-            rawText = try await asrManager.transcribe(url, decoderState: &decoderState).text
+            rawText = try await asrManager.transcribe(
+                url, decoderState: &decoderState,
+                language: Self.languageHint(for: settings.selectedLanguage)).text
         } else {
+            // Known gap: SlidingWindowAsrManager (FluidAudio 0.15.4) has no language
+            // parameter, so the boosting path still decodes unhinted.
             rawText = try await transcribeFileWithBoosting(url: url, boostTerms: boostTerms)
         }
 
@@ -129,6 +133,29 @@ class FluidAudioEngine: TranscriptionEngine {
     func getSupportedLanguages() -> [String] {
         EngineCapabilities.supportedLanguages(
             engine: "fluidaudio", fluidAudioModelVersion: AppPreferences.shared.fluidAudioModelVersion)
+    }
+
+    /// The decoder's script filter for the selected dictation language. Without it the v3
+    /// multilingual model auto-detects per chunk and can drift into the wrong script
+    /// mid-dictation — reported as German dictations coming back in Russian. The hint makes
+    /// the TDT decoder skip top-K tokens whose script doesn't match the language (FluidAudio's
+    /// TokenLanguageFilter, added upstream for exactly this: Cyrillic output on Polish audio,
+    /// their #512). "auto" and codes the filter doesn't cover (tr, ar, zh, ja, ca) map to nil
+    /// — no filtering, identical to the old behavior — and v2/tdtJa models ignore the hint
+    /// upstream, so this is safe to pass unconditionally.
+    static func languageHint(for selectedLanguage: String) -> Language? {
+        Language(rawValue: selectedLanguage)
+    }
+
+    /// v3 runs with `melChunkContext` off, per upstream's guidance on the flag: with it on,
+    /// the 80ms mel-context prepend on long-form chunks can shift the encoder's first-frame
+    /// distribution enough that the multilingual decoder "drifts back to its English-biased
+    /// prior" (their #594) — i.e. non-English dictations come back in English. Off, v3 uses
+    /// acoustic warmup plus silence-aligned starts instead, which upstream documents as the
+    /// correct v3 configuration. v2 (English-only, where the prepend fixes all-blank chunk
+    /// boundaries) keeps the default.
+    static func asrConfig(for version: AsrModelVersion) -> ASRConfig {
+        version == .v3 ? ASRConfig(melChunkContext: false) : .default
     }
 
     /// The custom-dictionary terms to bias recognition toward, or `[]` when the dictionary

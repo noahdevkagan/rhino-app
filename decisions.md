@@ -689,3 +689,27 @@ counts as "playing" and would arm a resume), accepted over the
 alternatives: never resuming (the reported bug) or blind always-resume
 (wakes stale now-playing owners). The precise MediaRemote path is kept
 for systems where reads still work.
+
+## 2026-08-27 — Parakeet v3 gets a script-filter language hint + no mel prepend
+Second wrong-language report (German dictation, output "translated into
+Russian at times") ruled out both whisper (language pinned, translate forced
+off) and the LLM cleanup (an English-prompt bias can't produce Russian).
+The path that CAN: `FluidAudioEngine` never passed the selected language to
+the Parakeet decoder, so the v3 multilingual model auto-detects per chunk
+and can drift scripts mid-dictation. FluidAudio 0.15.4 already ships the
+purpose-built fix — a `language:` hint on `transcribe` driving a
+TokenLanguageFilter (their #512: Cyrillic output on Polish audio) — we just
+weren't calling it. Now derived from `settings.selectedLanguage` via
+`Language(rawValue:)`, which gives the right degrade-to-nil for "auto" and
+for codes the filter doesn't cover (tr/ar/zh/ja/ca). Also switched v3 to
+`melChunkContext: false` per upstream's own doc on the flag (their #594:
+the 80ms mel prepend pushes the v3 decoder back to its English-biased
+prior — plausibly the German→English half of these reports when the user is
+on Parakeet); v2 keeps the default since the prepend is its all-blank-chunk
+fix and v2 is English-only anyway. Known gaps, deliberately left: the
+custom-dictionary boosting path and the live preview run on
+`SlidingWindowAsrManager`, which has no language parameter in 0.15.4 —
+patching FluidAudio for those is the escalation if reports continue
+(boosting is double-opt-in; preview text only reaches the document via the
+short-clip streamed fallback).
+>>>>>>> origin/master

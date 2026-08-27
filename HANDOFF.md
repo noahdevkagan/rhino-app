@@ -5,39 +5,43 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-20, late)
+## Current state (2026-08-27)
 
-- **Rhino v0.1.14 shipped:** immutable tag `v0.1.14` at release commit
-  `202e4e6`. Notarized app+DMG on rhino-releases, appcast item signed and
-  live, rhinovoice.app verified at 0.1.14. Contents: onboarding rebuilt as
-  a numbered 1-2-3 wizard with auto-advance (#31, from tester feedback
-  "looked like a settings screen"), update badge drawn on the rhino
-  menu-bar icon (#29), menu-bar "Dictionary…" ⌘D item (#30).
-- Release pins are now FIVE files: CHANGELOG.md, thanks page, AppSumo
-  redeem form, website changelog page, and website/tests/
-  rendered-html.test.mjs (TWO hardcoded DMG names, lines ~71 and ~115).
-  release.sh pre-flights the first four; the tests fail the website step
-  on the fifth.
-- Dev preview recipe for onboarding/fresh-install states (isolated prefs
-  via RHINO_PREFS_SUITE, macOS missing-window-at-launch quirk, System
-  Events driving) is saved in Claude's project memory.
+- **Wrong-language dictation fixed on master, NOT yet released.** Two user
+  reports (German→English; German→Russian, from Sabine Jungk), two bugs:
+  - #33: LLM cleanup's all-English prompt made the 1.5B model translate —
+    output language now pinned in system prompt + per-request wrapper
+    (`LLMPostProcessor.swift`).
+  - #35 (`dea476e`): `FluidAudioEngine` never passed the selected language
+    to Parakeet — now forwards FluidAudio's script-filter hint and runs v3
+    with `melChunkContext: false` (upstream #594).
+- `Scripts/verify-german.sh` (new, manual): synthesizes German speech, runs
+  the real pipeline via the CLI, checks output stays German. Verified on
+  Noah's desktop against a fresh build: 10/10 Parakeet clips + cleanup green.
+- Unit tests added: `CleanupLanguageRuleTests`, `ParakeetLanguageHintTests`
+  (XCTest — not in the push gate, run via xcodebuild test).
 
 ## Outstanding
 
-- Wizard onboarding hasn't been re-tested by the tester whose feedback
-  drove it — ask them to redo fresh setup on 0.1.14.
-- PR #27's Parakeet model cache shipped in 0.1.13, but the planned manual
-  RSS check (~10 live-preview dictations, flat memory) was never recorded
-  — watch for memory-growth reports.
-- Audit findings still open: AudioRecorder start (detached) vs stop (main)
-  race (orphaned hot mic on fast press-release); Apple Dictation
-  double-press-🌐 racing double-tap-lock.
-- Crash reporter had no traces — ask if they run live preview (gates the
-  mic-tap bug) and for Console.app crash reports if it recurs.
-- From branch `crxnamja/bern`: input-aware capitalization and app-icon
-  refresh still open.
+- **Release v0.1.15** so the two reporters actually get the fixes; ask both
+  to re-test on their real voices after updating. Remember the FIVE release
+  pins (CHANGELOG, thanks page, AppSumo redeem, website changelog,
+  rendered-html.test.mjs ×2 DMG names).
+- **New bug found during verification:** LLM cleanup converts German number
+  words to wrong digits ("einundzwanzig" → "19"). Hits German users with AI
+  cleanup on. Likely fix: restrict digit conversion to English or add German
+  examples to the cleanup prompt.
+- Known gap (documented in code): `SlidingWindowAsrManager` (dictionary
+  boosting path + live preview) has no language parameter in FluidAudio
+  0.15.4 — patching FluidAudio is the escalation if wrong-language reports
+  continue.
+- Carried forward: onboarding tester re-run on 0.1.14; Parakeet RSS check
+  (#27) never recorded; AudioRecorder start/stop race audit finding; Apple
+  Dictation double-🌐 race; `crxnamja/bern` items (input-aware
+  capitalization, app-icon refresh).
 
 ## Next session
 
-Ask the onboarding tester to redo fresh setup on v0.1.14 and collect
-feedback; then take the AudioRecorder start/stop race audit finding.
+Cut release v0.1.15 (both wrong-language fixes) and notify the two German
+reporters; then take the German number-word cleanup bug
+("einundzwanzig"→"19", see Outstanding).

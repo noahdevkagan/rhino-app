@@ -11,17 +11,25 @@ class AudioRecorder: NSObject, ObservableObject {
     @Published var canRecord = false
     @Published var isConnecting = false
     
+    // All capture state lives on `stateQueue` — start used to run on a detached task while
+    // stop ran on main, racing on these ARC references (orphaned hot mic on a fast
+    // press-release, and UB from unsynchronized retain/release). `startRecording()` enqueues
+    // async so the hotkey path never blocks (#freeze); `stopRecording()`/`cancelRecording()`
+    // run queue-sync so a stop is always ordered after the start it belongs to.
+    private let stateQueue = DispatchQueue(label: "com.noahkagan.rhino.audio-recorder", qos: .userInitiated)
     private var audioRecorder: AVAudioRecorder?
-    private var audioPlayer: AVAudioPlayer?
-    private var notificationSound: NSSound?
-    private let temporaryDirectory: URL
     private var currentRecordingURL: URL?
-    private var notificationObserver: Any?
-    private var microphoneChangeObserver: Any?
     private var connectionCheckTimer: DispatchSourceTimer?
     private var recordingDeviceID: AudioDeviceID?
     // Keeps audio hardware warm so the first word is never cut off
     private var primedRecorder: AVAudioRecorder?
+
+    // Playback state — main-thread only (driven by the history list UI).
+    private var audioPlayer: AVAudioPlayer?
+    private var notificationSound: NSSound?
+    private let temporaryDirectory: URL
+    private var notificationObserver: Any?
+    private var microphoneChangeObserver: Any?
 
     // MARK: - Singleton Instance
 
@@ -47,7 +55,7 @@ class AudioRecorder: NSObject, ObservableObject {
     
     private func setup() {
         updateCanRecordStatus()
-        primeAudioHardware()
+        stateQueue.async { [weak self] in self?.primeAudioHardware() }
 
         notificationObserver = NotificationCenter.default.addObserver(
             forName: .AVCaptureDeviceWasConnected,
@@ -81,6 +89,7 @@ class AudioRecorder: NSObject, ObservableObject {
     /// Pre-warms the audio hardware by creating a prepared (but not recording) AVAudioRecorder.
     /// Keeping `primedRecorder` alive holds the audio engine in an initialized state,
     /// eliminating the cold-start delay when the user triggers the first real recording.
+    /// Runs on `stateQueue`.
     private func primeAudioHardware() {
         let primedURL = temporaryDirectory.appendingPathComponent("primed.wav")
         let settings: [String: Any] = [
@@ -102,7 +111,8 @@ class AudioRecorder: NSObject, ObservableObject {
         }
     }
     
-    /// The short chime used to confirm a recording state change.
+    /// The short chime used to confirm a recording state change. Main thread only
+    /// (`notificationSound` is main-confined alongside the playback state).
     func playNotificationSound() {
         // Try to play using NSSound first
         guard let soundURL = Bundle.main.url(forResource: "notification", withExtension: "mp3") else {
@@ -124,24 +134,37 @@ class AudioRecorder: NSObject, ObservableObject {
         }
     }
     
+    /// Safe to call from any thread; returns immediately. The real work runs on `stateQueue`
+    /// so the hotkey tap on the main thread never waits on AVFoundation/CoreAudio (#freeze).
     func startRecording() {
-        Diag.mark("recorder.startRecording (canRecord=\(canRecord))")
-        guard canRecord else {
+        stateQueue.async { [weak self] in self?.performStartRecording() }
+    }
+
+    private func performStartRecording() {
+        // Ground truth for "mic available" is the cached device, not the @Published
+        // `canRecord` (that one is written on main for the UI — reading it here would race).
+        let micAvailable = MicrophoneService.shared.getActiveMicrophone() != nil
+        Diag.mark("recorder.startRecording (canRecord=\(micAvailable))")
+        guard micAvailable else {
             print("Cannot start recording - no audio input available")
             return
         }
-        
-        if isRecording || isConnecting {
+
+        if audioRecorder != nil || connectionCheckTimer != nil {
             print("stop recording while recording")
-            _ = stopRecording()
+            _ = performStopRecording()
         }
-        
+
         if AppPreferences.shared.pauseMediaOnRecord {
-            MediaPlaybackController.shared.pauseMedia()
+            // Sample the output probe NOW, before `.record()` or the chime can make sound or
+            // disturb the output device (#32's invariant); the pause itself hops to main,
+            // where MediaPlaybackController's poll timer and callbacks live.
+            let outputActive = MediaPlaybackController.isSystemOutputActive()
+            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia(outputActiveHint: outputActive) }
         }
 
         if AppPreferences.shared.playSoundOnRecordStart {
-            playNotificationSound()
+            DispatchQueue.main.async { self.playNotificationSound() }
         }
 
         // A UUID suffix keeps each recording's temp file unique. Without it, two recordings
@@ -174,7 +197,8 @@ class AudioRecorder: NSObject, ObservableObject {
         updateRecordingState(isRecording: false, isConnecting: requiresConnection)
         startRecordingWithRecorder(fileURL: fileURL, monitorConnection: requiresConnection)
     }
-    
+
+    /// Runs on `stateQueue`.
     private func startRecordingWithRecorder(fileURL: URL, monitorConnection: Bool) {
         var channelCount = 1
         if let activeMic = MicrophoneService.shared.getActiveMicrophone() {
@@ -212,20 +236,27 @@ class AudioRecorder: NSObject, ObservableObject {
         }
     }
     
+    /// Blocks briefly: runs after any in-flight start on `stateQueue`, so a fast press-release
+    /// can never leave the recorder started with nobody to stop it (orphaned hot mic).
     func stopRecording() -> URL? {
+        stateQueue.sync { performStopRecording() }
+    }
+
+    private func performStopRecording() -> URL? {
         // Capture the elapsed time BEFORE stop() (currentTime only reports while recording):
         // it's the clip duration, without re-opening the just-written file to ask.
         let recordedDuration = audioRecorder?.currentTime
         audioRecorder?.stop()
+        audioRecorder = nil
         updateRecordingState(isRecording: false, isConnecting: false)
         Task { @MainActor in SpectrumAnalyzer.shared.stop() }
         stopConnectionMonitoring()
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        stateQueue.async { [weak self] in
             self?.primeAudioHardware()  // re-prime so the next recording starts instantly too
         }
 
         if AppPreferences.shared.pauseMediaOnRecord {
-            MediaPlaybackController.shared.resumeMedia()
+            DispatchQueue.main.async { MediaPlaybackController.shared.resumeMedia() }
         }
 
         if let url = currentRecordingURL,
@@ -248,14 +279,21 @@ class AudioRecorder: NSObject, ObservableObject {
         return duration < 1.0
     }
     
+    /// Queue-sync like `stopRecording()` for the same reason: a cancel must always land
+    /// after the start it is cancelling.
     func cancelRecording() {
+        stateQueue.sync { performCancelRecording() }
+    }
+
+    private func performCancelRecording() {
         audioRecorder?.stop()
+        audioRecorder = nil
         updateRecordingState(isRecording: false, isConnecting: false)
         Task { @MainActor in SpectrumAnalyzer.shared.stop() }
         stopConnectionMonitoring()
 
         if AppPreferences.shared.pauseMediaOnRecord {
-            MediaPlaybackController.shared.resumeMedia()
+            DispatchQueue.main.async { MediaPlaybackController.shared.resumeMedia() }
         }
 
         if let url = currentRecordingURL {
@@ -312,7 +350,8 @@ class AudioRecorder: NSObject, ObservableObject {
     private func startConnectionMonitoring() {
         stopConnectionMonitoring()
         
-        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .userInitiated))
+        // The handler reads `audioRecorder`/`currentRecordingURL`, so it must share their queue.
+        let timer = DispatchSource.makeTimerSource(queue: stateQueue)
         timer.schedule(deadline: .now() + 0.05, repeating: 0.05)
         let initialFileSize: Int64 = 4096
         var growthCount = 0
@@ -344,8 +383,13 @@ class AudioRecorder: NSObject, ObservableObject {
 
 extension AudioRecorder: AVAudioRecorderDelegate {
     func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
-        if !flag {
-            currentRecordingURL = nil
+        // Delivered on AVFoundation's own thread; a stale callback (recorder already replaced
+        // or stopped) must not clear the URL of the recording that superseded it.
+        stateQueue.async { [weak self] in
+            guard let self, recorder === self.audioRecorder else { return }
+            if !flag {
+                self.currentRecordingURL = nil
+            }
         }
     }
 }

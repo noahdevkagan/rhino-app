@@ -124,13 +124,16 @@ final class MediaPlaybackController {
 
     /// Pause playback (unconditional = reliable), arming a resume only if something was actually
     /// playing when we paused, and freezing the cache while the recording runs.
-    func pauseMedia() {
+    ///
+    /// `outputActiveHint`: the output probe must sample BEFORE this recording cycle makes any
+    /// sound (or disturbs the output device — Bluetooth codec switches). AudioRecorder now calls
+    /// this via an async hop to main, which can land after `.record()` — so it samples the probe
+    /// on its own queue first and passes the result here. Probing inline stays the fallback.
+    func pauseMedia(outputActiveHint: Bool? = nil) {
         guard let sendCommand else { return }
         // Precise path when now-playing reads work; the CoreAudio output probe otherwise (see the
-        // type doc). Probe BEFORE sending the pause, while the audio is still audibly rendering —
-        // and before this recording cycle makes any sound of its own (the start chime and the
-        // recorder both come after pauseMedia() in AudioRecorder.startRecording).
-        let wasPlaying = canRead ? isNowPlaying : Self.isSystemOutputActive()
+        // type doc). The probe must see the audio while it is still audibly rendering.
+        let wasPlaying = canRead ? isNowPlaying : (outputActiveHint ?? Self.isSystemOutputActive())
         stopPolling()
         _ = sendCommand(Self.kMRPause, nil)
         didPauseMedia = wasPlaying
@@ -138,8 +141,8 @@ final class MediaPlaybackController {
 
     /// Public-API proxy for "is audio audibly playing right now?": whether any process is running
     /// IO on the default output device. Playing media keeps this true; paused players release the
-    /// device within a few seconds.
-    private static func isSystemOutputActive() -> Bool {
+    /// device within a few seconds. Stateless CoreAudio reads — safe from any thread.
+    static func isSystemOutputActive() -> Bool {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,

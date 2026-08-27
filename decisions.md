@@ -797,3 +797,27 @@ custom-dictionary boosting path and the live preview run on
 patching FluidAudio for those is the escalation if reports continue
 (boosting is double-opt-in; preview text only reaches the document via the
 short-clip streamed fallback).
+
+## 2026-08-26 — AudioRecorder capture state is confined to a serial queue
+The audit's start/stop race was real and in the hot path of every dictation:
+start ran on a detached task (so the hotkey tap never blocks — #freeze) while
+stop/cancel ran on main, with zero synchronization on `audioRecorder`,
+`currentRecordingURL`, `primedRecorder` and the connection timer. Two failure
+modes: a fast press-release could stop *before* the detached start assigned
+the recorder, leaving the mic recording with the UI idle (orphaned hot mic);
+and racing ARC writes are undefined behavior — heap corruption that detonates
+later in unrelated code, the exact shape of the one real crash report we have
+(v0.1.14, garbage pointer inside SwiftUI's button dispatch, no app frames).
+Fix chosen: one private serial `stateQueue` owns all capture state.
+`startRecording()` enqueues async (hotkey path still never blocks);
+`stopRecording()`/`cancelRecording()` are `queue.sync`, so a stop is ordered
+after the start it belongs to and still returns the URL synchronously —
+callers unchanged. Accepted cost: releasing the key while a slow start is
+mid-flight (e.g. Bluetooth mic negotiating) now blocks main for that long;
+correctness over the rare stall. Deliberately NOT done: making the recorder
+@MainActor (puts the measured-slow AVFoundation/CoreAudio calls back on the
+hotkey path) or an async stop (ripples through the whole pipeline). Media
+pause/resume and the start chime now hop to main, where the rest of their
+state already lives. The connection-monitor timer moved onto `stateQueue`;
+the AVAudioRecorder delegate callback hops onto it and ignores stale
+recorders.

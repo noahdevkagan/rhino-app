@@ -104,8 +104,10 @@ defaults write "$SUITE" saveTranscriptionHistory -bool false
 defaults write "$SUITE" aiPostProcessingEnabled -bool false
 
 # --- Pass 1: Parakeet v3 -----------------------------------------------------
-PARAKEET_DIR=$(find "$HOME/Library/Application Support" -maxdepth 5 -type d \
-    -name "parakeet-tdt-0.6b-v3-coreml" 2>/dev/null | head -1)
+# FluidAudio caches under Models/<repo-name-minus-"-coreml">, so the folder is
+# "parakeet-tdt-0.6b-v3" — match both spellings to be safe.
+PARAKEET_DIR=$(find "$HOME/Library/Application Support/FluidAudio" -maxdepth 3 -type d \
+    -name "parakeet-tdt-0.6b-v3*" 2>/dev/null | head -1)
 if [ -n "$PARAKEET_DIR" ]; then
     defaults write "$SUITE" selectedEngine fluidaudio
     defaults write "$SUITE" fluidAudioModelVersion v3

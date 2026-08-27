@@ -8,6 +8,7 @@ const releases = [
       "Music and podcasts resume again after dictating when “pause audio while dictating” is on.",
       "Dictating in German (or any non-English language) no longer comes back in English or Russian at times: cleanup is pinned to your dictation language, and Parakeet is told which language you selected instead of guessing per phrase.",
       "Setup now recommends Parakeet v2 — the fastest, most accurate pick for English and the model behind our published accuracy benchmark. Dictating in another language? Pick Whisper Large v3 Turbo in setup, or Parakeet v3 (multilingual) any time in Settings → Models.",
+      "Fixed a rare crash — and a stuck live microphone — when the dictate key was released almost immediately after pressing it.",
     ],
   },
   {

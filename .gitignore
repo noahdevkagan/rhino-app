@@ -136,3 +136,4 @@ bench/corpus/results/
 # SwiftPM caches under any name (a typo once committed 345MB of them)
 SOURCEPACKAGES*/
 SourcePackages/
+Scripts/.german-verify/

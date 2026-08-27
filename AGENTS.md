@@ -41,7 +41,7 @@ brew install cmake libomp rust
 ## Build & run
 
 ```bash
-./run.sh build   # build only (Debug, unsigned) → Build/Build/Products/Debug/OpenSuperWhisper.app
+./run.sh build   # build only (Debug, unsigned) → Build/Build/Products/Debug/Rhino.app
 ./run.sh         # build + launch with logs in the terminal
 ```
 

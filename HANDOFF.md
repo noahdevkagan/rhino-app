@@ -5,43 +5,46 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-27)
+## Current state (2026-08-27, overnight)
 
-- **Wrong-language dictation fixed on master, NOT yet released.** Two user
-  reports (German→English; German→Russian, from Sabine Jungk), two bugs:
-  - #33: LLM cleanup's all-English prompt made the 1.5B model translate —
-    output language now pinned in system prompt + per-request wrapper
-    (`LLMPostProcessor.swift`).
-  - #35 (`dea476e`): `FluidAudioEngine` never passed the selected language
-    to Parakeet — now forwards FluidAudio's script-filter hint and runs v3
-    with `melChunkContext: false` (upstream #594).
-- `Scripts/verify-german.sh` (new, manual): synthesizes German speech, runs
-  the real pipeline via the CLI, checks output stays German. Verified on
-  Noah's desktop against a fresh build: 10/10 Parakeet clips + cleanup green.
-- Unit tests added: `CleanupLanguageRuleTests`, `ParakeetLanguageHintTests`
-  (XCTest — not in the push gate, run via xcodebuild test).
+- **Master is fully staged for v0.1.15 — NOT yet tagged/released.** Noah
+  aborted last night's cut mid-run ("just wait for all"); everything since
+  merged in. Contents: spoken edits (self-corrections as a dedicated
+  pre-cleanup LLM pass, #34), long-email formatting + no-period sign-off
+  (#34), media resume via CoreAudio probe (#32), both wrong-language fixes
+  (#33 cleanup pin, #35 Parakeet hint), AudioRecorder serial-queue race fix
+  (#36), OpenSuperWhisper→Rhino scrub (#37), onboarding now recommends
+  Parakeet v2 for English (Noah's call; Whisper turbo is the non-English
+  row; v3 stays in Settings → Models).
+- All FIVE release pins already point at 0.1.15 (CHANGELOG has the section;
+  thanks page, AppSumo redeem, website changelog + entry, rendered-html
+  test ×2). cut-release validated the section parses.
+- CI hardening: pushes to `claude/**` branches now trigger Build Check
+  (session containers have no local gate); one run per branch head via
+  concurrency; the XCTest bundle is gate stage 2 locally AND on CI
+  (`FAST=1` skips locally). CI release publish still skips (no signing
+  secrets) — releases go through Noah's Mac.
+- Spoken edits verified on the real 1.5B via `Rhino cleanup` probes on
+  Noah's Mac: prompt-section design failed (model ignores delete-words
+  instructions inside the keep-every-word cleanup contract), dedicated
+  cue-gated pass works. See decisions.md 2026-08-26/27.
 
 ## Outstanding
 
-- **Release v0.1.15** so the two reporters actually get the fixes; ask both
-  to re-test on their real voices after updating. Remember the FIVE release
-  pins (CHANGELOG, thanks page, AppSumo redeem, website changelog,
-  rendered-html.test.mjs ×2 DMG names).
-- **New bug found during verification:** LLM cleanup converts German number
-  words to wrong digits ("einundzwanzig" → "19"). Hits German users with AI
-  cleanup on. Likely fix: restrict digit conversion to English or add German
-  examples to the cleanup prompt.
-- Known gap (documented in code): `SlidingWindowAsrManager` (dictionary
-  boosting path + live preview) has no language parameter in FluidAudio
-  0.15.4 — patching FluidAudio is the escalation if wrong-language reports
-  continue.
-- Carried forward: onboarding tester re-run on 0.1.14; Parakeet RSS check
-  (#27) never recorded; AudioRecorder start/stop race audit finding; Apple
-  Dictation double-🌐 race; `crxnamja/bern` items (input-aware
-  capitalization, app-icon refresh).
+- **Noah's morning command** (his tree may hold a half-made local release
+  from the abort):
+  `git checkout master && git tag -d v0.1.15 2>/dev/null; git reset --hard origin/master && git pull && ./Scripts/cut-release.sh`
+  Then notify the two German reporters to re-test.
+- German number-word cleanup bug ("einundzwanzig" → "19") — restrict digit
+  conversion to English or add German examples.
+- Baseline cleanup sometimes drops a lead-in phrase ("She said …") — seen
+  in probes, pre-existing; worth a bench case.
+- `SlidingWindowAsrManager` (boost path + live preview) has no language
+  parameter in FluidAudio 0.15.4; patch FluidAudio if reports continue.
+- Carried forward: onboarding tester re-run; Parakeet RSS check (#27) never
+  recorded; Apple Dictation double-🌐 race; `crxnamja/bern` items.
 
 ## Next session
 
-Cut release v0.1.15 (both wrong-language fixes) and notify the two German
-reporters; then take the German number-word cleanup bug
-("einundzwanzig"→"19", see Outstanding).
+Confirm v0.1.15 shipped (tag + appcast live, rhinovoice.app at 0.1.15);
+then take the German number-word cleanup bug.

@@ -6,11 +6,27 @@ name: Build Check
 # Apple Speech engine — that engine and the rust toolchain it installed were
 # both deleted in the 0.1.0 80/20 cut.)
 #
-# No per-push trigger: the local push gate covers development (this repo is
-# private; macOS CI minutes bill at 10x).
+# No general per-push trigger: the local push gate covers development (this
+# repo is private; macOS CI minutes bill at 10x). The one exception is
+# claude/** branches — those are pushed from phone-driven Claude sessions on
+# Linux containers, where the local push gate cannot run (no macOS), so CI is
+# the only gate they have. Concurrency cancels superseded runs to keep the
+# minutes bill bounded.
 on:
   pull_request:
+  push:
+    branches:
+      - "claude/**"
   workflow_dispatch:
+
+# One gate run per branch head, whatever the event: a session push to an
+# open PR's branch fires BOTH push and pull_request runs for the same
+# commit, so the group is keyed on the source branch (identical for both
+# event types), letting the second run cancel the first — and a newer push
+# still cancels a superseded in-flight run.
+concurrency:
+  group: build-check-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   gate:

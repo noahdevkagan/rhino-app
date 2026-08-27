@@ -41,7 +41,7 @@ brew install cmake libomp rust
 ## Build & run
 
 ```bash
-./run.sh build   # build only (Debug, unsigned) → Build/Build/Products/Debug/OpenSuperWhisper.app
+./run.sh build   # build only (Debug, unsigned) → Build/Build/Products/Debug/Rhino.app
 ./run.sh         # build + launch with logs in the terminal
 ```
 
@@ -60,8 +60,17 @@ live in each `tests/*/run.sh`.
 Release tags are gated separately: pushing `vX.Y.Z` requires a `## X.Y.Z`
 section in `CHANGELOG.md` at the tagged commit.
 
-Upstream's own unit tests live in `OpenSuperWhisperTests/` (xcodebuild
-test) — not yet wired into the gate; see HANDOFF.md.
+Unit tests live in `OpenSuperWhisperTests/` and run as gate stage 2
+(xcodebuild test, both locally and in CI's test-gate.yml); `FAST=1` skips
+them locally.
+
+**Working from a phone / Claude session (no Mac):** the local push gate
+cannot run in a Linux session container, so CI is the gate — pushes to
+`claude/**` branches trigger Build Check (the same test-gate releases run).
+If a session's push doesn't fire CI (integration-token pushes may not),
+trigger it by hand: GitHub app/web → Actions → Build Check → Run workflow →
+pick the branch. Releases stay safe either way: a `v*` tag runs the full
+gate before anything publishes.
 
 ## Repo map
 

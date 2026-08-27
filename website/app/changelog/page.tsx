@@ -1,5 +1,12 @@
 const releases = [
   {
+    version: "0.1.16",
+    date: "August 27, 2026",
+    changes: [
+      "Setup now recommends Parakeet v2 — the fastest, most accurate pick for English and the model behind our published accuracy benchmark. Dictating in another language? Pick Whisper Large v3 Turbo in setup, or Parakeet v3 (multilingual) any time in Settings → Models.",
+    ],
+  },
+  {
     version: "0.1.15",
     date: "August 27, 2026",
     changes: [
@@ -7,7 +14,6 @@ const releases = [
       "Dictated emails now format properly at real length: longer messages come out in short paragraphs instead of one solid block, and the sign-off name no longer picks up a stray period.",
       "Music and podcasts resume again after dictating when “pause audio while dictating” is on.",
       "Dictating in German (or any non-English language) no longer comes back in English or Russian at times: cleanup is pinned to your dictation language, and Parakeet is told which language you selected instead of guessing per phrase.",
-      "Setup now recommends Parakeet v2 — the fastest, most accurate pick for English and the model behind our published accuracy benchmark. Dictating in another language? Pick Whisper Large v3 Turbo in setup, or Parakeet v3 (multilingual) any time in Settings → Models.",
       "Fixed a rare crash — and a stuck live microphone — when the dictate key was released almost immediately after pressing it.",
     ],
   },

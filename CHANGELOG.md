@@ -3,6 +3,13 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.16 — 2026-08-27
+
+- Setup now recommends Parakeet v2 — the fastest, most accurate pick for
+  English and the model behind our published accuracy benchmark. Dictating
+  in another language? Pick Whisper Large v3 Turbo in setup, or Parakeet
+  v3 (multilingual) any time in Settings → Models.
+
 ## 0.1.15 — 2026-08-27
 
 - New: Spoken edits (Settings → Output → Cleanup). Correct yourself out
@@ -20,10 +27,6 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
   in English or Russian at times: the cleanup pass is pinned to your
   dictation language, and the Parakeet model now gets told which language
   you selected instead of guessing per phrase.
-- Setup now recommends Parakeet v2 — the fastest, most accurate pick for
-  English and the model behind our published accuracy benchmark. Dictating
-  in another language? Pick Whisper Large v3 Turbo in setup, or Parakeet
-  v3 (multilingual) any time in Settings → Models.
 - Fixed a rare crash — and a stuck live microphone — when the dictate key
   was released almost immediately after pressing it.
 

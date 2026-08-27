@@ -1,6 +1,6 @@
 //
-//  OpenSuperWhisperApp.swift
-//  OpenSuperWhisper
+//  RhinoApp.swift
+//  Rhino
 //
 //  Created by user on 05.02.2025.
 //
@@ -14,16 +14,16 @@ import UniformTypeIdentifiers
 @main
 enum AppMain {
     static func main() {
-        // `OpenSuperWhisper transcribe <file>` runs headless and never launches the GUI (#150).
+        // `Rhino transcribe <file>` runs headless and never launches the GUI (#150).
         let args = CommandLine.arguments
         if CLI.shouldHandle(args) {
             CLI.run(args)
         }
-        OpenSuperWhisperApp.main()
+        RhinoApp.main()
     }
 }
 
-struct OpenSuperWhisperApp: App {
+struct RhinoApp: App {
     @StateObject private var appState = AppState()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
@@ -103,7 +103,7 @@ private struct AppRootView: View {
     }
 }
 
-extension OpenSuperWhisperApp {
+extension RhinoApp {
     static func startTranscriptionQueue() {
         Task { @MainActor in
             TranscriptionQueue.shared.startProcessingQueue()
@@ -190,8 +190,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             AppPreferences.shared.didDefaultLaunchAtLogin = true
         }
 
-        OpenSuperWhisperApp.startTranscriptionQueue()
-        OpenSuperWhisperApp.startRetentionScheduler()
+        RhinoApp.startTranscriptionQueue()
+        RhinoApp.startRetentionScheduler()
         observeMicrophoneChanges()
 
         // Speed: warm the heavy pieces at launch so the FIRST dictation doesn't

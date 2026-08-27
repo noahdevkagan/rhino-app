@@ -192,7 +192,7 @@ final class StreamingTranscriptionController: ObservableObject {
         let terms = boostTerms.filter { !$0.isEmpty }
         guard !terms.isEmpty else { return }
         let vocabularyURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("OpenSuperWhisper-StreamVocab-\(UUID().uuidString)")
+            .appendingPathComponent("Rhino-StreamVocab-\(UUID().uuidString)")
             .appendingPathExtension("txt")
         do {
             try terms.joined(separator: "\n").write(to: vocabularyURL, atomically: true, encoding: .utf8)

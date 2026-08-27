@@ -40,7 +40,7 @@ enum DefaultsStore {
     }
 
     static var testSuitePrefix: String {
-        "\(Bundle.main.bundleIdentifier ?? "fr.my-monkey.opensuperwhisper").tests."
+        "\(Bundle.main.bundleIdentifier ?? "com.noahkagan.rhino").tests."
     }
 
     static func testSuiteName(for pid: Int32) -> String { "\(testSuitePrefix)\(pid)" }

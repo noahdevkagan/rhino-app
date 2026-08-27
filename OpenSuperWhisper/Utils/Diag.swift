@@ -7,17 +7,17 @@ import os
 /// unified log immediately, so they **survive a force-quit** of a hung app —
 /// exactly the situation we need to diagnose. After a freeze, retrieve them with:
 ///
-///     log show --predicate 'subsystem == "fr.my-monkey.opensuperwhisper"' --last 30m --info --debug
+///     log show --predicate 'subsystem == "com.noahkagan.rhino"' --last 30m --info --debug
 ///
 /// The key trick for a *hang*: every potentially-blocking call is wrapped so it
 /// logs `▶ name` before and `◀ name (Nms)` after. If the app freezes mid-call,
 /// you'll find the last `▶` with no matching `◀` — that names the culprit, and
 /// it's already on disk.
 enum Diag {
-    static let log = Logger(subsystem: "fr.my-monkey.opensuperwhisper", category: "hotpath")
+    static let log = Logger(subsystem: "com.noahkagan.rhino", category: "hotpath")
 
     /// On by default in DEBUG (the build used day-to-day). In release, enable with:
-    ///   defaults write fr.my-monkey.opensuperwhisper diagnosticLogging -bool YES
+    ///   defaults write com.noahkagan.rhino diagnosticLogging -bool YES
     static var isEnabled: Bool {
         #if DEBUG
         return true

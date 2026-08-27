@@ -4,6 +4,8 @@ import Security
 /// Minimal Keychain wrapper for small secrets (e.g. the Groq API key). Stored as generic passwords
 /// under the app's bundle id so they don't sit in plain-text UserDefaults.
 enum Keychain {
+    // Deliberately still the pre-rename service: existing installs' items (and the legacy
+    // remote-secret scrub in AppPreferences) live under it. Renaming would strand them.
     private static let service = "fr.my-monkey.opensuperwhisper"
 
     static func read(_ account: String) -> String? {

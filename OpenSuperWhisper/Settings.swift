@@ -812,6 +812,11 @@ struct Settings {
     /// in a file next to their work and under version control, not retyped into a text field on
     /// every machine. Read fresh each time, so editing it takes effect on the next dictation.
     static let promptFileURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".config/rhino/prompt.md")
+
+    /// Installs from before the Rhino rename wrote the prompt file here; still read (after the
+    /// Rhino path) so nobody's house-style file silently stops applying on update.
+    static let legacyPromptFileURL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/opensuperwhisper/prompt.md")
 
     /// Whisper keeps only its last ~224 tokens of prompt anyway, and this is read on the
@@ -864,7 +869,9 @@ struct Settings {
         self.showTimestamps = prefs.showTimestamps
         self.temperature = prefs.temperature
         self.noSpeechThreshold = prefs.noSpeechThreshold
-        self.initialPrompt = Settings.promptFileContents() ?? prefs.initialPrompt
+        self.initialPrompt = Settings.promptFileContents()
+            ?? Settings.promptFileContents(at: Settings.legacyPromptFileURL)
+            ?? prefs.initialPrompt
         self.useBeamSearch = prefs.useBeamSearch
         self.beamSize = prefs.beamSize
         self.customDictionaryEnabled = prefs.customDictionaryEnabled

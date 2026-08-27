@@ -81,7 +81,7 @@ gate before anything publishes.
 | `libwhisper/` | CMake wrapper around whisper.cpp + llama.cpp submodules |
 | `asian-autocorrect/` | Rust autocorrect submodule (builds a dylib) |
 | `run.sh` | Dev build+run entry point (cmake → cargo → xcodebuild) |
-| `make_release.sh`, `notarize_app.sh` | Upstream release flow (to be replaced in Phase 3) |
+| `Scripts/release.sh` | Release flow (gate → bump → notarized DMG → GitHub release); see `docs/RELEASING.md` |
 | `Scripts/` | Upstream helper scripts + `push-gate.sh` + `githooks/` (ours) |
 | `tests/` | Push-gate suites: `hygiene` (privacy), `asr` (WER), `latency`, `smoke`; `insertion-manual.md` is human-run |
 | `bench/` | Scorecard trend (`history.jsonl`) + `corpus/` (Noah's-voice head-to-head vs Wispr Flow) |

@@ -21,7 +21,7 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
 
     private let manager = LLMModelManager.shared
     private let inferenceQueue = DispatchQueue(
-        label: "fr.my-monkey.opensuperwhisper.llm-inference", qos: .userInitiated)
+        label: "com.noahkagan.rhino.llm-inference", qos: .userInitiated)
 
     /// Owned by `inferenceQueue` — never read or written from anywhere else.
     private var context: LlamaContext?

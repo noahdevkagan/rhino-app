@@ -760,6 +760,21 @@ The cue gate keeps ordinary dictations at one model call, so the 2026-08-13
 everything except dictations that actually ask for an edit. Cost when cued:
 one extra generation (~1s). NOT yet re-probed on the real model — same
 verification loop applies before shipping.
+**2026-08-26 — Media resume decision moved off MediaRemote reads.** The
+pause-media-on-record resume never fired in shipped builds: since macOS
+15.4 `MRMediaRemoteGetNowPlayingInfo` is entitlement-gated, and Developer
+ID signing does NOT satisfy it (only Apple platform binaries read — which
+is why the original "signed swift toolchain reads fine" experiment
+misled; send commands stay ungated, so pause kept working). The
+was-something-playing snapshot now falls back to a public CoreAudio
+probe — is the default output device rendering for any process
+(`kAudioDevicePropertyDeviceIsRunningSomewhere`) — sampled just before
+the pause is sent. Coarser than a now-playing read (an active call
+counts as "playing" and would arm a resume), accepted over the
+alternatives: never resuming (the reported bug) or blind always-resume
+(wakes stale now-playing owners). The precise MediaRemote path is kept
+for systems where reads still work.
+
 ## 2026-08-27 — Parakeet v3 gets a script-filter language hint + no mel prepend
 Second wrong-language report (German dictation, output "translated into
 Russian at times") ruled out both whisper (language pinned, translate forced

@@ -22,6 +22,11 @@ APP="$ROOT/Build/Build/Products/Debug/Rhino.app/Contents/MacOS/Rhino"
 if [ ! -x "$APP" ]; then
     echo "No dev build found — building first (./run.sh build)…"
     ./run.sh build || exit 1
+elif [ -n "$(find "$ROOT/OpenSuperWhisper" -name '*.swift' -newer "$APP" -print -quit 2>/dev/null)" ]; then
+    # A binary older than the sources would silently verify the UNFIXED code —
+    # exactly the stale-build trap this script exists to prevent.
+    echo "Dev build is older than the source tree — rebuilding (./run.sh build)…"
+    ./run.sh build || exit 1
 fi
 [ -x "$APP" ] || { echo "error: still no binary at $APP"; exit 1; }
 

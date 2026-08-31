@@ -707,8 +707,8 @@ struct OnboardingView: View {
             } else {
                 // Committing to Fn as the dictate key: stop macOS from also opening
                 // the emoji palette on it (disclosed in the Dictate key section).
-                if viewModel.selectedShortcut == .fn && FnGlobeKeySetting.conflictsWithFnTrigger {
-                    FnGlobeKeySetting.setDoNothing()
+                if viewModel.selectedShortcut == .fn {
+                    FnGlobeKeySetting.silenceForFnTrigger()
                 }
                 appState.hasCompletedOnboarding = true
             }

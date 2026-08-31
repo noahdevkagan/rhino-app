@@ -835,3 +835,25 @@ self-select correctly at setup; v3 (multilingual) stays in Settings →
 Models. The 08-27 language-hint fix makes v3 safer than it was, but
 recommended-by-default goes to the benchmark-winning English config, not
 the multilingual generalist.
+
+## 2026-08-31 — Picking Fn in Settings silences the Mac's lone-Fn action, not
+just picking it in onboarding
+Nick, testing 0.1.16: he quit Wispr, set Rhino's trigger to Fn in Settings,
+and "its not overriding the mac shortcut of fn which pulls up emojis so both
+come up at the same time and messing with the recording." Not a recorder bug
+— our modifier tap is listen-only by design, so macOS acts on the very same
+press, and its factory-default "Press 🌐 key to" is Show Emoji. Rhino has
+always been able to fix this (`FnGlobeKeySetting.setDoNothing`), but the only
+call site was onboarding's finish button, so anyone who chose Fn *afterwards*
+got a footnote telling them to go do it themselves in System Settings. Fix:
+`TriggerRecorderField.save()` calls the new `silenceForFnTrigger()` when Fn
+joins the trigger list; onboarding now routes through the same helper, so the
+policy lives in one place. Adding a trigger is an explicit user click, which
+is the bar the file's own comment sets for mutating a system preference — no
+silent-at-launch sweep, and no auto-restore when Fn is removed (the footnote
+says how to undo, and guessing what someone wants their 🌐 key to do is worse
+than leaving it). The already-fixed footnote said "Setup turned off…", which
+stopped being true the moment Settings could do it too; it now says "Rhino
+turned off…". The footnote also went stale until an unrelated redraw — it
+reads preferences and a system setting, neither observed by SwiftUI — so
+SettingsView bumps `triggerRevision` on `.hotkeySettingsChanged`.

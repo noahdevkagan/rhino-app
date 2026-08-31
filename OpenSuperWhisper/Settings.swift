@@ -975,6 +975,10 @@ struct SettingsView: View {
     @State private var appLanguage = LanguageManager.selected
     @State private var langNeedsRelaunch = false
     @State private var showPunctuationCalibration = false
+    /// Bumped whenever a trigger is added or removed. The Fn/emoji footnote reads
+    /// preferences and a system setting, neither of which SwiftUI observes, so without
+    /// this it stayed stale until something else happened to redraw the pane.
+    @State private var triggerRevision = 0
 
     /// Engine → display name for the "active engine" indicator.
     private func engineDisplayName(_ engine: String) -> String {
@@ -1137,6 +1141,9 @@ struct SettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsModelsTab)) { _ in
             selectedTab = .models
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hotkeySettingsChanged)) { _ in
+            triggerRevision += 1
         }
         .onChange(of: viewModel.selectedEngine) { _, newEngine in
             if newEngine == "fluidaudio" {
@@ -1676,12 +1683,13 @@ struct SettingsView: View {
     /// Onboarding only whispers about this ("Emoji stays available with ⌃⌘Space") —
     /// the full story lives here for the few who go looking.
     private var fnEmojiFootnote: String? {
+        _ = triggerRevision   // redraw dependency; see the state's note
         let triggers = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
         guard triggers.modifiers.contains(.fn) else { return nil }
         if FnGlobeKeySetting.conflictsWithFnTrigger {
             return "Your Mac also opens the emoji picker when Fn is pressed on its own, so it will pop up when you dictate. Stop it in System Settings → Keyboard → “Press 🌐 key to” → Do Nothing."
         }
-        return "Setup turned off the Mac's press-Fn-for-emoji shortcut so it doesn't pop up mid-dictation. Emoji stays available with ⌃⌘Space; undo in System Settings → Keyboard."
+        return "Rhino turned off the Mac's press-Fn-for-emoji shortcut so it doesn't pop up mid-dictation. Emoji stays available with ⌃⌘Space; undo in System Settings → Keyboard."
     }
 
     /// One permission row: green check when granted, a Grant button when not.

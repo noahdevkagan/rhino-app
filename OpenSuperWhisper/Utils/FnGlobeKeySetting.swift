@@ -22,13 +22,22 @@ enum FnGlobeKeySetting {
         let raw = CFPreferencesCopyValue(key, domain,
                                          kCFPreferencesCurrentUser,
                                          kCFPreferencesAnyHost) as? Int
-        // Unset = factory default = the emoji palette.
-        return Action(rawValue: raw ?? Action.showEmoji.rawValue) ?? .showEmoji
+        return action(forRaw: raw)
+    }
+
+    /// Split out from `current` so the decoding rule is testable without reading — or
+    /// writing — the real system preference. Unset = factory default = the emoji palette.
+    static func action(forRaw raw: Int?) -> Action {
+        Action(rawValue: raw ?? Action.showEmoji.rawValue) ?? .showEmoji
     }
 
     /// True when a lone Fn press triggers a system action alongside Rhino's trigger.
     static var conflictsWithFnTrigger: Bool {
-        current != .doNothing
+        shouldSilence(current)
+    }
+
+    static func shouldSilence(_ action: Action) -> Bool {
+        action != .doNothing
     }
 
     /// Sets "Press 🌐 key to" → "Do Nothing". Mutates a system preference, so it is
@@ -37,5 +46,15 @@ enum FnGlobeKeySetting {
         CFPreferencesSetValue(key, Action.doNothing.rawValue as CFNumber, domain,
                               kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
         CFPreferencesSynchronize(domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
+    }
+
+    /// Fn just became a dictate key by an explicit user action — finishing onboarding on it,
+    /// or adding it in Settings → Trigger. Both are the same commitment, so both get the same
+    /// courtesy. Returns whether anything changed; a no-op when Fn is already silent.
+    @discardableResult
+    static func silenceForFnTrigger() -> Bool {
+        guard conflictsWithFnTrigger else { return false }
+        setDoNothing()
+        return true
     }
 }

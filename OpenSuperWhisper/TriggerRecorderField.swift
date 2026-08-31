@@ -295,6 +295,14 @@ struct TriggerRecorderField: View {
         if allowsMultiple {
             set.add(trigger)
             persistSet()
+            // Picking Fn here is the same commitment onboarding's finish button makes, so it
+            // gets the same fix: our modifier tap is listen-only, so macOS acts on the very
+            // same press and its lone-Fn action (the emoji palette, by default) would pop up
+            // on every dictation. Onboarding used to be the only place this ran, which left
+            // anyone who switched to Fn afterwards fighting the palette.
+            if trigger == .modifier(.fn) {
+                FnGlobeKeySetting.silenceForFnTrigger()
+            }
             disarm()
             return
         }

@@ -205,6 +205,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         }
     }
 
+    /// Launching Rhino again while it's running (Applications, Spotlight, Dock) lands here.
+    /// Bring the hidden main window back ourselves — with the menu bar icon hidden this is
+    /// the only route back into the app. When no window survives, returning true lets
+    /// SwiftUI re-create the WindowGroup window (the showMainWindow fallback relies on it).
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard !flag else { return true }
+        NSApplication.shared.setActivationPolicy(.regular)
+        guard let window = NSApplication.shared.windows
+            .first(where: { $0.styleMask.contains(.titled) && $0.title != "Settings" }) else {
+            return true
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        return false
+    }
+
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
         let url = URL(fileURLWithPath: filename)
         guard isAudioFile(url) else {
@@ -286,21 +302,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     }
     
     private func setupStatusBarItem() {
-        // Variable length: the icon may carry a "DEV" tag (debug builds) and/or a
-        // red update dot, both rendered as the button's attributed title.
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
-        if let button = statusItem?.button {
-            button.imagePosition = .imageLeft
-            button.action = #selector(statusBarButtonClicked(_:))
-            button.target = self
+        if !AppPreferences.shared.hideMenuBarIcon {
+            buildStatusItem()
         }
-        refreshStatusBadge()
-        
-        updateStatusBarMenu()
 
         // Registered here rather than in updateStatusBarMenu: that runs again on every language
-        // or model change, so observers added there piled up one per rebuild.
+        // or model change, so observers added there piled up one per rebuild. Also registered
+        // even while the icon is hidden — the caches they maintain feed the menu when it's back.
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(languagePreferenceChanged),
@@ -320,6 +328,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             selector: #selector(updateAvailabilityChanged),
             name: .updateAvailabilityChanged,
             object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(menuBarIconVisibilityChanged),
+            name: .menuBarIconVisibilityChanged,
+            object: nil)
+    }
+
+    private func buildStatusItem() {
+        // Variable length: the icon may carry a "DEV" tag (debug builds) and/or a
+        // red update dot, both rendered as the button's attributed title.
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+
+        if let button = statusItem?.button {
+            button.imagePosition = .imageLeft
+            button.action = #selector(statusBarButtonClicked(_:))
+            button.target = self
+        }
+        refreshStatusBadge()
+        updateStatusBarMenu()
+    }
+
+    /// Settings toggled "Hide menu bar icon" — add or remove the status item live.
+    @objc private func menuBarIconVisibilityChanged() {
+        if AppPreferences.shared.hideMenuBarIcon {
+            if let item = statusItem {
+                NSStatusBar.system.removeStatusItem(item)
+                statusItem = nil
+            }
+        } else if statusItem == nil {
+            buildStatusItem()
+        }
     }
 
     @objc private func updateAvailabilityChanged() {

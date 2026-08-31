@@ -218,6 +218,12 @@ final class AppPreferences {
     @UserDefault(key: "startHidden", defaultValue: true)
     var startHidden: Bool
 
+    /// Remove the rhino from the menu bar entirely (opt-in). Dictation keeps
+    /// working via the recording trigger; the window comes back by launching
+    /// Rhino again (reopen event).
+    @UserDefault(key: "hideMenuBarIcon", defaultValue: false)
+    var hideMenuBarIcon: Bool
+
     /// One-shot: register launch-at-login on first run (default-on product
     /// decision). Only ever runs once, so a user who deliberately turns the
     /// login item off is never re-registered by an update.

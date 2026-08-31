@@ -19,4 +19,7 @@ extension Notification.Name {
     /// Deep-links the main window straight to the Dictionary tab (menu-bar item),
     /// skipping Open Window → sidebar navigation.
     static let openDictionary = Notification.Name("OpenDictionary")
+    /// Posted when the "hide menu bar icon" preference flips, so the AppKit-owned
+    /// status item is added/removed without a relaunch.
+    static let menuBarIconVisibilityChanged = Notification.Name("MenuBarIconVisibilityChanged")
 }

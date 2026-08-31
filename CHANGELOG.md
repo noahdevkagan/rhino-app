@@ -3,6 +3,17 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.17 — 2026-08-31
+
+- New: hide the menu bar icon (Settings → Advanced → App). Dictation keeps
+  working with it hidden; open Rhino again from Applications or Spotlight to
+  bring the window back.
+- Picking Fn as your dictate key in Settings now also switches off the Mac's
+  own press-🌐-for-emoji shortcut, so the emoji picker stops popping up in
+  the middle of dictating. Setup already did this — switching to Fn
+  afterwards didn't. Emoji stays available on ⌃⌘Space, and you can undo it
+  in System Settings → Keyboard.
+
 ## 0.1.16 — 2026-08-27
 
 - Setup now recommends Parakeet v2 — the fastest, most accurate pick for

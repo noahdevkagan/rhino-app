@@ -1,0 +1,41 @@
+# Temporary diagnostic: rhinovoice.app is reportedly serving an untrusted TLS
+# cert (NET::ERR_CERT_AUTHORITY_INVALID). Session containers can't reach the
+# site, so this checks the live cert from a GitHub runner. Delete after the
+# incident is resolved.
+name: Site cert check
+
+on:
+  push:
+    branches: [claude/rhinovoice-website-issue-cagils]
+  workflow_dispatch:
+
+jobs:
+  cert-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect live certificate for rhinovoice.app
+        run: |
+          set -x
+          for host in rhinovoice.app www.rhinovoice.app; do
+            echo "=================== $host ==================="
+            echo | openssl s_client -connect "$host:443" -servername "$host" 2>&1 \
+              | tee /tmp/handshake.txt \
+              | grep -E 'Verify return code|verify error|depth' || true
+            echo "--- leaf cert details ---"
+            echo | openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null \
+              | openssl x509 -noout -subject -issuer -dates -ext subjectAltName || echo "NO CERT RETURNED"
+            echo "--- full chain subjects/issuers ---"
+            echo | openssl s_client -connect "$host:443" -servername "$host" -showcerts 2>/dev/null \
+              | awk '/-----BEGIN/{n++} {print > "/tmp/cert" n ".pem"}'
+            for c in /tmp/cert*.pem; do
+              [ -f "$c" ] && openssl x509 -in "$c" -noout -subject -issuer -enddate 2>/dev/null
+            done
+            rm -f /tmp/cert*.pem
+            echo "--- curl (with verification) ---"
+            curl -sSI --max-time 15 "https://$host/appsumo" || echo "CURL FAILED (as above)"
+            echo "--- curl -k (ignore verification, check content serves) ---"
+            curl -skI --max-time 15 "https://$host/appsumo" | head -10 || true
+            echo "--- DNS ---"
+            getent hosts "$host" || true
+          done

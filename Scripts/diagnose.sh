@@ -271,7 +271,12 @@ if [ "$(prefval unloadWhisperModelWhenIdle 0)" = "1" ]; then
     say_report "  Settings -> Models. This is the #1 cause of 'way slower than Wispr'."
     FOUND=1
 fi
+# large-v3-turbo IS the turbo model — don't tell those users to "switch to turbo".
 case "$(basename "$(prefval selectedWhisperModelPath "")" 2>/dev/null)" in
+    *turbo*)
+        say_report "* Whisper turbo is selected — decent speed, but for English dictation"
+        say_report "  Parakeet v2 (Settings -> Models) is several times faster per clip."
+        FOUND=1 ;;
     *large*|*medium*)
         say_report "* A large/medium Whisper model is selected — accurate but slow. Switch to"
         say_report "  Parakeet v2 (English) or Whisper turbo in Settings -> Models."

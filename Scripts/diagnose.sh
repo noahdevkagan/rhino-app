@@ -12,6 +12,15 @@
 # ~/Desktop/rhino-diagnosis.txt for them to email back.
 #
 # Read-only: it never changes any Rhino setting.
+#
+# Head-to-head mode — measures real stop-to-text latency of Rhino AND any other
+# dictation app (Wispr Flow, SuperWhisper, ...) with the user's own voice:
+#
+#   bash ~/Downloads/diagnose.sh compare
+#
+# The user dictates the same sentence into the Terminal window with each app and
+# marks "stopped talking" / "text appeared" with the Enter key; the script does
+# the stopwatch math and appends per-app medians to the same report.
 set -uo pipefail
 
 REPORT="$HOME/Desktop/rhino-diagnosis.txt"
@@ -33,6 +42,95 @@ pref() {
 prefval() { defaults read "$DOMAIN" "$1" 2>/dev/null || echo "$2"; }
 
 say_report() { echo "$1" | tee -a "$REPORT"; }
+
+# --- head-to-head mode: time ANY dictation app with the user's real voice ----
+#
+# Both Rhino and Wispr Flow paste wherever the cursor is — including this
+# Terminal prompt. So: the user keeps Terminal focused, dictates with the app's
+# hotkey, presses Enter the instant they release the hotkey (t0), and presses
+# Enter again the instant the transcribed text lands on the prompt line (t1).
+# t1 - t0 is the stop-to-text latency the user actually experiences, measured
+# identically for every app. Reaction-time error (~200ms) is the same on both
+# sides, so the RATIO between apps is solid even if absolutes wobble.
+
+if [ "${1:-}" = "compare" ]; then
+    SENTENCE="Tomorrow morning I need to email the design team about the new \
+onboarding flow, reschedule my dentist appointment to Thursday at three \
+thirty, and remember to send Sarah the updated budget spreadsheet before \
+lunch."
+
+    # macOS bash 3.2: read -t takes whole seconds only.
+    drain_input() { while IFS= read -r -t 1 _junk; do :; done; }
+
+    # One timed dictation. Prints the ms delta on stdout (everything the user
+    # sees goes to stderr so $() capture stays clean).
+    run_trial() {
+        drain_input
+        echo "" >&2
+        echo "    Hold the $1 hotkey and read the sentence aloud." >&2
+        echo "    The INSTANT you release the hotkey, press Enter." >&2
+        IFS= read -r early
+        local t0 t1
+        t0=$(now_ms)
+        if [ -n "$early" ]; then
+            # The text beat their Enter press — faster than reaction time.
+            echo 0
+            return
+        fi
+        echo "    Now press Enter again the INSTANT the text appears below:" >&2
+        IFS= read -r _text
+        t1=$(now_ms)
+        echo $((t1 - t0))
+    }
+
+    test_app() {
+        local app="$1" trials=() ms
+        echo ""
+        echo "=== Testing: $app — 3 rounds, same sentence each time ==="
+        echo ""
+        echo "Read this sentence every round (natural pace, ~10 seconds):"
+        echo ""
+        echo "    \"$SENTENCE\""
+        for i in 1 2 3; do
+            echo ""
+            echo "--- $app round $i of 3 ---"
+            ms=$(run_trial "$app")
+            if [ "$ms" = "0" ]; then
+                echo "    (text appeared before you pressed Enter — counting as instant)"
+            else
+                echo "    -> ${ms} ms from stop-of-speech to text"
+            fi
+            trials+=("$ms")
+        done
+        local median
+        median=$(printf '%s\n' "${trials[@]}" | sort -n | sed -n 2p)
+        {
+            echo ""
+            echo "$app stop-to-text: ${trials[0]} / ${trials[1]} / ${trials[2]} ms — median ${median} ms"
+        } | tee -a "$REPORT"
+    }
+
+    echo "=== Rhino vs. other apps — live stop-to-text stopwatch ===" | tee -a "$REPORT"
+    echo "date: $(date)" >> "$REPORT"
+    echo ""
+    echo "Keep THIS Terminal window focused the whole time — the dictated text"
+    echo "will paste right onto the prompt line, which is exactly what we time."
+    echo "Make sure the app being tested is running before its rounds start."
+
+    test_app "Rhino"
+    while true; do
+        echo ""
+        printf "Test another app (e.g. Wispr Flow)? Type its name, or press Enter to finish: "
+        IFS= read -r other
+        [ -z "$other" ] && break
+        test_app "$other"
+    done
+
+    echo ""
+    echo ">>> Results appended to: $REPORT"
+    echo ">>> Please email that file back."
+    exit 0
+fi
 
 # --- locate Rhino ------------------------------------------------------------
 

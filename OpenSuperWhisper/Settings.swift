@@ -152,6 +152,14 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var hideMenuBarIcon: Bool {
+        didSet {
+            AppPreferences.shared.hideMenuBarIcon = hideMenuBarIcon
+            // The status item is AppKit-owned (AppDelegate); tell it to add/remove live.
+            NotificationCenter.default.post(name: .menuBarIconVisibilityChanged, object: nil)
+        }
+    }
+
     /// Cancel is key-combination only, but the recorder field needs a binding,
     /// so this stays parked at `.none`.
     @Published var cancelModifierUnused: ModifierKey = .none
@@ -377,6 +385,7 @@ class SettingsViewModel: ObservableObject {
         self.debugMode = prefs.debugMode
         self.playSoundOnRecordStart = prefs.playSoundOnRecordStart
         self.startHidden = prefs.startHidden
+        self.hideMenuBarIcon = prefs.hideMenuBarIcon
         self.indicatorPosition = prefs.indicatorPosition
         self.textScale = prefs.textScale
         self.liveTranscriptionEnabled = prefs.liveTranscriptionEnabled
@@ -1513,6 +1522,10 @@ struct SettingsView: View {
                 }
                 SRow(title: "Start in the menu bar", hint: "Launch without the main window — open it from the menu bar icon.") {
                     SToggle(isOn: $viewModel.startHidden)
+                }
+                SRow(title: "Hide menu bar icon",
+                     hint: "Remove the rhino from the menu bar. Dictation keeps working; reopen this window by launching Rhino again from Applications or Spotlight.") {
+                    SToggle(isOn: $viewModel.hideMenuBarIcon)
                 }
             }
 

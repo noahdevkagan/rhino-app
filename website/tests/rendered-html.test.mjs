@@ -68,7 +68,7 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(changelog, /permission loop/);
   assert.match(changelog, /updates itself automatically/);
   assert.match(thanks, /Thanks for buying Rhino/);
-  assert.match(thanks, /Rhino-0\.1\.16\.dmg/);
+  assert.match(thanks, /Rhino-0\.1\.17\.dmg/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 
@@ -112,7 +112,7 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /noahkagan@gmail\.com/);
   assert.match(
     await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8"),
-    /Rhino-0\.1\.16\.dmg/,
+    /Rhino-0\.1\.17\.dmg/,
   );
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });

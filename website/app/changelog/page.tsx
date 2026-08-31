@@ -1,5 +1,13 @@
 const releases = [
   {
+    version: "0.1.17",
+    date: "August 31, 2026",
+    changes: [
+      "New: hide the menu bar icon (Settings → Advanced → App). Dictation keeps working with it hidden; open Rhino again from Applications or Spotlight to bring the window back.",
+      "Picking Fn as your dictate key in Settings now also switches off the Mac's own press-🌐-for-emoji shortcut, so the emoji picker stops popping up in the middle of dictating. Setup already did this — switching to Fn afterwards didn't. Emoji stays available on ⌃⌘Space, and you can undo it in System Settings → Keyboard.",
+    ],
+  },
+  {
     version: "0.1.16",
     date: "August 27, 2026",
     changes: [

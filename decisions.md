@@ -857,3 +857,51 @@ stopped being true the moment Settings could do it too; it now says "Rhino
 turned off…". The footnote also went stale until an unrelated redraw — it
 reads preferences and a system setting, neither observed by SwiftUI — so
 SettingsView bumps `triggerRevision` on `.hotkeySettingsChanged`.
+
+## 2026-08-31 — LLM cleanup reuses the KV cache across dictations instead of
+clearing it (and prefills it during recording)
+Field report (M3 Max, 0.1.16): warm one-sentence cleanup 582ms, stop-to-text
+median 986ms vs Wispr Flow's 677ms. The cleanup system prompt + user-wrapper
+preamble (~500 tokens; ~2,000 with smart formatting) is byte-identical for
+every dictation, yet `LlamaContext.generate` started each call with
+`llama_memory_clear` and re-evaluated it. Now `generate` rewinds the KV cache
+to the longest token-for-token prefix shared with the incoming prompt
+(`llama_memory_seq_rm`) and decodes only the rest; the mirror `kvTokens`
+tracks exactly what is resident, so a mismatched prompt (spoken-edits pass,
+changed settings/language) degrades to the old clear-everything path and
+earlier dictations can never leak in. `prefill` decodes that shared prefix
+ahead of time — triggered from `IndicatorViewModel.startRecording` via
+`LLMPostProcessor.prewarm()` — so the prefix eval AND the ~1.3s context
+reload after the 5-minute idle unload both overlap the user's speech. The
+prefix is computed by formatting two sentinel user texts and taking the
+common string prefix: template-agnostic, and tokenizer merges across the
+boundary cost at most one token of reuse (generate re-checks token-for-token
+regardless — correctness never depends on the prefill). Measured (M4,
+qwen2.5-1.5b-q4): one sentence 655→300ms warm, email-length 1,440→1,090ms,
+smart-formatting prompt 2,550→404ms; outputs byte-identical.
+
+## 2026-08-31 — No word-count skip for LLM cleanup
+Considered skipping cleanup below a small word count to save latency.
+Measured instead: with prefix reuse, short texts cost 28–56ms warm, and
+cleanup DOES change them ("yes"→"Yes", "sounds good"→"Sounds good.") — a
+skip would change user-visible output to save tens of milliseconds. Rejected.
+
+## 2026-08-31 — Parakeet: warm-up inference at load, samples passed to
+FluidAudio, CTC boost vocabulary cached, stage timings in bench
+The field ASR numbers (603ms warm for 3.2s, slope ~124ms/s) do NOT reproduce
+on macOS 15/M4 — warm offline is 80ms for 3.2s, 154ms for 19.4s. What did
+reproduce: (a) a first-inference CoreML specialization penalty (~230–300ms) —
+now paid by a half-second silent warm-up inside `FluidAudioEngine.initialize`
+(runs during the launch preload, not on the first dictation); (b) the
+dictionary-BOOST path was 3× the offline path warm (240ms vs 85ms for 3.2s)
+because `CustomVocabularyContext.loadWithCtcTokens` reloaded the CTC model
+set + tokenizer every dictation, plus a full CTC model download on the first
+ever boosted call (21s!) — the tokenized vocabulary is now cached on the
+engine keyed by the boost terms (82ms warm after). The engine also loads/
+converts audio itself (`AudioConverter().resampleAudioFile`) and calls the
+samples-based FluidAudio API, so bench/logs split load vs inference vs post
+(`TranscriptionStageTimings`, `stages` in bench JSON, "ASR stages:" log
+line) — the next field diagnose can say WHERE the time goes instead of
+guessing. There is no VAD stage to trim: ≤15s clips run as one padded
+15s window, so encoder cost is constant and the per-second slope is the TDT
+decode loop.

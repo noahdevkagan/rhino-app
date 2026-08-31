@@ -30,6 +30,9 @@ class TranscriptionService: ObservableObject {
     /// survives only because history rows persist a usedLocalFallback column.
     private(set) var lastUsedModel: DictationModelOption?
     private(set) var lastUsedFallback = false
+    /// Stage breakdown of the most recent transcription (FluidAudio engine only for now).
+    /// Same read-right-after-return contract as `lastUsedModel`.
+    private(set) var lastStageTimings: TranscriptionStageTimings?
     private var transcriptionTask: Task<String, Error>? = nil
     private var isCancelled = false
     
@@ -281,7 +284,9 @@ class TranscriptionService: ObservableObject {
         }
 
         do {
-            return try await task.value
+            let result = try await task.value
+            lastStageTimings = (engine as? FluidAudioEngine)?.lastStageTimings
+            return result
         } catch is CancellationError {
             await MainActor.run {
                 self.isCancelled = true

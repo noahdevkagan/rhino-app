@@ -15,14 +15,17 @@ enum CLI {
     Usage:
       Rhino transcribe <audio-file> [--json]
       Rhino bench <dir-of-wavs>
-      Rhino cleanup <text>
+      Rhino cleanup <text> [--repeat <n>]
 
     Options:
       --json       Print a JSON object ({ "file", "text" }) instead of plain text.
+      --repeat n   (cleanup) Run the pass n times in one process, timing each run on stderr —
+                   run 1 includes the model load; later runs show warm in-process latency.
       -h, --help   Show this help.
 
     `bench` loads the configured model once and transcribes every .wav in the directory, printing a
-    JSON array of { "file", "ms" (transcription time), "text" } — used to benchmark engines.
+    JSON array of { "file", "ms" (transcription time), "text", "stages" } — used to benchmark
+    engines ("stages" breaks the time into load/inference/postprocess, FluidAudio engine only).
 
     `cleanup` skips audio entirely and runs the app's LLM cleanup pass (honoring its settings,
     including smart formatting and spoken edits) over the given text — for testing cleanup
@@ -61,13 +64,28 @@ enum CLI {
             // silently passes text through when it can't run, which is right for dictation but
             // misleading in a test command — surface those cases on stderr.
             let input = args[2]
+            // --repeat N: run the pass N times in one process. Run 1 pays the context load;
+            // later runs measure warm latency (and, with prompt prefill, the KV-reuse path) —
+            // the number a mid-session dictation actually sees.
+            var repeats = 1
+            if let flagIndex = args.firstIndex(of: "--repeat"), args.indices.contains(flagIndex + 1),
+               let n = Int(args[flagIndex + 1]) {
+                repeats = max(1, n)
+            }
             Task { @MainActor in
                 if !AppPreferences.shared.aiPostProcessingEnabled {
                     warn("note: LLM cleanup is off in settings — text passes through unchanged")
                 } else if !BuiltInLlamaBackend.shared.isReady {
                     warn("note: built-in model not downloaded — text passes through unchanged")
                 }
-                emit(await LLMPostProcessor.process(input), file: "-", json: json)
+                var result = ""
+                for run in 1...repeats {
+                    let start = CFAbsoluteTimeGetCurrent()
+                    result = await LLMPostProcessor.process(input)
+                    let ms = (CFAbsoluteTimeGetCurrent() - start) * 1000
+                    warn(String(format: "cleanup run %d/%d: %.0fms", run, repeats, ms))
+                }
+                emit(result, file: "-", json: json)
                 exit(0)
             }
             dispatchMain()
@@ -126,10 +144,16 @@ enum CLI {
             let start = CFAbsoluteTimeGetCurrent()
             let text = (try? await service.transcribeAudio(url: file, settings: Settings())) ?? ""
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
-            results.append([
+            var row: [String: Any] = [
                 "file": file.lastPathComponent, "ms": ms,
                 "text": text.trimmingCharacters(in: .whitespacesAndNewlines),
-            ])
+            ]
+            // Per-stage breakdown (FluidAudio engine only) so a bench run shows WHERE the
+            // time went, not just the total — see TranscriptionStageTimings.
+            if let stages = service.lastStageTimings {
+                row["stages"] = stages.asJSON
+            }
+            results.append(row)
         }
         let data = (try? JSONSerialization.data(withJSONObject: results, options: [.sortedKeys])) ?? Data()
         resultOut.write(data)

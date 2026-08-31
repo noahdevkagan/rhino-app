@@ -48,6 +48,21 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
         }
     }
 
+    /// Warms the cleanup path while the user is still dictating: loads the context if the idle
+    /// release dropped it (that alone is >1s a cleanup would otherwise wait for) and pre-decodes
+    /// the prompt prefix shared by every cleanup — system prompt + user-wrapper preamble, i.e.
+    /// everything but the transcript (see `LlamaContext.prefill`). Fire-and-forget; queued on the
+    /// serial inference queue, so it can never overlap a running generation, and a dictation that
+    /// stops mid-prefill simply waits behind it for a prefix it would have had to decode anyway.
+    func prewarm(system: String, userVariantA: String, userVariantB: String) {
+        guard isReady else { return }
+        inferenceQueue.async { [weak self] in
+            guard let self, let ctx = self.loadContextOnQueue() else { return }
+            ctx.prefill(system: system, userVariantA: userVariantA, userVariantB: userVariantB)
+            self.scheduleIdleUnloadOnQueue()
+        }
+    }
+
     func generate(system: String, user: String) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             inferenceQueue.async { [weak self] in

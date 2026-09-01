@@ -44,7 +44,7 @@ struct RhinoApp: App {
                 Button("About Rhino") {
                     NSApp.activate(ignoringOtherApps: true)
                     let credits = NSMutableAttributedString(
-                        string: "Thank you to Paul Stamatiou for all the feedback.",
+                        string: "Thank you to Paul Stamatiou and Ross Di for all the feedback.",
                         attributes: [
                             .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
                             .foregroundColor: NSColor.secondaryLabelColor,

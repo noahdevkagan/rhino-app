@@ -857,3 +857,22 @@ stopped being true the moment Settings could do it too; it now says "Rhino
 turned off…". The footnote also went stale until an unrelated redraw — it
 reads preferences and a system setting, neither observed by SwiftUI — so
 SettingsView bumps `triggerRevision` on `.hotkeySettingsChanged`.
+
+## 2026-08-31 — CI release path must deploy the website too; Sparkle key goes
+to Actions secrets so any machine can cut a release
+Cutting 0.1.17 from the laptop failed at the appcast: 0.1.9+ pin the desktop's
+original key (5pICUV…) and this machine only has the retired 2026-08-11 laptop
+key (GOcu74…) — confirmed by `generate_keys -p`, a keychain dump showing a
+single Sparkle item, and the SUPublicEDKey history (4e98649 rotated to the
+laptop, 39bef35 rotated back). The block worked; the DMG published but the
+feed stayed at 0.1.16. Rather than a third rotation (which costs every 0.1.9+
+install its auto-update path), the fix is to stop having a "release machine":
+put the key in Actions secrets and let the tag workflow sign. Two gaps had to
+close first, both found before switching: the CI path never deployed
+rhinovoice.app (the deploy lives only in release.sh, which cut-release.sh
+skips when secrets exist) — that is exactly the 08-18 stale-site bug, so
+release.yml now has a Deploy step mirroring release.sh's website half, and
+CLOUDFLARE_API_TOKEN joins the readiness check so an undeployable release
+never counts as ready. Second, the CI branch of cut-release.sh tagged without
+the website pre-flight release.sh does locally, so a bad link would strand an
+immutable tag; that check now runs before the gate.

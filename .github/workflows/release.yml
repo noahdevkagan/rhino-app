@@ -52,11 +52,13 @@ jobs:
           NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
           SPARKLE: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
           RELTOKEN: ${{ secrets.RELEASES_TOKEN }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           if [ -n "$CERT" ] && [ -n "$CERT_PASSWORD" ] \
               && [ -n "$DEVELOPER_ID" ] && [ -n "$TEAM_ID" ] \
               && [ -n "$NOTARY_ID" ] && [ -n "$NOTARY_PASSWORD" ] \
-              && [ -n "$SPARKLE" ] && [ -n "$RELTOKEN" ]; then
+              && [ -n "$SPARKLE" ] && [ -n "$RELTOKEN" ] \
+              && [ -n "$CF_TOKEN" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -170,3 +172,26 @@ jobs:
             -f message="Appcast for v$VERSION" \
             -f content="$(base64 -i dist/appcast.xml)" ${SHA:+-f sha="$SHA"} >/dev/null
           echo "v$VERSION published to $RELEASES_REPO; feed updated"
+
+      # Mirrors Scripts/release.sh's website half — change one, change both.
+      # Without this the CI path publishes an app while rhinovoice.app keeps
+      # handing out the previous DMG (the 2026-08-18 stale-site bug).
+      - name: Deploy rhinovoice.app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Per-file: a multi-file `grep -q` passes when ANY file matches,
+          # which would wave through a half-updated site.
+          for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx; do
+              grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
+                  || { echo "$f doesn't link v$VERSION"; exit 1; }
+          done
+          (cd website && npm ci --no-audit --no-fund >/dev/null \
+              && npm test >/dev/null \
+              && npx wrangler deploy -c dist/server/wrangler.json)
+          curl -fsS --max-time 15 https://rhinovoice.app/thanks \
+              | grep -q "Rhino-$VERSION.dmg" \
+              || { echo "live site is not serving v$VERSION after deploy"; exit 1; }
+          echo "rhinovoice.app live at v$VERSION"

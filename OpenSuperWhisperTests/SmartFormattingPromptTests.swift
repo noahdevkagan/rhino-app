@@ -62,6 +62,24 @@ final class SmartFormattingPromptTests: XCTestCase {
                       "the sign-off name must not gain a period from sentence punctuation")
     }
 
+    func testSystemPromptIncludesParagraphRuleWhenOn() {
+        // Field report (2026-09-01): LLM cleanup + smart formatting on, and a long plain
+        // dictation still lands as "1 paragraph block". The message rule's paragraph
+        // grouping is gated on greeting/sign-off cues, so nothing asked the model to
+        // break up long non-email prose.
+        let system = LLMPostProcessor.assembleSystemPrompt(
+            generalCleanup: true,
+            generalPrompt: AppPreferences.shared.aiPostProcessingPrompt,
+            smartFormatting: true)
+        XCTAssertNotNil(system)
+        XCTAssertTrue(system!.contains("Paragraph rule"))
+        XCTAssertTrue(system!.contains(
+            "I still need the final pricing from Sam before we flip it live."),
+                      "the worked example is what a 1.5B model actually follows")
+        XCTAssertTrue(system!.contains("one to three sentences stays a single block"),
+                      "the counter-example keeps short dictations unbroken")
+    }
+
     func testSystemPromptIncludesLayoutCommandsWhenOn() {
         let system = LLMPostProcessor.assembleSystemPrompt(
             generalCleanup: true,
@@ -132,6 +150,18 @@ final class SmartFormattingPromptTests: XCTestCase {
         // reject the reformatted output and silently fall back to the run-on transcription.
         let input = "item 1, yes, item 2, no, item 3, maybe"
         let output = "- Item 1: yes\n- Item 2: no\n- Item 3: maybe"
+        XCTAssertTrue(LLMPostProcessor.passesLengthGuard(input: input, output: output))
+    }
+
+    func testParagraphLayoutPassesTheLengthGuard() {
+        // Paragraph grouping adds only blank lines; the guard must not reject it and
+        // silently fall back to the one-block transcription.
+        let input = "okay quick update on the launch the landing page is done and checkout "
+            + "works end to end i still need the final pricing from sam before we flip it "
+            + "live once that lands we can announce tomorrow morning"
+        let output = "Okay, quick update on the launch. The landing page is done and "
+            + "checkout works end to end.\n\nI still need the final pricing from Sam before "
+            + "we flip it live.\n\nOnce that lands, we can announce tomorrow morning."
         XCTAssertTrue(LLMPostProcessor.passesLengthGuard(input: input, output: output))
     }
 

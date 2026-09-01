@@ -983,3 +983,42 @@ unit-tested). Restart-free recovery is the invariant: every path that detects
 a stale device also kicks `handleDevicesChanged` so the picker and canRecord
 heal. `record()`'s return value is also checked now — a false return
 previously left a phantom "recording" that never produced a file.
+## 2026-09-01 — Media resume requires causal proof: the pause must be *seen*
+to silence a renderer
+Nick's 0.1.18 report: no music playing, dictate, and afterwards "a random
+song or video in the background" starts. That is the resume fallback's
+single-instant probe (`kAudioDevicePropertyDeviceIsRunningSomewhere`,
+2026-08-26) arming off a process that merely holds the output device open —
+a silent WebAudio tab, a just-played ding — and the blind Play waking the
+stale now-playing owner. The device-level bit can never distinguish those,
+so the fallback now uses the HAL's per-process objects
+(`kAudioProcessPropertyIsRunningOutput`, public, macOS 14.4+) with Rhino's
+own pid excluded, and a two-part evidence contract in `MediaResumeArbiter`
+(pure, unit-tested): arm only when another process rendered output
+continuously across ~3s of idle polls plus the pause instant (dings don't
+span it), and Play only after one of those renderers is seen to *stop*
+post-pause — a holder keeps rendering forever and thus never confirms.
+"Any renderer stopped", not "all", so a chronic holder can't veto a real
+resume. For dictations shorter than the confirmation lag the Play defers
+until the stop is observed (media fades back a few seconds after the text
+lands), bounded by a 12s grace after recording stop. Chosen failure mode is
+the benign one: evidence never arrives → media stays paused, nothing is
+woken. The precise MediaRemote path (`canRead`) is unchanged, which also
+covers macOS < 14.4 where process objects don't exist. NOT yet verified on
+real hardware — needs a Mac: music/YouTube pause+resume, nothing-playing
+no-wake, and dictating mid-Zoom-call doesn't blast media on hangup.
+## 2026-09-01 — Smart formatting gets a paragraph rule for long plain
+dictations
+Same report: "have LLM on but still getting 1 paragraph block of text."
+The prompt's paragraph grouping lived only inside the message rule, gated
+on greeting/sign-off cues, so a long dictation that isn't an email hits
+"return as plain prose" and lands as one solid block — working as written,
+not as wanted. Added a fourth section (after the message rule, before
+layout commands): past about three sentences, group into one-to-two
+sentence paragraphs with blank lines, keep every word; one worked example
+in the established lowercase-input style plus the counter-example pinning
+one-to-three-sentence dictations to a single block (chat replies must not
+sprout blank lines). Follows the 2026-08-20 lesson that only worked
+examples move the 1.5B. NOT yet probed on the real model — needs the usual
+`Rhino cleanup` probe cycle on a Mac before it ships, same as every prompt
+change.

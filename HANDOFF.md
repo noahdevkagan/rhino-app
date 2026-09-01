@@ -5,7 +5,14 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-31, davao workspace: latency work — DONE, in PR)
+## Current state (2026-08-31, davao workspace: merging master into latency PR)
+
+Current plan: fetch the latest `origin/master`, merge it into
+`crxnamja/parakeet-latency-trim`, preserve both sides of the append-only
+`bench/history.jsonl` and `decisions.md` conflicts, validate the resolved
+tree, then commit and push the merge branch.
+
+### Latency work completed before merge
 
 Stop-to-text latency PR implemented and gated (field report: 3.2s clip
 603ms warm ASR, 986ms median stop-to-text vs Wispr Flow 677ms). Shipped in

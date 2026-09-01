@@ -118,6 +118,15 @@ done
 
 if [ "$ci_ready" = "1" ]; then
     echo "== CI signing secrets found; preparing $TAG"
+    # The same website pre-flight release.sh runs locally. The CI path never
+    # calls release.sh, so without this an immutable tag gets created for a
+    # release the workflow then refuses to deploy.
+    for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx; do
+        grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
+            || die "$f doesn't link v$VERSION — update the website download links before releasing"
+    done
+    grep -q "\"$VERSION\"" website/app/changelog/page.tsx \
+        || die "website/app/changelog/page.tsx has no $VERSION entry — add the release notes before releasing"
     FORCE_GATE=1 ./Scripts/push-gate.sh
     ./Scripts/bump-release-version.sh "$VERSION"
     git add "$CHANGELOG" OpenSuperWhisper.xcodeproj/project.pbxproj

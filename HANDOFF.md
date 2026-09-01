@@ -57,6 +57,11 @@ PR comment).
 
 ## Outstanding
 
+- Smart formatting misses lists behind a hedged lead-in: "…which number
+  one noah number two cypress…" stays prose (Noah repro 2026-08-31; CLI
+  repro confirms — works without "which"). Fix = add a worked example to
+  smartFormattingPrompt; needs the usual 1.5B probe cycle. Own small PR.
+
 - **Noah's morning command** (his tree may hold a half-made local release
   from the abort):
   `git checkout master && git tag -d v0.1.15 2>/dev/null; git reset --hard origin/master && git pull && ./Scripts/cut-release.sh`

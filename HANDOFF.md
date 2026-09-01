@@ -57,6 +57,17 @@ PR comment).
 
 ## Outstanding
 
+- **v0.1.18 SHIPPED (2026-08-31 night)** — latency release (PR #39): tag +
+  master pushed, DMG notarized + published, appcast has 0.1.18, site live.
+  Notify the slow-dictation reporter to update and re-run diagnose (the new
+  "ASR stages:"/"LLM cleanup pass:" lines will pinpoint their 603ms).
+- Release-flow gotcha found during the cut: website/tests/rendered-html
+  .test.mjs pins the version as a REGEX (Rhino-0\.1\.18\.dmg) — grep for
+  the plain version string misses it, and release.sh runs `npm test
+  >/dev/null` so the failure was silent (script died at "== website" with
+  no error). Fix cut-release preflight: check the test file pin alongside
+  the tsx pins, and stop silencing npm test.
+
 - Smart formatting misses lists behind a hedged lead-in: "…which number
   one noah number two cypress…" stays prose (Noah repro 2026-08-31; CLI
   repro confirms — works without "which"). Fix = add a worked example to

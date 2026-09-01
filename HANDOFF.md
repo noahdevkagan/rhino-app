@@ -16,8 +16,13 @@ cache, LlamaContext KV-prefix reuse + recording-start prefill. Measured on
 this Mac (M4, macOS 15.6): warm 3.2s offline ASR 80ms; boosted 240→82ms;
 cleanup one-sentence 655→300ms, smart-formatting 2,550→404ms. The field ASR
 slowness did NOT reproduce here — next diagnose report will carry the stage
-split. Details in decisions.md (3 entries, 2026-08-31). Full push gate green.
-Follow-up for Noah's M3 Max: re-run the stopwatch + `Rhino bench` there.
+split. Details in decisions.md (4 entries, 2026-08-31). Full push gate green.
+Verification: new `bench/parity/parity.sh` byte-compared this branch vs
+master (cleanup ×3 configs ×24 inputs incl. sequential shared-KV mode via
+new `cleanup --stdin`; ASR offline+boosted) — all identical. Found the
+boost path nondeterministic on unchanged master (decisions.md). Report on
+PR #39. Follow-up for Noah's M3 Max: stopwatch + bench there (steps in the
+PR comment).
 
 ## Previous state (2026-08-27, overnight)
 

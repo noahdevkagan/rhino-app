@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // The main window's sidebar navigation (mockup: Typeless-style — white-first,
@@ -28,8 +29,11 @@ enum MainTab: String, CaseIterable, Identifiable {
 struct MainSidebar: View {
     @Binding var selection: MainTab
     let openSettings: () -> Void
+    let openReleaseNotes: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var transcriptionService = TranscriptionService.shared
+
+    @State private var versionHovered = false
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
@@ -89,9 +93,20 @@ struct MainSidebar: View {
                 .buttonStyle(.plain)
                 .help("Settings")
                 Spacer()
-                Text("v\(version)")
-                    .scaledFont(size: 10.5, design: .monospaced)
-                    .foregroundColor(.secondary.opacity(0.7))
+                // The version is the handle people reach for when they wonder what
+                // changed — clicking it opens the release notes it names.
+                Button(action: openReleaseNotes) {
+                    Text("v\(version)")
+                        .scaledFont(size: 10.5, design: .monospaced)
+                        .foregroundColor(.secondary.opacity(versionHovered ? 1 : 0.7))
+                        .underline(versionHovered)
+                }
+                .buttonStyle(.plain)
+                .help("What's new in v\(version)")
+                .onHover { inside in
+                    versionHovered = inside
+                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                }
             }
             .padding(.horizontal, 14)
             .padding(.bottom, 12)

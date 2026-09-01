@@ -944,3 +944,17 @@ CLOUDFLARE_API_TOKEN joins the readiness check so an undeployable release
 never counts as ready. Second, the CI branch of cut-release.sh tagged without
 the website pre-flight release.sh does locally, so a bad link would strand an
 immutable tag; that check now runs before the gate.
+## 2026-09-01 — sidebar version links to its own release notes; Settings' tab
+selection moves to a binding
+The version at the bottom of the main sidebar is the thing people click when
+they wonder what changed, so it now opens Settings → Updates (the "What's new"
+list parsed from the bundled CHANGELOG) instead of being inert text. Making it
+work exposed a real bug in the existing deep-link mechanism: SettingsView took
+its landing tab as an init value (`initialTab`), and a caller that set that
+state and flipped `showSettings` in the same event got a sheet built from an
+older body evaluation — `initialTab` arrived nil and the sheet fell back to
+Dictation. Verified in the dev build. The Models deep-link (Home's
+"Get a model" banner) had the same latent race. Fix: ContentView owns
+`settingsTab` and passes it as a `@Binding`, which is read at render time and
+cannot go stale; the callers set the tab directly instead of posting a
+notification the sheet may not exist to receive.

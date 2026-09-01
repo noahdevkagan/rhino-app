@@ -252,8 +252,15 @@ final class DictationPipeline: ObservableObject {
                 try? FileManager.default.removeItem(at: item.tempURL)
             }
         } catch {
-            print("Dictation transcription failed: \(error)")
             let reason = Self.failureReason(for: error)
+            let detail = Self.failureDetail(
+                for: error,
+                engineError: transcriptionService.engineError,
+                attemptedModel: item.modelOption?.displayName ?? ModelCatalog.activeOption()?.displayName)
+            print("Dictation transcription failed: \(detail)")
+            // Unconditionally into the unified log (not gated on Diag.isEnabled): failures are
+            // rare, and when history is off this line is the only durable record of what broke.
+            Diag.log.error("dictation failed: \(detail, privacy: .public)")
             // Don't lose the audio on failure. When history is on, keep the recording with a .failed
             // status + retry message so it shows in the log and can be re-run with the regenerate (↻)
             // button. Otherwise discard. Either way, surface the failure — silent loss is worse.
@@ -263,7 +270,7 @@ final class DictationPipeline: ObservableObject {
                     id: saved.id, timestamp: saved.timestamp, fileName: saved.fileName,
                     finalURL: saved.url, transcription: "\(reason) — click ↻ to try again.",
                     status: .failed, progress: 0, context: item.context,
-                    modelUsed: nil, wasFallback: false)
+                    modelUsed: nil, wasFallback: false, failureDetail: detail)
             } else {
                 try? FileManager.default.removeItem(at: item.tempURL)
             }
@@ -271,10 +278,10 @@ final class DictationPipeline: ObservableObject {
         }
     }
 
-    /// The one thing the user can act on, not a stack trace. The engine-load failure carries the
-    /// underlying loader message when there is one (missing model file, corrupt download, …);
-    /// everything else keeps the generic label. Debug detail still goes to the console log above.
-    private static func failureReason(for error: Error) -> String {
+    /// The one thing the user can act on, not a stack trace. The generic labels stay short so
+    /// they fit the indicator flash; the raw error goes into the row's failureDetail instead.
+    /// Internal (not private) so tests can pin the mapping.
+    nonisolated static func failureReason(for error: Error) -> String {
         switch error {
         case TranscriptionError.contextInitializationFailed:
             return "Model not loaded — check Settings → Models"
@@ -285,13 +292,29 @@ final class DictationPipeline: ObservableObject {
         }
     }
 
+    /// Verbatim technical detail persisted alongside a failed recording: the raw error, the
+    /// engine loader's message when there is one (missing model file, corrupt download, …), and
+    /// the model that was attempted. This is what a later debug pass reads — the empty-modelUsed
+    /// failed rows in the field were undiagnosable precisely because none of it was kept.
+    nonisolated static func failureDetail(for error: Error, engineError: String?, attemptedModel: String?) -> String {
+        var parts = [String(describing: error)]
+        if let engineError, !engineError.isEmpty {
+            parts.append(engineError)
+        }
+        if let attemptedModel, !attemptedModel.isEmpty {
+            parts.append("model: \(attemptedModel)")
+        }
+        return parts.joined(separator: " · ")
+    }
+
     /// Insert a recording (already at its final URL) into the store with the measured audio duration
     /// and the captured source context (app / window / URL / model used). Moved here from the
     /// indicator view model so the save path is shared and can't drift.
     private func storeRecording(id: UUID, timestamp: Date, fileName: String, finalURL: URL,
                                 transcription: String, status: RecordingStatus, progress: Float,
                                 context: ContextSnapshot,
-                                modelUsed: String?, wasFallback: Bool) async {
+                                modelUsed: String?, wasFallback: Bool,
+                                failureDetail: String? = nil) async {
         // `modelUsed`/`wasFallback` are captured by the caller right after `transcribeAudio`
         // returns — NOT read here, because the `await` below can suspend long enough for another
         // transcription to overwrite them on the shared service. (parallel-recording review)
@@ -309,7 +332,8 @@ final class DictationPipeline: ObservableObject {
             sourceWindowTitle: context.windowTitle,
             sourceURL: context.fullURL,
             modelUsed: modelUsed,
-            wasFallback: wasFallback))
+            wasFallback: wasFallback,
+            failureDetail: failureDetail))
     }
 
     /// Move a temp recording to its permanent location after a FAILED transcription so the audio

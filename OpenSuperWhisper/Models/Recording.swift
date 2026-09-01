@@ -29,12 +29,18 @@ struct Recording: Identifiable, Codable, FetchableRecord, PersistableRecord, Equ
     /// True when this transcription came from the remote engine's local fallback (the
     /// server was unreachable). The history row tints the model label to flag it.
     var wasFallback: Bool = false
+    /// Verbatim technical detail for a failed transcription (the raw error, the engine
+    /// loader's message, the model that was attempted). The `transcription` field of a
+    /// failed row carries the short human-actionable reason; this carries what a debug
+    /// pass needs — without it, failures in the field are undiagnosable once the
+    /// console output is gone. nil for successful rows.
+    var failureDetail: String? = nil
 
     var isRegeneration: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case id, timestamp, fileName, transcription, duration, status, progress, sourceFileURL
-        case sourceAppName, sourceWindowTitle, sourceURL, modelUsed, wasFallback
+        case sourceAppName, sourceWindowTitle, sourceURL, modelUsed, wasFallback, failureDetail
     }
 
     static func == (lhs: Recording, rhs: Recording) -> Bool {
@@ -82,6 +88,7 @@ struct Recording: Identifiable, Codable, FetchableRecord, PersistableRecord, Equ
         static let sourceURL = Column(CodingKeys.sourceURL)
         static let modelUsed = Column(CodingKeys.modelUsed)
         static let wasFallback = Column(CodingKeys.wasFallback)
+        static let failureDetail = Column(CodingKeys.failureDetail)
     }
 }
 
@@ -171,6 +178,15 @@ class RecordingStore: ObservableObject {
             if !columnNames.contains("wasFallback") {
                 try db.alter(table: Recording.databaseTableName) { t in
                     t.add(column: "wasFallback", .boolean).notNull().defaults(to: false)
+                }
+            }
+        }
+
+        migrator.registerMigration("v6_add_failure_detail") { db in
+            let columnNames = try db.columns(in: Recording.databaseTableName).map { $0.name }
+            if !columnNames.contains("failureDetail") {
+                try db.alter(table: Recording.databaseTableName) { t in
+                    t.add(column: "failureDetail", .text)
                 }
             }
         }
@@ -284,7 +300,11 @@ class RecordingStore: ObservableObject {
     
     static let recordingProgressDidUpdateNotification = Notification.Name("RecordingStore.recordingProgressDidUpdate")
     
-    func updateRecordingProgressOnlySync(_ id: UUID, transcription: String, progress: Float, status: RecordingStatus, isRegeneration: Bool? = nil, modelUsed: String? = nil, wasFallback: Bool? = nil) async {
+    func updateRecordingProgressOnlySync(_ id: UUID, transcription: String, progress: Float, status: RecordingStatus, isRegeneration: Bool? = nil, modelUsed: String? = nil, wasFallback: Bool? = nil, failureDetail: String? = nil) async {
+        // A completed run always clears failureDetail (a successful rerun must not keep the
+        // stale detail of the failure it just fixed); otherwise the column is only touched
+        // when a failure path passes a detail.
+        let setFailureDetail = failureDetail != nil || status == .completed
         do {
             _ = try await dbQueue.write { db -> Int in
                 var assignments = [
@@ -297,6 +317,9 @@ class RecordingStore: ObservableObject {
                 }
                 if let wasFallback {
                     assignments.append(Recording.Columns.wasFallback.set(to: wasFallback))
+                }
+                if setFailureDetail {
+                    assignments.append(Recording.Columns.failureDetail.set(to: failureDetail))
                 }
                 return try Recording
                     .filter(Recording.Columns.id == id)
@@ -316,6 +339,9 @@ class RecordingStore: ObservableObject {
                 if let wasFallback {
                     updated.wasFallback = wasFallback
                 }
+                if setFailureDetail {
+                    updated.failureDetail = failureDetail
+                }
                 recordings[index] = updated
             }
 
@@ -333,6 +359,11 @@ class RecordingStore: ObservableObject {
             }
             if let wasFallback {
                 userInfo["wasFallback"] = wasFallback
+            }
+            if setFailureDetail {
+                // NSNull marks "clear" for the notification consumer; a plain nil would
+                // read as "not included" and leave the stale detail on the row.
+                userInfo["failureDetail"] = failureDetail ?? NSNull()
             }
 
             await MainActor.run {

@@ -139,7 +139,7 @@ class ContentViewModel: ObservableObject {
         startFreshLoad(query: query)
     }
     
-    func handleProgressUpdate(id: UUID, transcription: String?, progress: Float, status: RecordingStatus, isRegeneration: Bool?, modelUsed: String? = nil, wasFallback: Bool? = nil) {
+    func handleProgressUpdate(id: UUID, transcription: String?, progress: Float, status: RecordingStatus, isRegeneration: Bool?, modelUsed: String? = nil, wasFallback: Bool? = nil, failureDetail: String?? = .none) {
         if let index = recordings.firstIndex(where: { $0.id == id }) {
             if let transcription = transcription {
                 recordings[index].transcription = transcription
@@ -154,6 +154,11 @@ class ContentViewModel: ObservableObject {
             }
             if let wasFallback {
                 recordings[index].wasFallback = wasFallback
+            }
+            // Double optional: .none = not part of this update, .some(nil) = clear it
+            // (a successful rerun wipes the old failure's detail), .some(text) = set it.
+            if case .some(let detail) = failureDetail {
+                recordings[index].failureDetail = detail
             }
         }
     }
@@ -481,6 +486,10 @@ struct ContentView: View {
             let isRegeneration = userInfo["isRegeneration"] as? Bool
             let modelUsed = userInfo["modelUsed"] as? String
             let wasFallback = userInfo["wasFallback"] as? Bool
+            // Absent key = leave the row's detail alone; NSNull = clear; string = set.
+            let failureDetail: String?? = userInfo["failureDetail"] != nil
+                ? .some(userInfo["failureDetail"] as? String)
+                : .none
 
             viewModel.handleProgressUpdate(
                 id: id,
@@ -489,7 +498,8 @@ struct ContentView: View {
                 status: status,
                 isRegeneration: isRegeneration,
                 modelUsed: modelUsed,
-                wasFallback: wasFallback
+                wasFallback: wasFallback,
+                failureDetail: failureDetail
             )
         }
         .onReceive(NotificationCenter.default.publisher(for: RecordingStore.recordingsDidUpdateNotification)) { _ in
@@ -987,6 +997,17 @@ struct RecordingRow: View {
                         Text(recording.transcription)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                    }
+
+                    // The verbatim error, selectable so it can be pasted into a bug
+                    // report — the short reason above tells the user what to do, this
+                    // tells us what actually broke.
+                    if let detail = recording.failureDetail, !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption2.monospaced())
+                            .foregroundColor(Color.secondary.opacity(0.7))
+                            .textSelection(.enabled)
+                            .lineLimit(4)
                     }
                 }
                 .padding(.horizontal, 12)

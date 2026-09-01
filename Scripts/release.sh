@@ -98,7 +98,19 @@ for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx; do
         || { echo "RELEASE BLOCKED: $f doesn't link v$VERSION — update the website download links (+ changelog page/tests)"; exit 1; }
 done
 (cd website && npm ci --no-audit --no-fund >/dev/null && npm test >/dev/null && npx wrangler deploy -c dist/server/wrangler.json)
-curl -fsS --max-time 15 https://rhinovoice.app/thanks | grep -q "Rhino-$VERSION.dmg" \
+# Cloudflare takes a few seconds to propagate a fresh deploy, so one
+# immediate check fails on a race rather than a real problem: v0.1.17 blocked
+# here with the site already correct seconds later. Poll for up to a minute.
+site_live=0
+for _ in $(seq 1 12); do
+    if curl -fsS --max-time 15 https://rhinovoice.app/thanks 2>/dev/null \
+            | grep -q "Rhino-$VERSION.dmg"; then
+        site_live=1
+        break
+    fi
+    sleep 5
+done
+[ "$site_live" = 1 ] \
     || { echo "RELEASE BLOCKED: live site is not serving v$VERSION after deploy"; exit 1; }
 echo "== website live at v$VERSION"
 

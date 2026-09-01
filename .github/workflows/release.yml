@@ -191,7 +191,17 @@ jobs:
           (cd website && npm ci --no-audit --no-fund >/dev/null \
               && npm test >/dev/null \
               && npx wrangler deploy -c dist/server/wrangler.json)
-          curl -fsS --max-time 15 https://rhinovoice.app/thanks \
-              | grep -q "Rhino-$VERSION.dmg" \
+          # Cloudflare needs a few seconds to propagate; poll rather than
+          # failing the release on a race (see Scripts/release.sh).
+          site_live=0
+          for _ in $(seq 1 12); do
+              if curl -fsS --max-time 15 https://rhinovoice.app/thanks 2>/dev/null \
+                      | grep -q "Rhino-$VERSION.dmg"; then
+                  site_live=1
+                  break
+              fi
+              sleep 5
+          done
+          [ "$site_live" = 1 ] \
               || { echo "live site is not serving v$VERSION after deploy"; exit 1; }
           echo "rhinovoice.app live at v$VERSION"

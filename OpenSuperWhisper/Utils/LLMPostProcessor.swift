@@ -13,10 +13,15 @@ protocol LLMCleanupBackend {
     /// weak enough to answer the transcription instead of transforming it.
     var enforcesLengthRatio: Bool { get }
     func generate(system: String, user: String) async throws -> String
+    /// Optional: warm whatever makes the next `generate` fast (load the model, pre-decode the
+    /// prompt prefix the two user variants share). Fire-and-forget, called while the user is
+    /// still recording; the default does nothing.
+    func prewarm(system: String, userVariantA: String, userVariantB: String)
 }
 
 extension LLMCleanupBackend {
     var enforcesLengthRatio: Bool { false }
+    func prewarm(system: String, userVariantA: String, userVariantB: String) {}
 }
 
 /// Cleans up a transcription with the embedded local LLM, behind a single `process`
@@ -28,6 +33,29 @@ enum LLMPostProcessor {
     /// The one backend: the embedded llama.cpp model.
     static func currentBackend() -> LLMCleanupBackend {
         BuiltInLlamaBackend.shared
+    }
+
+    /// Warms the cleanup backend for an imminent dictation: called at recording start, so the
+    /// context load (after an idle unload) and the constant prompt prefix — system prompt plus
+    /// the user wrapper's preamble, several hundred tokens that are identical for every
+    /// dictation — are evaluated WHILE the user is speaking instead of after they stop. The two
+    /// sentinel transcripts just mark where real transcripts diverge; the backend prefills the
+    /// prompt prefix they share. No-op when cleanup is off or the model isn't downloaded.
+    static func prewarm() {
+        let prefs = AppPreferences.shared
+        guard prefs.aiPostProcessingEnabled else { return }
+        let languageCode = prefs.whisperLanguage
+        let smartFormatting = prefs.smartFormattingEnabled
+        guard let system = assembleSystemPrompt(generalCleanup: true,
+                                                generalPrompt: prefs.aiPostProcessingPrompt,
+                                                smartFormatting: smartFormatting,
+                                                languageCode: languageCode) else { return }
+        let backend = currentBackend()
+        guard backend.isReady else { return }
+        backend.prewarm(
+            system: system,
+            userVariantA: wrapUserText("a", smartFormatting: smartFormatting, languageCode: languageCode),
+            userVariantB: wrapUserText("b", smartFormatting: smartFormatting, languageCode: languageCode))
     }
 
     /// Cleans `text` with the general prose-cleanup pass (`aiPostProcessingEnabled`),
@@ -62,9 +90,12 @@ enum LLMPostProcessor {
         var working = text
         if spokenEdits, containsSpokenEditCue(text) {
             do {
+                let editsStart = CFAbsoluteTimeGetCurrent()
                 let edited = try await backend.generate(
                     system: spokenEditsPassPrompt, user: wrapSpokenEditsUserText(text))
                     .trimmingCharacters(in: .whitespacesAndNewlines)
+                print(String(format: "LLM spoken-edits pass: %.0fms",
+                             (CFAbsoluteTimeGetCurrent() - editsStart) * 1000))
                 // An applied edit only ever shrinks the text, so the condensing floor
                 // applies. A blank or ballooned result means the pass went off-contract;
                 // the original text goes on to cleanup untouched.
@@ -80,10 +111,13 @@ enum LLMPostProcessor {
         }
 
         do {
+            let cleanupStart = CFAbsoluteTimeGetCurrent()
             let raw = try await backend.generate(
                 system: system,
                 user: wrapUserText(working, smartFormatting: smartFormatting,
                                    languageCode: languageCode))
+            print(String(format: "LLM cleanup pass: %.0fms",
+                         (CFAbsoluteTimeGetCurrent() - cleanupStart) * 1000))
             let result = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             // Blank output always falls back to the (possibly edited) transcription. The
             // length-ratio check on top of that runs only for backends that ask for it

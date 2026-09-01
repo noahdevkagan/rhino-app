@@ -1,5 +1,14 @@
 const releases = [
   {
+    version: "0.1.18",
+    date: "August 31, 2026",
+    changes: [
+      "Dictation lands noticeably faster. AI cleanup no longer re-reads its full instructions on every dictation — they're prepared once and warmed up while you're still speaking — roughly halving cleanup time per dictation, and cutting it ~6× with smart formatting on. The speech model also runs a warm-up at launch, so the first dictation of the day is as fast as the tenth.",
+      "Custom dictionary's “boost recognition” no longer rebuilds its vocabulary on every dictation — boosted dictations are up to ~3× faster.",
+      "Slow-dictation reports can now pinpoint the cause: every dictation logs where its time went (reading audio, transcription, cleanup).",
+    ],
+  },
+  {
     version: "0.1.17",
     date: "August 31, 2026",
     changes: [

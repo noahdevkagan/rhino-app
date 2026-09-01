@@ -145,6 +145,12 @@ class IndicatorViewModel: ObservableObject {
 
         recorder.startRecording()
 
+        // Warm the LLM cleanup while the user speaks: reload the context if the idle release
+        // dropped it and pre-decode the constant prompt prefix (system prompt + wrapper), so at
+        // stop only the transcript tokens remain to evaluate. Fire-and-forget on the backend's
+        // serial inference queue; no-op when cleanup is off. (#latency)
+        LLMPostProcessor.prewarm()
+
         // Live transcription (Parakeet only): stream in parallel with the WAV recorder so the
         // indicator can show the text as the user speaks. Falls back to the file pass on stop.
         // Skipped while ANY transcription is in flight — the background dictation pipeline OR the

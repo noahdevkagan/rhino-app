@@ -75,6 +75,14 @@ public final class LlamaContext {
     private var sampler: UnsafeMutablePointer<llama_sampler>?
     private let vocab: OpaquePointer?
 
+    /// The tokens currently resident in the context's KV cache (sequence 0), in position order.
+    /// Maintained by `clearMemory` / `decodeAppending` so `generate` can keep the KV of a shared
+    /// prompt prefix across calls instead of re-evaluating it: the cleanup system prompt is
+    /// identical for every dictation and dominates the prompt, so dictation N+1 only pays for its
+    /// own transcript tokens. `prefill` decodes that shared prefix ahead of time (during
+    /// recording), making even the FIRST cleanup after a load cheap.
+    private var kvTokens: [LlamaToken] = []
+
     // llama_backend_init() must be called once per process before loading any model.
     // Use a static token so repeated LlamaContext creations don't re-init the backend.
     private static let backendInit: Void = {
@@ -257,21 +265,96 @@ public final class LlamaContext {
         return llama_vocab_is_eog(vocab, token)
     }
 
+    // MARK: - KV-cache bookkeeping
+
+    /// Empties the KV cache (and the mirror of what it holds).
+    private func clearMemory() {
+        guard let ctx else { return }
+        llama_memory_clear(llama_get_memory(ctx), true)
+        kvTokens.removeAll()
+    }
+
+    /// Rewinds the KV cache to its first `keep` tokens so the next decode continues from there
+    /// (`llama_batch_get_one` carries no positions; llama continues from the sequence's max
+    /// position). Falls back to a full clear if the backend can't do a partial removal.
+    /// Returns the number of tokens actually kept.
+    private func rewindMemory(keepingFirst keep: Int) -> Int {
+        guard let ctx else { return 0 }
+        guard keep > 0 else {
+            clearMemory()
+            return 0
+        }
+        if keep >= kvTokens.count { return kvTokens.count }
+        if llama_memory_seq_rm(llama_get_memory(ctx), 0, llama_pos(keep), -1) {
+            kvTokens.removeLast(kvTokens.count - keep)
+            return keep
+        }
+        clearMemory()
+        return 0
+    }
+
+    /// Decodes `tokens` as one batch appended to the current KV contents. On success the KV
+    /// mirror grows by exactly these tokens.
+    private func decodeAppending(_ tokens: [LlamaToken]) -> Bool {
+        if tokens.isEmpty { return true }
+        guard let ctx else { return false }
+        var batchTokens = tokens
+        let ok = batchTokens.withUnsafeMutableBufferPointer { buf -> Bool in
+            let batch = llama_batch_get_one(buf.baseAddress, Int32(buf.count))
+            return llama_decode(ctx, batch) == 0
+        }
+        if ok { kvTokens.append(contentsOf: tokens) }
+        return ok
+    }
+
+    /// Length of the shared leading run of two token sequences.
+    private static func commonPrefixLength(_ a: [LlamaToken], _ b: [LlamaToken]) -> Int {
+        var n = 0
+        while n < a.count && n < b.count && a[n] == b[n] { n += 1 }
+        return n
+    }
+
     // MARK: - Generation
+
+    /// Decodes the prompt prefix shared by every completion with this system prompt — the chat
+    /// template applied to (system, user) up to where the user text diverges, computed from two
+    /// sentinel user variants — so a later `generate` only evaluates the tokens after it (the
+    /// transcript). Called from the recording flow while the user is still speaking; a no-op when
+    /// the prefix is already resident. Correctness never depends on this: `generate` re-checks
+    /// token-for-token what is in the KV cache and re-decodes anything that doesn't match.
+    public func prefill(system: String, userVariantA: String, userVariantB: String) {
+        let a = formatChatPrompt(system: system, user: userVariantA)
+        let b = formatChatPrompt(system: system, user: userVariantB)
+        let prefix = a.commonPrefix(with: b)
+        guard !prefix.isEmpty else { return }
+
+        let prefixTokens = tokenize(prefix, addSpecial: true)
+        guard !prefixTokens.isEmpty, let ctx, prefixTokens.count < Int(llama_n_ctx(ctx)) else { return }
+
+        let shared = Self.commonPrefixLength(kvTokens, prefixTokens)
+        if shared == prefixTokens.count { return }  // already resident (possibly with more after it)
+        let kept = rewindMemory(keepingFirst: shared)
+        if !decodeAppending(Array(prefixTokens[kept...])) {
+            // Leave a clean slate rather than a half-decoded mirror; generate will start over.
+            clearMemory()
+        }
+    }
 
     /// Runs a single-shot chat completion: formats the prompt, decodes the prompt
     /// tokens, then greedily samples up to `maxTokens` tokens, stopping at EOG.
+    ///
+    /// The KV cache is NOT unconditionally cleared between calls. Positions matter
+    /// (`llama_batch_get_one` continues from wherever the sequence ends), so the cache is instead
+    /// rewound to the longest token-for-token prefix it shares with this call's prompt and only
+    /// the rest is decoded. For back-to-back cleanups that prefix is the entire system prompt +
+    /// user-wrapper preamble (`prefill` puts it there even for the first call), which is what
+    /// makes warm cleanup fast; for an unrelated prompt the shared run is 0 and this degrades to
+    /// exactly the old clear-and-decode-everything behavior. Earlier dictations can never leak
+    /// in: whatever doesn't match this prompt's tokens is removed before decoding. The sampler
+    /// is still reset every call — its accepted-token history belongs to the previous generation.
     public func generate(system: String, user: String, maxTokens: Int = 512) -> String {
         guard let ctx, let sampler else { return "" }
 
-        // Every call is an independent completion, so start from an empty KV cache. This is not
-        // optional hygiene: `llama_batch_get_one` carries no explicit positions, so llama continues
-        // from wherever the last decode stopped. Without the clear, dictation N+1 decodes appended
-        // to N — earlier dictations leak into this one's context — and once the accumulated tokens
-        // pass `n_ctx`, `llama_decode` fails outright and every later cleanup returns "" (a silent
-        // no-op until the app restarts). The sampler is reset for the same reason: its accepted-token
-        // history belongs to the previous generation.
-        llama_memory_clear(llama_get_memory(ctx), true)
         llama_sampler_reset(sampler)
 
         let prompt = formatChatPrompt(system: system, user: user)
@@ -280,17 +363,22 @@ public final class LlamaContext {
 
         let nCtx = Int(llama_n_ctx(ctx))
         if promptTokens.count >= nCtx {
-            // Truncate the prompt if it doesn't fit; leave room for the response.
+            // Truncate the prompt if it doesn't fit; leave room for the response. A truncated
+            // prompt's tokens don't line up with any cached prefix, so start clean.
             promptTokens = Array(promptTokens.suffix(nCtx - 1))
+            clearMemory()
         }
 
-        // Decode the prompt as one batch (llama_batch_get_one tracks positions for seq 0).
+        // Keep at most promptTokens.count - 1 cached tokens: the final prompt token must be
+        // decoded by THIS call so the logits the first sampling step reads are its own.
+        let shared = min(Self.commonPrefixLength(kvTokens, promptTokens), promptTokens.count - 1)
+        let kept = rewindMemory(keepingFirst: shared)
+
         var outputBytes: [UInt8] = []
-        var batchOK = promptTokens.withUnsafeMutableBufferPointer { buf -> Bool in
-            let batch = llama_batch_get_one(buf.baseAddress, Int32(buf.count))
-            return llama_decode(ctx, batch) == 0
+        guard decodeAppending(Array(promptTokens[kept...])) else {
+            clearMemory()
+            return ""
         }
-        guard batchOK else { return "" }
 
         var generated = 0
         let budget = min(maxTokens, max(0, nCtx - promptTokens.count))
@@ -304,12 +392,7 @@ public final class LlamaContext {
             outputBytes.append(contentsOf: pieceBytes(for: nextToken))
 
             // Feed the sampled token back in for the next step.
-            var single = [LlamaToken](arrayLiteral: nextToken)
-            batchOK = single.withUnsafeMutableBufferPointer { buf -> Bool in
-                let batch = llama_batch_get_one(buf.baseAddress, Int32(buf.count))
-                return llama_decode(ctx, batch) == 0
-            }
-            if !batchOK { break }
+            if !decodeAppending([nextToken]) { break }
 
             generated += 1
         }

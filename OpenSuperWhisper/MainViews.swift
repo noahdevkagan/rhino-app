@@ -88,6 +88,21 @@ struct MainSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .help("Settings")
+
+                // Feedback sits next to Settings so it's one click from the main
+                // window, not just the menu bar. Same window as "Send Feedback…".
+                Button {
+                    NotificationCenter.default.post(name: .openFeedback, object: nil)
+                } label: {
+                    // A hair smaller than the gear: the envelope glyph reads
+                    // wider at the same point size.
+                    Image(systemName: "envelope")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Send feedback")
+
                 Spacer()
                 Text("v\(version)")
                     .scaledFont(size: 10.5, design: .monospaced)

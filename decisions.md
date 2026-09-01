@@ -958,3 +958,28 @@ Dictation. Verified in the dev build. The Models deep-link (Home's
 `settingsTab` and passes it as a `@Binding`, which is read at render time and
 cannot go stale; the callers set the tab directly instead of posting a
 notification the sheet may not exist to receive.
+## 2026-09-01 — AirPods-disconnect hang: revalidate the mic at record start,
+bound the "connecting" wait, and always re-discover on default-input change
+Noah's 0.1.18 report: disconnect AirPods, start a new dictation, and the app
+sits in "connecting" until restarted. Three stacked causes, all fixed rather
+than picking one, because each alone can reproduce the hang: (1)
+`MicrophoneService` could hold the dead device forever — the CoreAudio
+default-input listener bailed when a mic was pinned and the AVCapture
+disconnect notification can lag or not arrive, so the listener now always
+re-runs discovery (`handleDevicesChanged`), which is safe because
+`updateCurrentMicrophone` keeps a pinned-and-present device unchanged. (2)
+`performStartRecording` trusted the cache: it repointed the *system default
+input* at the ghost device (poisoning every later attempt) and classified it
+bluetooth → the connecting path. Start now revalidates the cached device
+against CoreAudio (`getCoreAudioDeviceID`, which also had to stop treating
+kAudioObjectUnknown as a valid ID) and falls back to the live system
+default/built-in input, resolved via CoreAudio directly — not the published
+device list, which is main-confined and possibly stale on the state queue.
+(3) The connection monitor polled file growth with no timeout. It now gives
+the warm-up 4s (real AirPods links deliver in <2s), then tears down the dead
+recorder and re-records from a live input, repointing the system default only
+when the app itself had left it on the dead device (`fallbackInput`, pure and
+unit-tested). Restart-free recovery is the invariant: every path that detects
+a stale device also kicks `handleDevicesChanged` so the picker and canRecord
+heal. `record()`'s return value is also checked now — a false return
+previously left a phantom "recording" that never produced a file.

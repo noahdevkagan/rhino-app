@@ -131,6 +131,7 @@ tests/*/.out/
 tests/asr/audio/
 bench/corpus/audio/
 bench/corpus/results/
+bench/parity/.out/
 
 # SwiftPM caches under any name (a typo once committed 345MB of them)
 SOURCEPACKAGES*/

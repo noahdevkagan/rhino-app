@@ -905,3 +905,24 @@ line) — the next field diagnose can say WHERE the time goes instead of
 guessing. There is no VAD stage to trim: ≤15s clips run as one padded
 15s window, so encoder cost is constant and the per-second slope is the TDT
 decode loop.
+
+## 2026-08-31 — Output-parity harness for risky changes (bench/parity), and
+what it found on the KV-reuse PR
+"Gate green" proves the synthetic WER corpus and budgets, not that outputs
+are unchanged — and the KV-prefix-reuse change is exactly the kind that
+could corrupt dictation N+1 with dictation N's state while passing every
+existing test. New harness: `bench/parity/parity.sh [base-ref]` builds the
+base in a reused worktree and byte-compares against the current dev build:
+LLM cleanup over a 24-case corpus in three configs (base isolated
+per-line vs branch `cleanup --stdin` — one process, consecutive dictations
+sharing state, the app's real pattern; greedy decoding makes any byte diff
+a real change), and ASR bench texts over generated clips (1s–25s incl. the
+chunked >15s path), offline + dictionary-boosted. Two findings from its
+first run: (1) the latency PR is byte-identical everywhere it's valid to
+compare; (2) the BOOSTED path is nondeterministic run-to-run on unchanged
+master — identical clips produced different hallucinated boost terms
+across three identical master-only runs (4/13 clips; upstream FluidAudio
+sliding-window/arbitration, amplified by boosting terms absent from the
+audio). The harness therefore runs the base twice and excludes clips that
+are unstable base-vs-base before comparing. Worth an upstream look if
+boost-quality reports come in.

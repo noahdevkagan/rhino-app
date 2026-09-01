@@ -16,11 +16,15 @@ enum CLI {
       Rhino transcribe <audio-file> [--json]
       Rhino bench <dir-of-wavs>
       Rhino cleanup <text> [--repeat <n>]
+      Rhino cleanup --stdin
 
     Options:
       --json       Print a JSON object ({ "file", "text" }) instead of plain text.
       --repeat n   (cleanup) Run the pass n times in one process, timing each run on stderr —
                    run 1 includes the model load; later runs show warm in-process latency.
+      --stdin      (cleanup) Clean each line of stdin in order in ONE process — consecutive
+                   dictations sharing the loaded model exactly like the app — and print a JSON
+                   array of { "input", "text", "ms" }.
       -h, --help   Show this help.
 
     `bench` loads the configured model once and transcribes every .wav in the directory, printing a
@@ -63,6 +67,38 @@ enum CLI {
             // No ASR engine involved: run the post-transcription cleanup pass alone. `process`
             // silently passes text through when it can't run, which is right for dictation but
             // misleading in a test command — surface those cases on stderr.
+            // --stdin: clean every line of stdin sequentially in one process. This is the
+            // app's real usage pattern — dictation after dictation against one loaded model
+            // (and, with prefix caching, one KV cache) — so it's the mode parity/regression
+            // harnesses use to prove consecutive cleanups can't contaminate each other.
+            if args[2] == "--stdin" {
+                let lines = (String(data: FileHandle.standardInput.readDataToEndOfFile(),
+                                    encoding: .utf8) ?? "")
+                    .split(separator: "\n", omittingEmptySubsequences: true)
+                    .map(String.init)
+                Task { @MainActor in
+                    if !AppPreferences.shared.aiPostProcessingEnabled {
+                        warn("note: LLM cleanup is off in settings — text passes through unchanged")
+                    } else if !BuiltInLlamaBackend.shared.isReady {
+                        warn("note: built-in model not downloaded — text passes through unchanged")
+                    }
+                    var rows: [[String: Any]] = []
+                    for line in lines {
+                        let start = CFAbsoluteTimeGetCurrent()
+                        let cleaned = await LLMPostProcessor.process(line)
+                        let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+                        warn("cleanup line \(rows.count + 1)/\(lines.count): \(ms)ms")
+                        rows.append(["input": line, "text": cleaned, "ms": ms])
+                    }
+                    let data = (try? JSONSerialization.data(
+                        withJSONObject: rows, options: [.sortedKeys])) ?? Data()
+                    resultOut.write(data)
+                    resultOut.write(Data("\n".utf8))
+                    exit(0)
+                }
+                dispatchMain()
+            }
+
             let input = args[2]
             // --repeat N: run the pass N times in one process. Run 1 pays the context load;
             // later runs measure warm latency (and, with prompt prefill, the KV-reuse path) —

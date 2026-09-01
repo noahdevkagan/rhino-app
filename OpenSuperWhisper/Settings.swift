@@ -949,19 +949,15 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
-    /// Tab to land on when the sheet opens (e.g. Home's "Get a model" → .models).
-    /// Passed in rather than via notification: the notification fires before the
-    /// sheet's SettingsView exists, so a fresh sheet would miss it.
-    private let initialTab: SettingsTab?
-
-    init(initialTab: SettingsTab? = nil) {
-        self.initialTab = initialTab
-    }
+    /// The selected tab lives in the presenting view, not here: deep-links
+    /// ("Get a model" → Models, the sidebar version → Updates) set it in the same
+    /// event that opens the sheet, and `.sheet` can build its content from a stale
+    /// body evaluation. A binding is read at render time, so it can't go stale.
+    @Binding var selectedTab: SettingsTab
 
     @StateObject private var viewModel = SettingsViewModel()
     @ObservedObject private var launchAtLogin = LaunchAtLoginManager.shared
     @Environment(\.dismiss) var dismiss
-    @State private var selectedTab: SettingsTab = .dictation
     @State private var sidebarSearch = ""
     @FocusState private var sidebarSearchFocused: Bool
     @ObservedObject private var micService = MicrophoneService.shared
@@ -1132,7 +1128,6 @@ struct SettingsView: View {
         .tint(STheme.accent)
         .frame(minWidth: 720, idealWidth: 780, minHeight: 540, idealHeight: 600)
         .onAppear {
-            if let initialTab { selectedTab = initialTab }
             previousModelURL = viewModel.selectedModelURL
             launchAtLogin.refresh()
             if viewModel.selectedEngine == "fluidaudio" {

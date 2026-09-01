@@ -944,3 +944,33 @@ CLOUDFLARE_API_TOKEN joins the readiness check so an undeployable release
 never counts as ready. Second, the CI branch of cut-release.sh tagged without
 the website pre-flight release.sh does locally, so a bad link would strand an
 immutable tag; that check now runs before the gate.
+## 2026-09-01 — Phantom "thank you" filter requires acoustic evidence, never
+text alone; hands-free chime is debounced, not the tap logic reworked
+Customer (0.1.16) reported "thank you" typed when saying nothing, or appended
+to real dictations — Whisper's stock silence hallucination (its training data
+ends countless videos with it). The existing guard (0.1.0) only bails when
+VAD hears nothing AND the clip is near-digital silence, so breath/room noise
+above the 0.004 peak still ran Whisper on the full clip; and a trailing
+breath the VAD kept as "speech" could decode into a final "Thank you."
+segment. The fix deliberately never drops on text alone — "Thank you." is a
+normal thing to dictate (email sign-offs) — it requires two agreeing
+signals: (a) whole-transcript veto only when the VAD ran and heard zero
+speech AND the entire output is a stock phrase; (b) trailing segments
+dropped only when whisper's own per-segment no_speech_prob exceeds the
+user's noSpeechThreshold AND the text is a stock phrase, trimmed strictly
+from the end. detectSpeech now returns nil (VAD unavailable) vs [] (ran,
+heard nothing) so an un-runnable VAD can't veto anything. Parakeet got the
+cheap half only (near-silence bail — it had no silence guard at all);
+its architecture doesn't produce the "thank you" phrase, so no phrase list
+there. Rejected: trusting VAD-empty alone to return "" (drops quiet real
+speech — the 0.1.0 tradeoff stands), and a bare output-phrase blacklist.
+
+Hands-free "sound glitches and repeats" (same report): each tap of a burst
+restarts recording (the already-recording flag clears asynchronously on
+indicator hide) and each restart chimed; a new NSSound replaces the only
+strong reference to the playing one, so the first chime cuts off — heard as
+stutter. Fixed as a 0.75s chime debounce (covers a triple tap at the 0.35s
+double-tap window; far shorter than any deliberate next dictation) rather
+than restructuring the tap/lock state machine — the recording behavior is
+correct, only the feedback sound was wrong, and the state machine has
+subtle async invariants (#48's stacked-handler fix) not worth re-risking.

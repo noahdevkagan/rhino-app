@@ -181,15 +181,21 @@ class WhisperEngine: TranscriptionEngine {
         // "you"/"Thank you." that would be typed into the user's document. Return
         // nothing instead. (Caught by tests/asr's silence case.)
         let samples: [Float]
+        // True when the VAD ran and heard no speech anywhere — but the clip wasn't silent
+        // enough for the bail above, so the whole clip still went to whisper. Remembered so
+        // a transcript of pure breath/room noise can be vetoed below.
+        var vadHeardNoSpeech = false
         if settings.showTimestamps {
             samples = converted
         } else {
+            let segments = detectSpeech(in: converted)
             let trimmed = Self.speechOnlySamples(
-                from: converted, segments: detectSpeech(in: converted))
+                from: converted, segments: segments ?? [])
             if trimmed.isEmpty && Self.isNearSilence(converted) {
                 onProgressUpdate?(1.0)
                 return ""
             }
+            vadHeardNoSpeech = segments?.isEmpty == true
             samples = trimmed.isEmpty ? converted : trimmed
         }
 
@@ -265,27 +271,51 @@ class WhisperEngine: TranscriptionEngine {
         
         var text = ""
         let nSegments = context.fullNSegments
-        
-        for i in 0..<nSegments {
-            if i % 5 == 0 {
-                try Task.checkCancellation()
-            }
-            
-            guard let segmentText = context.fullGetSegmentText(iSegment: i) else { continue }
-            
-            if settings.showTimestamps {
+
+        if settings.showTimestamps {
+            for i in 0..<nSegments {
+                if i % 5 == 0 {
+                    try Task.checkCancellation()
+                }
+
+                guard let segmentText = context.fullGetSegmentText(iSegment: i) else { continue }
+
                 let t0 = context.fullGetSegmentT0(iSegment: i)
                 let t1 = context.fullGetSegmentT1(iSegment: i)
                 text += String(format: "[%.1f->%.1f] ", Float(t0) / 100.0, Float(t1) / 100.0)
+                text += segmentText + "\n"
             }
-            text += segmentText + "\n"
+        } else {
+            var segmentTexts: [String] = []
+            var noSpeechProbs: [Float] = []
+            for i in 0..<nSegments {
+                if i % 5 == 0 {
+                    try Task.checkCancellation()
+                }
+
+                guard let segmentText = context.fullGetSegmentText(iSegment: i) else { continue }
+                segmentTexts.append(segmentText)
+                noSpeechProbs.append(context.fullGetSegmentNoSpeechProb(iSegment: i))
+            }
+            let kept = Self.trimmingTrailingHallucinations(
+                texts: segmentTexts, noSpeechProbs: noSpeechProbs,
+                threshold: Float(settings.noSpeechThreshold))
+            text = kept.map { $0 + "\n" }.joined()
         }
-        
+
         let cleanedText = text
             .replacingOccurrences(of: "[MUSIC]", with: "")
             .replacingOccurrences(of: "[BLANK_AUDIO]", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
+        // The VAD heard no speech anywhere, yet whisper produced exactly one of its stock
+        // silence phrases — believe the VAD, not the decoder. Both signals are required: a
+        // quiet dictation the VAD failed to hear won't read as a stock phrase, and a real
+        // "Thank you." carries speech the VAD does hear, so neither is dropped by this.
+        if vadHeardNoSpeech && Self.isKnownSilenceHallucination(cleanedText) {
+            return TranscriptionResult.noSpeech
+        }
+
         var processedText = cleanedText
         if settings.shouldApplyCustomDictionary {
             processedText = CustomDictionary.apply(processedText, entries: settings.customDictionaryEntries)
@@ -305,16 +335,71 @@ class WhisperEngine: TranscriptionEngine {
         return LanguageUtil.availableLanguages
     }
 
+    // MARK: - Hallucination filtering
+
+    /// Whisper's stock hallucinations over non-speech audio: its training data ends countless
+    /// videos with these, so breath, hiss, and room tone decode into them. Matched only
+    /// against the *entire* normalized candidate, and callers must pair the match with
+    /// acoustic evidence (the VAD heard nothing, or the segment's own no-speech probability)
+    /// — a dictated "Thank you." is a perfectly normal thing to say and must never be
+    /// dropped on text alone.
+    private static let silenceHallucinations: Set<String> = [
+        "you", "thank you", "thanks", "thank you thank you",
+        "thanks for watching", "thank you for watching",
+        "thanks for listening", "thank you for listening",
+        "thank you so much for watching", "thanks so much for watching",
+        "thank you very much", "thank you bye", "thank you bye bye",
+        "bye", "bye bye", "the end",
+        "subtitles by the amara org community",
+    ]
+
+    /// True when `text`, lowercased and reduced to letters and single spaces, is one of the
+    /// stock silence phrases above.
+    static func isKnownSilenceHallucination(_ text: String) -> Bool {
+        var normalized = ""
+        var lastWasSpace = true
+        for scalar in text.lowercased().unicodeScalars {
+            if CharacterSet.letters.contains(scalar) {
+                normalized.unicodeScalars.append(scalar)
+                lastWasSpace = false
+            } else if !lastWasSpace {
+                normalized.append(" ")
+                lastWasSpace = true
+            }
+        }
+        if normalized.hasSuffix(" ") { normalized.removeLast() }
+        return silenceHallucinations.contains(normalized)
+    }
+
+    /// Drops trailing segments that whisper itself scored as probably-not-speech AND whose
+    /// text is a stock silence phrase — the "Thank you." typed after a dictation that ended
+    /// on a breath the VAD kept. Both conditions per segment, and only from the end: interior
+    /// segments sit between real speech, where dropping risks real words.
+    static func trimmingTrailingHallucinations(
+        texts: [String], noSpeechProbs: [Float], threshold: Float
+    ) -> [String] {
+        var kept = texts
+        var probs = noSpeechProbs
+        while let text = kept.last, let prob = probs.last,
+              prob > threshold, isKnownSilenceHallucination(text) {
+            kept.removeLast()
+            probs.removeLast()
+        }
+        return kept
+    }
+
     // MARK: - VAD
 
-    /// Speech regions in `samples`, or an empty array when the VAD is unavailable or found
-    /// nothing. Deliberately non-throwing: a missing bundle resource or a failed context must
-    /// degrade to transcribing the whole clip, not take the main engine down with it.
-    private func detectSpeech(in samples: [Float]) -> [WhisperVadSegment] {
+    /// Speech regions in `samples`: an empty array when the VAD ran and found nothing, `nil`
+    /// when it couldn't run at all (the caller treats both as "transcribe the whole clip",
+    /// but only a real empty verdict may veto the transcript). Deliberately non-throwing: a
+    /// missing bundle resource or a failed context must degrade to transcribing the whole
+    /// clip, not take the main engine down with it.
+    private func detectSpeech(in samples: [Float]) -> [WhisperVadSegment]? {
         if vadContext == nil {
             guard let path = Self.vadModelPath,
                   let vad = MyWhisperVadContext(modelPath: path) else {
-                return []
+                return nil
             }
             vadContext = vad
         }
@@ -322,7 +407,7 @@ class WhisperEngine: TranscriptionEngine {
         // or "non" — fine when transcribing an hour of audio, wrong when someone is dictating
         // one. The wider padding likewise protects word onsets, since Whisper mistranscribes a
         // word whose first consonant got clipped. Both trade a little kept silence for words.
-        return vadContext?.speechSegments(in: samples, minSpeechMs: 100, padMs: 100) ?? []
+        return vadContext?.speechSegments(in: samples, minSpeechMs: 100, padMs: 100)
     }
 
     /// True when the whole clip's peak amplitude is below any plausible speech —

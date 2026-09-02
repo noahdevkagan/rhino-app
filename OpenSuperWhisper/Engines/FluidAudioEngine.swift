@@ -117,6 +117,23 @@ class FluidAudioEngine: TranscriptionEngine {
         let samples = try AudioConverter().resampleAudioFile(url)
         let loadConvertMs = (CFAbsoluteTimeGetCurrent() - loadStart) * 1000
 
+        // Parakeet has no VAD front-end (Whisper's Silero gate doesn't run on this path), so
+        // a dead-mic / pure-silence clip still reaches the decoder, which can emit a stray
+        // token. Same digital-silence bail Whisper uses: a peak below any plausible speech
+        // means there is nothing to transcribe.
+        if WhisperEngine.isNearSilence(samples) {
+            let timings = TranscriptionStageTimings(
+                path: "parakeet-silence",
+                audioSeconds: Double(samples.count) / 16000.0,
+                loadConvertMs: loadConvertMs,
+                inferenceMs: 0,
+                postProcessMs: 0)
+            lastStageTimings = timings
+            print("ASR stages: \(timings.logLine)")
+            onProgressUpdate?(1.0)
+            return TranscriptionResult.noSpeech
+        }
+
         // Two inference paths:
         //  • No custom dictionary  → the offline AsrManager (full accuracy, the default).
         //  • Custom dictionary set  → a sliding-window pass with vocabulary boosting, the only

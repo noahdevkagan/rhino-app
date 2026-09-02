@@ -204,11 +204,11 @@ class AudioRecorder: NSObject, ObservableObject {
         }
 
         if AppPreferences.shared.pauseMediaOnRecord {
-            // Sample the output probe NOW, before `.record()` or the chime can make sound or
-            // disturb the output device (#32's invariant); the pause itself hops to main,
-            // where MediaPlaybackController's poll timer and callbacks live.
-            let outputActive = MediaPlaybackController.isSystemOutputActive()
-            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia(outputActiveHint: outputActive) }
+            // Snapshot who is rendering audio NOW, before `.record()` can renegotiate a
+            // Bluetooth headset and make other apps' output flicker (#32's invariant); the
+            // pause itself hops to main, where MediaPlaybackController's state lives.
+            let audioProcesses = MediaPlaybackController.audioProcesses()
+            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia(audioProcessesHint: audioProcesses) }
         }
 
         if AppPreferences.shared.playSoundOnRecordStart {

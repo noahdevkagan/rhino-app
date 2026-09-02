@@ -1015,3 +1015,34 @@ double-tap window; far shorter than any deliberate next dictation) rather
 than restructuring the tap/lock state machine — the recording behavior is
 correct, only the feedback sound was wrong, and the state machine has
 subtle async invariants (#48's stacked-handler fix) not worth re-risking.
+
+## 2026-09-02 — Media resume decision: per-process CoreAudio + player announcements
+Two reports (Noah + one user) of music *starting* when a dictation stops.
+Root cause is the 2026-08-26 fallback probe, `kAudioDevicePropertyDeviceIsRunningSomewhere`
+on the default output device: it says "someone is rendering", not "media is
+playing", and three reproducible things make it read true with nothing
+audible — measured on this Mac (macOS 15.6): (1) our own start chime keeps
+the output device running ~3s after it plays, so a quick second dictation
+armed a resume; (2) any AVAudioEngine input tap (ours and other apps') marks
+the *output* device running; (3) a **paused** Spotify keeps its output stream
+open for minutes (confirmed: Spotify `IsRunningOutput=1` while the Apple-signed
+`swift` interpreter read now-playing = not playing). Case 3 is the common
+user story — pause music, dictate, music comes back. Fix: (a) replace the
+device probe with the per-process list (`kAudioHardwarePropertyProcessObjectList`
++ `kAudioProcessPropertyIsRunningOutput/Input/PID/BundleID`, macOS 14.2+; we
+deploy on 15.1) — ignore our own pid and any process that also runs input
+(a Zoom/Teams call is not media; the old "call counts as playing" trade-off
+was wrong in practice because the resume's play command goes to the
+now-playing owner, i.e. the user's paused music, not to Zoom); (b) track
+Spotify's and Music's public distributed notifications ("Player State") as
+the authoritative playing/paused signal for those two apps — the only public
+way to tell paused-but-holding from playing; entry cleared when the app
+quits. Announced playing → resume even without local IO (Spotify Connect).
+Known residual: apps that don't announce (browsers, VLC) still go by output
+IO, so a paused YouTube tab that holds the device could still resume;
+escalation if reported is a perl-hosted MediaRemote reader (the
+mediaremote-adapter trick — Apple-signed host process reads now-playing)
+which we judged too heavy for now. The old device probe stays only as the
+fallback for a missing process list. Decision logic is a pure function with
+XCTest coverage (MediaResumeDecisionTests). Pause log line now names who was
+rendering and what the players announced, for future diagnose reports.

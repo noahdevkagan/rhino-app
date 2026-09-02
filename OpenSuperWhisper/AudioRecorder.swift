@@ -27,6 +27,7 @@ class AudioRecorder: NSObject, ObservableObject {
     // Playback state — main-thread only (driven by the history list UI).
     private var audioPlayer: AVAudioPlayer?
     private var notificationSound: NSSound?
+    private var lastChimeAt: Date?
     private let temporaryDirectory: URL
     private var notificationObserver: Any?
     private var microphoneChangeObserver: Any?
@@ -120,9 +121,26 @@ class AudioRecorder: NSObject, ObservableObject {
         }
     }
     
+    /// A fresh chime cuts off one already playing (`notificationSound` is the only strong
+    /// reference), so a tap burst — hands-free double/triple taps restart the recording per
+    /// tap — turns the chime into an audible stutter. One chime per burst is the feedback the
+    /// user needs; within this window later requests are dropped. Longer than the 0.35s
+    /// double-tap window so a triple tap still chimes once, and well under the gap to any
+    /// deliberate next dictation.
+    static let chimeDebounceInterval: TimeInterval = 0.75
+
+    static func chimeShouldPlay(at now: Date, lastPlayedAt: Date?) -> Bool {
+        guard let last = lastPlayedAt else { return true }
+        return now.timeIntervalSince(last) >= chimeDebounceInterval
+    }
+
     /// The short chime used to confirm a recording state change. Main thread only
     /// (`notificationSound` is main-confined alongside the playback state).
     func playNotificationSound() {
+        let now = Date()
+        guard Self.chimeShouldPlay(at: now, lastPlayedAt: lastChimeAt) else { return }
+        lastChimeAt = now
+
         // Try to play using NSSound first
         guard let soundURL = Bundle.main.url(forResource: "notification", withExtension: "mp3") else {
             print("Failed to find notification sound file")

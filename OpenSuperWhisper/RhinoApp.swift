@@ -194,6 +194,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         RhinoApp.startRetentionScheduler()
         observeMicrophoneChanges()
 
+        // Start listening for Spotify/Music "Player State" announcements now, not at the
+        // first dictation: the was-it-playing decision is only as good as the history it
+        // has heard, and a lazily-created controller would know nothing on the first pause.
+        _ = MediaPlaybackController.shared
+
         // Speed: warm the heavy pieces at launch so the FIRST dictation doesn't
         // pay their load time — the ASR engine (~1-3s) and, when cleanup is on,
         // the LLM context. Both no-op when nothing is configured yet.

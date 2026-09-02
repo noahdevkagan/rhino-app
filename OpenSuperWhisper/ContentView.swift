@@ -403,10 +403,10 @@ struct ContentView: View {
     @StateObject private var permissionsManager = PermissionsManager()
     @Environment(\.colorScheme) private var colorScheme
     // Settings presents as a sheet in this window (not a separate window) —
-    // Paul S. feedback. The initial tab survives the present-animation race:
-    // notifications that target a tab land before the sheet's SettingsView exists.
+    // Paul S. feedback. The selected tab is owned here so deep-links can set it in
+    // the same event that opens the sheet (see SettingsView.selectedTab).
     @State private var showSettings = false
-    @State private var settingsInitialTab: SettingsTab? = nil
+    @State private var settingsTab: SettingsTab = .dictation
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var showDeleteConfirmation = false
@@ -451,7 +451,14 @@ struct ContentView: View {
             }
             HStack(spacing: 0) {
                 MainSidebar(selection: $mainTab,
-                            openSettings: { showSettings = true })
+                            openSettings: {
+                                settingsTab = .dictation
+                                showSettings = true
+                            },
+                            openReleaseNotes: {
+                                settingsTab = .updates
+                                showSettings = true
+                            })
                 Divider()
                 switch mainTab {
                 case .home: homePane
@@ -492,10 +499,11 @@ struct ContentView: View {
         // no dimming overlay — the sidebar shows a small "warming up" pill instead.
         .fileDropHandler()
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            settingsTab = .dictation
             showSettings = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsModelsTab)) { _ in
-            settingsInitialTab = .models
+            settingsTab = .models
             showSettings = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .openDictionary)) { _ in
@@ -503,8 +511,8 @@ struct ContentView: View {
             showSettings = false
             mainTab = .dictionary
         }
-        .sheet(isPresented: $showSettings, onDismiss: { settingsInitialTab = nil }) {
-            SettingsView(initialTab: settingsInitialTab)
+        .sheet(isPresented: $showSettings) {
+            SettingsView(selectedTab: $settingsTab)
                 .frame(width: 720, height: 540)
         }
         .onChange(of: viewModel.shouldClearSearch) { _, shouldClear in

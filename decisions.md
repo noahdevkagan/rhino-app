@@ -959,6 +959,26 @@ Dictation. Verified in the dev build. The Models deep-link (Home's
 `settingsTab` and passes it as a `@Binding`, which is read at render time and
 cannot go stale; the callers set the tab directly instead of posting a
 notification the sheet may not exist to receive.
+## 2026-09-01 — failed recordings persist the verbatim error (failureDetail column)
+Field report of failed dictations dead-ended: three status=failed rows with
+empty modelUsed, no error text anywhere retrievable — the raw error was
+print()ed and gone, and `failureReason(for:)`'s comment claimed it carried the
+engine loader's message but it never did. Decision: keep the user-facing
+surfaces short and actionable (the indicator flash and the row's
+"…click ↻ to try again" reason are unchanged) and persist the technical
+truth separately in a new nullable `failureDetail` column (migration v6):
+raw error description · TranscriptionService.engineError (the loader's
+message — the actual diagnosis for the empty-modelUsed case) · the attempted
+model (attempted, not "used", so it lives in the detail rather than
+overloading modelUsed). All failure writers fill it (dictation pipeline,
+file-drop/rerun queue, the file-not-found guards, which now name the missing
+path); a completed rerun clears it so a fixed row doesn't keep its old
+failure's detail (the notification carries NSNull to distinguish clear from
+absent). The failed history row shows the detail in selectable monospace so a
+user can paste it into a report, and both failure paths also write an
+unconditional Diag.log.error line — when history is off, the unified log is
+the only durable record.
+
 ## 2026-09-01 — AirPods-disconnect hang: revalidate the mic at record start,
 bound the "connecting" wait, and always re-discover on default-input change
 Noah's 0.1.18 report: disconnect AirPods, start a new dictation, and the app

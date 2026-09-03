@@ -78,3 +78,4 @@
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 480, "machine": "iMac.local", "model": "ggml-tiny.en", "commit": "2f6717b", "date": "2026-09-02T17:21:02Z"}
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 412, "machine": "iMac.local", "model": "ggml-tiny.en", "commit": "3d147c9", "date": "2026-09-02T17:37:23Z"}
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 425, "machine": "ip-192-168-1-161.us-west-2.compute.internal", "model": "ggml-tiny.en", "commit": "8eef427", "date": "2026-09-02T17:40:51Z"}
+{"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 421, "machine": "ip-192-168-1-161.us-west-2.compute.internal", "model": "ggml-tiny.en", "commit": "f4cca6c", "date": "2026-09-03T21:21:31Z"}

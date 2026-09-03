@@ -1046,3 +1046,20 @@ which we judged too heavy for now. The old device probe stays only as the
 fallback for a missing process list. Decision logic is a pure function with
 XCTest coverage (MediaResumeDecisionTests). Pause log line now names who was
 rendering and what the players announced, for future diagnose reports.
+
+## 2026-09-03 — Onboarding surfaces Parakeet v3 only when it's already on disk
+A tester re-running onboarding reported Parakeet "downloaded but not found":
+the 2026-08-27 two-choice trim (v2 + Whisper) hid the v3 row, but anyone who
+set up before the trim downloaded v3, not v2 — so onboarding demanded a fresh
+~600 MB download and kept Finish disabled while their model sat in the cache.
+Fix keeps Noah's two-choice list for fresh installs and appends a
+"Parakeet v3 — already on this Mac" row (after v2) only when
+`AsrModels.modelsExist` says v3 is downloaded; auto-select then picks it and
+Finish enables immediately. Rejected alternative: always listing v3 — that
+re-creates the accuracy-ladder stall the trim removed.
+
+Same session: removed the upstream `windowWillResize` delegate override in
+RhinoApp.swift, which forced every manual resize of the main window to the
+original OpenSuperWhisper's fixed 450pt width — clipping the 780pt-min layout
+(tester's "horizontal resizing" screenshots). minSize + SwiftUI
+contentMinSize now govern resizing alone.

@@ -1066,3 +1066,11 @@ which we judged too heavy for now. The old device probe stays only as the
 fallback for a missing process list. Decision logic is a pure function with
 XCTest coverage (MediaResumeDecisionTests). Pause log line now names who was
 rendering and what the players announced, for future diagnose reports.
+
+## 2026-09-03 — AirPods-disconnect fix pulled from 0.1.19 pending a field test
+The 2026-09-01 mic-revalidation change (merge 2f6717b) touches the record-start
+path for every dictation, not just the disconnect case, and Noah wants to test
+it on a real AirPods disconnect before it ships. Reverted on master so 0.1.19
+carries the rest of the queue; the fix lives on
+`claude/dictation-mic-discovery-hang-arijsx` and comes back by reverting this
+revert once verified. The 2026-09-01 entry above describes the intended design.

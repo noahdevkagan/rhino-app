@@ -48,25 +48,23 @@ class MicrophoneService: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleDevicesChanged()
+            self?.refreshAvailableMicrophones()
+            self?.updateCurrentMicrophone()
         }
-
+        
         NotificationCenter.default.addObserver(
             forName: .AVCaptureDeviceWasDisconnected,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleDevicesChanged()
+            self?.refreshAvailableMicrophones()
+            self?.updateCurrentMicrophone()
         }
 
         #if os(macOS)
         // Follow the system input device itself, not just connect/disconnect: switching input in
         // Sound settings changes no device list, so without this the app keeps recording from the
-        // previous mic while claiming to follow the system default. This listener also re-runs
-        // discovery: when a headset mic vanishes (AirPods into their case) the AVCapture
-        // disconnect notification can lag or not arrive, but the default-input change always
-        // fires — without the refresh here the cached device list (and a pinned-but-gone
-        // selection) kept pointing at the dead mic until the app was restarted.
+        // previous mic while claiming to follow the system default.
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultInputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
@@ -75,16 +73,10 @@ class MicrophoneService: ObservableObject {
         AudioObjectAddPropertyListenerBlock(
             AudioObjectID(kAudioObjectSystemObject), &address, .main
         ) { [weak self] _, _ in
-            self?.handleDevicesChanged()
+            guard let self, self.followsSystemDefault else { return }
+            self.updateCurrentMicrophone()
         }
         #endif
-    }
-
-    /// Re-runs device discovery and re-resolves the active microphone. Main thread only
-    /// (writes the published device state).
-    func handleDevicesChanged() {
-        refreshAvailableMicrophones()
-        updateCurrentMicrophone()
     }
     
     func refreshAvailableMicrophones() {
@@ -263,10 +255,7 @@ class MicrophoneService: ObservableObject {
     
     private func getTransportType(for device: AudioDevice) -> Int32 {
         guard let deviceID = getCoreAudioDeviceID(for: device) else { return 0 }
-        return getTransportType(deviceID: deviceID)
-    }
-
-    private func getTransportType(deviceID: AudioDeviceID) -> Int32 {
+        
         var propertyAddress = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyTransportType,
             mScope: kAudioObjectPropertyScopeGlobal,
@@ -385,28 +374,21 @@ class MicrophoneService: ObservableObject {
             &propertySize,
             &translation
         )
-
-        // The UID of a device that just disconnected translates "successfully" to
-        // kAudioObjectUnknown — treat that as absent, or callers end up pointing the
-        // system default input at device 0.
-        guard status == noErr, audioDeviceID != kAudioObjectUnknown else { return nil }
-        return audioDeviceID
+        
+        return status == noErr ? audioDeviceID : nil
     }
-
+    
     func setAsSystemDefaultInput(_ device: AudioDevice) -> Bool {
         guard let deviceID = getCoreAudioDeviceID(for: device) else {
             return false
         }
-        return setSystemDefaultInput(deviceID: deviceID)
-    }
-
-    func setSystemDefaultInput(deviceID: AudioDeviceID) -> Bool {
+        
         var propertyAddress = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultInputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-
+        
         var mutableDeviceID = deviceID
         let status = AudioObjectSetPropertyData(
             AudioObjectID(kAudioObjectSystemObject),
@@ -416,34 +398,8 @@ class MicrophoneService: ObservableObject {
             UInt32(MemoryLayout<AudioDeviceID>.size),
             &mutableDeviceID
         )
-
+        
         return status == noErr
-    }
-
-    /// First built-in input device, straight from CoreAudio — no AVCapture discovery and no
-    /// published state, so it is safe to call from the recorder's state queue when the cached
-    /// device list can't be trusted.
-    func builtInInputDeviceID() -> AudioDeviceID? {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        var size: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject),
-                                             &address, 0, nil, &size) == noErr, size > 0
-        else { return nil }
-
-        var deviceIDs = [AudioDeviceID](repeating: kAudioObjectUnknown,
-                                        count: Int(size) / MemoryLayout<AudioDeviceID>.size)
-        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject),
-                                         &address, 0, nil, &size, &deviceIDs) == noErr
-        else { return nil }
-
-        return deviceIDs.first { deviceID in
-            getTransportType(deviceID: deviceID) == Int32(bitPattern: kAudioDeviceTransportTypeBuiltIn)
-                && inputChannelCount(deviceID: deviceID) > 0
-        }
     }
     
     func getCurrentSystemDefaultInputDevice() -> AudioDeviceID? {
@@ -464,9 +420,8 @@ class MicrophoneService: ObservableObject {
             &propertySize,
             &deviceID
         )
-
-        guard status == noErr, deviceID != kAudioObjectUnknown else { return nil }
-        return deviceID
+        
+        return status == noErr ? deviceID : nil
     }
     
     func getInputVolume(for deviceID: AudioDeviceID) -> Float? {
@@ -556,31 +511,26 @@ class MicrophoneService: ObservableObject {
     
     func getInputChannelCount(for device: AudioDevice) -> Int {
         guard let deviceID = getCoreAudioDeviceID(for: device) else { return 1 }
-        return max(inputChannelCount(deviceID: deviceID), 1)
-    }
-
-    /// Actual input channel count for a device; 0 means the device has no input side
-    /// (or the query failed), which callers use as a liveness check.
-    func inputChannelCount(deviceID: AudioDeviceID) -> Int {
+        
         var propertyAddress = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyStreamConfiguration,
             mScope: kAudioDevicePropertyScopeInput,
             mElement: kAudioObjectPropertyElementMain
         )
-
+        
         var propertySize: UInt32 = 0
         let sizeStatus = AudioObjectGetPropertyDataSize(deviceID, &propertyAddress, 0, nil, &propertySize)
-        guard sizeStatus == noErr, propertySize > 0 else { return 0 }
-
+        guard sizeStatus == noErr, propertySize > 0 else { return 1 }
+        
         let bufferListRawPointer = UnsafeMutableRawPointer.allocate(byteCount: Int(propertySize), alignment: MemoryLayout<AudioBufferList>.alignment)
         defer { bufferListRawPointer.deallocate() }
-
+        
         let status = AudioObjectGetPropertyData(deviceID, &propertyAddress, 0, nil, &propertySize, bufferListRawPointer)
-        guard status == noErr else { return 0 }
-
+        guard status == noErr else { return 1 }
+        
         let bufferList = bufferListRawPointer.assumingMemoryBound(to: AudioBufferList.self)
         let bufferCount = Int(bufferList.pointee.mNumberBuffers)
-
+        
         var totalChannels = 0
         withUnsafeMutablePointer(to: &bufferList.pointee.mBuffers) { firstBufferPtr in
             let buffers = UnsafeMutableBufferPointer<AudioBuffer>(start: firstBufferPtr, count: bufferCount)
@@ -588,8 +538,8 @@ class MicrophoneService: ObservableObject {
                 totalChannels += Int(buffer.mNumberChannels)
             }
         }
-
-        return totalChannels
+        
+        return max(totalChannels, 1)
     }
     #endif
 }

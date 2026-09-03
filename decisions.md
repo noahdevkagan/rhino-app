@@ -944,6 +944,7 @@ CLOUDFLARE_API_TOKEN joins the readiness check so an undeployable release
 never counts as ready. Second, the CI branch of cut-release.sh tagged without
 the website pre-flight release.sh does locally, so a bad link would strand an
 immutable tag; that check now runs before the gate.
+
 ## 2026-09-01 — sidebar version links to its own release notes; Settings' tab
 selection moves to a binding
 The version at the bottom of the main sidebar is the thing people click when
@@ -977,3 +978,91 @@ absent). The failed history row shows the detail in selectable monospace so a
 user can paste it into a report, and both failure paths also write an
 unconditional Diag.log.error line — when history is off, the unified log is
 the only durable record.
+
+## 2026-09-01 — AirPods-disconnect hang: revalidate the mic at record start,
+bound the "connecting" wait, and always re-discover on default-input change
+Noah's 0.1.18 report: disconnect AirPods, start a new dictation, and the app
+sits in "connecting" until restarted. Three stacked causes, all fixed rather
+than picking one, because each alone can reproduce the hang: (1)
+`MicrophoneService` could hold the dead device forever — the CoreAudio
+default-input listener bailed when a mic was pinned and the AVCapture
+disconnect notification can lag or not arrive, so the listener now always
+re-runs discovery (`handleDevicesChanged`), which is safe because
+`updateCurrentMicrophone` keeps a pinned-and-present device unchanged. (2)
+`performStartRecording` trusted the cache: it repointed the *system default
+input* at the ghost device (poisoning every later attempt) and classified it
+bluetooth → the connecting path. Start now revalidates the cached device
+against CoreAudio (`getCoreAudioDeviceID`, which also had to stop treating
+kAudioObjectUnknown as a valid ID) and falls back to the live system
+default/built-in input, resolved via CoreAudio directly — not the published
+device list, which is main-confined and possibly stale on the state queue.
+(3) The connection monitor polled file growth with no timeout. It now gives
+the warm-up 4s (real AirPods links deliver in <2s), then tears down the dead
+recorder and re-records from a live input, repointing the system default only
+when the app itself had left it on the dead device (`fallbackInput`, pure and
+unit-tested). Restart-free recovery is the invariant: every path that detects
+a stale device also kicks `handleDevicesChanged` so the picker and canRecord
+heal. `record()`'s return value is also checked now — a false return
+previously left a phantom "recording" that never produced a file.
+
+## 2026-09-01 — Phantom "thank you" filter requires acoustic evidence, never
+text alone; hands-free chime is debounced, not the tap logic reworked
+Customer (0.1.16) reported "thank you" typed when saying nothing, or appended
+to real dictations — Whisper's stock silence hallucination (its training data
+ends countless videos with it). The existing guard (0.1.0) only bails when
+VAD hears nothing AND the clip is near-digital silence, so breath/room noise
+above the 0.004 peak still ran Whisper on the full clip; and a trailing
+breath the VAD kept as "speech" could decode into a final "Thank you."
+segment. The fix deliberately never drops on text alone — "Thank you." is a
+normal thing to dictate (email sign-offs) — it requires two agreeing
+signals: (a) whole-transcript veto only when the VAD ran and heard zero
+speech AND the entire output is a stock phrase; (b) trailing segments
+dropped only when whisper's own per-segment no_speech_prob exceeds the
+user's noSpeechThreshold AND the text is a stock phrase, trimmed strictly
+from the end. detectSpeech now returns nil (VAD unavailable) vs [] (ran,
+heard nothing) so an un-runnable VAD can't veto anything. Parakeet got the
+cheap half only (near-silence bail — it had no silence guard at all);
+its architecture doesn't produce the "thank you" phrase, so no phrase list
+there. Rejected: trusting VAD-empty alone to return "" (drops quiet real
+speech — the 0.1.0 tradeoff stands), and a bare output-phrase blacklist.
+
+Hands-free "sound glitches and repeats" (same report): each tap of a burst
+restarts recording (the already-recording flag clears asynchronously on
+indicator hide) and each restart chimed; a new NSSound replaces the only
+strong reference to the playing one, so the first chime cuts off — heard as
+stutter. Fixed as a 0.75s chime debounce (covers a triple tap at the 0.35s
+double-tap window; far shorter than any deliberate next dictation) rather
+than restructuring the tap/lock state machine — the recording behavior is
+correct, only the feedback sound was wrong, and the state machine has
+subtle async invariants (#48's stacked-handler fix) not worth re-risking.
+
+## 2026-09-02 — Media resume decision: per-process CoreAudio + player announcements
+Two reports (Noah + one user) of music *starting* when a dictation stops.
+Root cause is the 2026-08-26 fallback probe, `kAudioDevicePropertyDeviceIsRunningSomewhere`
+on the default output device: it says "someone is rendering", not "media is
+playing", and three reproducible things make it read true with nothing
+audible — measured on this Mac (macOS 15.6): (1) our own start chime keeps
+the output device running ~3s after it plays, so a quick second dictation
+armed a resume; (2) any AVAudioEngine input tap (ours and other apps') marks
+the *output* device running; (3) a **paused** Spotify keeps its output stream
+open for minutes (confirmed: Spotify `IsRunningOutput=1` while the Apple-signed
+`swift` interpreter read now-playing = not playing). Case 3 is the common
+user story — pause music, dictate, music comes back. Fix: (a) replace the
+device probe with the per-process list (`kAudioHardwarePropertyProcessObjectList`
++ `kAudioProcessPropertyIsRunningOutput/Input/PID/BundleID`, macOS 14.2+; we
+deploy on 15.1) — ignore our own pid and any process that also runs input
+(a Zoom/Teams call is not media; the old "call counts as playing" trade-off
+was wrong in practice because the resume's play command goes to the
+now-playing owner, i.e. the user's paused music, not to Zoom); (b) track
+Spotify's and Music's public distributed notifications ("Player State") as
+the authoritative playing/paused signal for those two apps — the only public
+way to tell paused-but-holding from playing; entry cleared when the app
+quits. Announced playing → resume even without local IO (Spotify Connect).
+Known residual: apps that don't announce (browsers, VLC) still go by output
+IO, so a paused YouTube tab that holds the device could still resume;
+escalation if reported is a perl-hosted MediaRemote reader (the
+mediaremote-adapter trick — Apple-signed host process reads now-playing)
+which we judged too heavy for now. The old device probe stays only as the
+fallback for a missing process list. Decision logic is a pure function with
+XCTest coverage (MediaResumeDecisionTests). Pause log line now names who was
+rendering and what the players announced, for future diagnose reports.

@@ -44,7 +44,7 @@ struct RhinoApp: App {
                 Button("About Rhino") {
                     NSApp.activate(ignoringOtherApps: true)
                     let credits = NSMutableAttributedString(
-                        string: "Thank you to Paul Stamatiou for all the feedback.",
+                        string: "Thank you to Paul Stamatiou and Ross Di for all the feedback.",
                         attributes: [
                             .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
                             .foregroundColor: NSColor.secondaryLabelColor,
@@ -193,6 +193,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         RhinoApp.startTranscriptionQueue()
         RhinoApp.startRetentionScheduler()
         observeMicrophoneChanges()
+
+        // Start listening for Spotify/Music "Player State" announcements now, not at the
+        // first dictation: the was-it-playing decision is only as good as the history it
+        // has heard, and a lazily-created controller would know nothing on the first pause.
+        _ = MediaPlaybackController.shared
 
         // Speed: warm the heavy pieces at launch so the FIRST dictation doesn't
         // pay their load time — the ASR engine (~1-3s) and, when cleanup is on,

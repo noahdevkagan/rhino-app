@@ -170,7 +170,9 @@ class TranscriptionQueue: ObservableObject {
                 recording.id,
                 transcription: "Cannot regenerate: audio file not found",
                 progress: 0.0,
-                status: .failed
+                status: .failed,
+                failureDetail: "audio missing at \(recording.url.path)"
+                    + (recording.sourceFileURL.map { " and source \($0)" } ?? "")
             )
             return
         }
@@ -217,7 +219,8 @@ class TranscriptionQueue: ObservableObject {
                 recording.id,
                 transcription: "Source file not found",
                 progress: 0.0,
-                status: .failed
+                status: .failed,
+                failureDetail: "recording has no sourceFileURL"
             )
             return
         }
@@ -233,7 +236,8 @@ class TranscriptionQueue: ObservableObject {
                 recording.id,
                 transcription: "Source file not found",
                 progress: 0.0,
-                status: .failed
+                status: .failed,
+                failureDetail: "source missing at \(sourceURL.path)"
             )
             return
         }
@@ -316,12 +320,18 @@ class TranscriptionQueue: ObservableObject {
 
             } catch {
                 if !isRecordingCancelled(recording.id) && !Task.isCancelled {
+                    let detail = DictationPipeline.failureDetail(
+                        for: error,
+                        engineError: transcriptionService.engineError,
+                        attemptedModel: overrideOption?.displayName ?? ModelCatalog.activeOption()?.displayName)
+                    Diag.log.error("queue transcription failed: \(detail, privacy: .public)")
                     await recordingStore.updateRecordingProgressOnlySync(
                         recording.id,
                         transcription: "Failed to transcribe: \(error.localizedDescription)",
                         progress: 0.0,
                         status: .failed,
-                        isRegeneration: false
+                        isRegeneration: false,
+                        failureDetail: detail
                     )
                 }
             }

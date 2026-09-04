@@ -1,5 +1,17 @@
 const releases = [
   {
+    version: "0.1.19",
+    date: "September 3, 2026",
+    changes: [
+      "Finishing a dictation no longer starts music you had paused. Rhino now checks whether media was actually playing (Spotify and Music tell it directly) instead of guessing from whether anything was using the speakers — so a paused song, a Zoom call, or Rhino's own start chime no longer trigger a resume.",
+      "No more phantom “Thank you.” typed when you said nothing. Whisper's stock silence hallucinations are filtered only when the audio agrees there was no speech — a real “Thank you.” you dictate still comes through.",
+      "Hands-free start chime no longer stutters when you double- or triple-tap the dictate key.",
+      "Failed dictations in History now show the exact error, in selectable text you can paste into a support report.",
+      "New envelope button in the sidebar footer opens Send Feedback in one click.",
+      "The version number in the sidebar is now clickable and opens What's New. Also fixed: Home's “Get a model” banner sometimes opened Settings on the wrong tab.",
+    ],
+  },
+  {
     version: "0.1.18",
     date: "August 31, 2026",
     changes: [

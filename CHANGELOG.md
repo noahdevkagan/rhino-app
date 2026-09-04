@@ -3,6 +3,18 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.20 — 2026-09-04
+
+- Dictation no longer pastes twice when two copies of Rhino are running.
+  Launching Rhino now takes over from any older copy still open — the stuck
+  instance left behind by an update, or a second copy started from Downloads
+  or a mounted disk image — instead of both of them typing your words.
+- Onboarding no longer asks you to download a speech model you already have:
+  if Parakeet v3 is on your Mac, it's offered as a choice and Finish works
+  right away.
+- The main window can be resized freely again; dragging its edge no longer
+  snaps it back to a narrow width that clipped the layout.
+
 ## 0.1.19 — 2026-09-03
 
 - Finishing a dictation no longer starts music you had paused. Rhino now

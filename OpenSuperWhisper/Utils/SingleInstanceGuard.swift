@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Darwin
 
 /// Makes sure only one copy of Rhino is running.
 ///
@@ -22,6 +23,34 @@ enum SingleInstanceGuard {
     struct Instance: Equatable {
         let pid: pid_t
         let launchDate: Date?
+
+        init(pid: pid_t, launchDate: Date?) {
+            self.pid = pid
+            self.launchDate = launchDate
+        }
+
+        /// `NSRunningApplication.launchDate` is only known for LaunchServices launches. A bundle
+        /// exec'd directly — `./run.sh` runs `Rhino.app/Contents/MacOS/Rhino` — reports nil, which
+        /// the survivor rule ranks OLDEST: a dev build would yield to the installed copy (whose
+        /// guard already ran) and both would stay up. Fall back to the kernel's process start
+        /// time, which every process has.
+        init(_ app: NSRunningApplication) {
+            let pid = app.processIdentifier
+            self.init(pid: pid, launchDate: app.launchDate ?? SingleInstanceGuard.processStartTime(pid: pid))
+        }
+    }
+
+    /// Wall-clock start time of `pid` from `kinfo_proc.kp_proc.p_starttime`; nil if the process
+    /// is gone or the sysctl fails.
+    static func processStartTime(pid: pid_t) -> Date? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0) == 0, size > 0,
+              info.kp_proc.p_pid == pid
+        else { return nil }
+        let start = info.kp_proc.p_starttime
+        return Date(timeIntervalSince1970: TimeInterval(start.tv_sec) + TimeInterval(start.tv_usec) / 1_000_000)
     }
 
     /// True when `current` outranks `other` and should ask it to quit; false means `other` is the
@@ -58,13 +87,16 @@ enum SingleInstanceGuard {
         guard !DefaultsStore.isRunningTests else { return }
         guard let bundleID = Bundle.main.bundleIdentifier else { return }
         let current = NSRunningApplication.current
-        let me = Instance(pid: current.processIdentifier, launchDate: current.launchDate)
+        let me = Instance(current)
 
+        // Headless CLI runs of this same binary (`Rhino transcribe|bench|cleanup`, including the
+        // push gate's suites) register with LaunchServices under our bundle id but never paste —
+        // they mark themselves `.prohibited` (CLI.swift) and must not be killed by a GUI launch.
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-            .filter { $0.processIdentifier != me.pid }
+            .filter { $0.processIdentifier != me.pid && $0.activationPolicy != .prohibited }
 
         for other in others {
-            let theirs = Instance(pid: other.processIdentifier, launchDate: other.launchDate)
+            let theirs = Instance(other)
             guard currentWins(current: me, other: theirs) else { continue }
 
             print("SingleInstanceGuard: another instance is running (pid \(theirs.pid)) — asking it to quit")

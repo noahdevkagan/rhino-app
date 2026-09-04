@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 @testable import OpenSuperWhisper
@@ -58,5 +59,29 @@ final class SingleInstanceGuardTests: XCTestCase {
                                   "pids \(current.pid)/\(other.pid) must have exactly one winner")
             }
         }
+    }
+
+    /// A directly exec'd bundle (`./run.sh`) has no LaunchServices launchDate; the kernel start
+    /// time must fill in so a dev build is ranked by when it actually started, not as "oldest".
+    func testProcessStartTimeIsKnownForThisProcess() {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let start = SingleInstanceGuard.processStartTime(pid: pid)
+        XCTAssertNotNil(start)
+        let uptime = ProcessInfo.processInfo.systemUptime
+        XCTAssertLessThanOrEqual(start!, Date())
+        XCTAssertGreaterThan(start!, Date(timeIntervalSinceNow: -uptime - 60),
+                             "start time must be after boot")
+    }
+
+    func testProcessStartTimeIsNilForDeadPid() {
+        XCTAssertNil(SingleInstanceGuard.processStartTime(pid: pid_t.max))
+    }
+
+    func testInstanceFromRunningApplicationFallsBackToKernelStartTime() {
+        // The test host itself: launched by xcodebuild, launchDate may or may not be known —
+        // either way the Instance must carry a date.
+        let me = SingleInstanceGuard.Instance(NSRunningApplication.current)
+        XCTAssertEqual(me.pid, ProcessInfo.processInfo.processIdentifier)
+        XCTAssertNotNil(me.launchDate)
     }
 }

@@ -143,8 +143,9 @@ enum LLMPostProcessor {
     /// cleanup prompt (there is no prompt-editing UI); the worked examples are what a 1.5B
     /// model actually follows — including the prose counter-examples, without which it
     /// prefixes "- " onto everything (lists) or forces greetings onto notes (messages).
-    /// Covers three layouts: dictated enumerations as lists, dictated emails/messages
-    /// as messages (greeting line, paragraph breaks, sign-off block), and spoken
+    /// Covers four layouts: dictated enumerations as lists, dictated emails/messages
+    /// as messages (greeting line, paragraph breaks, sign-off block), long plain
+    /// dictations as short paragraphs instead of one solid block, and spoken
     /// "new line" / "new paragraph" commands as literal breaks.
     static let smartFormattingPrompt =
         "Formatting rule: most dictations are ordinary sentences — return those as plain prose, "
@@ -230,6 +231,22 @@ enum LLMPostProcessor {
         + "with no layout added. A short single-sentence message with no sign-off also stays "
         + "on one line: 'hey sam can we move the review to tuesday' stays 'Hey Sam, can we "
         + "move the review to Tuesday?'\n"
+        + "Paragraph rule: a long dictation that is not an email and not a list also never "
+        + "lands as one solid block — past about three sentences, group related sentences "
+        + "into short paragraphs of one or two sentences with a blank line between "
+        + "paragraphs, keeping every word. Example: 'okay quick update on the launch the "
+        + "landing page is done and checkout works end to end i still need the final "
+        + "pricing from sam before we flip it live once that lands we can announce "
+        + "tomorrow morning' becomes:\n"
+        + "Okay, quick update on the launch. The landing page is done and checkout works "
+        + "end to end.\n"
+        + "\n"
+        + "I still need the final pricing from Sam before we flip it live.\n"
+        + "\n"
+        + "Once that lands, we can announce tomorrow morning.\n"
+        + "Such a plain dictation of one to three sentences stays a single block with no blank "
+        + "lines added; this does not change emails, lists, or spoken layout commands, which "
+        + "keep the layout their own rules give them.\n"
         + "Layout commands: when the speaker says 'new line' or 'new paragraph' between "
         + "thoughts, it is a command — insert the break there instead of the words: 'new "
         + "line' becomes a line break, 'new paragraph' becomes a blank line. Example: 'quick "
@@ -397,10 +414,15 @@ enum LLMPostProcessor {
     /// With smart formatting on, the 1.5B model sometimes over-applies the list examples and
     /// prefixes a lone "- " onto ordinary prose. Remove that marker only when the original
     /// dictation did not explicitly ask for a list: one-item lists are valid, and their marker
-    /// must survive. Real multi-line lists pass through untouched.
+    /// must survive. Real lists (a marker on more than one line) pass through untouched; prose
+    /// split into paragraphs by the paragraph rule is multi-line too, so a lone marker on the
+    /// first line is treated the same as on a single-line dictation.
     static func stripSpuriousListMarker(_ text: String, originalInput: String) -> String {
-        guard !text.contains("\n"),
-              let marker = text.range(of: #"^(?:[-*] |\d+[.)] )"#, options: .regularExpression)
+        let markerPattern = #"^(?:[-*] |\d+[.)] )"#
+        let markedLines = text.split(separator: "\n", omittingEmptySubsequences: true)
+            .filter { $0.range(of: markerPattern, options: .regularExpression) != nil }
+        guard markedLines.count <= 1,
+              let marker = text.range(of: markerPattern, options: .regularExpression)
         else { return text }
 
         let explicitListCue =

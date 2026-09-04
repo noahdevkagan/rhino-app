@@ -1091,3 +1091,19 @@ it on a real AirPods disconnect before it ships. Reverted on master so 0.1.19
 carries the rest of the queue; the fix lives on
 `claude/dictation-mic-discovery-hang-arijsx` and comes back by reverting this
 revert once verified. The 2026-09-01 entry above describes the intended design.
+
+## 2026-09-01 — Smart formatting gets a paragraph rule for long plain
+dictations
+Same report: "have LLM on but still getting 1 paragraph block of text."
+The prompt's paragraph grouping lived only inside the message rule, gated
+on greeting/sign-off cues, so a long dictation that isn't an email hits
+"return as plain prose" and lands as one solid block — working as written,
+not as wanted. Added a fourth section (after the message rule, before
+layout commands): past about three sentences, group into one-to-two
+sentence paragraphs with blank lines, keep every word; one worked example
+in the established lowercase-input style plus the counter-example pinning
+one-to-three-sentence dictations to a single block (chat replies must not
+sprout blank lines). Follows the 2026-08-20 lesson that only worked
+examples move the 1.5B. NOT yet probed on the real model — needs the usual
+`Rhino cleanup` probe cycle on a Mac before it ships, same as every prompt
+change.

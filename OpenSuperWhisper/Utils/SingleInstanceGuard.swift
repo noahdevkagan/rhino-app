@@ -52,6 +52,10 @@ enum SingleInstanceGuard {
     /// Not actor-isolated: it's called from `applicationDidFinishLaunching`, which this project
     /// keeps non-isolated (see AppDelegate's `MainActor.assumeIsolated` bridges).
     static func terminateOtherInstances() {
+        // xcodebuild runs the test bundle in parallel workers, each hosting its own Rhino.app with
+        // this bundle id — the newest worker would kill the others mid-suite (and the developer's
+        // installed Rhino along with them). No test needs the takeover.
+        guard !DefaultsStore.isRunningTests else { return }
         guard let bundleID = Bundle.main.bundleIdentifier else { return }
         let current = NSRunningApplication.current
         let me = Instance(pid: current.processIdentifier, launchDate: current.launchDate)

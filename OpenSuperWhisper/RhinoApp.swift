@@ -800,8 +800,9 @@ extension AppDelegate: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
     }
-    
-    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
-        return NSSize(width: 450, height: frameSize.height)
-    }
+
+    // No windowWillResize override: upstream OpenSuperWhisper was a fixed
+    // 450pt-wide app and its delegate snapped every resize back to that width,
+    // which clipped the 780pt-min Rhino layout the moment anyone dragged an
+    // edge. minSize + SwiftUI's contentMinSize govern resizing now.
 }

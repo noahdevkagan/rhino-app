@@ -74,7 +74,7 @@ class OnboardingViewModel: ObservableObject {
     }
 
     func initializeUnifiedModels() {
-        unifiedModels = OnboardingUnifiedModels.availableModels.map { model in
+        var models = OnboardingUnifiedModels.availableModels.map { model in
             var updatedModel = model
             switch model.type {
             case .whisper(let url, _):
@@ -85,7 +85,27 @@ class OnboardingViewModel: ObservableObject {
             }
             return updatedModel
         }
-        
+
+        // Anyone who set up before the two-choice trim (2026-08-27) downloaded
+        // Parakeet v3, not v2 — a v2-only list told them their model wasn't there
+        // and kept Finish disabled behind a fresh 600 MB download. Surface v3
+        // only when it's already on this Mac; fresh installs still see two rows.
+        if isFluidAudioModelDownloaded(version: "v3"),
+           !models.contains(where: { if case .parakeet("v3") = $0.type { return true }; return false }) {
+            let v3 = OnboardingUnifiedModel(
+                name: "Parakeet v3",
+                isDownloaded: true,
+                description: "Multilingual — already on this Mac",
+                type: .parakeet(version: "v3")
+            )
+            let afterV2 = models.firstIndex(where: { if case .parakeet = $0.type { return true }; return false })
+                .map { $0 + 1 } ?? models.count
+            models.insert(v3, at: afterV2)
+        }
+
+        unifiedModels = models
+
+
         if selectedModelId == nil, let firstDownloaded = unifiedModels.first(where: { $0.isDownloaded }) {
             // Commit through selectModel so AppPreferences (engine + model) match the row
             // the UI shows as selected. Setting only the id left prefs on the "whisper"

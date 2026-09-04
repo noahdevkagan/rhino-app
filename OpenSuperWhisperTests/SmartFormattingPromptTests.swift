@@ -76,8 +76,10 @@ final class SmartFormattingPromptTests: XCTestCase {
         XCTAssertTrue(system!.contains(
             "I still need the final pricing from Sam before we flip it live."),
                       "the worked example is what a 1.5B model actually follows")
-        XCTAssertTrue(system!.contains("one to three sentences stays a single block"),
+        XCTAssertTrue(system!.contains("plain dictation of one to three sentences stays a single block"),
                       "the counter-example keeps short dictations unbroken")
+        XCTAssertTrue(system!.contains("does not change emails, lists, or spoken layout commands"),
+                      "the counter-example must not contradict the short-email and layout examples")
     }
 
     func testSystemPromptIncludesLayoutCommandsWhenOn() {
@@ -128,6 +130,19 @@ final class SmartFormattingPromptTests: XCTestCase {
         XCTAssertEqual(LLMPostProcessor.stripSpuriousListMarker(
             "-5 degrees tonight", originalInput: "negative 5 degrees tonight"),
                        "-5 degrees tonight")
+    }
+
+    func testSpuriousListMarkerIsStrippedFromParagraphedProse() {
+        // The paragraph rule makes long plain prose multi-line; a lone marker on the first
+        // paragraph is still the over-applied list example, not a list.
+        let paragraphs = "- Okay, quick update on the launch.\n\nI still need the pricing from Sam."
+        XCTAssertEqual(LLMPostProcessor.stripSpuriousListMarker(
+            paragraphs, originalInput: "okay quick update on the launch i still need the pricing from sam"),
+                       "Okay, quick update on the launch.\n\nI still need the pricing from Sam.")
+        // A marker on a later line only is not the first-line prefix case — untouched.
+        let laterMarker = "Okay, quick update.\n\n- Pricing from Sam."
+        XCTAssertEqual(LLMPostProcessor.stripSpuriousListMarker(
+            laterMarker, originalInput: "okay quick update pricing from sam"), laterMarker)
     }
 
     func testIntentionalOneItemListMarkersArePreserved() {

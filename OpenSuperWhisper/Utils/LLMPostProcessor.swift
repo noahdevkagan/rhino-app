@@ -244,8 +244,9 @@ enum LLMPostProcessor {
         + "I still need the final pricing from Sam before we flip it live.\n"
         + "\n"
         + "Once that lands, we can announce tomorrow morning.\n"
-        + "A dictation of one to three sentences stays a single block with no blank lines "
-        + "added.\n"
+        + "Such a plain dictation of one to three sentences stays a single block with no blank "
+        + "lines added; this does not change emails, lists, or spoken layout commands, which "
+        + "keep the layout their own rules give them.\n"
         + "Layout commands: when the speaker says 'new line' or 'new paragraph' between "
         + "thoughts, it is a command — insert the break there instead of the words: 'new "
         + "line' becomes a line break, 'new paragraph' becomes a blank line. Example: 'quick "
@@ -413,10 +414,15 @@ enum LLMPostProcessor {
     /// With smart formatting on, the 1.5B model sometimes over-applies the list examples and
     /// prefixes a lone "- " onto ordinary prose. Remove that marker only when the original
     /// dictation did not explicitly ask for a list: one-item lists are valid, and their marker
-    /// must survive. Real multi-line lists pass through untouched.
+    /// must survive. Real lists (a marker on more than one line) pass through untouched; prose
+    /// split into paragraphs by the paragraph rule is multi-line too, so a lone marker on the
+    /// first line is treated the same as on a single-line dictation.
     static func stripSpuriousListMarker(_ text: String, originalInput: String) -> String {
-        guard !text.contains("\n"),
-              let marker = text.range(of: #"^(?:[-*] |\d+[.)] )"#, options: .regularExpression)
+        let markerPattern = #"^(?:[-*] |\d+[.)] )"#
+        let markedLines = text.split(separator: "\n", omittingEmptySubsequences: true)
+            .filter { $0.range(of: markerPattern, options: .regularExpression) != nil }
+        guard markedLines.count <= 1,
+              let marker = text.range(of: markerPattern, options: .regularExpression)
         else { return text }
 
         let explicitListCue =

@@ -5,7 +5,21 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-08-31, davao workspace: merging master into latency PR)
+## Current state (2026-09-05, Noah's Mac: AirPods "Connecting…" hang, both fixes → 0.1.21)
+
+Noah's report: AirPods on, hotkey → "Connecting…" forever, app looked hung.
+Log showed the live-preview tap raising an ObjC exception (stale engine
+format after AirPods reconnected) that wedged the main dispatch queue; the
+WAV kept recording. Branch `claude/airpods-live-preview-fix` carries:
+(1) the reapplied 2026-09-01 disconnect fix (revert of revert 8f9c407),
+(2) fresh AVAudioEngine per tap + hardware format + `RhinoCatchObjCException`
+guard (MicTap.swift, ObjCExceptionCatcher.m via Bridge.h), MicTapTests.
+Staged 0.1.21 (CHANGELOG, website pins + rendered-html test). Noah field-tests
+on landing: AirPods dictation, AirPods-reconnect-then-dictate, AirPods-into-
+case-then-dictate (expect built-in mic fallback ≤4s). See decisions.md
+2026-09-05 and 2026-09-01.
+
+## Previous state (2026-08-31, davao workspace: merging master into latency PR)
 
 Current plan: fetch the latest `origin/master`, merge it into
 `crxnamja/parakeet-latency-trim`, preserve both sides of the append-only

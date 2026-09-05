@@ -2,10 +2,8 @@ import Foundation
 import AVFoundation
 import FluidAudio
 
-enum StreamingStartError: Error {
-    /// The input device reported a 0 Hz / 0-channel format (unplugged or mid-switch).
-    case noAudioInput
-}
+/// Mic-side failures are `MicTapError` (see MicTap.swift); this keeps the old name for callers.
+typealias StreamingStartError = MicTapError
 
 /// Drives live (streaming) transcription on the Parakeet/FluidAudio engine.
 ///
@@ -29,7 +27,11 @@ final class StreamingTranscriptionController: ObservableObject {
         [confirmedText, volatileText].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
-    private let audioEngine = AVAudioEngine()
+    /// Created fresh for every start() and released on stop. A long-lived engine keeps the
+    /// device it was first bound to; when AirPods reconnect they come back as a *new*
+    /// CoreAudio device, and the stale engine then reads a stale format and its tap install
+    /// raises (2026-09-05 "Connecting…" hang). A new engine binds to the current default.
+    private var audioEngine: AVAudioEngine?
     private var manager: SlidingWindowAsrManager?
     private var updatesTask: Task<Void, Never>?
     private var feederTask: Task<Void, Never>?
@@ -107,25 +109,29 @@ final class StreamingTranscriptionController: ObservableObject {
             }
         }
 
-        let input = audioEngine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        // A vanished input device reports a 0 Hz format; installTap would raise an
-        // uncatchable NSException. Fail as a normal error so callers fall back to
-        // the file-based flow (same guard as SpectrumAnalyzer).
-        guard format.sampleRate > 0, format.channelCount > 0 else {
-            await teardownFailedStart()
-            throw StreamingStartError.noAudioInput
-        }
-        input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
-            bufferContinuation.yield(buffer)
-        }
-        audioEngine.prepare()
+        let engine = AVAudioEngine()
+        audioEngine = engine
+        let input = engine.inputNode
+        // Hardware format + NSException guard: a vanished device (0 Hz) or a format the
+        // engine rejects both become normal errors, so callers fall back to the file-based
+        // flow instead of the exception wedging the main queue (same helper as SpectrumAnalyzer).
         do {
-            try audioEngine.start()
+            try MicTap.install(on: input, bufferSize: 4096, label: "Live preview") { buffer, _ in
+                bufferContinuation.yield(buffer)
+            }
+        } catch {
+            audioEngine = nil
+            await teardownFailedStart()
+            throw error
+        }
+        engine.prepare()
+        do {
+            try engine.start()
         } catch {
             // Leave nothing half-armed: an orphaned tap crashes the next installTap,
             // and an orphaned manager keeps a full ASR model set resident.
             input.removeTap(onBus: 0)
+            audioEngine = nil
             await teardownFailedStart()
             throw error
         }
@@ -175,9 +181,12 @@ final class StreamingTranscriptionController: ObservableObject {
         // `isRunning == false` with the tap still installed — the next start()'s
         // installTap on the same bus would then raise an uncatchable NSException.
         // removeTap is a safe no-op when no tap is installed.
-        audioEngine.inputNode.removeTap(onBus: 0)
-        if audioEngine.isRunning {
-            audioEngine.stop()
+        if let engine = audioEngine {
+            engine.inputNode.removeTap(onBus: 0)
+            if engine.isRunning {
+                engine.stop()
+            }
+            audioEngine = nil
         }
         bufferContinuation?.finish()
         bufferContinuation = nil

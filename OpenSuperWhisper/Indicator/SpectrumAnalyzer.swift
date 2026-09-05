@@ -15,7 +15,9 @@ final class SpectrumAnalyzer: ObservableObject {
     /// Per-band levels, 0...1, oldest-to-highest frequency. All zeros while stopped.
     @Published private(set) var bands: [Float] = Array(repeating: 0, count: SpectrumBands.count)
 
-    private let engine = AVAudioEngine()
+    /// Fresh per start(): a long-lived engine stays bound to the device it first saw and
+    /// reads a stale format after AirPods reconnect (see StreamingTranscriptionController).
+    private var engine: AVAudioEngine?
     private var isRunning = false
 
     private let fftSize = 1024
@@ -39,16 +41,27 @@ final class SpectrumAnalyzer: ObservableObject {
     func start() {
         guard !isRunning, fftSetup != nil else { return }
 
+        let engine = AVAudioEngine()
+        self.engine = engine
         let input = engine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0 else { return }
-        let sampleRate = Float(format.sampleRate)
+        guard MicTap.isUsable(input.inputFormat(forBus: 0)) else {
+            self.engine = nil
+            return
+        }
+        let sampleRate = Float(input.inputFormat(forBus: 0).sampleRate)
         let ranges = SpectrumBands.binRanges(sampleRate: sampleRate, fftSize: fftSize)
 
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            guard let self, let channel = buffer.floatChannelData?[0] else { return }
-            let incoming = Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
-            Task { @MainActor in self.consume(incoming, ranges: ranges) }
+        do {
+            try MicTap.install(on: input, bufferSize: 1024, label: "SpectrumAnalyzer") { [weak self] buffer, _ in
+                guard let self, let channel = buffer.floatChannelData?[0] else { return }
+                let incoming = Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
+                Task { @MainActor in self.consume(incoming, ranges: ranges) }
+            }
+        } catch {
+            // The meter is cosmetic: log and leave the bars flat rather than fail the dictation.
+            self.engine = nil
+            print("SpectrumAnalyzer: couldn't tap the microphone: \(error)")
+            return
         }
 
         engine.prepare()
@@ -57,14 +70,16 @@ final class SpectrumAnalyzer: ObservableObject {
             isRunning = true
         } catch {
             input.removeTap(onBus: 0)
+            self.engine = nil
             print("SpectrumAnalyzer: couldn't start the audio engine: \(error)")
         }
     }
 
     func stop() {
         guard isRunning else { return }
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        engine?.inputNode.removeTap(onBus: 0)
+        engine?.stop()
+        engine = nil
         isRunning = false
         sampleBuffer.removeAll(keepingCapacity: true)
         bands = Array(repeating: 0, count: SpectrumBands.count)

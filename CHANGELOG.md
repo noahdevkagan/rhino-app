@@ -3,6 +3,18 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.21 — 2026-09-05
+
+- Dictating with AirPods no longer gets stuck on "Connecting…". Rhino now
+  opens a fresh audio connection for every dictation, so AirPods that
+  reconnected since your last one are picked up correctly instead of freezing
+  the app until you quit it.
+- If AirPods (or any headset mic) disconnect between dictations, Rhino falls
+  back to your Mac's microphone within a few seconds instead of waiting
+  forever.
+- If the live preview can't start, the dictation still records and transcribes
+  normally; only the on-screen preview is skipped.
+
 ## 0.1.20 — 2026-09-04
 
 - Dictation no longer pastes twice when two copies of Rhino are running.

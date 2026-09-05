@@ -12,3 +12,5 @@
 // break every Clang module build ("'optional' file not found"). llama.h's own ggml includes
 // resolve from whisper.cpp's ggml headers, which are the shared ggml.
 #include "llama.h"
+// Objective-C exception guard for AVFoundation calls that can raise (installTap).
+#include "OpenSuperWhisper/Utils/ObjCExceptionCatcher.h"

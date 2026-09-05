@@ -1112,3 +1112,29 @@ while a wedged old instance lingers, trading double-paste for "app won't
 open"; deferring to the existing instance — the just-launched copy is the
 one the user (or the updater) wants, and a dev build should take over the
 installed copy while testing.
+
+## 2026-09-05 — AirPods "Connecting…" hang #2: fresh AVAudioEngine per tap + ObjC exception guard
+Noah's report (0.1.20, AirPods connected and working): hotkey → "Connecting…"
+forever; the WAV kept growing (17.9 MB by the time he quit), so the mic was
+fine. Unified log: 75 ms after record start, the live-preview tap
+(`StreamingTranscriptionController.start`) raised AVFoundation's "Input HW
+format and tap format not matching" — the long-lived engine was still bound
+to the AirPods' *previous* CoreAudio device (AirPods re-register with a new
+object ID on every reconnect; the log showed IDs 83→166→184→126→179 over the
+morning), so `inputNode.outputFormat` returned a cached 24 kHz while the
+hardware was at 48 kHz. Swift can't catch an ObjC exception; it unwound
+through a main-actor task and wedged the main dispatch queue — the run loop
+kept drawing, but no `DispatchQueue.main.async` block ran again, so the
+recorder's "audio is flowing → Recording" flip and the stop press were both
+dropped. Distinct from the 2026-09-01 disconnect bug (which is a dead mic +
+unbounded wait); that fix is reapplied in the same release for Noah's field
+test. Fix: (1) both AVAudioEngine taps (live preview, spectrum meter) create
+a fresh engine per start and release it on stop — a new engine binds to the
+current default device; (2) taps use the hardware `inputFormat`, not the
+node's cached `outputFormat`, and log when they disagree; (3) `installTap` runs
+through `RhinoCatchObjCException` (ObjC `@try`, via Bridge.h) so a raise
+becomes `MicTapError.tapRejected` and the caller falls back to the file pass.
+Rejected: keeping one engine and observing `AVAudioEngineConfigurationChange`
+— the notification is asynchronous and the race window is exactly the one we
+hit (Rhino itself switches the default input 75 ms before the tap). Tests:
+MicTapTests (format resolution, exception → error).

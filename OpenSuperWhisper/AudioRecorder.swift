@@ -104,6 +104,15 @@ class AudioRecorder: NSObject, ObservableObject {
         primedRecorder?.prepareToRecord()
     }
     
+    /// A UUID suffix keeps each recording's temp file unique. Without it, two recordings
+    /// started in the same wall-clock second share a path — and starting the next recording
+    /// would truncate the previous clip's file while the background pipeline is still reading
+    /// it to transcribe. (parallel-recording)
+    static func makeRecordingFilename() -> String {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        return "rec-\(timestamp)-\(UUID().uuidString.prefix(8)).wav"
+    }
+
     private func createTemporaryDirectoryIfNeeded() {
         do {
             try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
@@ -159,9 +168,30 @@ class AudioRecorder: NSObject, ObservableObject {
     }
 
     private func performStartRecording() {
-        // Ground truth for "mic available" is the cached device, not the @Published
-        // `canRecord` (that one is written on main for the UI — reading it here would race).
-        let micAvailable = MicrophoneService.shared.getActiveMicrophone() != nil
+        // Ground truth for "mic available" is CoreAudio, not the cached device (nor the
+        // @Published `canRecord`, which is written on main for the UI — reading it here
+        // would race). After a headset drops off (AirPods into their case), the cache can
+        // still hold the dead device until the disconnect notifications land; trusting it
+        // used to point the system default input at a ghost and leave every subsequent
+        // dictation stuck "connecting" until the app was restarted.
+        let cachedMic = MicrophoneService.shared.getActiveMicrophone()
+        var activeMic = cachedMic
+        #if os(macOS)
+        var activeDeviceID = cachedMic.flatMap { MicrophoneService.shared.getCoreAudioDeviceID(for: $0) }
+        if cachedMic != nil, activeDeviceID == nil {
+            print("Cached microphone is no longer present; falling back to the system default input")
+            activeMic = nil
+            // Recompute the published device state so the picker and canRecord recover too.
+            DispatchQueue.main.async { MicrophoneService.shared.handleDevicesChanged() }
+        }
+        if activeMic == nil {
+            activeDeviceID = MicrophoneService.shared.getCurrentSystemDefaultInputDevice()
+                ?? MicrophoneService.shared.builtInInputDeviceID()
+        }
+        let micAvailable = activeDeviceID != nil
+        #else
+        let micAvailable = activeMic != nil
+        #endif
         Diag.mark("recorder.startRecording (canRecord=\(micAvailable))")
         guard micAvailable else {
             print("Cannot start recording - no audio input available")
@@ -185,32 +215,31 @@ class AudioRecorder: NSObject, ObservableObject {
             DispatchQueue.main.async { self.playNotificationSound() }
         }
 
-        // A UUID suffix keeps each recording's temp file unique. Without it, two recordings
-        // started in the same wall-clock second share a path — and starting the next recording
-        // would truncate the previous clip's file while the background pipeline is still reading
-        // it to transcribe. (parallel-recording)
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let filename = "rec-\(timestamp)-\(UUID().uuidString.prefix(8)).wav"
-        let fileURL = temporaryDirectory.appendingPathComponent(filename)
+        let fileURL = temporaryDirectory.appendingPathComponent(Self.makeRecordingFilename())
         currentRecordingURL = fileURL
 
         print("start record file to \(fileURL)")
 
         #if os(macOS)
-        if let activeMic = MicrophoneService.shared.getActiveMicrophone() {
+        if let activeMic {
             Diag.measure("setAsSystemDefaultInput") {
                 _ = MicrophoneService.shared.setAsSystemDefaultInput(activeMic)
             }
             print("Set system default input to: \(activeMic.displayName)")
-
-            if let deviceID = MicrophoneService.shared.getCoreAudioDeviceID(for: activeMic) {
-                recordingDeviceID = deviceID
-            }
         }
+        recordingDeviceID = activeDeviceID
         #endif
 
-        let requiresConnection = Diag.measure("isActiveMicrophoneRequiresConnection") {
-            MicrophoneService.shared.isActiveMicrophoneRequiresConnection()
+        // When the cached device was stale, the fallback is the live system input — asking
+        // "does the active microphone require connection?" would describe the dead device
+        // and send us into the bluetooth warm-up path for a mic that no longer exists.
+        let requiresConnection: Bool
+        if activeMic != nil {
+            requiresConnection = Diag.measure("isActiveMicrophoneRequiresConnection") {
+                MicrophoneService.shared.isActiveMicrophoneRequiresConnection()
+            }
+        } else {
+            requiresConnection = false
         }
         updateRecordingState(isRecording: false, isConnecting: requiresConnection)
         startRecordingWithRecorder(fileURL: fileURL, monitorConnection: requiresConnection)
@@ -218,12 +247,16 @@ class AudioRecorder: NSObject, ObservableObject {
 
     /// Runs on `stateQueue`.
     private func startRecordingWithRecorder(fileURL: URL, monitorConnection: Bool) {
+        // Channel count comes from the device we validated in performStartRecording, not
+        // from the cached AudioDevice (which can describe a mic that just disconnected).
         var channelCount = 1
-        if let activeMic = MicrophoneService.shared.getActiveMicrophone() {
-            channelCount = MicrophoneService.shared.getInputChannelCount(for: activeMic)
-            print("Recording with \(channelCount) input channel(s) from \(activeMic.displayName)")
+        #if os(macOS)
+        if let deviceID = recordingDeviceID {
+            channelCount = max(MicrophoneService.shared.inputChannelCount(deviceID: deviceID), 1)
+            print("Recording with \(channelCount) input channel(s)")
         }
-        
+        #endif
+
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatLinearPCM),
             AVSampleRateKey: 16000.0,
@@ -231,14 +264,22 @@ class AudioRecorder: NSObject, ObservableObject {
             AVLinearPCMBitDepthKey: 32,
             AVLinearPCMIsFloatKey: true
         ]
-        
+
         do {
             primedRecorder = nil  // release primed recorder just before starting; hardware stays warm
-            try Diag.measure("AVAudioRecorder init+record") {
+            let started = try Diag.measure("AVAudioRecorder init+record") { () -> Bool in
                 audioRecorder = try AVAudioRecorder(url: fileURL, settings: settings)
                 audioRecorder?.delegate = self
                 audioRecorder?.isMeteringEnabled = monitorConnection
-                audioRecorder?.record()
+                return audioRecorder?.record() ?? false
+            }
+            guard started else {
+                print("Failed to start recording: record() returned false")
+                audioRecorder = nil
+                try? FileManager.default.removeItem(at: fileURL)
+                currentRecordingURL = nil
+                updateRecordingState(isRecording: false, isConnecting: false)
+                return
             }
             Task { @MainActor in SpectrumAnalyzer.shared.start() }
             if monitorConnection {
@@ -249,6 +290,7 @@ class AudioRecorder: NSObject, ObservableObject {
             print("Recording started successfully")
         } catch {
             print("Failed to start recording: \(error)")
+            audioRecorder = nil
             currentRecordingURL = nil
             updateRecordingState(isRecording: false, isConnecting: false)
         }
@@ -365,33 +407,105 @@ class AudioRecorder: NSObject, ObservableObject {
         }
     }
     
+    /// How long the bluetooth/continuity warm-up may sit with no audio before the input is
+    /// declared dead (50ms ticks). A live AirPods link starts delivering in well under 2s;
+    /// without this bound a mic that disconnected between dictations left the app stuck in
+    /// "connecting" until it was restarted.
+    private static let connectionTimeoutTicks = 80  // 4 seconds
+
     private func startConnectionMonitoring() {
         stopConnectionMonitoring()
-        
+
         // The handler reads `audioRecorder`/`currentRecordingURL`, so it must share their queue.
         let timer = DispatchSource.makeTimerSource(queue: stateQueue)
         timer.schedule(deadline: .now() + 0.05, repeating: 0.05)
         let initialFileSize: Int64 = 4096
         var growthCount = 0
-        
+        var elapsedTicks = 0
+
         timer.setEventHandler { [weak self] in
             guard let self = self, let _ = self.audioRecorder, let url = self.currentRecordingURL else { return }
-            
+
             let currentFileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
             let totalGrowth = currentFileSize - initialFileSize
-            
+
             if totalGrowth > 8000 {
                 growthCount += 1
             }
-            
+
             if growthCount >= 2 {
                 self.stopConnectionMonitoring()
                 self.updateRecordingState(isRecording: true, isConnecting: false)
+                return
+            }
+
+            elapsedTicks += 1
+            if elapsedTicks >= Self.connectionTimeoutTicks {
+                self.stopConnectionMonitoring()
+                #if os(macOS)
+                self.recoverFromDeadInput(deadFileURL: url)
+                #else
+                self.updateRecordingState(isRecording: false, isConnecting: false)
+                #endif
             }
         }
         connectionCheckTimer = timer
         timer.resume()
     }
+
+    #if os(macOS)
+    /// Pure decision for recovering from an input that delivered no audio: which device to
+    /// re-record from, and whether the system default input must be repointed at it first
+    /// (AVAudioRecorder always captures from the system default, and the app itself may
+    /// have pointed that default at the now-dead device). nil = nothing live to fall back to.
+    static func fallbackInput(systemDefault: AudioDeviceID?, builtIn: AudioDeviceID?, failed: AudioDeviceID?)
+        -> (deviceID: AudioDeviceID, mustSetSystemDefault: Bool)?
+    {
+        if let systemDefault, systemDefault != failed {
+            return (systemDefault, false)
+        }
+        if let builtIn, builtIn != failed {
+            return (builtIn, true)
+        }
+        return nil
+    }
+
+    /// Runs on `stateQueue`. The chosen input produced no audio for the whole connection
+    /// window — typical when a bluetooth mic dropped off between dictations and the cache
+    /// (or the system default input) still pointed at it. Tear the dead recorder down and
+    /// restart on a live input instead of sitting in "connecting" until an app restart.
+    private func recoverFromDeadInput(deadFileURL: URL) {
+        print("No audio from input after \(Self.connectionTimeoutTicks / 20)s; falling back to a live input")
+        audioRecorder?.stop()
+        audioRecorder = nil
+        try? FileManager.default.removeItem(at: deadFileURL)
+        currentRecordingURL = nil
+
+        // Recompute the published device state so the picker and canRecord recover too.
+        DispatchQueue.main.async { MicrophoneService.shared.handleDevicesChanged() }
+
+        let fallback = Self.fallbackInput(
+            systemDefault: MicrophoneService.shared.getCurrentSystemDefaultInputDevice(),
+            builtIn: MicrophoneService.shared.builtInInputDeviceID(),
+            failed: recordingDeviceID
+        )
+        guard let fallback else {
+            print("No live audio input to fall back to")
+            updateRecordingState(isRecording: false, isConnecting: false)
+            return
+        }
+        if fallback.mustSetSystemDefault {
+            _ = MicrophoneService.shared.setSystemDefaultInput(deviceID: fallback.deviceID)
+        }
+        recordingDeviceID = fallback.deviceID
+
+        // Fresh file, and no connection monitoring: the fallback is the live system input,
+        // so a second silent run here means recording genuinely can't proceed.
+        let fileURL = temporaryDirectory.appendingPathComponent(Self.makeRecordingFilename())
+        currentRecordingURL = fileURL
+        startRecordingWithRecorder(fileURL: fileURL, monitorConnection: false)
+    }
+    #endif
     
     private func stopConnectionMonitoring() {
         connectionCheckTimer?.cancel()

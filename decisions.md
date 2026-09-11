@@ -1156,11 +1156,12 @@ long clips on slow Whisper models legitimately take minutes and hiding
 early is only cosmetic); (2) Esc now routes through
 `IndicatorWindowManager.handleEscape()` — recording keeps the cancel flow
 with the long-recording confirmation, every later state just dismisses the
-bubble; (3) menu-bar "Cancel Dictation" (stopForce + discardEverything),
-always present because the one time it's needed other UI may be stuck;
-(4) `hide()` tears the panel down even with no view model (orphan case).
-Rejected: making the bubble clickable-to-dismiss — the default layout is
-deliberately click-through so the bubble never steals clicks mid-dictation.
+bubble; (3) `hide()` tears the panel down even with no view model (orphan
+case). Rejected: making the bubble clickable-to-dismiss — the default
+layout is deliberately click-through so the bubble never steals clicks
+mid-dictation. Also rejected (Noah, same day): a menu-bar "Cancel
+Dictation" item — built, then removed on his review; Esc-anywhere plus
+the watchdog cover the stuck case without cluttering the menu.
 
 **Verbatim in AI & terminal apps (`verbatimInAIApps`, default ON).** The
 cleanup model reads meta-instructions in dictated Claude prompts ("use
@@ -1172,7 +1173,9 @@ another prompt-engineering round, dictations whose RECORD-time target app
 (the previously-unused `bundleID` parameter of `LLMPostProcessor.process`,
 plumbed since parallel-recording) is an AI assistant or terminal skip every
 LLM pass. Default ON because it narrows what cleanup touches. IDEs are
-deliberately excluded (prose in editors still wants cleanup). Follow-up
+deliberately excluded (prose in editors still wants cleanup). Both new
+toggles live under Settings → Advanced → Safeguards (Noah's call: they're
+edge-case guards, not everyday knobs — keep Output uncluttered). Follow-up
 (needs the 1.5B probe cycle): delimit the transcript in the cleanup prompt
 as injection-hardening for non-verbatim apps.
 

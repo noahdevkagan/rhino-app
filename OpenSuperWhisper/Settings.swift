@@ -1369,15 +1369,6 @@ struct SettingsView: View {
                     }
                     .padding(.leading, 16)
                     .frame(minHeight: 24)
-                    HStack(spacing: 8) {
-                        Text("Verbatim in AI & terminal apps")
-                            .scaledFont(size: 12).foregroundColor(STheme.text)
-                        InfoButton(text: "When dictating into Claude, ChatGPT, or a terminal, insert exactly what you said — no cleanup. Instructions meant for that AI (“use whatever wording you think makes sense”) reach it word for word instead of being applied by Rhino's cleanup model.")
-                        Spacer()
-                        SToggle(isOn: $viewModel.verbatimInAIApps)
-                    }
-                    .padding(.leading, 16)
-                    .frame(minHeight: 24)
                 }
             }
 
@@ -1428,10 +1419,6 @@ struct SettingsView: View {
                 SRow(title: "Notify when no paste target",
                      hint: "\"Copied — press ⌘V\" if no text field is focused") {
                     SToggle(isOn: $viewModel.notifyWhenNoPasteTarget)
-                }
-                SRow(title: "Hold very long recordings",
-                     hint: "Over 5 minutes: copy to the clipboard instead of pasting, so a mic left running can't dump its transcript into your document") {
-                    SToggle(isOn: $viewModel.reviewLongRecordings)
                 }
                 SRow(title: "Suppress blank audio") {
                     SToggle(isOn: $viewModel.suppressBlankAudio)
@@ -1555,6 +1542,17 @@ struct SettingsView: View {
                 SRow(title: "Hide menu bar icon",
                      hint: "Remove the rhino from the menu bar. Dictation keeps working; reopen this window by launching Rhino again from Applications or Spotlight.") {
                     SToggle(isOn: $viewModel.hideMenuBarIcon)
+                }
+            }
+
+            SSection(title: "Safeguards") {
+                SRow(title: "Verbatim in AI & terminal apps",
+                     hint: "Skip LLM cleanup when dictating into Claude, ChatGPT, or a terminal, so instructions meant for that AI arrive word for word. Only applies while “Clean up with an LLM” is on.") {
+                    SToggle(isOn: $viewModel.verbatimInAIApps)
+                }
+                SRow(title: "Hold very long recordings",
+                     hint: "Recordings over 5 minutes are copied to the clipboard instead of pasted, so a mic left running can't dump its transcript into your document.") {
+                    SToggle(isOn: $viewModel.reviewLongRecordings)
                 }
             }
 

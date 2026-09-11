@@ -15,16 +15,18 @@ CustomerFeedbackGuardsTests; decisions.md 2026-09-11):
 1. **Stuck indicator hardening** — decode-state watchdog (bubble hides after
    120s if the pipeline never drains), Esc dismisses the bubble in ANY state
    (was recording-only, and Rhino kept swallowing Esc system-wide while
-   stuck), menu-bar "Cancel Dictation" (stopForce + discardEverything),
-   `hide()` now clears an orphaned panel even with no view model.
+   stuck), `hide()` now clears an orphaned panel even with no view model.
+   (A menu-bar "Cancel Dictation" item was built, then removed on Noah's
+   review.)
 2. **Verbatim in AI & terminal apps** — LLM cleanup is skipped when the
    dictation's captured target app (the previously-unused `bundleID` param
    of `LLMPostProcessor.process`) is an AI assistant or terminal, so
    meta-instructions meant for Claude pass through verbatim. Pref
-   `verbatimInAIApps`, default ON, toggle under Settings → Output → Cleanup.
+   `verbatimInAIApps`, default ON.
 3. **Long-recording hold** — a clip ≥5 min (movie-while-recording case) is
    copied to the clipboard + flashed instead of auto-pasted; history still
-   saves. Pref `reviewLongRecordings`, default ON, row under Delivery.
+   saves. Pref `reviewLongRecordings`, default ON.
+   Both toggles live under Settings → Advanced → Safeguards (Noah's call).
 
 Not done here (needs the 1.5B probe cycle): delimiting the transcript in the
 cleanup prompt (fenced block) as injection hardening for non-verbatim apps.

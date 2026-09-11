@@ -458,16 +458,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         dictionaryItem.target = self
         menu.addItem(dictionaryItem)
 
-        // Escape hatch for a dictation gone wrong — a forgotten hands-free recording, a
-        // bubble waiting on a hung engine: stops any recording, drops everything queued or
-        // in flight (nothing is inserted or saved), hides the bubble. Always present:
-        // clicking it while idle is a harmless no-op, and the one time it's needed is
-        // exactly when other UI may be stuck. Quitting the app used to be the only way out.
-        let cancelDictationItem = NSMenuItem(title: "Cancel Dictation",
-                                             action: #selector(cancelDictation), keyEquivalent: "")
-        cancelDictationItem.target = self
-        menu.addItem(cancelDictationItem)
-
         let transcriptionLanguageItem = NSMenuItem(title: NSLocalizedString("Language", comment: ""), action: nil, keyEquivalent: "")
         languageSubmenu = NSMenu()
         
@@ -737,13 +727,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     @objc private func openFeedback() {
         NotificationCenter.default.post(name: .openFeedback, object: nil)
         NSApp.activate(ignoringOtherApps: true)
-    }
-
-    @objc private func cancelDictation() {
-        MainActor.assumeIsolated {
-            IndicatorWindowManager.shared.stopForce()
-            DictationPipeline.shared.discardEverything()
-        }
     }
 
     @objc private func quitApp() {

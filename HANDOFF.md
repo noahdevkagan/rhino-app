@@ -5,7 +5,30 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
-## Current state (2026-09-05, Noah's Mac: AirPods "Connecting…" hang, both fixes → 0.1.21)
+## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
+
+Customer report (kids-movie user) triaged; Noah is shipping 0.1.21 for the
+AirPods wedge separately. This branch (`crxnamja/customer-feedback-triage-v1`)
+implements the three remaining fixes:
+
+1. **Stuck indicator hardening** — decode-state watchdog (bubble hides after
+   120s if the pipeline never drains), Esc dismisses the bubble in ANY state
+   (was recording-only, and Rhino kept swallowing Esc system-wide while
+   stuck), menu-bar "Cancel Dictation" (stopForce + discardEverything),
+   `hide()` now clears an orphaned panel even with no view model.
+2. **Verbatim in AI & terminal apps** — LLM cleanup is skipped when the
+   dictation's captured target app (the previously-unused `bundleID` param
+   of `LLMPostProcessor.process`) is an AI assistant or terminal, so
+   meta-instructions meant for Claude pass through verbatim. Pref
+   `verbatimInAIApps`, default ON, toggle under Settings → Output → Cleanup.
+3. **Long-recording hold** — a clip ≥5 min (movie-while-recording case) is
+   copied to the clipboard + flashed instead of auto-pasted; history still
+   saves. Pref `reviewLongRecordings`, default ON, row under Delivery.
+
+Not done here (needs the 1.5B probe cycle): delimiting the transcript in the
+cleanup prompt (fenced block) as injection hardening for non-verbatim apps.
+
+## Previous state (2026-09-05, Noah's Mac: AirPods "Connecting…" hang, both fixes → 0.1.21)
 
 Noah's report: AirPods on, hotkey → "Connecting…" forever, app looked hung.
 Log showed the live-preview tap raising an ObjC exception (stale engine

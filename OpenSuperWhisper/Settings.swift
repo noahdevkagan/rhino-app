@@ -233,6 +233,18 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var verbatimInAIApps: Bool {
+        didSet {
+            AppPreferences.shared.verbatimInAIApps = verbatimInAIApps
+        }
+    }
+
+    @Published var reviewLongRecordings: Bool {
+        didSet {
+            AppPreferences.shared.reviewLongRecordings = reviewLongRecordings
+        }
+    }
+
     /// Whether the built-in model's GGUF is present on disk.
     @Published var builtInModelDownloaded: Bool = LLMModelManager.shared.isDefaultModelDownloaded()
     /// Download progress in 0...1 while the built-in model is downloading; nil when idle.
@@ -396,6 +408,8 @@ class SettingsViewModel: ObservableObject {
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
         self.smartFormattingEnabled = prefs.smartFormattingEnabled
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
+        self.verbatimInAIApps = prefs.verbatimInAIApps
+        self.reviewLongRecordings = prefs.reviewLongRecordings
         self.removeFillerWords = prefs.removeFillerWords
         self.autoCopyToClipboard = prefs.autoCopyToClipboard
         self.autoPasteTranscription = prefs.autoPasteTranscription
@@ -1355,6 +1369,15 @@ struct SettingsView: View {
                     }
                     .padding(.leading, 16)
                     .frame(minHeight: 24)
+                    HStack(spacing: 8) {
+                        Text("Verbatim in AI & terminal apps")
+                            .scaledFont(size: 12).foregroundColor(STheme.text)
+                        InfoButton(text: "When dictating into Claude, ChatGPT, or a terminal, insert exactly what you said — no cleanup. Instructions meant for that AI (“use whatever wording you think makes sense”) reach it word for word instead of being applied by Rhino's cleanup model.")
+                        Spacer()
+                        SToggle(isOn: $viewModel.verbatimInAIApps)
+                    }
+                    .padding(.leading, 16)
+                    .frame(minHeight: 24)
                 }
             }
 
@@ -1405,6 +1428,10 @@ struct SettingsView: View {
                 SRow(title: "Notify when no paste target",
                      hint: "\"Copied — press ⌘V\" if no text field is focused") {
                     SToggle(isOn: $viewModel.notifyWhenNoPasteTarget)
+                }
+                SRow(title: "Hold very long recordings",
+                     hint: "Over 5 minutes: copy to the clipboard instead of pasting, so a mic left running can't dump its transcript into your document") {
+                    SToggle(isOn: $viewModel.reviewLongRecordings)
                 }
                 SRow(title: "Suppress blank audio") {
                     SToggle(isOn: $viewModel.suppressBlankAudio)

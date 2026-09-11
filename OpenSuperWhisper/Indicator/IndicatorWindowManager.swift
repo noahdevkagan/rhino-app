@@ -26,6 +26,16 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     private var resizeObserver: NSObjectProtocol?
     private var drainObserver: AnyCancellable?
 
+    /// In the `.decoding` state the bubble's only exit is the pipeline draining — and
+    /// `DictationPipeline` awaits the engine with no timeout, so a hung (non-throwing)
+    /// transcription used to strand the bubble on screen until the app was quit
+    /// (customer report, 2026-09-11). After this long the bubble hides itself; the
+    /// pipeline keeps working and the text still lands if the engine ever returns.
+    /// Generous on purpose: a long clip on a slow Whisper model can legitimately take
+    /// a minute or two, and hiding early is only cosmetic.
+    static let decodeWatchdogTimeout: TimeInterval = 120
+    private var decodeWatchdog: Task<Void, Never>?
+
     private init() {}
     
     func show(nearPoint point: NSPoint? = nil) -> IndicatorViewModel {
@@ -36,6 +46,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         // to the new take now, so stop waiting to hide it on the old one's behalf.
         drainObserver?.cancel()
         drainObserver = nil
+        decodeWatchdog?.cancel()
+        decodeWatchdog = nil
 
         // Create new view model
         let newViewModel = IndicatorViewModel()
@@ -234,23 +246,50 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         return true
     }
 
+    /// Global-Esc entry point while the bubble is up (the `.escape` shortcut is enabled
+    /// from `show()` to `hide()`). Recording keeps the cancel flow (with the long-recording
+    /// confirmation); every later state — decoding, busy, a flash — just dismisses the
+    /// bubble, and the pipeline keeps transcribing in the background. Esc used to work only
+    /// while recording, so a bubble stuck in `.decoding` swallowed Esc system-wide while
+    /// offering no way out short of quitting the app (customer report, 2026-09-11).
+    /// Returns `true` when a live recording was actually discarded.
+    @discardableResult
+    func handleEscape() -> Bool {
+        guard let viewModel else {
+            // No live take, but the panel may still be on screen (orphaned) — clear it.
+            hide()
+            return false
+        }
+        switch viewModel.state {
+        case .recording, .connecting:
+            return requestCancel()
+        default:
+            hide()
+            return false
+        }
+    }
+
     func hide() {
         KeyboardShortcuts.disable(.escape)
         drainObserver?.cancel()
         drainObserver = nil
+        decodeWatchdog?.cancel()
+        decodeWatchdog = nil
 
         Task {
-            guard let viewModel = self.viewModel else { return }
+            if let viewModel = self.viewModel {
+                await viewModel.hideWithAnimation()
+                viewModel.cleanup()
 
-            await viewModel.hideWithAnimation()
-            viewModel.cleanup()
-
-            // A new recording may have started during the hide animation (rapid re-record now
-            // that recording is decoupled from transcription). If show() has since installed a
-            // different view model, this teardown belongs to the *previous* recording — don't
-            // clear the window/content out from under the new one, or reset the hotkey state.
-            // (parallel-recording)
-            guard self.viewModel === viewModel else { return }
+                // A new recording may have started during the hide animation (rapid re-record now
+                // that recording is decoupled from transcription). If show() has since installed a
+                // different view model, this teardown belongs to the *previous* recording — don't
+                // clear the window/content out from under the new one, or reset the hotkey state.
+                // (parallel-recording)
+                guard self.viewModel === viewModel else { return }
+            }
+            // No `else return`: with no view model at all (never true in the normal flow) the
+            // panel is an orphan, and tearing it down is exactly what's needed.
 
             self.window?.contentView = nil
             self.window?.orderOut(nil)
@@ -272,6 +311,22 @@ class IndicatorWindowManager: IndicatorViewDelegate {
 
         viewModel?.state = .decoding
         watchPipelineDrain()
+        armDecodeWatchdog()
+    }
+
+    /// Backstop for `watchPipelineDrain`: hides the bubble if the pipeline never drains
+    /// (see `decodeWatchdogTimeout`). Cancelled by `show()` and `hide()`; a fired watchdog
+    /// double-checks it still watches the current view model in its still-`.decoding` state.
+    private func armDecodeWatchdog() {
+        decodeWatchdog?.cancel()
+        let watched = viewModel
+        decodeWatchdog = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.decodeWatchdogTimeout * 1_000_000_000))
+            guard !Task.isCancelled, let self,
+                  self.viewModel === watched, self.viewModel?.state == .decoding else { return }
+            Diag.log.error("decode watchdog fired: pipeline still busy after \(Int(Self.decodeWatchdogTimeout))s — hiding the indicator")
+            self.hide()
+        }
     }
 
     /// Hides the bubble once the queue empties.

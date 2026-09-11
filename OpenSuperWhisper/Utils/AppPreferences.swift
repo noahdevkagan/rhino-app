@@ -329,6 +329,16 @@ final class AppPreferences {
     @UserDefault(key: "spokenEditsEnabled", defaultValue: false)
     var spokenEditsEnabled: Bool
 
+    /// Insert dictations verbatim (skip every LLM pass) when the target app is an AI
+    /// assistant or a terminal. Those dictations are prompts and commands, not prose:
+    /// the cleanup model reads meta-instructions in them ("use whatever wording you
+    /// think makes sense") as its own orders and rewrites the text instead of passing
+    /// it through (customer report, 2026-09-11). Default ON — it narrows what cleanup
+    /// touches rather than loosening any contract. No effect unless
+    /// `aiPostProcessingEnabled` is also on. Target list: `LLMPostProcessor.isVerbatimTarget`.
+    @UserDefault(key: "verbatimInAIApps", defaultValue: true)
+    var verbatimInAIApps: Bool
+
     /// Historical cleanup-backend selector. The embedded llama.cpp model is now the only
     /// backend; the key survives solely so `migrateAIProviderToBackend()` can normalize
     /// old values, and everything reads "builtin" regardless.
@@ -355,6 +365,15 @@ final class AppPreferences {
     /// "copied — press ⌘V" notice instead of letting the paste silently go nowhere.
     @UserDefault(key: "notifyWhenNoPasteTarget", defaultValue: true)
     var notifyWhenNoPasteTarget: Bool
+
+    /// Hold very long dictations instead of auto-pasting them: a clip over
+    /// `DictationPipeline.longClipHoldThreshold` goes to the clipboard with a notice,
+    /// never straight into the focused app. A recording that long is far more likely a
+    /// mic left running (a hands-free lock forgotten during a movie — customer report,
+    /// 2026-09-11) than a deliberate dictation, and there is no confidence gate that
+    /// can tell a movie's dialogue from the user's. History still saves the clip.
+    @UserDefault(key: "reviewLongRecordings", defaultValue: true)
+    var reviewLongRecordings: Bool
 
     /// Voice-command submit was cut in the 80/20 simplification; dictations never
     /// auto-press Return.

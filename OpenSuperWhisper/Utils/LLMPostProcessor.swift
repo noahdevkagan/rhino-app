@@ -70,6 +70,15 @@ enum LLMPostProcessor {
         guard general else { return text }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
 
+        // Dictations aimed at an AI assistant or a terminal are prompts and commands, not
+        // prose. The cleanup model reads meta-instructions in them ("use whatever wording
+        // you think makes sense there") as its own orders and rewrites the text instead of
+        // passing it through — no prompt contract fully stops a 1.5B model from taking that
+        // bait, so those targets skip every LLM pass. `bundleID` is the app that was
+        // frontmost when the clip was RECORDED (see DictationPipeline), not whatever is
+        // frontmost now.
+        if prefs.verbatimInAIApps, isVerbatimTarget(bundleID) { return text }
+
         let languageCode = prefs.whisperLanguage
         guard let system = assembleSystemPrompt(generalCleanup: general,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
@@ -138,6 +147,33 @@ enum LLMPostProcessor {
     }
 
     // MARK: - Pure logic (no I/O; unit-tested)
+
+    /// Apps whose dictations bypass LLM cleanup when `verbatimInAIApps` is on: AI
+    /// assistants (the text is a prompt for THAT model — Rhino's cleanup model must not
+    /// interpret it first) and terminals (the text is a command; "fixing" it breaks it).
+    /// IDEs are deliberately absent: prose dictated into an editor (comments, docs,
+    /// commit messages) still benefits from cleanup. An unknown ID simply never matches.
+    static let verbatimBundleIDs: Set<String> = [
+        "com.anthropic.claudefordesktop",  // Claude
+        "com.openai.chat",                 // ChatGPT
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "com.github.wez.wezterm",
+        "net.kovidgoyal.kitty",
+        "com.mitchellh.ghostty",
+        "co.zeit.hyper",
+    ]
+    /// Prefix matches for app families that ship several bundle IDs per channel
+    /// (Warp: dev.warp.Warp-Stable / -Preview / -Beta).
+    static let verbatimBundlePrefixes: [String] = ["dev.warp."]
+
+    /// Whether a dictation recorded while `bundleID` was frontmost should be inserted
+    /// verbatim (LLM passes skipped). nil — no captured target — never matches.
+    static func isVerbatimTarget(_ bundleID: String?) -> Bool {
+        guard let bundleID, !bundleID.isEmpty else { return false }
+        return verbatimBundleIDs.contains(bundleID)
+            || verbatimBundlePrefixes.contains { bundleID.hasPrefix($0) }
+    }
 
     /// The section appended when smart formatting is on. A code constant like the default
     /// cleanup prompt (there is no prompt-editing UI); the worked examples are what a 1.5B

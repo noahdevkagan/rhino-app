@@ -253,7 +253,8 @@ class IndicatorViewModel: ObservableObject {
             streamedFallback: streamedFallback,
             context: snapshot,
             modelOption: modelOption,
-            submitAfterInsert: submitAfterInsert)
+            submitAfterInsert: submitAfterInsert,
+            stoppedAt: Date())
 
         // Free the indicator right away so the next hotkey press starts a fresh recording.
         delegate?.didFinishDecoding()

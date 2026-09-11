@@ -100,10 +100,13 @@ class ShortcutManager {
 
         KeyboardShortcuts.onKeyUp(for: .escape) { [weak self] in
             Task { @MainActor in
-                // requestCancel() discards immediately for short recordings, but a long
-                // one arms a confirmation and returns false — leave activeVm set so the
-                // next Esc (within the window) confirms the cancel.
-                if self?.activeVm != nil, IndicatorWindowManager.shared.requestCancel() {
+                // The manager decides by bubble state: while recording this is the cancel
+                // flow (a long recording arms a confirmation and returns false — leave
+                // activeVm set so the next Esc confirms); in any later state it just
+                // dismisses the bubble. No activeVm gate: activeVm is cleared the moment
+                // the stop press is handled, and gating on it left a bubble stuck in
+                // `.decoding` immune to Esc while Rhino swallowed the key system-wide.
+                if IndicatorWindowManager.shared.handleEscape() {
                     self?.activeVm = nil
                 }
             }

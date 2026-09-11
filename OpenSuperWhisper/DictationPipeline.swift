@@ -28,6 +28,10 @@ final class DictationPipeline: ObservableObject {
         let id: UUID
         let seq: Int
         let startedAt: Date
+        /// When the user stopped this recording. `stoppedAt - startedAt` is the clip length
+        /// used by the long-recording hold — cheaper than probing the audio file, which the
+        /// #latency note below keeps off the path between the engine finishing and the paste.
+        let stoppedAt: Date
         let tempURL: URL
         let streamedFallback: String
         let context: ContextSnapshot
@@ -87,12 +91,13 @@ final class DictationPipeline: ObservableObject {
     /// `seq` is monotonic and assigned here, so append order == recording-start order.
     func enqueue(tempURL: URL, startedAt: Date, streamedFallback: String,
                  context: ContextSnapshot, modelOption: DictationModelOption?,
-                 submitAfterInsert: Bool = false) {
+                 submitAfterInsert: Bool = false, stoppedAt: Date = Date()) {
         seqCounter += 1
         queue.append(PendingDictation(
             id: UUID(),
             seq: seqCounter,
             startedAt: startedAt,
+            stoppedAt: stoppedAt,
             tempURL: tempURL,
             streamedFallback: streamedFallback,
             context: context,
@@ -193,16 +198,34 @@ final class DictationPipeline: ObservableObject {
             let shouldSubmit = spokenSubmit || item.submitAfterInsert
             let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
+            // A very long clip is held instead of pasted: at that length it's far more likely
+            // a mic left running (hands-free lock forgotten during a movie) than a deliberate
+            // dictation, and by now the "transcript" is minutes of whatever the mic overheard
+            // landing wherever the cursor is. Clipboard + notice keeps the text one ⌘V away
+            // when it WAS deliberate; the history row below keeps it recoverable either way.
+            let holdLongClip = hasText && AppPreferences.shared.reviewLongRecordings
+                && Self.isLongClip(duration: item.stoppedAt.timeIntervalSince(item.startedAt))
+
             // Insert BEFORE the history save: the user is watching the cursor, not the history
             // list, so the file move + duration probe below must not sit between the engine
             // finishing and the text landing. (#latency)
-            let outcome: TranscriptInserter.Outcome = hasText ? insertText(text) : .skipped
+            let outcome: TranscriptInserter.Outcome
+            if holdLongClip {
+                ClipboardUtil.copyToClipboard(text)
+                outcome = .skipped
+            } else {
+                outcome = hasText ? insertText(text) : .skipped
+            }
 
             // Submit only when auto-paste actually inserted text somewhere. A short settle delay lets
             // the pasted text land in the field before Return reaches it.
             if shouldSubmit && outcome == .inserted {
                 try? await Task.sleep(nanoseconds: 120_000_000)
                 TextInserter.pressReturn()
+            }
+
+            if holdLongClip {
+                IndicatorWindowManager.shared.flash(.info("Long recording — copied, press ⌘V to paste"))
             }
 
             // The text could not be inserted but is on the clipboard — tell the user what happened
@@ -276,6 +299,17 @@ final class DictationPipeline: ObservableObject {
             }
             IndicatorWindowManager.shared.flash(.error(reason))
         }
+    }
+
+    /// A dictation this long stops being pasted automatically (see the hold in `process`).
+    /// 5 minutes: deliberate dictations — even Noah's long emails — finish well under it,
+    /// while an accidental hands-free recording (the movie case) sails past.
+    nonisolated static let longClipHoldThreshold: TimeInterval = 300
+
+    /// Whether a clip of `duration` should be held on the clipboard instead of pasted.
+    /// Internal (not private) so tests can pin the boundary.
+    nonisolated static func isLongClip(duration: TimeInterval) -> Bool {
+        duration >= longClipHoldThreshold
     }
 
     /// The one thing the user can act on, not a stack trace. The generic labels stay short so

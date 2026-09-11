@@ -93,3 +93,4 @@
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 627, "machine": "Sunflowers-Laptop.local", "model": "ggml-tiny.en", "commit": "294cccd", "date": "2026-09-05T18:52:55Z"}
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 435, "machine": "Sunflowers-Laptop.local", "model": "ggml-tiny.en", "commit": "3937311", "date": "2026-09-10T11:16:18Z"}
 {"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 518, "machine": "ip-192-168-1-199.us-west-2.compute.internal", "model": "ggml-tiny.en", "commit": "4538554", "date": "2026-09-11T14:31:30Z"}
+{"corpus": "gate-tiny", "meanWer": 1.47, "maxWer": 5.88, "cases": 4, "latencyP50Ms": 762, "machine": "ip-192-168-1-199.us-west-2.compute.internal", "model": "ggml-tiny.en", "commit": "ec09c3e", "date": "2026-09-11T18:11:43Z"}

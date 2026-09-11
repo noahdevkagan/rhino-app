@@ -8,8 +8,9 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
 Customer report (kids-movie user) triaged; Noah is shipping 0.1.21 for the
-AirPods wedge separately. This branch (`crxnamja/customer-feedback-triage-v1`)
-implements the three remaining fixes:
+AirPods wedge separately. **All three fixes below are implemented, gate-green,
+and up as PR #51** (`crxnamja/customer-feedback-triage-v1`; tests in
+CustomerFeedbackGuardsTests; decisions.md 2026-09-11):
 
 1. **Stuck indicator hardening** — decode-state watchdog (bubble hides after
    120s if the pipeline never drains), Esc dismisses the bubble in ANY state

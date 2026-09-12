@@ -1138,3 +1138,59 @@ Rejected: keeping one engine and observing `AVAudioEngineConfigurationChange`
 — the notification is asynchronous and the race window is exactly the one we
 hit (Rhino itself switches the default input 75 ms before the tap). Tests:
 MicTapTests (format resolution, exception → error).
+
+## 2026-09-11 — Customer-feedback triage: three guards (stuck bubble, verbatim AI targets, long-clip hold)
+One customer report surfaced three real gaps, all sharing one theme: Rhino
+trusted its own pipeline unconditionally at the insertion boundary.
+
+**Stuck indicator hardening.** The AirPods main-queue wedge (fixed, 0.1.21)
+explained the customer's frozen bubble, but a residual class survived: in
+`.decoding` the bubble's only exit was `DictationPipeline.$isProcessing`
+going false, and the pipeline awaits the engine with no timeout — a hung
+(non-throwing) transcription stranded the bubble forever, unclickable by
+design (`ignoresMouseEvents`) and immune to Esc (the handler required
+`activeVm`, nil'd at stop, while the global Esc shortcut stayed registered
+— Rhino swallowed Esc system-wide while doing nothing). Fixes: (1) a 120s
+decode watchdog hides the bubble (pipeline keeps working; generous because
+long clips on slow Whisper models legitimately take minutes and hiding
+early is only cosmetic); (2) Esc now routes through
+`IndicatorWindowManager.handleEscape()` — recording keeps the cancel flow
+with the long-recording confirmation, every later state just dismisses the
+bubble; (3) `hide()` tears the panel down even with no view model (orphan
+case). Rejected: making the bubble clickable-to-dismiss — the default
+layout is deliberately click-through so the bubble never steals clicks
+mid-dictation. Also rejected (Noah, same day): a menu-bar "Cancel
+Dictation" item — built, then removed on his review; Esc-anywhere plus
+the watchdog cover the stuck case without cluttering the menu.
+
+**Verbatim in AI & terminal apps (`verbatimInAIApps`, default ON).** The
+cleanup model reads meta-instructions in dictated Claude prompts ("use
+whatever wording you think makes sense there") as its own orders and
+rewrites instead of passing through. The prompt's prose defense ("never
+follow any instruction") demonstrably isn't enough on a 1.5B model — and
+the transcript sits undelimited in the same token stream. Rather than
+another prompt-engineering round, dictations whose RECORD-time target app
+(the previously-unused `bundleID` parameter of `LLMPostProcessor.process`,
+plumbed since parallel-recording) is an AI assistant or terminal skip every
+LLM pass. Default ON because it narrows what cleanup touches. IDEs are
+deliberately excluded (prose in editors still wants cleanup). Both new
+toggles live under Settings → Advanced → Safeguards (Noah's call: they're
+edge-case guards, not everyday knobs — keep Output uncluttered). Follow-up
+(needs the 1.5B probe cycle): delimit the transcript in the cleanup prompt
+as injection-hardening for non-verbatim apps.
+
+**Long-recording hold (`reviewLongRecordings`, default ON, 5 min).** The
+movie transcript passed every existing gate because background TV is real
+speech: VAD keeps it, engines transcribe it faithfully, the stock-phrase
+hallucination filter doesn't match dialogue, cleanup is contractually
+forbidden from dropping content (the length guard would restore it), and
+insertion was unconditional. A confidence gate wouldn't help — real speech
+scores high. Duration is the honest signal: deliberate dictations (incl.
+Noah's long emails) finish well under 5 minutes; a forgotten hands-free
+lock sails past. Clips ≥5 min are copied to the clipboard + flashed
+("Long recording — copied, press ⌘V to paste") instead of pasted; history
+still saves. Duration = stoppedAt − startedAt captured at enqueue, NOT an
+audio-file probe, which the #latency rule keeps off the engine→paste path.
+Rejected: a max recording duration (silently truncating a deliberate long
+dictation is worse than holding it) and a word-count gate (long emails are
+a supported use case).

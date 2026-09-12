@@ -233,6 +233,18 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var verbatimInAIApps: Bool {
+        didSet {
+            AppPreferences.shared.verbatimInAIApps = verbatimInAIApps
+        }
+    }
+
+    @Published var reviewLongRecordings: Bool {
+        didSet {
+            AppPreferences.shared.reviewLongRecordings = reviewLongRecordings
+        }
+    }
+
     /// Whether the built-in model's GGUF is present on disk.
     @Published var builtInModelDownloaded: Bool = LLMModelManager.shared.isDefaultModelDownloaded()
     /// Download progress in 0...1 while the built-in model is downloading; nil when idle.
@@ -396,6 +408,8 @@ class SettingsViewModel: ObservableObject {
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
         self.smartFormattingEnabled = prefs.smartFormattingEnabled
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
+        self.verbatimInAIApps = prefs.verbatimInAIApps
+        self.reviewLongRecordings = prefs.reviewLongRecordings
         self.removeFillerWords = prefs.removeFillerWords
         self.autoCopyToClipboard = prefs.autoCopyToClipboard
         self.autoPasteTranscription = prefs.autoPasteTranscription
@@ -1528,6 +1542,17 @@ struct SettingsView: View {
                 SRow(title: "Hide menu bar icon",
                      hint: "Remove the rhino from the menu bar. Dictation keeps working; reopen this window by launching Rhino again from Applications or Spotlight.") {
                     SToggle(isOn: $viewModel.hideMenuBarIcon)
+                }
+            }
+
+            SSection(title: "Safeguards") {
+                SRow(title: "Verbatim in AI & terminal apps",
+                     hint: "Skip LLM cleanup when dictating into Claude, ChatGPT, or a terminal, so instructions meant for that AI arrive word for word. Only applies while “Clean up with an LLM” is on.") {
+                    SToggle(isOn: $viewModel.verbatimInAIApps)
+                }
+                SRow(title: "Hold very long recordings",
+                     hint: "Recordings over 5 minutes are copied to the clipboard instead of pasted, so a mic left running can't dump its transcript into your document.") {
+                    SToggle(isOn: $viewModel.reviewLongRecordings)
                 }
             }
 

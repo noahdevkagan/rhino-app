@@ -3,6 +3,12 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.22 — 2026-09-13
+
+- The recording bubble can no longer get stuck on screen. If a transcription never finishes, the bubble dismisses itself after two minutes, and pressing Esc now closes it in every state instead of only while recording, so you no longer have to quit Rhino to get rid of it.
+- Dictating into Claude, ChatGPT, or a terminal (Terminal, iTerm2, Warp, WezTerm, kitty, Ghostty, Hyper) now inserts your words verbatim. Rhino skips its AI cleanup pass for those apps so instructions meant for the assistant are passed through instead of being acted on. Toggle under Settings → Advanced → Safeguards.
+- Recordings of five minutes or longer are copied to your clipboard and flagged ("Long recording — copied, press ⌘V to paste") instead of being pasted automatically, so a forgotten recording can't dump a wall of text into whatever you had open. History still saves the transcript. Toggle under Settings → Advanced → Safeguards.
+
 ## 0.1.21 — 2026-09-05
 
 - Dictating with AirPods no longer gets stuck on "Connecting…". Rhino now

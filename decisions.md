@@ -1194,3 +1194,37 @@ audio-file probe, which the #latency rule keeps off the engine→paste path.
 Rejected: a max recording duration (silently truncating a deliberate long
 dictation is worse than holding it) and a word-count gate (long emails are
 a supported use case).
+
+## 2026-09-14 — Long-dictation truncation: LLM passes must fail closed, never emit a cut transcript
+
+Field report: a 6m36s Parakeet-v2 dictation into Cursor saved only part of
+the transcript, cut mid-sentence; the WAV was complete and a history rerun
+recovered everything. Root cause was the cleanup pass, not recording or
+ASR: `LlamaContext.generate` capped output at a fixed 512 tokens while the
+cleanup contract makes the model *re-emit the whole transcript*, so any
+dictation past ~2½ minutes came back truncated. Every net missed it:
+Cursor is (deliberately) not a verbatim target, the rerun path never runs
+LLM cleanup (which is why re-transcribing "fixed" it), and — the sharp
+edge — the 0.3× length-guard floor passes a 512-token cut of a ~1,400-token
+transcript (≈0.37×). Clips of roughly 3½–9 minutes landed exactly in that
+silent window; shorter fit the cap, longer tripped the guard.
+
+Fix, three layers, each independently sufficient for this report:
+(1) **Input gate** — `LLMPostProcessor.withinLLMInputBudget` skips every
+LLM pass beyond 3,500 chars (~900 tokens ≈ 4 min of speech): the 4096-token
+context must hold prompt (~2k tokens worst case with smart formatting) +
+input + an equally long output, and past that size no budget arithmetic
+saves it. Sits under the 5-minute long-clip hold, so auto-pasted dictations
+all still get cleanup. (2) **Input-scaled response budget** —
+`BuiltInLlamaBackend.responseTokenBudget` = bytes/2 clamped to [512, 3072],
+so admitted inputs can't hit the cap. (3) **Truncation is a failure** —
+`LlamaContext` flags any generation that didn't end at EOG (budget
+exhausted, decode failure, or a context-overflow prompt beheading that
+loses the system prompt); the backend throws `outputTruncated` and the
+existing catch-paths keep the raw transcript. Rejected: raising the fixed
+cap alone (the context ceiling then truncates the *prompt*, which is
+worse — output from a beheaded prompt has no system prompt at all) and
+chunking long transcripts through cleanup (a 1.5B model with per-chunk
+context joins is a new failure surface; verbatim raw ASR text is complete
+and already well punctuated). Tests: LongDictationCleanupTests pins the
+gate boundary, the budget clamp, and the two constants' cross-consistency.

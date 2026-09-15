@@ -316,6 +316,16 @@ public final class LlamaContext {
 
     // MARK: - Generation
 
+    /// Whether the last `generate` failed to reach a natural stop: the prompt had to be
+    /// truncated to fit the context, a decode failed mid-run, or the token budget ran out
+    /// before the model sampled EOG. The text returned alongside it is incomplete (or the
+    /// completion of a beheaded prompt) — callers must treat it as a failed pass, never as
+    /// a short answer: a 6½-minute dictation cut at the budget still passed the length-ratio
+    /// guard and reached history missing its second half (2026-09-14 Cursor report).
+    /// Same read-right-after-return contract as the app's other engines; every call goes
+    /// through `BuiltInLlamaBackend`'s serial inference queue.
+    public private(set) var lastGenerationTruncated = false
+
     /// Decodes the prompt prefix shared by every completion with this system prompt — the chat
     /// template applied to (system, user) up to where the user text diverges, computed from two
     /// sentinel user variants — so a later `generate` only evaluates the tokens after it (the
@@ -353,20 +363,30 @@ public final class LlamaContext {
     /// in: whatever doesn't match this prompt's tokens is removed before decoding. The sampler
     /// is still reset every call — its accepted-token history belongs to the previous generation.
     public func generate(system: String, user: String, maxTokens: Int = 512) -> String {
-        guard let ctx, let sampler else { return "" }
+        lastGenerationTruncated = false
+        guard let ctx, let sampler else {
+            lastGenerationTruncated = true
+            return ""
+        }
 
         llama_sampler_reset(sampler)
 
         let prompt = formatChatPrompt(system: system, user: user)
         var promptTokens = tokenize(prompt, addSpecial: true)
-        guard !promptTokens.isEmpty else { return "" }
+        guard !promptTokens.isEmpty else {
+            lastGenerationTruncated = true
+            return ""
+        }
 
         let nCtx = Int(llama_n_ctx(ctx))
         if promptTokens.count >= nCtx {
             // Truncate the prompt if it doesn't fit; leave room for the response. A truncated
-            // prompt's tokens don't line up with any cached prefix, so start clean.
+            // prompt's tokens don't line up with any cached prefix, so start clean. Losing the
+            // front of the prompt loses the system prompt, so whatever comes out is not a
+            // completion of what was asked — flag it.
             promptTokens = Array(promptTokens.suffix(nCtx - 1))
             clearMemory()
+            lastGenerationTruncated = true
         }
 
         // Keep at most promptTokens.count - 1 cached tokens: the final prompt token must be
@@ -377,16 +397,21 @@ public final class LlamaContext {
         var outputBytes: [UInt8] = []
         guard decodeAppending(Array(promptTokens[kept...])) else {
             clearMemory()
+            lastGenerationTruncated = true
             return ""
         }
 
         var generated = 0
+        var sawEndOfGeneration = false
         let budget = min(maxTokens, max(0, nCtx - promptTokens.count))
         while generated < budget {
             // Sample the next token from the logits of the last decoded position.
             let nextToken = llama_sampler_sample(sampler, ctx, -1)
 
-            if isEndOfGeneration(nextToken) { break }
+            if isEndOfGeneration(nextToken) {
+                sawEndOfGeneration = true
+                break
+            }
 
             llama_sampler_accept(sampler, nextToken)
             outputBytes.append(contentsOf: pieceBytes(for: nextToken))
@@ -395,6 +420,11 @@ public final class LlamaContext {
             if !decodeAppending([nextToken]) { break }
 
             generated += 1
+        }
+        // Ending any way other than sampling EOG — budget exhausted or a failed decode —
+        // means the output stops mid-thought.
+        if !sawEndOfGeneration {
+            lastGenerationTruncated = true
         }
 
         // One decode over the whole byte run, so multi-byte characters that straddled two tokens

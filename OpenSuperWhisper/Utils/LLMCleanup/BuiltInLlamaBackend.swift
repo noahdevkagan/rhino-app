@@ -12,7 +12,7 @@ import Foundation
 final class BuiltInLlamaBackend: LLMCleanupBackend {
     static let shared = BuiltInLlamaBackend()
 
-    enum BuiltInLlamaError: Error { case modelNotReady }
+    enum BuiltInLlamaError: Error { case modelNotReady, outputTruncated }
 
     /// Release the inference context (~1.2 GB resident, model + KV cache) after this long with no
     /// cleanup. An occasional dictation shouldn't hold a second model in RAM next to Whisper's own
@@ -70,11 +70,31 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
                     continuation.resume(throwing: BuiltInLlamaError.modelNotReady)
                     return
                 }
-                let output = ctx.generate(system: system, user: user)
+                let output = ctx.generate(
+                    system: system, user: user,
+                    maxTokens: Self.responseTokenBudget(forInputBytes: user.utf8.count))
                 self.scheduleIdleUnloadOnQueue()
-                continuation.resume(returning: output)
+                // A generation that didn't run to a natural stop is a cut-off transcript,
+                // not a short answer — at some lengths it even passes the length-ratio
+                // guard (the 6m36s report). Fail the pass so callers keep the input text.
+                if ctx.lastGenerationTruncated {
+                    continuation.resume(throwing: BuiltInLlamaError.outputTruncated)
+                } else {
+                    continuation.resume(returning: output)
+                }
             }
         }
+    }
+
+    /// Token budget for one response, sized from the request's user text: the cleanup
+    /// contract makes the model re-emit the whole transcript, so a fixed cap cuts any
+    /// dictation longer than the cap mid-sentence (512 ≈ 2½ minutes of speech). bytes/2
+    /// is ~2× the tokens English text actually needs, leaving room for formatting
+    /// additions; the 512 floor keeps short dictations on the old budget, and the cap
+    /// stays under the 4096-token context (whose own room-left bound in
+    /// `LlamaContext.generate` still binds first when the prompt is long).
+    static func responseTokenBudget(forInputBytes bytes: Int) -> Int {
+        min(3_072, max(512, bytes / 2))
     }
 
     // MARK: - inferenceQueue-confined state

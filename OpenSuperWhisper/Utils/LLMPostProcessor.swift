@@ -79,6 +79,18 @@ enum LLMPostProcessor {
         // frontmost now.
         if prefs.verbatimInAIApps, isVerbatimTarget(bundleID) { return text }
 
+        // A long transcript cannot round-trip the model's 4096-token context: the passes
+        // re-emit the whole text, so prompt (system + formatting examples, ~2k tokens
+        // worst case) + input + an equally long output must all fit. Past this size the
+        // output gets cut off — and a cut landing in the 0.3×–1× band slips straight
+        // through the length guard (the 6m36s Cursor dictation, 2026-09-14). The raw ASR
+        // text is complete and already well punctuated, so long dictations keep it.
+        guard withinLLMInputBudget(text) else {
+            print("LLM cleanup skipped: transcript too long to fit the model context "
+                + "(\(text.count) chars > \(maxLLMInputChars))")
+            return text
+        }
+
         let languageCode = prefs.whisperLanguage
         guard let system = assembleSystemPrompt(generalCleanup: general,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
@@ -147,6 +159,19 @@ enum LLMPostProcessor {
     }
 
     // MARK: - Pure logic (no I/O; unit-tested)
+
+    /// Longest transcript (in characters) the LLM passes accept; longer dictations skip
+    /// them and keep the raw ASR text (see the gate in `process`). Sized for the model's
+    /// 4096-token context minus the worst-case prompt overhead (system preamble + cleanup
+    /// prompt + smart-formatting examples ≈ 2k tokens) split between the input and the
+    /// re-emitted output: ~3,500 chars ≈ 900 tokens ≈ 4 minutes of speech — under the
+    /// 5-minute long-clip hold, so every auto-pasted dictation still gets cleanup.
+    static let maxLLMInputChars = 3_500
+
+    /// Whether a transcript is small enough for the LLM passes to reproduce in full.
+    static func withinLLMInputBudget(_ text: String) -> Bool {
+        text.count <= maxLLMInputChars
+    }
 
     /// Apps whose dictations bypass LLM cleanup when `verbatimInAIApps` is on: AI
     /// assistants (the text is a prompt for THAT model — Rhino's cleanup model must not

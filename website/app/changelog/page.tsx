@@ -1,5 +1,13 @@
 const releases = [
   {
+    version: "0.1.23",
+    date: "September 16, 2026",
+    changes: [
+      "Long dictations no longer come back cut off mid-sentence. Rhino's AI cleanup pass could truncate transcripts past roughly four minutes of speech; it now skips cleanup on very long recordings and throws away any cleaned-up text that came back incomplete, so you always keep the full transcript.",
+      "Dictating in another language with Language set to Auto-detect no longer turns your words into English. Rhino now identifies the language on your Mac before the cleanup pass and holds it there, and discards the cleanup result outright if it switches languages anyway.",
+    ],
+  },
+  {
     version: "0.1.22",
     date: "September 13, 2026",
     changes: [

@@ -3,6 +3,18 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.23 — 2026-09-16
+
+- Long dictations no longer come back cut off mid-sentence. Rhino's AI
+  cleanup pass could truncate transcripts past roughly four minutes of
+  speech; it now skips cleanup on very long recordings and throws away any
+  cleaned-up text that came back incomplete, so you always keep the full
+  transcript.
+- Dictating in another language with Language set to Auto-detect no longer
+  turns your words into English. Rhino now identifies the language on your
+  Mac before the cleanup pass and holds it there, and discards the cleanup
+  result outright if it switches languages anyway.
+
 ## 0.1.22 — 2026-09-13
 
 - The recording bubble can no longer get stuck on screen. If a transcription never finishes, the bubble dismisses itself after two minutes, and pressing Esc now closes it in every state instead of only while recording, so you no longer have to quit Rhino to get rid of it.

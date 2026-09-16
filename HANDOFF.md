@@ -7,6 +7,22 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Auto-detect cleanup language fix (2026-09-15, shanghai workspace)
+
+Confirmed against the installed v0.1.22 binary and real embedded Qwen 1.5B
+model: this is a cleanup regression specific to language Auto-detect. Across 36
+sequential cleanup probes (six representative German inputs repeated six
+times), five of the six inputs were deterministically translated into English;
+the email-shaped input stayed German. Setting the same isolated prefs suite to
+explicit German kept all six outputs German. Fixed by resolving Auto locally
+with Apple's on-device `NLLanguageRecognizer` when confidence is ≥0.80, feeding
+the resulting named language to cleanup, and rejecting any confident
+input/output language switch as a final fail-closed guard. The rebuilt app kept
+all 36/36 probes German. Build and the complete `OpenSuperWhisperTests` suite
+pass; `Scripts/verify-german.sh` now tests cleanup under both `de` and `auto`.
+The separate number-word bug remains: `einundzwanzig` became 18 before the fix
+and 19 with named German cleanup.
+
 Customer report (kids-movie user) triaged; Noah is shipping 0.1.21 for the
 AirPods wedge separately. **All three fixes below are implemented, gate-green,
 and up as PR #51** (`crxnamja/customer-feedback-triage-v1`; tests in

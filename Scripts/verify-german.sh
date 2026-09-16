@@ -135,19 +135,27 @@ case "$WHISPER_MODEL" in
         fi;;
 esac
 
-# --- Pass 3: LLM cleanup (the German→English report) -------------------------
-echo; echo "=== llm-cleanup ==="
+# --- Pass 3/4: LLM cleanup (the German→English report) -----------------------
+# Exercise both the named-language rule and Auto-detect. The original fix only
+# tested `de`; Auto kept a generic instruction that the 1.5B model ignored.
 defaults write "$SUITE" aiPostProcessingEnabled -bool true
-for i in 0 1 3 6 7 8; do
-    RHINO_PREFS_SUITE="$SUITE" "$APP" cleanup "${TEXTS[$i]}" \
-        > "$OUT/cleanup.$i.txt" 2> "$OUT/cleanup.$i.log" || true
-    if grep -q "not downloaded" "$OUT/cleanup.$i.log"; then
-        echo "SKIPPED: built-in cleanup model not downloaded (enable AI cleanup in the app once)."
-        break
-    fi
-    printf 'text %2d: ' "$i"
-    python3 "$OUT/check.py" "$OUT/cleanup.$i.txt" || fail=1
-done
+run_cleanup_pass() {  # $1 = stored language code
+    local language=$1 i
+    echo; echo "=== llm-cleanup-$language ==="
+    defaults write "$SUITE" whisperLanguage "$language"
+    for i in 0 1 3 6 7 8; do
+        RHINO_PREFS_SUITE="$SUITE" "$APP" cleanup "${TEXTS[$i]}" \
+            > "$OUT/cleanup-$language.$i.txt" 2> "$OUT/cleanup-$language.$i.log" || true
+        if grep -q "not downloaded" "$OUT/cleanup-$language.$i.log"; then
+            echo "SKIPPED: built-in cleanup model not downloaded (enable AI cleanup in the app once)."
+            return
+        fi
+        printf 'text %2d: ' "$i"
+        python3 "$OUT/check.py" "$OUT/cleanup-$language.$i.txt" || fail=1
+    done
+}
+run_cleanup_pass de
+run_cleanup_pass auto
 
 defaults delete "$SUITE" >/dev/null 2>&1 || true
 echo

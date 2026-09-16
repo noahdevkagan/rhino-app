@@ -9,7 +9,7 @@ import XCTest
 /// and a same-language reminder in the per-request wrapper next to the text. These tests pin
 /// that both appear for non-English languages, that auto-detect gets the language-agnostic
 /// wording, and that the English prompt stays byte-identical to the tuned original. The
-/// model's actual compliance is measured in bench/, not here.
+/// model's actual compliance is measured by Scripts/verify-german.sh, not here.
 final class CleanupLanguageRuleTests: XCTestCase {
 
     func testSystemPromptPinsNamedLanguage() {
@@ -81,5 +81,39 @@ final class CleanupLanguageRuleTests: XCTestCase {
         XCTAssertTrue(LLMPostProcessor.languageRule(for: "nl")!.contains("in Dutch"))
         XCTAssertTrue(LLMPostProcessor.languageRule(for: "fr")!.contains("in French"))
         XCTAssertNil(LLMPostProcessor.languageRule(for: "en"))
+    }
+
+    func testAutoDetectResolvesConfidentGermanToNamedLanguage() {
+        let german = "Guten Morgen, ich hoffe, es geht dir gut. Können wir das Treffen "
+            + "auf Dienstag verschieben?"
+        XCTAssertEqual(LLMPostProcessor.detectedLanguageCode(in: german), "de")
+        XCTAssertEqual(LLMPostProcessor.resolvedCleanupLanguageCode(
+            configuredCode: "auto", text: german), "de")
+    }
+
+    func testExplicitLanguageAlwaysWinsOverTextDetection() {
+        XCTAssertEqual(LLMPostProcessor.resolvedCleanupLanguageCode(
+            configuredCode: "fr", text: "Das ist eindeutig ein deutscher Satz."), "fr")
+    }
+
+    func testAmbiguousAutoDetectKeepsGenericLanguageRule() {
+        // NaturalLanguage identifies this one-word answer as Finnish at only ~0.5 confidence.
+        // Guessing would be worse than retaining the generic same-language instruction.
+        XCTAssertEqual(LLMPostProcessor.resolvedCleanupLanguageCode(
+            configuredCode: "auto", text: "Ja"), "auto")
+    }
+
+    func testLanguageShiftRejectsTranslation() {
+        let german = "Bitte schick mir die Unterlagen bis morgen Abend, danke schön."
+        let english = "Please send me the documents by tomorrow evening, thank you."
+        let shift = LLMPostProcessor.languageShift(input: german, output: english)
+        XCTAssertEqual(shift?.input, "de")
+        XCTAssertEqual(shift?.output, "en")
+    }
+
+    func testLanguageShiftAllowsSameLanguageCleanup() {
+        let input = "bitte schick mir die unterlagen bis morgen abend danke schön"
+        let output = "Bitte schick mir die Unterlagen bis morgen Abend, danke schön."
+        XCTAssertNil(LLMPostProcessor.languageShift(input: input, output: output))
     }
 }

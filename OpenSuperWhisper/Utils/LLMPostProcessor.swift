@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 
 /// A swappable backend that turns a (system, user) prompt pair into cleaned text.
 /// Sole implementation: `BuiltInLlamaBackend` (embedded llama.cpp, in-process).
@@ -91,7 +92,9 @@ enum LLMPostProcessor {
             return text
         }
 
-        let languageCode = prefs.whisperLanguage
+        let configuredLanguageCode = prefs.whisperLanguage
+        let languageCode = resolvedCleanupLanguageCode(
+            configuredCode: configuredLanguageCode, text: text)
         guard let system = assembleSystemPrompt(generalCleanup: general,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 smartFormatting: smartFormatting,
@@ -149,6 +152,15 @@ enum LLMPostProcessor {
                !passesLengthGuard(input: working, output: result, condensingAllowed: false) {
                 return working
             }
+            // Prompting is not a safety boundary: the 1.5B model can ignore even the named
+            // language rule and return a fluent translation. Detect that locally and keep the
+            // source transcription instead. A missed cleanup is recoverable; silently typing a
+            // translation is not. The confidence gate makes short/ambiguous text a no-op here.
+            if let shift = languageShift(input: working, output: result) {
+                print("LLM cleanup rejected: output language changed from "
+                    + "\(shift.input) to \(shift.output)")
+                return working
+            }
             return smartFormatting
                 ? stripSpuriousListMarker(result, originalInput: working)
                 : result
@@ -167,6 +179,45 @@ enum LLMPostProcessor {
     /// re-emitted output: ~3,500 chars ≈ 900 tokens ≈ 4 minutes of speech — under the
     /// 5-minute long-clip hold, so every auto-pasted dictation still gets cleanup.
     static let maxLLMInputChars = 3_500
+
+    /// NaturalLanguage is an on-device framework. For Auto-detect, use its confident result to
+    /// turn the generic "keep the same language" request into the named language rule the small
+    /// cleanup model actually follows. Below the threshold we retain the old generic rule rather
+    /// than guessing: one-word dictations such as "Ja" are inherently ambiguous.
+    static let languageDetectionConfidence = 0.80
+
+    static func detectedLanguageCode(in text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(trimmed)
+        guard let hypothesis = recognizer.languageHypotheses(withMaximum: 1).first,
+              hypothesis.value >= languageDetectionConfidence else { return nil }
+
+        // NaturalLanguage can return region/script-qualified codes (for example zh-Hans),
+        // while Whisper and LanguageUtil use base ISO codes.
+        guard let baseCode = hypothesis.key.rawValue
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first
+            .map(String.init) else { return nil }
+        let whisperCode = ["nb": "no", "nn": "no"][baseCode] ?? baseCode
+        return LanguageUtil.availableLanguages.contains(whisperCode) ? whisperCode : nil
+    }
+
+    static func resolvedCleanupLanguageCode(configuredCode: String, text: String) -> String {
+        guard configuredCode == "auto" else { return configuredCode }
+        return detectedLanguageCode(in: text) ?? "auto"
+    }
+
+    /// Returns the confident input/output language mismatch that makes cleanup unsafe, or nil
+    /// when the languages agree or either side is too ambiguous to judge reliably.
+    static func languageShift(input: String, output: String) -> (input: String, output: String)? {
+        guard let inputCode = detectedLanguageCode(in: input),
+              let outputCode = detectedLanguageCode(in: output),
+              inputCode != outputCode else { return nil }
+        return (inputCode, outputCode)
+    }
 
     /// Whether a transcript is small enough for the LLM passes to reproduce in full.
     static func withinLLMInputBudget(_ text: String) -> Bool {

@@ -1228,3 +1228,26 @@ chunking long transcripts through cleanup (a 1.5B model with per-chunk
 context joins is a new failure surface; verbatim raw ASR text is complete
 and already well punctuated). Tests: LongDictationCleanupTests pins the
 gate boundary, the budget clamp, and the two constants' cross-consistency.
+
+## 2026-09-15 — Auto-detect cleanup resolves a local language, then fails closed on a switch
+
+A new German report on v0.1.22 proved the v0.1.15 prompt fix was only partial:
+with language set to Auto-detect, the real Qwen 1.5B cleanup model translated
+five of six representative German inputs into English, deterministically over
+six sequential rounds (30/36 bad outputs). The generic prompt wording (“keep
+the language it was dictated in”) was present exactly as its unit tests
+required; the model simply ignored it. Explicit `de` kept all six German.
+
+Fix: for Auto only, run Apple’s on-device `NLLanguageRecognizer` over the raw
+ASR text. At confidence ≥0.80 its base ISO code becomes cleanup’s language code,
+so German receives the already-effective named German rule. Below that threshold
+retain the generic Auto rule rather than guessing — one-word inputs such as
+“Ja” are genuinely ambiguous. Independently, compare confident input/output
+languages after generation and discard the cleanup result if they differ. The
+raw ASR text is complete, so losing cosmetic cleanup is safer than silently
+typing a translation. Rejected: prompt wording alone (already failed in the
+field and the real model probe), network or bundled-model language detection
+(violates the surface/size constraints), and always trusting a low-confidence
+guess (could pin short text to the wrong language). The rebuilt app kept all
+36/36 Auto probes German; full unit suite and build pass. The separate German
+number-word error remains out of scope.

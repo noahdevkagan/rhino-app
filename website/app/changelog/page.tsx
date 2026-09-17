@@ -1,5 +1,12 @@
 const releases = [
   {
+    version: "0.1.24",
+    date: "September 17, 2026",
+    changes: [
+      "Starting a recording no longer waits on the app you're dictating into. Whatever you've bound — Fn, a custom shortcut, hold-to-record or the double-tap hands-free start — it begins right away, even when that app is slow to answer. Rhino used to ask the app where your text cursor was before it began, so an app with a busy Accessibility server could hold up the start of a recording. Those lookups now happen in the background: the recording bubble appears immediately at your pointer and moves to the text cursor once the app replies. The bubble's entrance is also quicker and less bouncy.",
+    ],
+  },
+  {
     version: "0.1.23",
     date: "September 16, 2026",
     changes: [

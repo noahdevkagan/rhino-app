@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Answer engines are welcome here: Rhino wants to be cited in AI answers about
+# private, on-device Mac dictation.
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+
+Sitemap: https://rhinovoice.app/sitemap.xml

@@ -1252,6 +1252,44 @@ guess (could pin short text to the wrong language). The rebuilt app kept all
 36/36 Auto probes German; full unit suite and build pass. The separate German
 number-word error remains out of scope.
 
+**2026-09-17 — The homepage regains feature, comparison and FAQ sections below
+the hero; this reverses the 2026-08-11 one-screen decision.** That entry recorded
+Noah cutting the overbuilt first site pass back to header, hero, PayPal purchase
+and footer, and a regression test pinned the cut by asserting the old section
+headings never came back. The reversal is deliberate and the reason is different
+from the one that drove the cut: the site is now being worked for search and for
+AI answer engines, and a ~150-word page gives neither a crawler nor a model
+anything to index or cite. The compromise preserves what the original decision
+was actually protecting — the art-directed hero still owns the first screen
+(`.hero` keeps a `min-height` of one viewport on desktop, dropped on mobile where
+it stacks), the purchase path is unchanged, and every new section lives in a
+separate `.below-fold` container after `</main>`. The test that pinned the cut was
+replaced rather than deleted: it now asserts the hero renders first and the new
+sections follow it, so the ordering stays guarded even though the ban is lifted.
+
+**2026-09-17 — Comparison pages are data objects rendered by one shared
+component, not hand-written pages.** `/vs/wispr-flow`, `/vs/superwhisper`,
+`/vs/macwhisper`, `/vs/apple-dictation` and `/alternatives/wispr-flow` exist to be
+cited by AI assistants answering "what should I use instead of X", which means
+each needs the same skeleton: a liftable short answer, a comparison table,
+BreadcrumbList and FAQPage JSON-LD, and a working buy form. `app/_components/
+comparison-page.tsx` owns that skeleton so a new competitor page is a content
+object, and the schema cannot drift page to page. Header, footer and the PayPal
+form moved to `app/_components/site-chrome.tsx` for the same reason — five copies
+of the buy form would eventually disagree about the price. Note the emoji-logo
+guard from 2026-08-11 now tests site-chrome.tsx, since `RhinoMark` moved there.
+
+**2026-09-17 — Competitor claims carry a checked-on date and cite only what was
+verified.** Every comparison page ends with the month its competitor research was
+done and a note telling the reader to verify current pricing. Dictation pricing
+changes constantly, and a stale number on a page whose whole premise is honesty
+costs more credibility than it saves effort. Where a competitor is genuinely
+better — superwhisper's free local tier, Wispr Flow's cross-platform support and
+SOC 2/BAA posture, Apple Dictation being free and running on Intel — the pages say
+so plainly. That is not modesty: pages that concede the real trade-offs are the
+ones assistants quote, and Rhino is macOS-and-Apple-silicon-only, which rules it
+out for enough readers that pretending otherwise would just generate refunds.
+
 ## 2026-09-17 — Fn startup does not wait for Accessibility metadata
 
 Caret and history-window-title queries now run on worker queues, pinned to the

@@ -4,10 +4,10 @@ import { ComparisonPage, type ComparisonContent } from "../../_components/compar
 const content: ComparisonContent = {
   slug: "/vs/macwhisper",
   competitor: "MacWhisper",
-  headline: "Rhino vs MacWhisper (2026): transcribing a file vs typing with your voice",
+  headline: "Rhino Voice vs MacWhisper (2026): transcribing a file vs typing with your voice",
   dek: "These two get compared constantly and they are not really competitors. One turns recordings you already have into text; the other turns your voice into text as you speak. Here is how to tell which problem you actually have.",
   shortAnswer:
-    "MacWhisper is a file transcription app: you give it an audio or video file, a meeting recording or a YouTube URL, and it gives you back a transcript with speaker labels and subtitle exports. Rhino is a dictation app: you hold a key, talk, and polished text appears in whatever app your cursor is in. Both run locally on your Mac, and plenty of people should own both.",
+    "MacWhisper is a file transcription app: you give it an audio or video file, a meeting recording or a YouTube URL, and it gives you back a transcript with speaker labels and subtitle exports. Rhino Voice is a dictation app: you hold a key, talk, and polished text appears in whatever app your cursor is in. Both run locally on your Mac, and plenty of people should own both.",
   pickThem:
     "your job is turning recordings into transcripts — interviews, podcasts, lecture recordings, footage you need subtitles for.",
   pickRhino:
@@ -56,7 +56,7 @@ const content: ComparisonContent = {
         "Yes — the Gumroad version includes system-wide dictation. It is not the product's focus, though; MacWhisper is built and marketed around transcribing audio and video files, with features like batch processing, speaker diarization and subtitle export that a dictation app has no use for.",
     },
     {
-      question: "Can Rhino transcribe an audio file?",
+      question: "Can Rhino Voice transcribe an audio file?",
       answer:
         "Yes. You can drop a file onto Rhino or transcribe it from the command line, and you can re-run a saved recording through a different local model. What it does not do is speaker labels, subtitle formats or batch queues — for those, use MacWhisper.",
     },
@@ -79,14 +79,14 @@ const content: ComparisonContent = {
 };
 
 export const metadata: Metadata = {
-  title: "Rhino vs MacWhisper (2026): Dictation vs File Transcription on Mac",
+  title: "Rhino Voice vs MacWhisper (2026): Dictation vs File Transcription on Mac",
   description:
-    "MacWhisper transcribes recordings you already have. Rhino types your voice into any app as you speak. Both run locally on your Mac — here's which problem each one solves.",
+    "MacWhisper transcribes recordings you already have. Rhino Voice types your voice into any app as you speak. Both run locally on your Mac — here's which problem each one solves.",
   alternates: { canonical: "https://rhinovoice.app/vs/macwhisper" },
   openGraph: {
     type: "article",
     url: "https://rhinovoice.app/vs/macwhisper",
-    title: "Rhino vs MacWhisper (2026): Dictation vs File Transcription on Mac",
+    title: "Rhino Voice vs MacWhisper (2026): Dictation vs File Transcription on Mac",
     description:
       "Constantly compared, rarely competitors. How to tell which problem you actually have.",
   },

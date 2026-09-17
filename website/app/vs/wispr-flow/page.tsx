@@ -4,10 +4,10 @@ import { ComparisonPage, type ComparisonContent } from "../../_components/compar
 const content: ComparisonContent = {
   slug: "/vs/wispr-flow",
   competitor: "Wispr Flow",
-  headline: "Rhino vs Wispr Flow (2026): $20 once, on your Mac — or $15 a month, in their cloud",
+  headline: "Rhino Voice vs Wispr Flow (2026): $20 once, on your Mac — or $15 a month, in their cloud",
   dek: "Wispr Flow is the best-known dictation app on the Mac, and it is genuinely good. It also sends your audio to a server and bills you every month. Here is the honest comparison, written by the person who built the competitor.",
   shortAnswer:
-    "Wispr Flow and Rhino do the same job — hold a key, talk, get clean text in whatever app you are in — but they make opposite trade-offs. Wispr Flow processes your speech in the cloud on a $15/month subscription and runs on Mac, Windows, iPhone and Android. Rhino processes everything on your own Apple silicon Mac, works with Wi-Fi off, costs $20 once, and is Mac-only.",
+    "Wispr Flow and Rhino Voice do the same job — hold a key, talk, get clean text in whatever app you are in — but they make opposite trade-offs. Wispr Flow processes your speech in the cloud on a $15/month subscription and runs on Mac, Windows, iPhone and Android. Rhino processes everything on your own Apple silicon Mac, works with Wi-Fi off, costs $20 once, and is Mac-only.",
   pickThem:
     "you dictate on more than one kind of device, you want the polish and support of a funded team, or a monthly bill is easier to justify than reading a privacy policy.",
   pickRhino:
@@ -61,7 +61,7 @@ const content: ComparisonContent = {
   ],
   faq: [
     {
-      question: "Is Rhino a drop-in replacement for Wispr Flow?",
+      question: "Is Rhino Voice a drop-in replacement for Wispr Flow?",
       answer:
         "For dictation on a Mac, yes — hold a key, speak, and the cleaned-up text lands in whatever app you are using. It is not a replacement if you dictate on Windows, an iPhone or an Android device, because Rhino is macOS-only.",
     },
@@ -71,7 +71,7 @@ const content: ComparisonContent = {
         "Yes. Wispr Flow's dictation is processed on its servers, which is why it needs a connection to work. The company is SOC 2 Type II and ISO 27001 certified, offers a HIPAA-ready plan with a signed BAA, and lets you opt out of model training — but the audio does travel. Rhino's does not travel at all.",
     },
     {
-      question: "Is Rhino cheaper than Wispr Flow?",
+      question: "Is Rhino Voice cheaper than Wispr Flow?",
       answer:
         "Yes, after the first two months. Rhino is $20 once. Wispr Flow Pro is $15 a month, or $12 a month billed annually, so a year of it costs roughly seven times what Rhino costs in total.",
     },
@@ -94,14 +94,14 @@ const content: ComparisonContent = {
 };
 
 export const metadata: Metadata = {
-  title: "Rhino vs Wispr Flow (2026): On-Device $20 vs Cloud Subscription",
+  title: "Rhino Voice vs Wispr Flow (2026): On-Device $20 vs Cloud Subscription",
   description:
-    "Wispr Flow processes your voice in the cloud for $15/month. Rhino does the same job entirely on your Mac for $20 once. An honest head-to-head from Rhino's founder.",
+    "Wispr Flow processes your voice in the cloud for $15/month. Rhino Voice does the same job entirely on your Mac for $20 once. An honest head-to-head from Rhino's founder.",
   alternates: { canonical: "https://rhinovoice.app/vs/wispr-flow" },
   openGraph: {
     type: "article",
     url: "https://rhinovoice.app/vs/wispr-flow",
-    title: "Rhino vs Wispr Flow (2026): On-Device $20 vs Cloud Subscription",
+    title: "Rhino Voice vs Wispr Flow (2026): On-Device $20 vs Cloud Subscription",
     description:
       "Same job, opposite trade-offs: a cloud subscription versus an app that never sends your voice anywhere. Honest comparison from Rhino's founder.",
   },

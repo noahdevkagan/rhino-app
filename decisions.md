@@ -1305,3 +1305,20 @@ logs measure handler-to-record-return (77 ms median in nine samples), not
 physical-key-to-first-audio or first-frame latency; no measured speedup is
 claimed from the animation alone. Recorder serialization, priming, and
 AirPods validation remain intact.
+
+**2026-09-17 — The public name is "Rhino Voice"; the site was the only place
+saying just "Rhino".** AppSumo (where the listing sits at 4.9 with real
+reviews), the launch post on X, and the rhino-app repo description all say
+Rhino Voice. The website, its metadata, its JSON-LD and the new comparison
+pages said "Rhino". Unifying on Rhino Voice is an SEO decision as much as a
+branding one: "Rhino" collides head-on with Picovoice Rhino, a speech SDK in
+the same category, and with Rhino 3D, so the short name cannot win its own
+queries, while "Rhino Voice" matches the domain and the pages that already
+carry third-party reviews. Titles, meta descriptions, OG tags, the site
+header and footer, the SoftwareApplication schema and llms.txt now all say
+Rhino Voice; body copy still says "Rhino" as the short form after first
+mention, because "Rhino Voice types your words" reads like ad copy. The
+rendered-html test now asserts `"name":"Rhino Voice"` in the homepage schema
+so the brand cannot silently drift back. Deliberately NOT changed: the PayPal
+`item_name` is still "Rhino for Mac", because that string appears in existing
+payment records and changing it complicates reconciliation for no SEO gain.

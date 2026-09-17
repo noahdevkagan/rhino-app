@@ -36,12 +36,12 @@ const picks: Pick[] = [
     url: "https://tryvoiceink.com/",
   },
   {
-    name: "Rhino",
+    name: "Rhino Voice",
     bestFor: "one payment, no cloud pathway, no decisions",
     price: "$20 once, with a 30-day money-back guarantee",
     where: "On your Mac, always — there is no other option in the app",
     body: [
-      "This is mine, so discount it accordingly. Rhino is the opinionated version of the local-dictation idea: hold Fn, talk, release, and cleaned-up text lands where your cursor was. Speech recognition and the AI cleanup pass both run on your Mac, it works with Wi-Fi off, and there is no account, no telemetry and no cloud model to switch on.",
+      "This is mine, so discount it accordingly. Rhino Voice is the opinionated version of the local-dictation idea: hold Fn, talk, release, and cleaned-up text lands where your cursor was. Speech recognition and the AI cleanup pass both run on your Mac, it works with Wi-Fi off, and there is no account, no telemetry and no cloud model to switch on.",
       "It is deliberately small. No modes to configure, no per-app profiles, no free tier. What it does have is defaults I would have told you to pick anyway: automatic verbatim pass-through when you dictate into Claude, ChatGPT or a terminal, a guard that copies very long recordings to the clipboard instead of pasting them somewhere unexpected, and a custom dictionary that boosts recognition of the names you repeat all day.",
       "Apple silicon and macOS 14 or later only. No Windows, no iPhone. If you need those, one of the others on this list is your answer.",
     ],
@@ -106,17 +106,17 @@ const faq = [
   {
     question: "Which Wispr Flow alternative is the most private?",
     answer:
-      "The ones that never transmit audio: Apple Dictation with on-device dictation enabled, superwhisper and VoiceInk with local models selected, and Rhino, which has no cloud pathway in the app at all. Aqua Voice and Typeless are cloud services, so they are cheaper alternatives rather than more private ones.",
+      "The ones that never transmit audio: Apple Dictation with on-device dictation enabled, superwhisper and VoiceInk with local models selected, and Rhino Voice, which has no cloud pathway in the app at all. Aqua Voice and Typeless are cloud services, so they are cheaper alternatives rather than more private ones.",
   },
   {
     question: "Do any of these work offline?",
     answer:
-      "Apple Dictation, superwhisper, VoiceInk, MacWhisper and Rhino all transcribe on your Mac, so they keep working with the network off once their models are downloaded. Wispr Flow, Aqua Voice and Typeless need a connection.",
+      "Apple Dictation, superwhisper, VoiceInk, MacWhisper and Rhino Voice all transcribe on your Mac, so they keep working with the network off once their models are downloaded. Wispr Flow, Aqua Voice and Typeless need a connection.",
   },
   {
     question: "Is a one-time purchase actually cheaper?",
     answer:
-      "For anything you use for more than a few months, yes, dramatically. A year of Wispr Flow Pro at the annual rate is $144. Rhino is $20 once; VoiceInk starts at $29 once; MacWhisper Pro is around €59 once. The subscription buys you cross-platform support and a funded team's roadmap, which is a real thing to want — it is just worth naming what you are paying for.",
+      "For anything you use for more than a few months, yes, dramatically. A year of Wispr Flow Pro at the annual rate is $144. Rhino Voice is $20 once; VoiceInk starts at $29 once; MacWhisper Pro is around €59 once. The subscription buys you cross-platform support and a funded team's roadmap, which is a real thing to want — it is just worth naming what you are paying for.",
   },
 ];
 
@@ -201,9 +201,9 @@ export default function Page() {
           <p>
             First work out which thing bothered you. If it is the $15 monthly bill,
             Aqua Voice and Typeless do the same cloud job for less, and a one-time
-            purchase like VoiceInk or Rhino ends the bill entirely. If it is that your
+            purchase like VoiceInk or Rhino Voice ends the bill entirely. If it is that your
             voice is processed on someone&apos;s server, you want an app that
-            transcribes on your Mac: Apple Dictation, superwhisper, VoiceInk or Rhino.
+            transcribes on your Mac: Apple Dictation, superwhisper, VoiceInk or Rhino Voice.
           </p>
           <ul>
             <li>
@@ -213,7 +213,7 @@ export default function Page() {
               <strong>Best open-source pick:</strong> VoiceInk
             </li>
             <li>
-              <strong>Best one-time purchase with no cloud pathway:</strong> Rhino (mine)
+              <strong>Best one-time purchase with no cloud pathway:</strong> Rhino Voice (mine)
             </li>
             <li>
               <strong>Best cheaper cloud pick:</strong> Aqua Voice
@@ -251,7 +251,7 @@ export default function Page() {
           <section key={pick.name} className="pick">
             <h2>
               {index + 1}. {pick.name}
-              {pick.name === "Rhino" ? <span className="mine-badge">mine</span> : null}
+              {pick.name === "Rhino Voice" ? <span className="mine-badge">mine</span> : null}
             </h2>
             <dl className="pick-meta">
               <div>
@@ -279,7 +279,7 @@ export default function Page() {
                     ? { target: "_blank", rel: "noopener noreferrer" }
                     : {})}
                 >
-                  {pick.name === "Rhino" ? "See what Rhino does" : `Visit ${pick.name}`}
+                  {pick.name === "Rhino Voice" ? "See what Rhino Voice does" : `Visit ${pick.name}`}
                 </a>
               </p>
             ) : null}
@@ -299,7 +299,7 @@ export default function Page() {
         </section>
 
         <section className="doc-cta">
-          <h2>Try Rhino</h2>
+          <h2>Try Rhino Voice</h2>
           <p>
             $20 once, no subscription and no account. If it does not earn its keep,
             email me inside 30 days and I will refund you.
@@ -315,10 +315,10 @@ export default function Page() {
         <nav className="more-links" aria-label="More comparisons">
           <h2>Head-to-head comparisons</h2>
           <ul>
-            <li><a href="/vs/wispr-flow">Rhino vs Wispr Flow</a></li>
-            <li><a href="/vs/superwhisper">Rhino vs superwhisper</a></li>
-            <li><a href="/vs/macwhisper">Rhino vs MacWhisper</a></li>
-            <li><a href="/vs/apple-dictation">Rhino vs Apple Dictation</a></li>
+            <li><a href="/vs/wispr-flow">Rhino Voice vs Wispr Flow</a></li>
+            <li><a href="/vs/superwhisper">Rhino Voice vs superwhisper</a></li>
+            <li><a href="/vs/macwhisper">Rhino Voice vs MacWhisper</a></li>
+            <li><a href="/vs/apple-dictation">Rhino Voice vs Apple Dictation</a></li>
           </ul>
         </nav>
       </main>

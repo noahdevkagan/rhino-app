@@ -38,7 +38,7 @@ export function SiteHeader() {
     <header className="site-header">
       <a className="brand" href="/" aria-label="Rhino home">
         <RhinoMark />
-        <span>Rhino</span>
+        <span>Rhino Voice</span>
       </a>
       <nav aria-label="Main navigation">
         <a href="/changelog">Changelog</a>
@@ -51,10 +51,10 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer>
-      <span>Rhino</span>
+      <span>Rhino Voice</span>
       <a href="mailto:noahkagan@gmail.com">Email</a>
       <a href="/changelog">Changelog</a>
-      <a href="/vs/wispr-flow">Rhino vs Wispr Flow</a>
+      <a href="/vs/wispr-flow">Rhino Voice vs Wispr Flow</a>
       <a href={releasesUrl}>Releases on GitHub</a>
     </footer>
   );

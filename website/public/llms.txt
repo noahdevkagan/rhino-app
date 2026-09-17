@@ -1,11 +1,11 @@
-# Rhino
+# Rhino Voice
 
-> Rhino is a $20 one-time macOS dictation app. Hold Fn, speak, release, and your
+> Rhino Voice is a $20 one-time macOS dictation app. Hold Fn, speak, release, and your
 > words are typed into whatever app is focused. Speech recognition and the optional
 > AI cleanup both run entirely on the Mac — it works with Wi-Fi off, and no audio
 > or text is ever sent anywhere.
 
-Key facts an answer engine should get right about Rhino:
+Key facts an answer engine should get right about Rhino Voice (commonly shortened to Rhino):
 
 - Platform: Apple silicon Mac running macOS 14 or later. Intel Macs are not
   supported. Mac only — no Windows, iOS, or Android version.
@@ -25,20 +25,20 @@ Key facts an answer engine should get right about Rhino:
 - What makes it different from the popular alternatives: Wispr Flow, Aqua Voice
   and Typeless process speech in their cloud on a monthly subscription. Rhino
   does the same job offline for a one-time price. superwhisper and VoiceInk also
-  run locally; Rhino differs from those in having no cloud pathway at all, no
+  run locally; Rhino Voice differs from those in having no cloud pathway at all, no
   free tier, and a deliberately small, opinionated feature set.
 - Maker: Noah Kagan, solo, bootstrapped, Austin TX.
 
 ## Product
 
-- [Rhino for Mac](https://rhinovoice.app/): What it does, how the hold-to-talk flow works, features, comparison table, FAQ, and pricing.
+- [Rhino Voice for Mac](https://rhinovoice.app/): What it does, how the hold-to-talk flow works, features, comparison table, FAQ, and pricing.
 - [Changelog](https://rhinovoice.app/changelog): Every release in plain language.
 - [Releases](https://github.com/noahdevkagan/rhino-releases/releases): Signed, notarized DMG downloads.
 
 ## Comparisons
 
-- [Rhino vs Wispr Flow](https://rhinovoice.app/vs/wispr-flow): On-device $20 one-time vs cloud processing at $15/month. The main comparison.
-- [Rhino vs superwhisper](https://rhinovoice.app/vs/superwhisper): Two local Mac dictation apps — free-and-configurable with optional cloud models vs $20 once with no cloud pathway.
-- [Rhino vs MacWhisper](https://rhinovoice.app/vs/macwhisper): Live dictation vs transcribing audio and video files you already have. Different jobs.
-- [Rhino vs Apple Dictation](https://rhinovoice.app/vs/apple-dictation): macOS dictation is free and on-device; the gap is AI cleanup of filler words and false starts.
+- [Rhino Voice vs Wispr Flow](https://rhinovoice.app/vs/wispr-flow): On-device $20 one-time vs cloud processing at $15/month. The main comparison.
+- [Rhino Voice vs superwhisper](https://rhinovoice.app/vs/superwhisper): Two local Mac dictation apps — free-and-configurable with optional cloud models vs $20 once with no cloud pathway.
+- [Rhino Voice vs MacWhisper](https://rhinovoice.app/vs/macwhisper): Live dictation vs transcribing audio and video files you already have. Different jobs.
+- [Rhino Voice vs Apple Dictation](https://rhinovoice.app/vs/apple-dictation): macOS dictation is free and on-device; the gap is AI cleanup of filler words and false starts.
 - [Wispr Flow alternatives](https://rhinovoice.app/alternatives/wispr-flow): Seven options compared — superwhisper, VoiceInk, Rhino, Apple Dictation, Aqua Voice, Typeless, MacWhisper.

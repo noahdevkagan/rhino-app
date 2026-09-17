@@ -27,11 +27,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: baseUrl,
-    title: "Rhino — Private dictation for Mac",
+    title: "Rhino Voice — Private dictation for Mac",
     description:
       "Hold a key, talk, and Rhino types in any app. Fast, private dictation with on-device transcription and optional local AI cleanup.",
-    applicationName: "Rhino",
+    applicationName: "Rhino Voice",
     keywords: [
+      "Rhino Voice",
       "Mac dictation",
       "private dictation",
       "offline transcription",
@@ -41,8 +42,8 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       url: baseUrl,
-      siteName: "Rhino",
-      title: "Rhino — Talk. Rhino types. Nothing leaves your Mac.",
+      siteName: "Rhino Voice",
+      title: "Rhino Voice — Talk. Rhino types. Nothing leaves your Mac.",
       description:
         "Private, on-device dictation for Mac. Hold Fn, speak naturally, and release to type in any app.",
       images: [
@@ -50,13 +51,13 @@ export async function generateMetadata(): Promise<Metadata> {
           url: socialImage,
           width: 1740,
           height: 883,
-          alt: "Rhino — private dictation for Mac",
+          alt: "Rhino Voice — private dictation for Mac",
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Rhino — Private dictation for Mac",
+      title: "Rhino Voice — Private dictation for Mac",
       description: "Talk. Rhino types. Nothing leaves your Mac.",
       images: [socialImage],
     },

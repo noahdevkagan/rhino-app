@@ -4,10 +4,10 @@ import { ComparisonPage, type ComparisonContent } from "../../_components/compar
 const content: ComparisonContent = {
   slug: "/vs/apple-dictation",
   competitor: "Apple Dictation",
-  headline: "Rhino vs Apple Dictation (2026): is the free one already good enough?",
+  headline: "Rhino Voice vs Apple Dictation (2026): is the free one already good enough?",
   dek: "macOS has had built-in dictation for years, it runs on-device, and it costs nothing. Here is the honest case for when that is all you need — and the specific things it does not do.",
   shortAnswer:
-    "Apple Dictation is free, built into macOS, and on Apple silicon it runs on-device, so it already solves the privacy problem. What it does not do is clean up how people actually talk: it transcribes you literally, leaving your filler words, false starts and spoken-aloud punctuation in the text. Rhino adds a local AI cleanup pass that turns a rambling sentence into the one you meant to write.",
+    "Apple Dictation is free, built into macOS, and on Apple silicon it runs on-device, so it already solves the privacy problem. What it does not do is clean up how people actually talk: it transcribes you literally, leaving your filler words, false starts and spoken-aloud punctuation in the text. Rhino Voice adds a local AI cleanup pass that turns a rambling sentence into the one you meant to write.",
   pickThem:
     "you dictate occasionally, you speak in clean finished sentences, and free-and-already-installed beats everything else.",
   pickRhino:
@@ -68,17 +68,17 @@ const content: ComparisonContent = {
         "On-device dictation on Apple silicon removed the old short cut-off, so length is not usually the deciding factor any more. The deciding factor is the quality of the text you get back.",
     },
     {
-      question: "What does Rhino's AI cleanup actually do?",
+      question: "What does Rhino Voice's AI cleanup actually do?",
       answer:
         "It runs your raw transcript through a language model on your Mac that removes filler words and false starts, applies punctuation and capitalisation, and structures what you said into the sentence you meant. It never leaves the machine, and it is skipped automatically when you are dictating into an AI assistant or a terminal.",
     },
     {
-      question: "Can I use Rhino on an Intel Mac?",
+      question: "Can I use Rhino Voice on an Intel Mac?",
       answer:
         "No. Rhino requires an Apple silicon Mac running macOS 14 or later. On an Intel Mac, Apple's built-in dictation is your best free option.",
     },
     {
-      question: "Is Rhino worth $20 over a free feature?",
+      question: "Is Rhino Voice worth $20 over a free feature?",
       answer:
         "Only if you dictate enough that editing literal transcripts costs you real time. If you dictate a few times a week, use Apple Dictation. If you dictate for an hour a day, the cleanup pass pays for the app in the first week.",
     },
@@ -86,14 +86,14 @@ const content: ComparisonContent = {
 };
 
 export const metadata: Metadata = {
-  title: "Rhino vs Apple Dictation (2026): Is Mac's Free Dictation Good Enough?",
+  title: "Rhino Voice vs Apple Dictation (2026): Is Mac's Free Dictation Good Enough?",
   description:
-    "macOS dictation is free and runs on-device — so when is it not enough? The honest gap is cleanup: Apple transcribes you literally, filler words and all. Compared by Rhino's founder.",
+    "macOS dictation is free and runs on-device — so when is it not enough? The honest gap is cleanup: Apple transcribes you literally, filler words and all. Compared by Rhino Voice's founder.",
   alternates: { canonical: "https://rhinovoice.app/vs/apple-dictation" },
   openGraph: {
     type: "article",
     url: "https://rhinovoice.app/vs/apple-dictation",
-    title: "Rhino vs Apple Dictation (2026): Is Mac's Free Dictation Good Enough?",
+    title: "Rhino Voice vs Apple Dictation (2026): Is Mac's Free Dictation Good Enough?",
     description:
       "Start with the free one. Here is exactly where it stops being enough.",
   },

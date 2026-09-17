@@ -99,12 +99,12 @@ const faq = [
   {
     question: "How is this different from Wispr Flow?",
     answer:
-      "Wispr Flow processes your speech in its cloud on a $15/month subscription and runs on Mac, Windows and mobile. Rhino processes everything on your own Mac, works offline, costs $20 once, and is macOS-only.",
+      "Wispr Flow processes your speech in its cloud on a $15/month subscription and runs on Mac, Windows and mobile. Rhino Voice processes everything on your own Mac, works offline, costs $20 once, and is macOS-only.",
   },
   {
     question: "How is this different from the dictation built into macOS?",
     answer:
-      "Apple's dictation also runs on-device, so it solves the privacy question too. What it does not do is clean up how people speak — it transcribes you literally, ums and false starts included. Rhino runs a local AI pass that turns what you said into the sentence you meant.",
+      "Apple's dictation also runs on-device, so it solves the privacy question too. What it does not do is clean up how people speak — it transcribes you literally, ums and false starts included. Rhino Voice runs a local AI pass that turns what you said into the sentence you meant.",
   },
   {
     question: "Is there a free trial?",
@@ -122,11 +122,11 @@ const jsonLd = [
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Rhino",
+    name: "Rhino Voice",
     operatingSystem: "macOS 14 or later, Apple silicon",
     applicationCategory: "BusinessApplication",
     description:
-      "Rhino is a private dictation app for Mac. Hold Fn, speak, and release to insert cleaned-up text into any app. Speech recognition and AI cleanup run entirely on your Mac, with no account and no cloud service.",
+      "Rhino Voice is a private dictation app for Mac. Hold Fn, speak, and release to insert cleaned-up text into any app. Speech recognition and AI cleanup run entirely on your Mac, with no account and no cloud service.",
     url: "https://rhinovoice.app/",
     author: { "@type": "Person", name: "Noah Kagan" },
     offers: {
@@ -243,7 +243,7 @@ export default function Home() {
         </section>
 
         <section className="band">
-          <h2>How Rhino compares</h2>
+          <h2>How Rhino Voice compares</h2>
           <p className="band-intro">
             Most dictation apps send your audio to a server and bill you monthly.
             Apple&apos;s built-in dictation keeps it local but transcribes you
@@ -251,11 +251,11 @@ export default function Home() {
           </p>
           <div className="table-wrap">
             <table className="compare-table">
-              <caption>Rhino vs cloud dictation apps vs Apple Dictation</caption>
+              <caption>Rhino Voice vs cloud dictation apps vs Apple Dictation</caption>
               <thead>
                 <tr>
                   <th scope="col">&nbsp;</th>
-                  <th scope="col">Rhino</th>
+                  <th scope="col">Rhino Voice</th>
                   <th scope="col">Cloud apps</th>
                   <th scope="col">Apple Dictation</th>
                 </tr>
@@ -273,10 +273,10 @@ export default function Home() {
             </table>
           </div>
           <ul className="more-links-inline">
-            <li><a href="/vs/wispr-flow">Rhino vs Wispr Flow</a></li>
-            <li><a href="/vs/superwhisper">Rhino vs superwhisper</a></li>
-            <li><a href="/vs/macwhisper">Rhino vs MacWhisper</a></li>
-            <li><a href="/vs/apple-dictation">Rhino vs Apple Dictation</a></li>
+            <li><a href="/vs/wispr-flow">Rhino Voice vs Wispr Flow</a></li>
+            <li><a href="/vs/superwhisper">Rhino Voice vs superwhisper</a></li>
+            <li><a href="/vs/macwhisper">Rhino Voice vs MacWhisper</a></li>
+            <li><a href="/vs/apple-dictation">Rhino Voice vs Apple Dictation</a></li>
             <li><a href="/alternatives/wispr-flow">Wispr Flow alternatives</a></li>
           </ul>
         </section>

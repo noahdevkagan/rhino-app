@@ -34,10 +34,10 @@ export type ComparisonContent = {
 };
 
 const OTHER_LINKS: { href: string; label: string }[] = [
-  { href: "/vs/wispr-flow", label: "Rhino vs Wispr Flow" },
-  { href: "/vs/superwhisper", label: "Rhino vs superwhisper" },
-  { href: "/vs/macwhisper", label: "Rhino vs MacWhisper" },
-  { href: "/vs/apple-dictation", label: "Rhino vs Apple Dictation" },
+  { href: "/vs/wispr-flow", label: "Rhino Voice vs Wispr Flow" },
+  { href: "/vs/superwhisper", label: "Rhino Voice vs superwhisper" },
+  { href: "/vs/macwhisper", label: "Rhino Voice vs MacWhisper" },
+  { href: "/vs/apple-dictation", label: "Rhino Voice vs Apple Dictation" },
   { href: "/alternatives/wispr-flow", label: "Wispr Flow alternatives" },
 ];
 
@@ -96,7 +96,7 @@ export function ComparisonPage({ content }: { content: ComparisonContent }) {
               <strong>Pick {content.competitor} if</strong> {content.pickThem}
             </li>
             <li>
-              <strong>Pick Rhino if</strong> {content.pickRhino}
+              <strong>Pick Rhino Voice if</strong> {content.pickRhino}
             </li>
           </ul>
         </aside>
@@ -107,7 +107,7 @@ export function ComparisonPage({ content }: { content: ComparisonContent }) {
             <thead>
               <tr>
                 <th scope="col">&nbsp;</th>
-                <th scope="col">Rhino</th>
+                <th scope="col">Rhino Voice</th>
                 <th scope="col">{content.competitor}</th>
               </tr>
             </thead>
@@ -145,7 +145,7 @@ export function ComparisonPage({ content }: { content: ComparisonContent }) {
         </section>
 
         <section className="doc-cta">
-          <h2>Try Rhino</h2>
+          <h2>Try Rhino Voice</h2>
           <p>
             $20 once, no subscription and no account. If it does not earn its keep,
             email me inside 30 days and I will refund you.

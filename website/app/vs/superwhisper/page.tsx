@@ -4,10 +4,10 @@ import { ComparisonPage, type ComparisonContent } from "../../_components/compar
 const content: ComparisonContent = {
   slug: "/vs/superwhisper",
   competitor: "superwhisper",
-  headline: "Rhino vs superwhisper (2026): the closest competitor Rhino has",
+  headline: "Rhino Voice vs superwhisper (2026): the closest competitor Rhino has",
   dek: "Most dictation apps send your voice to a server. superwhisper does not have to, which makes it the one honest comparison I have to work at. Here it is, written by the person who built the competitor.",
   shortAnswer:
-    "superwhisper and Rhino both run speech recognition locally on your Mac, so on the privacy question they largely agree. They differ on shape: superwhisper is a free-to-start, deeply configurable app whose paid tier adds optional cloud AI models and runs on Windows and mobile too, while Rhino is one opinionated $20 Mac app with no free tier, no subscription, and no cloud option at all.",
+    "superwhisper and Rhino Voice both run speech recognition locally on your Mac, so on the privacy question they largely agree. They differ on shape: superwhisper is a free-to-start, deeply configurable app whose paid tier adds optional cloud AI models and runs on Windows and mobile too, while Rhino is one opinionated $20 Mac app with no free tier, no subscription, and no cloud option at all.",
   pickThem:
     "you want to try it for free, you like tuning modes and prompts, you want the option of cloud models for the hard transcripts, or you need Windows and mobile.",
   pickRhino:
@@ -63,7 +63,7 @@ const content: ComparisonContent = {
         "With local models selected, yes — it transcribes on your Mac and works offline, the same as Rhino. The distinction is that superwhisper's paid tier can also route transcription or cleanup to cloud models from providers like OpenAI, Anthropic and Google if you choose to enable them. Rhino has no such option.",
     },
     {
-      question: "Is Rhino cheaper than superwhisper?",
+      question: "Is Rhino Voice cheaper than superwhisper?",
       answer:
         "It depends which superwhisper you compare against. Its free tier is free, and Rhino cannot beat that. Against superwhisper Pro at roughly $8.49 a month, Rhino's single $20 payment pays for itself inside three months.",
     },
@@ -73,12 +73,12 @@ const content: ComparisonContent = {
         "They run the same family of open speech models on the same hardware, so raw transcription accuracy is close enough that the difference in practice comes from the cleanup pass and your custom vocabulary rather than the recogniser. Test both on your own voice and your own jargon — that is the only benchmark that predicts your experience.",
     },
     {
-      question: "Does Rhino have a free trial?",
+      question: "Does Rhino Voice have a free trial?",
       answer:
         "No free tier, but there is a 30-day money-back guarantee. Buy it, use it properly for a month, and if it has not earned its keep, email me for a refund.",
     },
     {
-      question: "Can I run Rhino on an Intel Mac or on Windows?",
+      question: "Can I run Rhino Voice on an Intel Mac or on Windows?",
       answer:
         "No. Rhino requires an Apple silicon Mac running macOS 14 or later. If you need Windows or mobile, superwhisper covers those and Rhino does not.",
     },
@@ -86,14 +86,14 @@ const content: ComparisonContent = {
 };
 
 export const metadata: Metadata = {
-  title: "Rhino vs superwhisper (2026): Two Local Mac Dictation Apps Compared",
+  title: "Rhino Voice vs superwhisper (2026): Two Local Mac Dictation Apps Compared",
   description:
-    "Both run speech recognition on your Mac. superwhisper is free-to-start and highly configurable with optional cloud models; Rhino is $20 once with no cloud pathway. Honest comparison from Rhino's founder.",
+    "Both run speech recognition on your Mac. superwhisper is free-to-start and highly configurable with optional cloud models; Rhino Voice is $20 once with no cloud pathway. Honest comparison from Rhino's founder.",
   alternates: { canonical: "https://rhinovoice.app/vs/superwhisper" },
   openGraph: {
     type: "article",
     url: "https://rhinovoice.app/vs/superwhisper",
-    title: "Rhino vs superwhisper (2026): Two Local Mac Dictation Apps Compared",
+    title: "Rhino Voice vs superwhisper (2026): Two Local Mac Dictation Apps Compared",
     description:
       "The closest competitor Rhino has. Where they agree on privacy, and where they genuinely differ.",
   },

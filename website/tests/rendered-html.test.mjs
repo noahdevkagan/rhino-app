@@ -30,7 +30,7 @@ test("server-renders the concise PayPal purchase page", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Rhino — Private dictation for Mac<\/title>/i);
+  assert.match(html, /<title>Rhino Voice — Private dictation for Mac<\/title>/i);
   assert.match(html, /Talk\. Rhino types\./);
   assert.match(html, /Nothing leaves your Mac\./);
   assert.match(html, /Buy Rhino — \$20/);
@@ -56,7 +56,7 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
 
   assert.match(html, /Three keys, one sentence/);
   assert.match(html, /What you get for \$20/);
-  assert.match(html, /How Rhino compares/);
+  assert.match(html, /How Rhino Voice compares/);
   assert.match(html, /Stop typing what you could have said\./);
 
   // FAQ answers are the text AI assistants quote; keep them in the HTML.
@@ -64,6 +64,7 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
   assert.match(html, /An Apple silicon Mac running macOS 14 or later/);
   assert.match(html, /"@type":"FAQPage"/);
   assert.match(html, /"@type":"SoftwareApplication"/);
+  assert.match(html, /"name":"Rhino Voice"/);
 
   // Every comparison page is reachable from the homepage.
   for (const href of [
@@ -79,10 +80,10 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
 
 test("renders every comparison page with its schema and canonical", async () => {
   const routes = [
-    ["/vs/wispr-flow", /Rhino vs Wispr Flow/, /\$15\/month/],
-    ["/vs/superwhisper", /Rhino vs superwhisper/, /no cloud pathway/],
-    ["/vs/macwhisper", /Rhino vs MacWhisper/, /file transcription|transcribing/i],
-    ["/vs/apple-dictation", /Rhino vs Apple Dictation/, /transcribes you literally/],
+    ["/vs/wispr-flow", /Rhino Voice vs Wispr Flow/, /\$15\/month/],
+    ["/vs/superwhisper", /Rhino Voice vs superwhisper/, /no cloud pathway/],
+    ["/vs/macwhisper", /Rhino Voice vs MacWhisper/, /file transcription|transcribing/i],
+    ["/vs/apple-dictation", /Rhino Voice vs Apple Dictation/, /transcribes you literally/],
     ["/alternatives/wispr-flow", /Wispr Flow alternatives/, /superwhisper/],
   ];
 

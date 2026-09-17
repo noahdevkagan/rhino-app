@@ -42,7 +42,67 @@ test("server-renders the concise PayPal purchase page", async () => {
   assert.match(html, /30-day money-back guarantee/);
   assert.match(html, /href="\/changelog"/);
   assert.match(html, /https:\/\/rhinovoice\.app\/og\.png/);
-  assert.doesNotMatch(html, /Built for everyday writing|Up and running in minutes|Good things to know/);
+});
+
+test("carries the below-the-fold SEO sections without disturbing the hero", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  // The hero is still the first thing in <main> and still one screen (see
+  // decisions.md 2026-09-17). These sections live below it, not inside it.
+  assert.match(html, /<main class="hero" id="main">/);
+  assert.match(html, /class="below-fold"/);
+  assert.ok(html.indexOf('class="below-fold"') > html.indexOf('<main class="hero"'));
+
+  assert.match(html, /Three keys, one sentence/);
+  assert.match(html, /What you get for \$20/);
+  assert.match(html, /How Rhino compares/);
+  assert.match(html, /Stop typing what you could have said\./);
+
+  // FAQ answers are the text AI assistants quote; keep them in the HTML.
+  assert.match(html, /Does my voice or my text leave my Mac\?/);
+  assert.match(html, /An Apple silicon Mac running macOS 14 or later/);
+  assert.match(html, /"@type":"FAQPage"/);
+  assert.match(html, /"@type":"SoftwareApplication"/);
+
+  // Every comparison page is reachable from the homepage.
+  for (const href of [
+    "/vs/wispr-flow",
+    "/vs/superwhisper",
+    "/vs/macwhisper",
+    "/vs/apple-dictation",
+    "/alternatives/wispr-flow",
+  ]) {
+    assert.match(html, new RegExp(`href="${href}"`));
+  }
+});
+
+test("renders every comparison page with its schema and canonical", async () => {
+  const routes = [
+    ["/vs/wispr-flow", /Rhino vs Wispr Flow/, /\$15\/month/],
+    ["/vs/superwhisper", /Rhino vs superwhisper/, /no cloud pathway/],
+    ["/vs/macwhisper", /Rhino vs MacWhisper/, /file transcription|transcribing/i],
+    ["/vs/apple-dictation", /Rhino vs Apple Dictation/, /transcribes you literally/],
+    ["/alternatives/wispr-flow", /Wispr Flow alternatives/, /superwhisper/],
+  ];
+
+  for (const [path, headline, body] of routes) {
+    const response = await render(path);
+    assert.equal(response.status, 200, `${path} should render`);
+
+    const html = await response.text();
+    assert.match(html, headline, `${path} headline`);
+    assert.match(html, body, `${path} body`);
+    assert.match(html, /"@type":"FAQPage"/, `${path} FAQ schema`);
+    assert.match(html, /"@type":"BreadcrumbList"/, `${path} breadcrumb schema`);
+    assert.match(
+      html,
+      new RegExp(`rel="canonical" href="https://rhinovoice\\.app${path}"`),
+      `${path} canonical`,
+    );
+    // Every page keeps a working buy path.
+    assert.match(html, /name="amount" value="20\.00"/, `${path} buy form`);
+  }
 });
 
 test("renders the changelog and post-purchase download routes", async () => {
@@ -73,15 +133,19 @@ test("renders the changelog and post-purchase download routes", async () => {
 });
 
 test("ships the crisp Rhino favicon and product metadata", async () => {
-  const [page, layout, packageJson, favicon, socialCard] = await Promise.all([
+  const [page, chrome, layout, packageJson, favicon, socialCard] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/_components/site-chrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/icon.png", import.meta.url)),
     readFile(new URL("../public/og.png", import.meta.url)),
   ]);
 
-  assert.match(page, /🦏/);
+  // The visible logo renders the system rhino emoji, never the cropped app
+  // icon bitmap (decisions.md 2026-08-11). It now lives in the shared chrome.
+  assert.match(chrome, /🦏/);
+  assert.doesNotMatch(chrome, /\/rhino-icon\.png/);
   assert.doesNotMatch(page, /\/rhino-icon\.png/);
   assert.match(layout, /new URL\("\/og\.png", baseUrl\)/);
   assert.doesNotMatch(layout, /rhino-mark\.png/);

@@ -7,6 +7,49 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Fn-to-recording launch-delay evaluation (2026-09-17, sarajevo workspace)
+
+Implemented plan: shorten the entrance to 120 ms; resolve caret and window
+title on background queues using the captured target PID; reject late results
+from previous recordings. Preserve recorder serialization and device fallback.
+Build passed; relevant regression checks below. Existing timing excludes event
+delivery, first audio, and first rendered frame; animation is a hypothesis,
+not a measured 350 ms startup penalty.
+
+Diagnostic complete against the installed v0.1.23 app's unified hot-path log
+(nine Fn starts, cursor-position indicator). From the logged key-down handler
+to `AVAudioRecorder.record()` returning: median 77 ms, range 56–231 ms. The
+median synchronous UI path was only ~8 ms; actual audio setup after it was
+~66 ms. The entrance effect was a possible contributor: 50% scale / +20 pt /
+zero opacity and a 0.35-response spring. The slow 231 ms tail included a 55 ms
+caret query and a 50 ms start method (not individually instrumented inside),
+followed by a 99 ms recorder start.
+
+Implemented on user request: 120 ms entrance (0.95 scale / 4 pt motion), and
+asynchronous PID-pinned caret/title queries with stale-result guards. The
+bubble initially appears at the mouse and then moves to the resolved caret.
+Only after further measurement should we prototype reuse
+of the prepared `AVAudioRecorder` (current init+record median 43 ms, but stale
+AirPods-device risk makes this the risky option). The 0.3 s hold threshold does
+not delay start. Separate diagnostic bug found: `MainThreadWatchdog.check()`
+uses wrapping subtraction, so a heartbeat racing ahead of its sampled `now`
+logs a fake 18,446,744,073-second stall; fix independently, not as the latency
+solution. Build passed; 24 targeted tests for caret decisions, indicator
+layout, recording duration, AirPods fallback/taps and chime passed. Static
+privacy hygiene passed (dynamic egress check skipped). All 30 trigger/access
+regression tests also passed (54 targeted tests total).
+No physical-key-to-first-audio/frame timing has been measured; the installed
+app was subsequently superseded by the dev launch at the user's request.
+
+Measurement completed after the user enabled dev Accessibility: 18 real Fn
+starts at 13:15:40–13:15:57, Sep 17, PID 11826. Handler-to-record-return median
+50.7515 ms, maximum 66.899 ms, minimum 44.419 ms. Earlier nine-sample baseline
+was median 77 ms / maximum 231 ms. Separate sessions and rapid warm presses:
+these are observed results, not a controlled causal benchmark or guaranteed
+upper bound. Dev build remains running; installed app on disk is untouched.
+Earlier synthetic probes produced zero events before permissions were granted
+and are excluded. `.context/startup-timings.py` pairs unified-log events.
+
 ### Auto-detect cleanup language fix (2026-09-15, shanghai workspace)
 
 Confirmed against the installed v0.1.22 binary and real embedded Qwen 1.5B

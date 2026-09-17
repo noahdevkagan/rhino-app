@@ -26,6 +26,7 @@ class ShortcutManager {
     static let shared = ShortcutManager()
 
     private var activeVm: IndicatorViewModel?
+    private let caretQueue = DispatchQueue(label: "com.noahkagan.rhino.caret", qos: .userInitiated)
     private var holdWorkItem: DispatchWorkItem?
     private let holdThreshold: TimeInterval = 0.3
     private var holdMode = false
@@ -168,20 +169,25 @@ class ShortcutManager {
             if self.activeVm == nil {
                 Diag.mark("keyDown → start recording")
                 let cursorPosition = FocusUtils.getCurrentCursorPosition()
-                var caret: CGRect? = nil
-                // Only "cursor" mode needs the caret; other positions anchor to
-                // screen geometry, so skip the synchronous AX caret query (a
-                // main-thread hang risk) when its result would be discarded.
-                if FocusUtils.shouldAnchorToCaret(indicatorPosition: AppPreferences.shared.indicatorPosition) {
-                    caret = Diag.measure("getCaretRect") { FocusUtils.getCaretRect() }
-                }
-                let indicatorPoint: NSPoint? = caret.map { FocusUtils.convertAXPointToCocoa($0.origin) } ?? cursorPosition
+                let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier
                 let vm = Diag.measure("IndicatorWindowManager.show") {
-                    IndicatorWindowManager.shared.show(nearPoint: indicatorPoint)
+                    IndicatorWindowManager.shared.show(nearPoint: cursorPosition)
                 }
                 Diag.measure("vm.startRecording") { vm.startRecording() }
                 self.activeVm = vm
                 self.lockedOn = false
+                // Start at the mouse immediately, then refine the anchor without
+                // waiting for another app's Accessibility server before recording.
+                if FocusUtils.shouldAnchorToCaret(indicatorPosition: AppPreferences.shared.indicatorPosition),
+                   let processID {
+                    self.caretQueue.async {
+                        let caret = FocusUtils.getCaretRect(processID: processID)
+                        DispatchQueue.main.async { [weak self, weak vm] in
+                            guard let vm, self?.activeVm === vm, let caret else { return }
+                            IndicatorWindowManager.shared.updateCaretAnchor(caret, for: vm)
+                        }
+                    }
+                }
             } else if isDoubleTap && !self.lockedOn {
                 // Hands-free: the double-tap's second press locks the recording on instead of
                 // stopping it. Any later press (outside the window, or while locked) stops.

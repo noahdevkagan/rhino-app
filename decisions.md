@@ -1290,6 +1290,22 @@ so plainly. That is not modesty: pages that concede the real trade-offs are the
 ones assistants quote, and Rhino is macOS-and-Apple-silicon-only, which rules it
 out for enough readers that pretending otherwise would just generate refunds.
 
+## 2026-09-17 — Fn startup does not wait for Accessibility metadata
+
+Caret and history-window-title queries now run on worker queues, pinned to the
+target app's captured PID. The bubble appears at the mouse immediately and
+refines its position when the caret arrives; app identity is still captured
+synchronously for cleanup/history semantics. Late caret replies require the
+same active recording and visible manager model; late titles require the same
+capture UUID. Title metadata is best effort: a short take can finish before
+its title arrives. This avoids blocking recording on a busy target app's AX
+server while preserving per-recording identity. The entrance is a subtle
+120 ms ease-out instead of a 0.35-response spring from half size. Existing
+logs measure handler-to-record-return (77 ms median in nine samples), not
+physical-key-to-first-audio or first-frame latency; no measured speedup is
+claimed from the animation alone. Recorder serialization, priming, and
+AirPods validation remain intact.
+
 **2026-09-17 — The public name is "Rhino Voice"; the site was the only place
 saying just "Rhino".** AppSumo (where the listing sits at 4.9 with real
 reviews), the launch post on X, and the rhino-app repo description all say

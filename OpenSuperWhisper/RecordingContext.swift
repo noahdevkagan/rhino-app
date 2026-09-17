@@ -19,11 +19,15 @@ final class RecordingContext {
     /// older versions still render their stored URLs.
     var fullURL: String? { nil }
     private init() {}
+    private var captureID = UUID()
+    private let metadataQueue = DispatchQueue(label: "com.noahkagan.rhino.source-metadata", qos: .userInitiated)
 
     /// Capture the current frontmost app as the active context. Opening a
     /// status-bar menu doesn't steal focus, so this is the app the cursor is
     /// in. If our own app is frontmost, keep the previous context.
     func captureFrontmost() {
+        let id = UUID()
+        captureID = id
         guard let front = NSWorkspace.shared.frontmostApplication,
               let bundle = front.bundleIdentifier,
               bundle != Bundle.main.bundleIdentifier
@@ -31,6 +35,16 @@ final class RecordingContext {
         appName = front.localizedName
         bundleID = bundle
         appIcon = front.icon
-        windowTitle = SourceCapture.focusedWindowTitle()
+        windowTitle = nil
+        let processID = front.processIdentifier
+        // History metadata must never hold up audio or the first indicator frame.
+        // Pin the lookup to this app, and discard replies from an older capture.
+        metadataQueue.async { [weak self] in
+            let title = SourceCapture.focusedWindowTitle(processID: processID)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.captureID == id else { return }
+                self.windowTitle = title
+            }
+        }
     }
 }

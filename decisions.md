@@ -1251,3 +1251,19 @@ field and the real model probe), network or bundled-model language detection
 guess (could pin short text to the wrong language). The rebuilt app kept all
 36/36 Auto probes German; full unit suite and build pass. The separate German
 number-word error remains out of scope.
+
+## 2026-09-17 — Fn startup does not wait for Accessibility metadata
+
+Caret and history-window-title queries now run on worker queues, pinned to the
+target app's captured PID. The bubble appears at the mouse immediately and
+refines its position when the caret arrives; app identity is still captured
+synchronously for cleanup/history semantics. Late caret replies require the
+same active recording and visible manager model; late titles require the same
+capture UUID. Title metadata is best effort: a short take can finish before
+its title arrives. This avoids blocking recording on a busy target app's AX
+server while preserving per-recording identity. The entrance is a subtle
+120 ms ease-out instead of a 0.35-response spring from half size. Existing
+logs measure handler-to-record-return (77 ms median in nine samples), not
+physical-key-to-first-audio or first-frame latency; no measured speedup is
+claimed from the animation alone. Recorder serialization, priming, and
+AirPods validation remain intact.

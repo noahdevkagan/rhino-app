@@ -129,8 +129,8 @@ class IndicatorViewModel: ObservableObject {
         }
 
         // Capture where the dictation is happening (frontmost app, window title) before
-        // recording, for the history row. This runs Accessibility synchronously on the
-        // main thread; it's quick, but see the note in RecordingContext.captureFrontmost.
+        // recording. App identity is captured now; optional window-title IPC runs
+        // in the background so an unresponsive target cannot delay the microphone.
         RecordingContext.shared.captureFrontmost()
 
         // Show recording immediately and optimistically. Whether the mic needs a
@@ -667,10 +667,10 @@ struct IndicatorWindow: View {
         // Black pill in every mode → content always renders in dark-scheme colors.
         .environment(\.colorScheme, .dark)
         // Notch drops in from the top edge; the others rise from below.
-        .scaleEffect(viewModel.isVisible ? 1 : (isNotchMode ? 0.85 : 0.5), anchor: isNotchMode ? .top : .center)
-        .offset(y: viewModel.isVisible ? 0 : (isNotchMode ? -20 : 20))
+        .scaleEffect(viewModel.isVisible ? 1 : 0.95, anchor: isNotchMode ? .top : .center)
+        .offset(y: viewModel.isVisible ? 0 : (isNotchMode ? -4 : 4))
         .opacity(viewModel.isVisible ? 1 : 0)
-        .animation(.spring(response: 0.35, dampingFraction: 0.72), value: viewModel.isVisible)
+        .animation(.easeOut(duration: 0.12), value: viewModel.isVisible)
         // The hosting window is sized by the manager from this preference (NOT by SwiftUI's
         // `.preferredContentSize` auto-resize). That auto-resize runs *animated* whenever any
         // SwiftUI animation transaction is active during a layout pass (NSHostingView

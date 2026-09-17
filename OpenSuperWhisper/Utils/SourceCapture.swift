@@ -7,13 +7,13 @@ import Foundation
 /// the 80/20 simplification — it needed AppleScript automation permission per
 /// browser and only served the removed per-site rules.
 enum SourceCapture {
-    /// Title of the system-wide focused window (e.g. a browser tab or document).
-    static func focusedWindowTitle() -> String? {
-        // These AX calls are synchronous IPC to the frontmost app and run on the
-        // main thread at record-start / menu-open; a wedged target would freeze the
-        // recording hotkey without a timeout (#freeze). Bound every request, exactly
-        // as FocusUtils does.
-        let system = AXUIElementCreateSystemWide()
+    /// Title of the target app's focused window (e.g. a browser tab or document).
+    /// Without a PID, uses the system-wide focus. Call off-main for recording metadata.
+    static func focusedWindowTitle(processID: pid_t? = nil) -> String? {
+        // Bound synchronous IPC even on a worker so a wedged app cannot leave
+        // metadata requests waiting indefinitely.
+        let system = processID.map { AXUIElementCreateApplication($0) }
+            ?? AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, FocusUtils.axMessagingTimeout)
         var windowRef: AnyObject?
         guard AXUIElementCopyAttributeValue(

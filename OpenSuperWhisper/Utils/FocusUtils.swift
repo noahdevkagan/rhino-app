@@ -34,9 +34,10 @@ class FocusUtils {
         return indicatorPosition == "cursor"
     }
 
-    static func getCaretRect() -> CGRect? {
+    static func getCaretRect(processID: pid_t? = nil) -> CGRect? {
         // Получаем системный элемент для доступа ко всему UI
-        let systemElement = AXUIElementCreateSystemWide()
+        let systemElement = processID.map { AXUIElementCreateApplication($0) }
+            ?? AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemElement, axMessagingTimeout)
 
         // Получаем фокусированный элемент

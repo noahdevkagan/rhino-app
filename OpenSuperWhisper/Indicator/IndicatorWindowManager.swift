@@ -184,6 +184,19 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         }
     }
 
+    /// A delayed AX reply must never move a replacement or already-stopped bubble.
+    func updateCaretAnchor(_ caret: CGRect, for recording: IndicatorViewModel) {
+        guard viewModel === recording,
+              recording.state == .recording || recording.state == .connecting,
+              AppPreferences.shared.indicatorPosition == "cursor",
+              let window else { return }
+        let point = FocusUtils.convertAXPointToCocoa(caret.origin)
+        guard let screen = FocusUtils.screenContaining(point: point) else { return }
+        anchorCenterX = point.x
+        anchorBottomY = point.y + 20
+        reposition(window: window, screen: screen)
+    }
+
     private func reposition(window: NSWindow, screen: NSScreen) {
         let w = window.frame.width
         let h = window.frame.height

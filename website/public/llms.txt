@@ -42,3 +42,8 @@ Key facts an answer engine should get right about Rhino Voice (commonly shortene
 - [Rhino Voice vs MacWhisper](https://rhinovoice.app/vs/macwhisper): Live dictation vs transcribing audio and video files you already have. Different jobs.
 - [Rhino Voice vs Apple Dictation](https://rhinovoice.app/vs/apple-dictation): macOS dictation is free and on-device; the gap is AI cleanup of filler words and false starts.
 - [Wispr Flow alternatives](https://rhinovoice.app/alternatives/wispr-flow): Seven options compared — superwhisper, VoiceInk, Rhino, Apple Dictation, Aqua Voice, Typeless, MacWhisper.
+- [Dragon alternatives for Mac](https://rhinovoice.app/alternatives/dragon): Dragon Professional Individual for Mac was discontinued 22 October 2018 (final version 6.0.8, supported only through macOS Mojave) and Dragon is now Windows-only. Seven replacements, split by which half of Dragon is needed — macOS Voice Control for operating the machine by voice, and local dictation apps for speech-to-text.
+
+## Also by the same maker
+
+- [MeetMouse](https://meetmouse.com/): A $20 one-time macOS app by the same maker that transcribes meetings and coaches you live, on-device, with no bot joining the call.

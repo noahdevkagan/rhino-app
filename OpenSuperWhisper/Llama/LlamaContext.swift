@@ -83,6 +83,24 @@ public final class LlamaContext {
     /// recording), making even the FIRST cleanup after a load cheap.
     private var kvTokens: [LlamaToken] = []
 
+    /// Keep the other pass's system prefix when spoken edits and cleanup alternate. One
+    /// inactive snapshot + the active sequence is enough for the two-pass pipeline. Snapshots
+    /// contain only system-prompt tokens, never a transcript or generated response, and die
+    /// with this context on idle unload. All access remains on the backend's inference queue.
+    private struct PromptSnapshot {
+        let system: String
+        let tokens: [LlamaToken]
+        let data: [UInt8]
+    }
+    private var activeSystem: String?
+    private var activeSystemPrefix: [LlamaToken] = []
+    private var inactivePrompt: PromptSnapshot?
+    private let promptCacheByteLimit: Int
+
+    /// Internal diagnostics for real-model regression probes; no transcript content.
+    var cachedPromptBytes: Int { inactivePrompt?.data.count ?? 0 }
+    private(set) var promptCacheHits = 0
+
     // llama_backend_init() must be called once per process before loading any model.
     // Use a static token so repeated LlamaContext creations don't re-init the backend.
     private static let backendInit: Void = {
@@ -94,7 +112,11 @@ public final class LlamaContext {
 
     /// Loads a GGUF model from disk and creates an inference context.
     /// GPU offload is enabled (all layers) so Metal is used, matching the whisper path.
-    public init?(modelPath: String, contextLength: UInt32 = 4096, gpuLayers: Int32 = 999) {
+    /// `promptCacheByteLimit` bounds in-memory prefix snapshots; zero disables snapshots
+    /// for baseline comparisons while retaining ordinary in-sequence prefix reuse.
+    public init?(modelPath: String, contextLength: UInt32 = 4096, gpuLayers: Int32 = 999,
+                 promptCacheByteLimit: Int = 64 * 1024 * 1024) {
+        self.promptCacheByteLimit = max(0, promptCacheByteLimit)
         _ = LlamaContext.backendInit
 
         // --- Load the model ---
@@ -314,6 +336,58 @@ public final class LlamaContext {
         return n
     }
 
+    /// Save/restore only on a system-prompt switch. Ordinary consecutive cleanups keep the
+    /// existing zero-copy KV-prefix path. A new prompt or an oversized/failed snapshot falls
+    /// back to normal prefix decoding; a cached prompt is still checked token-for-token by
+    /// prefill/generate after restoration, including the final-token/logits guard in generate.
+    private func preparePromptCache(for system: String) {
+        guard promptCacheByteLimit > 0, activeSystem != system, let ctx else { return }
+
+        let restore = inactivePrompt?.system == system ? inactivePrompt : nil
+        inactivePrompt = nil  // evict an unrelated prompt before allocating another snapshot
+
+        if let previous = activeSystem {
+            // Derive the reusable boundary from the chat template, not a character/token
+            // estimate. A tokenizer merge at that boundary merely shortens the saved prefix.
+            let shared = Self.commonPrefixLength(kvTokens, activeSystemPrefix)
+            let kept = rewindMemory(keepingFirst: shared)
+            if kept > 0 {
+                let size = llama_state_seq_get_size(ctx, 0)
+                // Bound both snapshots while swapping, not just the retained one. Large
+                // custom prompts simply miss the cache. Token metadata is context-bounded.
+                let available = promptCacheByteLimit - (restore?.data.count ?? 0)
+                if size > 0, size <= available {
+                    var data = [UInt8](repeating: 0, count: size)
+                    let written = data.withUnsafeMutableBufferPointer {
+                        llama_state_seq_get_data(ctx, $0.baseAddress, size, 0)
+                    }
+                    if written == size {
+                        inactivePrompt = PromptSnapshot(system: previous, tokens: kvTokens, data: data)
+                    }
+                }
+            }
+        }
+
+        if let restore {
+            clearMemory()
+            let read = restore.data.withUnsafeBufferPointer {
+                llama_state_seq_set_data(ctx, $0.baseAddress, restore.data.count, 0)
+            }
+            if read == restore.data.count {
+                kvTokens = restore.tokens
+                promptCacheHits += 1
+            } else {
+                // A partial restore must never leave an untracked KV sequence behind.
+                clearMemory()
+            }
+        }
+
+        activeSystem = system
+        let a = formatChatPrompt(system: system, user: "a")
+        let b = formatChatPrompt(system: system, user: "b")
+        activeSystemPrefix = tokenize(a.commonPrefix(with: b), addSpecial: true)
+    }
+
     // MARK: - Generation
 
     /// Whether the last `generate` failed to reach a natural stop: the prompt had to be
@@ -341,6 +415,7 @@ public final class LlamaContext {
         let prefixTokens = tokenize(prefix, addSpecial: true)
         guard !prefixTokens.isEmpty, let ctx, prefixTokens.count < Int(llama_n_ctx(ctx)) else { return }
 
+        preparePromptCache(for: system)
         let shared = Self.commonPrefixLength(kvTokens, prefixTokens)
         if shared == prefixTokens.count { return }  // already resident (possibly with more after it)
         let kept = rewindMemory(keepingFirst: shared)
@@ -353,8 +428,9 @@ public final class LlamaContext {
     /// Runs a single-shot chat completion: formats the prompt, decodes the prompt
     /// tokens, then greedily samples up to `maxTokens` tokens, stopping at EOG.
     ///
-    /// The KV cache is NOT unconditionally cleared between calls. Positions matter
-    /// (`llama_batch_get_one` continues from wherever the sequence ends), so the cache is instead
+    /// The KV cache is NOT unconditionally cleared between calls. A system-prompt switch first
+    /// restores its saved prefix when available. Positions matter (`llama_batch_get_one`
+    /// continues from wherever the sequence ends), so the active cache is then
     /// rewound to the longest token-for-token prefix it shares with this call's prompt and only
     /// the rest is decoded. For back-to-back cleanups that prefix is the entire system prompt +
     /// user-wrapper preamble (`prefill` puts it there even for the first call), which is what
@@ -378,6 +454,7 @@ public final class LlamaContext {
             return ""
         }
 
+        preparePromptCache(for: system)
         let nCtx = Int(llama_n_ctx(ctx))
         if promptTokens.count >= nCtx {
             // Truncate the prompt if it doesn't fit; leave room for the response. A truncated
@@ -425,6 +502,11 @@ public final class LlamaContext {
         // means the output stops mid-thought.
         if !sawEndOfGeneration {
             lastGenerationTruncated = true
+        }
+        if lastGenerationTruncated {
+            // A failed decode may have partially modified llama's state. Do not preserve it
+            // as a future prompt snapshot; existing valid inactive snapshots remain usable.
+            clearMemory()
         }
 
         // One decode over the whole byte run, so multi-byte characters that straddled two tokens

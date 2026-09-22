@@ -7,6 +7,48 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Prompt-cache implementation (2026-09-21, windhoek workspace)
+
+Implemented the user-authorized cache optimization in `LlamaContext.swift`.
+One inactive system-prefix snapshot survives switches between formatting and
+spoken edits; one model, existing serial queue, no transcript/output snapshots.
+Combined serialized-state cap during swaps: 64 MiB. Exact-token/logits checks
+and fail-closed truncation behavior retained; idle context unload frees caches.
+Other audit proposals remain separate follow-up work. App/settings untouched.
+
+Validation: app build passed; full unit suite 418 passed / six skipped / zero
+failures, with the new real-model cache test running and passing. Output parity
+against installed v0.1.24: 108/108 cleanup comparisons identical (24 each default,
+formatting, edits, combined; 12 combined Auto multilingual). ASR parity: seven
+offline and five stable boosted clips identical; two boosted clips excluded as
+unstable on unchanged baseline. `bench/parity/parity.sh` now includes combined
+formatting+edits for future checks. Hygiene (including dynamic egress), ASR,
+latency, smoke and release suites all passed; latency p50 422 ms / max 779 ms.
+Production-source isolated benchmark: warm corrections+formatting 504 ms vs
+2,182 ms baseline, 12/12 paired outputs identical. No install/release/commit.
+
+### Performance audit (2026-09-21, windhoek workspace)
+
+Audit complete in `docs/performance-audit-2026-09-21.md`; raw measurements and
+isolated prototype live in `.context/performance-audit/`. Garrett clarified the
+issue is AFTER dictation and uses smart formatting. His model/Mac/spoken-edits
+setting are unknown. Production source and real preferences remain unchanged.
+
+236 installed v0.1.24 CLI results on this M4: warm Parakeet v2 62–80 ms for
+4–11 s fixtures; formatting cleanup 239 ms sentence / 731 ms 42-word email;
+spoken correction + formatting 2,362 ms. Cold CLI runs include loading and do
+not measure the preloaded GUI. Shared edit/cleanup KV cache is a confirmed
+slow path: the edit prompt displaces the 1,380-token warmed formatting prefix.
+An isolated same-model two-cache prototype reduced this path by ~1.75 s in
+both run orders (2.34→0.58 s and 2.18→0.43 s), with 24/24 paired outputs
+identical and ~50 MiB snapshots. See audit for limitations. No fix shipped.
+
+Next: end-to-end local release→paste instrumentation, bounded per-pass prompt
+cache implementation with full parity/quality/memory validation, deduplicated
+model readiness and foreground queue priority. Do not replace accurate final
+ASR with the deliberately lower-quality live caption. Do not merge the edit
+and cleanup prompts: past real-model probes rejected that design.
+
 ### Fn-to-recording launch-delay evaluation (2026-09-17, sarajevo workspace)
 
 Implemented plan: shorten the entrance to 120 ms; resolve caret and window

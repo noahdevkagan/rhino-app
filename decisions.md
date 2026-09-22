@@ -1322,3 +1322,43 @@ rendered-html test now asserts `"name":"Rhino Voice"` in the homepage schema
 so the brand cannot silently drift back. Deliberately NOT changed: the PayPal
 `item_name` is still "Rhino for Mac", because that string appears in existing
 payment records and changing it complicates reconciliation for no SEO gain.
+
+
+## 2026-09-21 — Audit post-dictation latency before changing model size or formatting semantics
+
+Garrett clarified that “loading” means the wait after he finishes speaking and
+that smart formatting is enabled. Isolated v0.1.24 CLI measurements on the local
+M4 show warm recognition is much cheaper than cleanup; combining a spoken-edit
+cue with formatting causes the single KV prefix cache to be replaced twice.
+Investigated preserving per-pass sequence state in a local-only prototype,
+sharing one model, instead of merging prompts (already rejected by the real
+1.5B probes in August) or substituting lower-quality live-preview text. The
+prototype is evidence for a bounded cache implementation, not a production
+change: cache memory, output isolation, languages, cold starts and ordinary
+requests need broader validation. Full findings and limits are recorded in
+`docs/performance-audit-2026-09-21.md`. No smaller-model recommendation is
+justified for Garrett until his actual engine/settings and stage timings are
+known. All-local behavior and complete-text guards remain requirements.
+
+
+## 2026-09-21 — Keep one inactive system-prefix snapshot across cleanup passes
+
+User authorized implementing the audit's cache optimization. LlamaContext now
+preserves one inactive system-prompt prefix alongside the active sequence; the
+formatting and spoken-edit passes continue sharing one model and serial queue.
+Unlike the audit prototype's full-sequence snapshots, production snapshots trim
+to the chat template's common system prefix before serialization, excluding old
+transcripts and generated responses. Prefixes are keyed by the exact system
+prompt and still token-validated after restoration, with the final prompt token
+always decoded for fresh logits. Ordinary same-system calls take the existing
+zero-copy path. A 64 MiB cap includes both serialized snapshots during a swap;
+oversized prefixes and failed restores fall back to ordinary decoding. Cached
+state dies with the context at the existing idle unload. Failed/truncated
+inference clears active KV state so it cannot become a future cached prefix.
+
+Chose llama's sequence-state save/restore API over a second model/context to
+bound RAM and keep the existing inference ownership. The real-model regression
+covers mixed formatting/edit/language requests, no-cache/tiny-budget fallback,
+new-context initialization, and recovery after generation/context truncation.
+The broader audit's queue, deadline, prewarm and architecture proposals remain
+separate work; prompts and transcript acceptance policies are unchanged.

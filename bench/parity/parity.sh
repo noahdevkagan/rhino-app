@@ -4,8 +4,8 @@
 # Builds the base ref in a temp worktree (reused across runs), then compares
 # byte-for-byte against the current dev build:
 #
-#   1. LLM cleanup over corpus.txt, in three configs (default, smart
-#      formatting, spoken edits). The branch side runs `cleanup --stdin` —
+#   1. LLM cleanup over corpus.txt, in four configs (default, smart
+#      formatting, spoken edits, both together). The branch side runs `cleanup --stdin` —
 #      every line through ONE process, the app's real dictation-after-
 #      dictation pattern — so cross-dictation state (e.g. the KV prefix
 #      cache) is exercised against the base's isolated per-line runs.
@@ -85,12 +85,14 @@ print(json.dumps({"input": sys.argv[2], "text": o["text"]}))' "$o" "$line" >> "$
     done < corpus.txt
     echo ']' >> "$1"
 }
-for config in default smartfmt spokenedits; do
+for config in default smartfmt spokenedits combined; do
     case $config in
         default)     defaults write "$SUITE" smartFormattingEnabled -bool false
                      defaults write "$SUITE" spokenEditsEnabled -bool false ;;
         smartfmt)    defaults write "$SUITE" smartFormattingEnabled -bool true ;;
         spokenedits) defaults write "$SUITE" smartFormattingEnabled -bool false
+                     defaults write "$SUITE" spokenEditsEnabled -bool true ;;
+        combined)    defaults write "$SUITE" smartFormattingEnabled -bool true
                      defaults write "$SUITE" spokenEditsEnabled -bool true ;;
     esac
     echo "cleanup [$config]: base per-line..."

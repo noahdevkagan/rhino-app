@@ -39,6 +39,7 @@ const OTHER_LINKS: { href: string; label: string }[] = [
   { href: "/vs/macwhisper", label: "Rhino Voice vs MacWhisper" },
   { href: "/vs/apple-dictation", label: "Rhino Voice vs Apple Dictation" },
   { href: "/alternatives/wispr-flow", label: "Wispr Flow alternatives" },
+  { href: "/alternatives/dragon", label: "Dragon alternatives for Mac" },
 ];
 
 export function comparisonJsonLd(content: ComparisonContent) {

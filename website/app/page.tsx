@@ -278,6 +278,7 @@ export default function Home() {
             <li><a href="/vs/macwhisper">Rhino Voice vs MacWhisper</a></li>
             <li><a href="/vs/apple-dictation">Rhino Voice vs Apple Dictation</a></li>
             <li><a href="/alternatives/wispr-flow">Wispr Flow alternatives</a></li>
+            <li><a href="/alternatives/dragon">Dragon alternatives for Mac</a></li>
           </ul>
         </section>
 

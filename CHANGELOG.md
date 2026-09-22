@@ -3,6 +3,15 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.25 — 2026-09-22
+
+- Dictation comes back faster when you use spoken corrections and smart
+  formatting together. Rhino runs those as two AI passes, and each one used
+  to evict the other's warmed-up instructions, so every dictation re-read
+  several hundred tokens of setup after you stopped speaking. Both passes now
+  stay warm at once: in a local benchmark that path dropped from about 2.2
+  seconds to 0.5. The wording of your transcripts is unchanged.
+
 ## 0.1.24 — 2026-09-17
 
 - Starting a recording no longer waits on the app you're dictating into.

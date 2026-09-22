@@ -1,5 +1,12 @@
 const releases = [
   {
+    version: "0.1.25",
+    date: "September 22, 2026",
+    changes: [
+      "Dictation comes back faster when you use spoken corrections and smart formatting together. Rhino runs those as two AI passes, and each one used to evict the other's warmed-up instructions, so every dictation re-read several hundred tokens of setup after you stopped speaking. Both passes now stay warm at once: in a local benchmark that path dropped from about 2.2 seconds to 0.5. The wording of your transcripts is unchanged.",
+    ],
+  },
+  {
     version: "0.1.24",
     date: "September 17, 2026",
     changes: [

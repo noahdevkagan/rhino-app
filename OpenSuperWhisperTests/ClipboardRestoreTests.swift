@@ -69,9 +69,21 @@ final class ClipboardRestoreTests: XCTestCase {
         var textDuringPaste: String?
         ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05) {
             textDuringPaste = pasteboard.string(forType: .string)
+            // Maccy's always-ignored type: it must accompany the text when paste runs.
+            let transient = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+            XCTAssertTrue(pasteboard.types?.contains(transient) == true)
+            XCTAssertNotNil(pasteboard.pasteboardItems?.first?.data(forType: transient))
         }
 
         XCTAssertEqual(textDuringPaste, "transcription")
+    }
+
+    func testExplicitCopyRemainsVisibleToClipboardHistory() {
+        ClipboardUtil.copyToClipboard("transcription", to: pasteboard)
+
+        XCTAssertEqual(pasteboard.string(forType: .string), "transcription")
+        XCTAssertFalse(pasteboard.types?.contains(
+            NSPasteboard.PasteboardType("org.nspasteboard.TransientType")) == true)
     }
 
     func testBorrowForPasteRestoresPreviousContentsAfterDelay() {
@@ -83,6 +95,8 @@ final class ClipboardRestoreTests: XCTestCase {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { restoreWindowElapsed.fulfill() }
         wait(for: [restoreWindowElapsed], timeout: 2)
         XCTAssertEqual(pasteboard.string(forType: .string), "original")
+        XCTAssertFalse(pasteboard.types?.contains(
+            NSPasteboard.PasteboardType("org.nspasteboard.TransientType")) == true)
     }
 
     func testBorrowForPasteSkipsRestoreWhenSomethingElseWroteMeanwhile() {

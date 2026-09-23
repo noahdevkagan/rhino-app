@@ -7,6 +7,18 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Clipboard-history fix (2026-09-22, madrid-v1 workspace)
+
+Implemented: clipboard borrows now publish text and the standard transient
+marker together so Maccy ignores temporary dictation entries when Copy to
+clipboard is off. Ordinary copies and clipboard restoration are unchanged.
+Validated all 12 ClipboardRestoreTests against production ClipboardUtil.swift
+in an isolated XCTest runner using named macOS pasteboards: all pass; the new
+marker assertions fail against HEAD's original utility. Static hygiene passes.
+Full app build blocked by uninitialized whisper.cpp/llama.cpp submodules.
+Logs/runner: `.context/clipboard-tests/`; build: `.context/clipboard-build.log`.
+Not installed or released; live Maccy end-to-end testing remains outstanding.
+
 ### Prompt-cache implementation (2026-09-21, windhoek workspace)
 
 Implemented the user-authorized cache optimization in `LlamaContext.swift`.

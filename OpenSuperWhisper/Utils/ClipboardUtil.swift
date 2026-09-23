@@ -71,7 +71,14 @@ enum ClipboardUtil {
         } else {
             saved = snapshot(of: pasteboard)
         }
-        copyToClipboard(text, to: pasteboard)
+        // Clipboard managers can observe the temporary text before restoration. Publish the
+        // standard transient marker together with the text, never an unmarked intermediate
+        // copy, so Maccy and other conforming managers exclude it from their history.
+        let item = NSPasteboardItem()
+        item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
+        item.setString(text, forType: .string)
+        pasteboard.clearContents()
+        pasteboard.writeObjects([item])
         let borrowChangeCount = pasteboard.changeCount
         paste()
         let restoreItem = DispatchWorkItem {

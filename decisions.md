@@ -1362,3 +1362,15 @@ covers mixed formatting/edit/language requests, no-cache/tiny-budget fallback,
 new-context initialization, and recovery after generation/context truncation.
 The broader audit's queue, deadline, prewarm and architecture proposals remain
 separate work; prompts and transcript acceptance policies are unchanged.
+
+
+## 2026-09-22 — Temporary paste entries are marked transient for clipboard managers
+
+Copy-to-clipboard OFF already restores the previous clipboard after a paste,
+but Maccy can capture the unmarked transcription during the one-second borrow.
+Publish text and `org.nspasteboard.TransientType` in one prepared pasteboard item;
+Maccy's documented always-ignored types include this marker. Keep the existing
+paste mechanism and restore timing for target-app compatibility. Ordinary copies
+(including existing explicit recovery paths) remain normal clipboard entries.
+This is cooperation with clipboard managers, not a promise that temporary text
+never touches the system clipboard. No network behavior is added to the app.

@@ -1,5 +1,12 @@
 const releases = [
   {
+    version: "0.1.26",
+    date: "September 22, 2026",
+    changes: [
+      "If you run a clipboard manager like Maccy, your dictations no longer pile up in its history. With \"Copy to clipboard\" off, Rhino only borrows the clipboard for about a second to paste, and fast clipboard managers could grab the text in that window. The borrowed text is now marked as temporary, the standard signal clipboard managers use to skip an entry. Anything you copy yourself still shows up in history as before.",
+    ],
+  },
+  {
     version: "0.1.25",
     date: "September 22, 2026",
     changes: [

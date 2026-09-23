@@ -3,6 +3,15 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.26 — 2026-09-22
+
+- If you run a clipboard manager like Maccy, your dictations no longer pile
+  up in its history. With "Copy to clipboard" off, Rhino only borrows the
+  clipboard for about a second to paste, and fast clipboard managers could
+  grab the text in that window. The borrowed text is now marked as
+  temporary, the standard signal clipboard managers use to skip an entry.
+  Anything you copy yourself still shows up in history as before.
+
 ## 0.1.25 — 2026-09-22
 
 - Dictation comes back faster when you use spoken corrections and smart

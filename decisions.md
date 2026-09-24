@@ -1450,3 +1450,15 @@ responsibility call is private libsystem API (stable for years, what Activity Mo
 groups by); if it disappears, helpers are judged by their own bundle id. Residual: a
 browser tab holding a silent stream (e.g. a web app with an AudioContext) still arms
 a resume.
+
+
+## 2026-09-24 — Warm-up failures clear KV state and remain retryable
+
+Mark decode shapes warm only after every required decode and rewind succeeds.
+On any failure clear the KV cache and its token mirror, because llama's decode
+API permits partial backend state on errors. Keep valid inactive system-prefix
+snapshots: they precede the throwaway warm-up and remain safe to restore. The
+next prefill retries normally. Model, prompts, drafting and output acceptance
+are unchanged. A real-model regression uses a nearly full 256-token context
+to force verify failure, then checks successful retry and output parity against
+both a fresh speculative context and plain greedy decoding.

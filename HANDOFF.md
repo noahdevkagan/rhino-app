@@ -7,6 +7,18 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Warm-up failure recovery (2026-09-24, halifax workspace)
+
+Implemented: clear uncertain KV state if either warm-up decode or rewind fails;
+mark decode shapes warm only after all required steps succeed. Real-model
+failure/retry regression added. Build and seven speculative/cache tests pass
+(zero skips); 48/48 benchmark outputs byte-identical to the pre-fix branch.
+Timing is observational: sum of warm input medians 6.17 s before / 6.50 s after
+in separate runs. Model, prompts, draft policy and truncation behavior intact.
+PR plan: commit the recovery fix, push through the full gate, and open a PR
+against master using the user-supplied title and description. Not installed or
+released. Logs: `.context/speed-audit/warmup-fix*`.
+
 ### Release→paste speed audit #2 (2026-09-23, halifax workspace)
 
 Audit only, no production change: `docs/performance-audit-2026-09-23.md`. On v0.1.26

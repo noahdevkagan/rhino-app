@@ -42,6 +42,38 @@ final class LlamaSpeculativeDecodingTests: XCTestCase {
 
     // MARK: - Real model: speculative output must equal plain greedy decoding
 
+    func testRealModelWarmupFailureCanRetryWithoutChangingOutput() throws {
+        let manager = LLMModelManager.shared
+        let url = manager.localURL(for: LLMModelManager.defaultModel.fileName)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw XCTSkip("Local cleanup model not installed")
+        }
+        let system = "Correct punctuation and capitalization. Preserve the speaker's words."
+        let user = "sounds good see you tomorrow"
+        func run(speculative: Bool, failWarmup: Bool) throws -> String {
+            let context = try XCTUnwrap(LlamaContext(modelPath: url.path, contextLength: 256,
+                                                    speculativeDecoding: speculative))
+            if failWarmup {
+                // Qwen's prefix fits, but leaves fewer than 32 KV slots for the verify batch.
+                // The single-token-only control below confirms prefill actually reached warm-up.
+                context.prefill(system: String(repeating: " word", count: 225),
+                                userVariantA: "a", userVariantB: "b")
+                XCTAssertEqual(context.decodeShapesWarm, !speculative,
+                               "A failed verify must leave warm-up eligible for retry")
+            }
+            context.prefill(system: system, userVariantA: "a", userVariantB: "b")
+            XCTAssertTrue(context.decodeShapesWarm, "Warm-up must succeed with room to decode")
+            let output = context.generate(system: system, user: user, maxTokens: 64)
+            XCTAssertFalse(context.lastGenerationTruncated)
+            return output
+        }
+        let plain = try run(speculative: false, failWarmup: true)
+        let fresh = try run(speculative: true, failWarmup: false)
+        let recovered = try run(speculative: true, failWarmup: true)
+        XCTAssertEqual(recovered, fresh)
+        XCTAssertEqual(recovered, plain)
+    }
+
     /// Same requests through a plain-decoding context and a speculative one, in app order
     /// (recording-time prefill, then generate). Every text and truncation flag must match.
     /// CI without the optional local model skips; this test never initiates a download.

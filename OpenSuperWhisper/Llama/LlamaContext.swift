@@ -106,7 +106,7 @@ public final class LlamaContext {
     private var verifyBatch: llama_batch
     /// A fresh context's first decode of each batch shape pays one-time setup (~400 ms on an M4
     /// for the single-token step). `prefill` runs both shapes once, off the critical path.
-    private var decodeShapesWarm = false
+    private(set) var decodeShapesWarm = false
 
     /// Internal diagnostics for real-model regression probes; no transcript content.
     var cachedPromptBytes: Int { inactivePrompt?.data.count ?? 0 }
@@ -370,13 +370,21 @@ public final class LlamaContext {
     /// decodes at least its final prompt token itself.
     private func warmDecodeShapesIfNeeded() {
         guard !decodeShapesWarm, let last = kvTokens.last else { return }
-        decodeShapesWarm = true
         let base = kvTokens.count
-        if decodeAppending([last]) { _ = rewindMemory(keepingFirst: base) }
-        guard speculativeDecoding, kvTokens.count == base else { return }
-        if decodeVerifyBatch(Array(repeating: last, count: Self.maxDraftTokens + 1)) {
-            _ = rewindMemory(keepingFirst: base)
+        guard decodeAppending([last]), rewindMemory(keepingFirst: base) == base else {
+            // Failed decodes can leave partial backend state absent from the token mirror.
+            // Clear it explicitly; the next prefill can rebuild the prefix and retry warm-up.
+            clearMemory()
+            return
         }
+        if speculativeDecoding {
+            guard decodeVerifyBatch(Array(repeating: last, count: Self.maxDraftTokens + 1)),
+                  rewindMemory(keepingFirst: base) == base else {
+                clearMemory()
+                return
+            }
+        }
+        decodeShapesWarm = true
     }
 
     // MARK: - Speculative decoding (prompt lookup)

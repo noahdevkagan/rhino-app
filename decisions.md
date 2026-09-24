@@ -1376,6 +1376,31 @@ This is cooperation with clipboard managers, not a promise that temporary text
 never touches the system clipboard. No network behavior is added to the app.
 
 
+## 2026-09-23 — Prompt-lookup speculative decoding + first-decode warm-up for cleanup
+
+Audit (`docs/performance-audit-2026-09-23.md`): on v0.1.26 LLM generation is 70–90%
+of release→paste, one bandwidth-bound decode per output token, while the output is
+mostly the transcript re-emitted. `LlamaContext.generate` now drafts the tokens that
+followed the output's latest n-gram in the user message and verifies them in one
+batched decode, keeping a drafted token only while it equals the model's own greedy
+choice. The same greedy decode in fewer passes: no second model, no extra memory, no
+prompt or output-policy change. Rejected: a draft model (RAM, second load), smaller
+or lower-quant cleanup model (quality), edit-list output formats (changes behavior).
+
+Draft sizing follows the measured M4 verify cost (1 tok 13 ms, 4 37 ms, 8 72 ms,
+16–32 ~50 ms): a ≥4-token match verifies up to 31 tokens, a weaker match a single
+probe token, never the slow middle sizes. Drafting from the whole prompt was
+rejected: the formatting examples produced bogus list matches. Lists/heavy
+reformatting stay at baseline speed; prose gets 1.5–5.7×. Parity is empirical (batched
+vs single-token Metal kernels round differently), so a real-model test compares
+against `speculativeDecoding: false` and parity.sh runs before release; the
+thresholds are M4-measured and should be rechecked on M1/M3.
+
+Separately, a fresh context's first single-token/verify decode costs ~400 ms of
+one-time setup. `prefill` (recording-start prewarm) now runs both shapes once and
+rewinds them, so the first cleanup after an idle unload — 56% of Noah's dictations —
+no longer pays it after release (first "sounds good" 500 → 150 ms).
+
 ## 2026-09-23 — Offer free copies to friends after successful use
 
 User clarified this is giving Rhino to three other people for free, not earning
@@ -1404,3 +1429,36 @@ both include it so the free offer survives sharing. Do not invent an automatic
 coupon URL parameter: recipients apply the supplied code at checkout. The app
 still only copies text, with no account, network calls, or outbound messages.
 Coupon validity is user-provided; no checkout or coupon redemption was performed.
+
+
+## 2026-09-23 — Media resume counts only media apps' output, attributed to the owning app
+
+Noah: pressing Fn with pause-media on started his paused Spotify (dev build, and
+0.1.26 behaves the same). Console: `resume armed via processes output=[…,
+"com.apple.WebKit.GPU"] announced=["com.spotify.client=paused"]`. Via
+`responsibility_get_pid_responsible_for_pid`, that WebKit GPU helper belongs to
+Conductor, whose web view holds a silent output stream open all day. The 2026-09-02
+rule counted ANY non-announcing process rendering output as media, so every
+dictation armed a resume, and the play command went to the now-playing owner,
+the paused Spotify. This was that entry's "known residual", and it hits constantly
+with a web-view app open. Changed the fallback from "any other output" to "output from a known media app"
+(browsers + music/podcast/video players, prefix-matched), with helper processes
+attributed to their responsible app first (so Safari's WebKit GPU counts, Conductor's
+doesn't; Chrome helpers → Chrome). Trade-off accepted: an unlisted player no longer
+auto-resumes (the user presses play), which is far better than unprompted music. The
+responsibility call is private libsystem API (stable for years, what Activity Monitor
+groups by); if it disappears, helpers are judged by their own bundle id. Residual: a
+browser tab holding a silent stream (e.g. a web app with an AudioContext) still arms
+a resume.
+
+
+## 2026-09-24 — Warm-up failures clear KV state and remain retryable
+
+Mark decode shapes warm only after every required decode and rewind succeeds.
+On any failure clear the KV cache and its token mirror, because llama's decode
+API permits partial backend state on errors. Keep valid inactive system-prefix
+snapshots: they precede the throwaway warm-up and remain safe to restore. The
+next prefill retries normally. Model, prompts, drafting and output acceptance
+are unchanged. A real-model regression uses a nearly full 256-token context
+to force verify failure, then checks successful retry and output parity against
+both a fresh speculative context and plain greedy decoding.

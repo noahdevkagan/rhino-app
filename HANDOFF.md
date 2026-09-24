@@ -7,6 +7,41 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Master merge (2026-09-24, halifax workspace)
+
+Merged origin/master (e7e9e84) into local/test-speed-plus-media. Resolved
+HANDOFF.md by preserving the optimization/recovery notes and master's shipped
+0.1.27 status; retained both sides of bench/history.jsonl in date order.
+App code merged without conflicts. Next: full push gate and push to PR #59.
+
+### Warm-up failure recovery (2026-09-24, halifax workspace)
+
+Implemented: clear uncertain KV state if either warm-up decode or rewind fails;
+mark decode shapes warm only after all required steps succeed. Real-model
+failure/retry regression added. Build and seven speculative/cache tests pass
+(zero skips); 48/48 benchmark outputs byte-identical to the pre-fix branch.
+Timing is observational: sum of warm input medians 6.17 s before / 6.50 s after
+in separate runs. Model, prompts, draft policy and truncation behavior intact.
+Committed and pushed in PR #59; full push gate passed. Not installed or
+released. Logs: `.context/speed-audit/warmup-fix*`.
+
+### Release→paste speed audit #2 (2026-09-23, halifax workspace)
+
+Audit only, no production change: `docs/performance-audit-2026-09-23.md`. On v0.1.26
+with Noah's settings, LLM generation is 70–90% of the wait (ASR 62–82 ms, paste ~1 ms).
+(1) Prompt-lookup speculative decoding prototype: 249 words 4.3 s→0.76 s, 77 words
+1.4 s→0.44 s, lists break-even, 195/195 outputs byte-identical. (2) First generate on
+a fresh context costs +400 ms; a 2-token throwaway in prewarm removes it. 56% of Noah's
+dictations follow the 5-min idle unload. Next: implement #2 (tiny), then #1 with
+parity harness + real-model tests; add stop→paste Diag marks; fix watchdog log spam.
+Harness: `.context/speed-audit/`.
+
+**Implemented (Noah: "do both"), uncommitted:** `LlamaContext` speculative decoding +
+prefill decode-shape warm-up, new `LlamaSpeculativeDecodingTests`. Build ✓, unit
+424 pass / 6 skip / 0 fail, parity.sh vs installed 0.1.26 96/96 cleanup + ASR
+identical, multilingual 16/16, gate suites ✓. Not installed/released. Next: commit/PR,
+check thresholds on an M1/M3, then stop→paste Diag marks + watchdog log-spam fix.
+
 ### Free sharing shipped — v0.1.27 (2026-09-23, pretoria workspace)
 
 User said “ship it.” Released 0.1.27 / build 76, source commit/tag b308275,

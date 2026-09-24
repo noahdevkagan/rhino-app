@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Master merge (2026-09-24, halifax workspace)
+
+Plan: merge fetched origin/master into local/test-speed-plus-media, preserve
+both branches' behavior and benchmark/decision history, resolve conflicts,
+run the full push gate, and push the merge to update PR #59.
+
 ### Warm-up failure recovery (2026-09-24, halifax workspace)
 
 Implemented: clear uncertain KV state if either warm-up decode or rewind fails;

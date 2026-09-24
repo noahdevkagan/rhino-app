@@ -9,9 +9,10 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Master merge (2026-09-24, halifax workspace)
 
-Plan: merge fetched origin/master into local/test-speed-plus-media, preserve
-both branches' behavior and benchmark/decision history, resolve conflicts,
-run the full push gate, and push the merge to update PR #59.
+Merged origin/master (e7e9e84) into local/test-speed-plus-media. Resolved
+HANDOFF.md by preserving the optimization/recovery notes and master's shipped
+0.1.27 status; retained both sides of bench/history.jsonl in date order.
+App code merged without conflicts. Next: full push gate and push to PR #59.
 
 ### Warm-up failure recovery (2026-09-24, halifax workspace)
 
@@ -21,8 +22,7 @@ failure/retry regression added. Build and seven speculative/cache tests pass
 (zero skips); 48/48 benchmark outputs byte-identical to the pre-fix branch.
 Timing is observational: sum of warm input medians 6.17 s before / 6.50 s after
 in separate runs. Model, prompts, draft policy and truncation behavior intact.
-PR plan: commit the recovery fix, push through the full gate, and open a PR
-against master using the user-supplied title and description. Not installed or
+Committed and pushed in PR #59; full push gate passed. Not installed or
 released. Logs: `.context/speed-audit/warmup-fix*`.
 
 ### Release→paste speed audit #2 (2026-09-23, halifax workspace)
@@ -42,37 +42,33 @@ prefill decode-shape warm-up, new `LlamaSpeculativeDecodingTests`. Build ✓, un
 identical, multilingual 16/16, gate suites ✓. Not installed/released. Next: commit/PR,
 check thresholds on an M1/M3, then stop→paste Diag marks + watchdog log-spam fix.
 
-### Free sharing (2026-09-23, pretoria workspace)
+### Free sharing shipped — v0.1.27 (2026-09-23, pretoria workspace)
 
-Release plan (user: “ship it”): stage v0.1.27 notes and website links, commit
-and push through the full gate to origin/master, run cut-release.sh for signed
-notarized publication + Sparkle feed + website deploy, verify public artifacts.
+User said “ship it.” Released 0.1.27 / build 76, source commit/tag b308275,
+pushed to origin/master. Public release:
+https://github.com/noahdevkagan/rhino-releases/releases/tag/v0.1.27
+Signed app and DMG both accepted by Apple; stapled DMG validation passes.
+Sparkle signed item published in rhino-releases main at 9ae2555; website
+Cloudflare deployment 9bc2d1b1-f1d1-4597-bcc4-bee3546de333 is live. Verified
+/thanks, /appsumo’s redeem-form JS, and /changelog serve the new version.
+Raw GitHub feed was still CDN-cached at 0.1.26 immediately after publishing
+(max-age 300); GitHub contents API confirms the signed 0.1.27 item on main.
+Tag-triggered CI is also running: Actions run 35957628009.
 
-Latest copy: “Happy Rhino Day! 🦏” headline with “Give 3 friends Rhino Voice
-for free.” subtitle, as approved by the user. Preview visually checked; full
-build/signing passed and dev app relaunched. Preview: `.context/share-check/
-happy-rhino-day-popup.png`.
+Shipped UI: “Happy Rhino Day! 🦏” / “Give 3 friends Rhino Voice for free.”
+Menu-bar sharing and one-time idle popup after five successful dictations.
+Selectable AppSumo listing URL + user-supplied coupon `rhinofree`; both copy
+actions include coupon. No recipient tracking or app networking; three friends
+is honor-based. Coupon validity is user-provided; no checkout performed.
 
-Implemented “Give 3 friends Rhino for free…” in the menu bar and a reusable
-nonactivating panel. User requested AppSumo instead of the public GitHub release
-and supplied coupon `rhinofree`: popup now shows/selects the listing URL and
-coupon, Copy link + code includes both, and Copy invitation explains checkout
-and AppSumo redemption. Coupon validity is user-provided; no checkout performed.
-
-Automatic prompt: once after five successfully inserted dictations, three-second
-settle, pipeline/indicator idle; new recording hides it. Local-only count/flag.
-No recipient tracking or app networking. Three friends is an honor-based offer.
-
-Initialized submodules and completed full app build and dev signing. Gracefully
-restarted this workspace’s dev app with the AppSumo changes; /Applications copy
-is unchanged. Dev app now reports missing/stale Accessibility permission.
-
-Validation: three policy XCTest cases previously passed in an isolated runner;
-AppSumo UI preview compiles, renders without clipping, and preserves foreground
-focus. Full updated build, static privacy hygiene, and diff checks pass.
-UI automation sees the running main window but has not exposed the status menu.
-Artifacts: `.context/share-check/appsumo-popup.png`, `appsumo-build.log`.
-Dev running; not committed or released.
+Validation: 421 unit tests pass; complete local ASR, latency, dynamic privacy,
+release/smoke gate passes; website 9/9 tests pass. One release-gate attempt hit
+929 ms latency while another workspace’s Rhino process used CPU; unchanged
+standalone recheck passed at 460 ms and full release retry passed. Limits unchanged.
+Logs and preview screenshots: `.context/share-check/` (release retry log contains
+publication details). No replacement of /Applications/Rhino.app in this session.
+Dev copy previously reported missing/stale permissions; other workspace processes
+have since run Rhino, so do not assume this workspace’s dev app remains active.
 
 ### Clipboard-history fix (2026-09-22, madrid-v1 workspace)
 

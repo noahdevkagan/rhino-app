@@ -39,7 +39,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     private init() {}
     
     func show(nearPoint point: NSPoint? = nil) -> IndicatorViewModel {
-        
+        ShareRhino.shared.dismissForRecording()
+
         KeyboardShortcuts.enable(.escape)
 
         // A recording started while the previous one was still transcribing: the bubble belongs

@@ -1400,3 +1400,53 @@ Separately, a fresh context's first single-token/verify decode costs ~400 ms of
 one-time setup. `prefill` (recording-start prewarm) now runs both shapes once and
 rewinds them, so the first cleanup after an idle unload — 56% of Noah's dictations —
 no longer pays it after release (first "sounds good" 500 → 150 ms).
+
+## 2026-09-23 — Offer free copies to friends after successful use
+
+User clarified this is giving Rhino to three other people for free, not earning
+an unlock by referring people. Menu-bar sharing copies an invitation to the
+existing public releases page, whose latest signed DMG needs no checkout. Three
+friends is an invitation, not a tracked recipient quota: the existing download
+is public and Rhino has no license server or recipient database. No automatic
+message sending, network request, or analytics is added.
+
+Use five successfully inserted hotkey dictations as the initial success
+milestone. Empty/error/clipboard-only results and file imports do not count.
+The automatic panel is shown once, after a three-second settling delay and only
+when the pipeline and recording indicator are idle; if busy, another successful
+dictation can retry. It never activates Rhino, and a new recording dismisses it.
+Opening it manually also consumes the automatic prompt so it will not nag.
+Persist only the capped local count and presentation flag, independent of
+transcript history, using the existing isolated defaults store.
+
+
+## 2026-09-23 — Free sharing goes through AppSumo with rhinofree
+
+User requested the AppSumo listing instead of GitHub and supplied the coupon
+`rhinofree`. Replace the shared destination with https://appsumo.com/products/rhino/.
+Show the coupon beside the selectable URL; Copy link + code and Copy invitation
+both include it so the free offer survives sharing. Do not invent an automatic
+coupon URL parameter: recipients apply the supplied code at checkout. The app
+still only copies text, with no account, network calls, or outbound messages.
+Coupon validity is user-provided; no checkout or coupon redemption was performed.
+
+
+## 2026-09-23 — Media resume counts only media apps' output, attributed to the owning app
+
+Noah: pressing Fn with pause-media on started his paused Spotify (dev build, and
+0.1.26 behaves the same). Console: `resume armed via processes output=[…,
+"com.apple.WebKit.GPU"] announced=["com.spotify.client=paused"]`. Via
+`responsibility_get_pid_responsible_for_pid`, that WebKit GPU helper belongs to
+Conductor, whose web view holds a silent output stream open all day. The 2026-09-02
+rule counted ANY non-announcing process rendering output as media, so every
+dictation armed a resume, and the play command went to the now-playing owner,
+the paused Spotify. This was that entry's "known residual", and it hits constantly
+with a web-view app open. Changed the fallback from "any other output" to "output from a known media app"
+(browsers + music/podcast/video players, prefix-matched), with helper processes
+attributed to their responsible app first (so Safari's WebKit GPU counts, Conductor's
+doesn't; Chrome helpers → Chrome). Trade-off accepted: an unlisted player no longer
+auto-resumes (the user presses play), which is far better than unprompted music. The
+responsibility call is private libsystem API (stable for years, what Activity Monitor
+groups by); if it disappears, helpers are judged by their own bundle id. Residual: a
+browser tab holding a silent stream (e.g. a web app with an AudioContext) still arms
+a resume.

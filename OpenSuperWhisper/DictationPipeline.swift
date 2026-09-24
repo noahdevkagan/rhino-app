@@ -240,6 +240,10 @@ final class DictationPipeline: ObservableObject {
                 break
             }
 
+            if outcome == .inserted {
+                ShareRhino.shared.recordSuccessfulDictation()
+            }
+
             if hasText && AppPreferences.shared.saveTranscriptionHistory {
                 // Use the record-start time as the row timestamp (when the user actually dictated),
                 // not the later processing time. The id suffix keeps two clips that finish within

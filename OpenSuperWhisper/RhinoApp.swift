@@ -574,10 +574,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         feedbackItem.target = self
         menu.addItem(feedbackItem)
 
+        let shareItem = NSMenuItem(title: "Give 3 friends Rhino for free…",
+                                   action: #selector(shareRhino), keyEquivalent: "")
+        shareItem.target = self
+        menu.addItem(shareItem)
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: NSLocalizedString("Quit", comment: ""), action: #selector(quitApp), keyEquivalent: "q"))
 
         statusItem?.menu = menu
+    }
+
+    @objc private func shareRhino() {
+        MainActor.assumeIsolated { ShareRhino.shared.show() }
     }
 
     @objc private func selectMicrophone(_ sender: NSMenuItem) {

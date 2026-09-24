@@ -3,6 +3,15 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.27 — 2026-09-23
+
+- Happy Rhino Day! Give three friends Rhino Voice for free through AppSumo
+  with coupon `rhinofree`. Open “Give 3 friends Rhino for free…” in the menu
+  bar to copy the link and coupon or a ready-to-send invitation.
+- A one-time sharing popup appears after five successful dictations, once
+  Rhino is idle. It leaves your typing focus alone and disappears when you
+  start another recording.
+
 ## 0.1.26 — 2026-09-22
 
 - If you run a clipboard manager like Maccy, your dictations no longer pile

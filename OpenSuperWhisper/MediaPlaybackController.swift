@@ -26,7 +26,12 @@ import Foundation
 ///   • CoreAudio per-process IO (public, always works): which processes are rendering output
 ///     right now (`kAudioHardwarePropertyProcessObjectList` + `kAudioProcessPropertyIsRunningOutput`).
 ///     Coarse — it answers "is audio being rendered", not "is media playing" — so it's the
-///     fallback for apps that don't announce (browsers, video players). Our own process is
+///     fallback for apps that don't announce, and only for apps known to play media (browsers,
+///     video/podcast players; `mediaAppBundlePrefixes`). Anything else holding an output stream
+///     — Conductor's web view keeps a silent one open all day — says nothing about music, and
+///     counting it armed a resume that started the user's paused Spotify. Shared helpers are
+///     attributed to the app responsible for them (`com.apple.WebKit.GPU` → Safari or Conductor;
+///     Chrome's audio helper → Chrome) before that check. Our own process is
 ///     ignored (the start chime holds the output device for ~3s after it plays; our AVAudioEngine
 ///     input taps mark the output device running too), and so is any process that also runs
 ///     *input* (a Zoom/Teams call is not media, and a "resume" during a call woke the user's
@@ -49,6 +54,33 @@ final class MediaPlaybackController {
         let bundleID: String?
         let isRunningOutput: Bool
         let isRunningInput: Bool
+        /// The app macOS holds responsible for this process, when it isn't the process itself —
+        /// e.g. Safari or Conductor for a `com.apple.WebKit.GPU` helper. nil when unknown.
+        var responsibleBundleID: String? = nil
+
+        /// The app this audio belongs to: the responsible app for helpers, else the process.
+        var appBundleID: String? { responsibleBundleID ?? bundleID }
+    }
+
+    /// Apps whose output IO plausibly means media the user is listening to and that our pause
+    /// paused: browsers (tabs, PWAs and helpers share these prefixes) and media players.
+    /// Prefix-matched against `AudioProcess.appBundleID`. An unlisted player just doesn't
+    /// auto-resume (the user presses play) — far better than starting music they had paused.
+    static let mediaAppBundlePrefixes: [String] = [
+        // Browsers
+        "com.apple.Safari", "com.google.Chrome", "org.chromium.Chromium", "company.thebrowser.",
+        "org.mozilla.firefox", "com.brave.Browser", "com.microsoft.edgemac", "com.operasoftware.Opera",
+        "com.vivaldi.Vivaldi", "com.kagi.kagimacOS", "app.zen-browser.zen", "ai.perplexity.comet",
+        // Music, podcast and video players
+        "com.spotify.client", "com.apple.Music", "com.apple.podcasts", "com.apple.TV",
+        "com.apple.QuickTimePlayerX", "org.videolan.vlc", "com.colliderli.iina", "tv.plex.",
+        "com.plexapp.", "com.tidal.desktop", "com.deezer.", "com.amazon.music",
+        "au.com.shiftyjelly.PocketCasts",
+    ]
+
+    static func isMediaApp(_ bundleID: String?) -> Bool {
+        guard let bundleID else { return false }
+        return mediaAppBundlePrefixes.contains { bundleID.hasPrefix($0) }
     }
 
     /// Players that announce their playback state over distributed notifications, and the
@@ -209,7 +241,7 @@ final class MediaPlaybackController {
             wasPlaying = Self.isMediaPlaying(
                 processes: processes, selfPID: getpid(), knownPlayerStates: knownPlayerStates)
             let rendering = processes.filter { $0.isRunningOutput }
-                .map { "\($0.bundleID ?? "pid \($0.pid)")\($0.isRunningInput ? "+input" : "")" }
+                .map { "\($0.bundleID ?? "pid \($0.pid)")\($0.responsibleBundleID.map { "@\($0)" } ?? "")\($0.isRunningInput ? "+input" : "")" }
             let announced = knownPlayerStates.map { "\($0.key)=\($0.value ? "playing" : "paused")" }.sorted()
             via = "processes output=\(rendering) announced=\(announced)"
         } else {
@@ -226,16 +258,18 @@ final class MediaPlaybackController {
     ///
     /// A player we've heard from is authoritative: playing → true even without local output IO
     /// (Spotify Connect renders elsewhere, yet our pause paused it); paused → its still-open
-    /// output stream is ignored. Otherwise any *other* process rendering output counts, unless
+    /// output stream is ignored. Otherwise another *media app* rendering output counts, unless
     /// it also runs input (a call, not media). Our own process never counts — the start chime
-    /// and our AVAudioEngine taps are not the user's music.
+    /// and our AVAudioEngine taps are not the user's music — and neither does any non-media app
+    /// that merely holds an output stream open.
     static func isMediaPlaying(processes: [AudioProcess], selfPID: pid_t, knownPlayerStates: [String: Bool]) -> Bool {
         if knownPlayerStates.values.contains(true) { return true }
         return processes.contains { process in
             process.pid != selfPID
                 && process.isRunningOutput
                 && !process.isRunningInput
-                && process.bundleID.flatMap { knownPlayerStates[$0] } == nil
+                && process.appBundleID.flatMap { knownPlayerStates[$0] } == nil
+                && isMediaApp(process.appBundleID)
         }
     }
 
@@ -256,12 +290,32 @@ final class MediaPlaybackController {
         return objects.compactMap { object in
             guard let pid: pid_t = integerProperty(object, kAudioProcessPropertyPID) else { return nil }
             let bundleID = stringProperty(object, kAudioProcessPropertyBundleID)
+            let isRunningOutput = (integerProperty(object, kAudioProcessPropertyIsRunningOutput) ?? UInt32(0)) != 0
             return AudioProcess(
                 pid: pid,
                 bundleID: (bundleID?.isEmpty ?? true) ? nil : bundleID,
-                isRunningOutput: (integerProperty(object, kAudioProcessPropertyIsRunningOutput) ?? UInt32(0)) != 0,
-                isRunningInput: (integerProperty(object, kAudioProcessPropertyIsRunningInput) ?? UInt32(0)) != 0)
+                isRunningOutput: isRunningOutput,
+                isRunningInput: (integerProperty(object, kAudioProcessPropertyIsRunningInput) ?? UInt32(0)) != 0,
+                // Only output decides anything, so skip the lookup for everyone else.
+                responsibleBundleID: isRunningOutput ? responsibleBundleID(for: pid) : nil)
         }
+    }
+
+    /// `responsibility_get_pid_responsible_for_pid` (libsystem; private but long-stable, and
+    /// what Activity Monitor uses to group helpers under their app). nil if it ever disappears,
+    /// in which case helpers are judged by their own bundle id.
+    private static let responsiblePID: (@convention(c) (pid_t) -> pid_t)? = {
+        guard let symbol = dlsym(dlopen(nil, RTLD_NOW), "responsibility_get_pid_responsible_for_pid")
+        else { return nil }
+        return unsafeBitCast(symbol, to: (@convention(c) (pid_t) -> pid_t).self)
+    }()
+
+    /// Bundle id of the app responsible for `pid`, when that's a different process.
+    static func responsibleBundleID(for pid: pid_t) -> String? {
+        guard let responsiblePID else { return nil }
+        let owner = responsiblePID(pid)
+        guard owner > 0, owner != pid else { return nil }
+        return NSRunningApplication(processIdentifier: owner)?.bundleIdentifier
     }
 
     private static func globalAddress(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {

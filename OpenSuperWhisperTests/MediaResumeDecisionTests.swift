@@ -17,10 +17,28 @@ final class MediaResumeDecisionTests: XCTestCase {
         XCTAssertFalse(decide([Process(pid: 7, bundleID: "com.example.idle", isRunningOutput: false, isRunningInput: false)]))
     }
 
-    func testAnotherProcessRenderingOutputIsPlaying() {
+    func testMediaAppRenderingOutputIsPlaying() {
         // A browser tab or video player we have no announcements for: output IO is all we have.
         XCTAssertTrue(decide([Process(pid: 7, bundleID: "com.google.Chrome", isRunningOutput: true, isRunningInput: false)]))
-        XCTAssertTrue(decide([Process(pid: 7, bundleID: nil, isRunningOutput: true, isRunningInput: false)]))
+        XCTAssertTrue(decide([Process(pid: 7, bundleID: "org.videolan.vlc", isRunningOutput: true, isRunningInput: false)]))
+        // Helpers count through the app responsible for them.
+        XCTAssertTrue(decide([Process(pid: 7, bundleID: "com.google.Chrome.helper", isRunningOutput: true, isRunningInput: false)]))
+        XCTAssertTrue(decide([Process(pid: 7, bundleID: "com.apple.WebKit.GPU", isRunningOutput: true, isRunningInput: false,
+                                      responsibleBundleID: "com.apple.Safari")]))
+    }
+
+    func testNonMediaAppHoldingOutputIsNotPlaying() {
+        // Observed 2026-09-23: Conductor's web view keeps a silent output stream open all day
+        // through the shared WebKit GPU helper. Counting it armed a resume on every dictation,
+        // and the play command started the user's paused Spotify.
+        let conductor = Process(pid: 7, bundleID: "com.apple.WebKit.GPU", isRunningOutput: true, isRunningInput: false,
+                                responsibleBundleID: "com.conductor.app")
+        XCTAssertFalse(decide([conductor]))
+        XCTAssertFalse(decide([conductor], players: ["com.spotify.client": false]))
+        // An unattributed WebKit helper or an unknown app is not evidence of media either.
+        XCTAssertFalse(decide([Process(pid: 7, bundleID: "com.apple.WebKit.GPU", isRunningOutput: true, isRunningInput: false)]))
+        XCTAssertFalse(decide([Process(pid: 7, bundleID: "com.example.game", isRunningOutput: true, isRunningInput: false)]))
+        XCTAssertFalse(decide([Process(pid: 7, bundleID: nil, isRunningOutput: true, isRunningInput: false)]))
     }
 
     func testOurOwnOutputNeverCounts() {

@@ -1404,3 +1404,24 @@ both include it so the free offer survives sharing. Do not invent an automatic
 coupon URL parameter: recipients apply the supplied code at checkout. The app
 still only copies text, with no account, network calls, or outbound messages.
 Coupon validity is user-provided; no checkout or coupon redemption was performed.
+
+
+## 2026-09-23 — Media resume counts only media apps' output, attributed to the owning app
+
+Noah: pressing Fn with pause-media on started his paused Spotify (dev build, and
+0.1.26 behaves the same). Console: `resume armed via processes output=[…,
+"com.apple.WebKit.GPU"] announced=["com.spotify.client=paused"]`. Via
+`responsibility_get_pid_responsible_for_pid`, that WebKit GPU helper belongs to
+Conductor, whose web view holds a silent output stream open all day. The 2026-09-02
+rule counted ANY non-announcing process rendering output as media, so every
+dictation armed a resume, and the play command went to the now-playing owner,
+the paused Spotify. This was that entry's "known residual", and it hits constantly
+with a web-view app open. Changed the fallback from "any other output" to "output from a known media app"
+(browsers + music/podcast/video players, prefix-matched), with helper processes
+attributed to their responsible app first (so Safari's WebKit GPU counts, Conductor's
+doesn't; Chrome helpers → Chrome). Trade-off accepted: an unlisted player no longer
+auto-resumes (the user presses play), which is far better than unprompted music. The
+responsibility call is private libsystem API (stable for years, what Activity Monitor
+groups by); if it disappears, helpers are judged by their own bundle id. Residual: a
+browser tab holding a silent stream (e.g. a web app with an AudioContext) still arms
+a resume.

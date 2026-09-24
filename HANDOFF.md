@@ -9,9 +9,10 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Free sharing (2026-09-23, pretoria workspace)
 
-Release plan (user: “ship it”): stage v0.1.27 notes and website links, commit
-and push through the full gate to origin/master, run cut-release.sh for signed
-notarized publication + Sparkle feed + website deploy, verify public artifacts.
+Release in progress (user: “ship it”): feature + v0.1.27 notes/website pins
+committed as 8a0ba3f and pushed to origin/master. Full gate passed (421 tests;
+ASR, latency, dynamic privacy, release and smoke suites); website 9/9 passed.
+Next: cut-release.sh, notarized DMG/Sparkle/website publication, live verification.
 
 Latest copy: “Happy Rhino Day! 🦏” headline with “Give 3 friends Rhino Voice
 for free.” subtitle, as approved by the user. Preview visually checked; full

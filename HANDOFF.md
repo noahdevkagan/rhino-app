@@ -7,38 +7,33 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
-### Free sharing (2026-09-23, pretoria workspace)
+### Free sharing shipped — v0.1.27 (2026-09-23, pretoria workspace)
 
-Release in progress (user: “ship it”): feature + v0.1.27 notes/website pins
-committed as 8a0ba3f and pushed to origin/master. Full gate passed (421 tests;
-ASR, latency, dynamic privacy, release and smoke suites); website 9/9 passed.
-Next: cut-release.sh, notarized DMG/Sparkle/website publication, live verification.
+User said “ship it.” Released 0.1.27 / build 76, source commit/tag b308275,
+pushed to origin/master. Public release:
+https://github.com/noahdevkagan/rhino-releases/releases/tag/v0.1.27
+Signed app and DMG both accepted by Apple; stapled DMG validation passes.
+Sparkle signed item published in rhino-releases main at 9ae2555; website
+Cloudflare deployment 9bc2d1b1-f1d1-4597-bcc4-bee3546de333 is live. Verified
+/thanks, /appsumo’s redeem-form JS, and /changelog serve the new version.
+Raw GitHub feed was still CDN-cached at 0.1.26 immediately after publishing
+(max-age 300); GitHub contents API confirms the signed 0.1.27 item on main.
+Tag-triggered CI is also running: Actions run 35957628009.
 
-Latest copy: “Happy Rhino Day! 🦏” headline with “Give 3 friends Rhino Voice
-for free.” subtitle, as approved by the user. Preview visually checked; full
-build/signing passed and dev app relaunched. Preview: `.context/share-check/
-happy-rhino-day-popup.png`.
+Shipped UI: “Happy Rhino Day! 🦏” / “Give 3 friends Rhino Voice for free.”
+Menu-bar sharing and one-time idle popup after five successful dictations.
+Selectable AppSumo listing URL + user-supplied coupon `rhinofree`; both copy
+actions include coupon. No recipient tracking or app networking; three friends
+is honor-based. Coupon validity is user-provided; no checkout performed.
 
-Implemented “Give 3 friends Rhino for free…” in the menu bar and a reusable
-nonactivating panel. User requested AppSumo instead of the public GitHub release
-and supplied coupon `rhinofree`: popup now shows/selects the listing URL and
-coupon, Copy link + code includes both, and Copy invitation explains checkout
-and AppSumo redemption. Coupon validity is user-provided; no checkout performed.
-
-Automatic prompt: once after five successfully inserted dictations, three-second
-settle, pipeline/indicator idle; new recording hides it. Local-only count/flag.
-No recipient tracking or app networking. Three friends is an honor-based offer.
-
-Initialized submodules and completed full app build and dev signing. Gracefully
-restarted this workspace’s dev app with the AppSumo changes; /Applications copy
-is unchanged. Dev app now reports missing/stale Accessibility permission.
-
-Validation: three policy XCTest cases previously passed in an isolated runner;
-AppSumo UI preview compiles, renders without clipping, and preserves foreground
-focus. Full updated build, static privacy hygiene, and diff checks pass.
-UI automation sees the running main window but has not exposed the status menu.
-Artifacts: `.context/share-check/appsumo-popup.png`, `appsumo-build.log`.
-Dev running; not committed or released.
+Validation: 421 unit tests pass; complete local ASR, latency, dynamic privacy,
+release/smoke gate passes; website 9/9 tests pass. One release-gate attempt hit
+929 ms latency while another workspace’s Rhino process used CPU; unchanged
+standalone recheck passed at 460 ms and full release retry passed. Limits unchanged.
+Logs and preview screenshots: `.context/share-check/` (release retry log contains
+publication details). No replacement of /Applications/Rhino.app in this session.
+Dev copy previously reported missing/stale permissions; other workspace processes
+have since run Rhino, so do not assume this workspace’s dev app remains active.
 
 ### Clipboard-history fix (2026-09-22, madrid-v1 workspace)
 

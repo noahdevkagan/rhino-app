@@ -1374,3 +1374,33 @@ paste mechanism and restore timing for target-app compatibility. Ordinary copies
 (including existing explicit recovery paths) remain normal clipboard entries.
 This is cooperation with clipboard managers, not a promise that temporary text
 never touches the system clipboard. No network behavior is added to the app.
+
+
+## 2026-09-23 — Offer free copies to friends after successful use
+
+User clarified this is giving Rhino to three other people for free, not earning
+an unlock by referring people. Menu-bar sharing copies an invitation to the
+existing public releases page, whose latest signed DMG needs no checkout. Three
+friends is an invitation, not a tracked recipient quota: the existing download
+is public and Rhino has no license server or recipient database. No automatic
+message sending, network request, or analytics is added.
+
+Use five successfully inserted hotkey dictations as the initial success
+milestone. Empty/error/clipboard-only results and file imports do not count.
+The automatic panel is shown once, after a three-second settling delay and only
+when the pipeline and recording indicator are idle; if busy, another successful
+dictation can retry. It never activates Rhino, and a new recording dismisses it.
+Opening it manually also consumes the automatic prompt so it will not nag.
+Persist only the capped local count and presentation flag, independent of
+transcript history, using the existing isolated defaults store.
+
+
+## 2026-09-23 — Free sharing goes through AppSumo with rhinofree
+
+User requested the AppSumo listing instead of GitHub and supplied the coupon
+`rhinofree`. Replace the shared destination with https://appsumo.com/products/rhino/.
+Show the coupon beside the selectable URL; Copy link + code and Copy invitation
+both include it so the free offer survives sharing. Do not invent an automatic
+coupon URL parameter: recipients apply the supplied code at checkout. The app
+still only copies text, with no account, network calls, or outbound messages.
+Coupon validity is user-provided; no checkout or coupon redemption was performed.

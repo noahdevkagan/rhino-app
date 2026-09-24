@@ -1,5 +1,13 @@
 const releases = [
   {
+    version: "0.1.27",
+    date: "September 23, 2026",
+    changes: [
+      "Happy Rhino Day! Give three friends Rhino Voice for free through AppSumo with coupon rhinofree. Open “Give 3 friends Rhino for free…” in the menu bar to copy the link and coupon or a ready-to-send invitation.",
+      "A one-time sharing popup appears after five successful dictations, once Rhino is idle. It leaves your typing focus alone and disappears when you start another recording.",
+    ],
+  },
+  {
     version: "0.1.26",
     date: "September 22, 2026",
     changes: [

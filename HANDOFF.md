@@ -24,6 +24,39 @@ prefill decode-shape warm-up, new `LlamaSpeculativeDecodingTests`. Build ✓, un
 identical, multilingual 16/16, gate suites ✓. Not installed/released. Next: commit/PR,
 check thresholds on an M1/M3, then stop→paste Diag marks + watchdog log-spam fix.
 
+### Free sharing (2026-09-23, pretoria workspace)
+
+Release in progress (user: “ship it”): feature + v0.1.27 notes/website pins
+committed as 8a0ba3f and pushed to origin/master. Full gate passed (421 tests;
+ASR, latency, dynamic privacy, release and smoke suites); website 9/9 passed.
+Next: cut-release.sh, notarized DMG/Sparkle/website publication, live verification.
+
+Latest copy: “Happy Rhino Day! 🦏” headline with “Give 3 friends Rhino Voice
+for free.” subtitle, as approved by the user. Preview visually checked; full
+build/signing passed and dev app relaunched. Preview: `.context/share-check/
+happy-rhino-day-popup.png`.
+
+Implemented “Give 3 friends Rhino for free…” in the menu bar and a reusable
+nonactivating panel. User requested AppSumo instead of the public GitHub release
+and supplied coupon `rhinofree`: popup now shows/selects the listing URL and
+coupon, Copy link + code includes both, and Copy invitation explains checkout
+and AppSumo redemption. Coupon validity is user-provided; no checkout performed.
+
+Automatic prompt: once after five successfully inserted dictations, three-second
+settle, pipeline/indicator idle; new recording hides it. Local-only count/flag.
+No recipient tracking or app networking. Three friends is an honor-based offer.
+
+Initialized submodules and completed full app build and dev signing. Gracefully
+restarted this workspace’s dev app with the AppSumo changes; /Applications copy
+is unchanged. Dev app now reports missing/stale Accessibility permission.
+
+Validation: three policy XCTest cases previously passed in an isolated runner;
+AppSumo UI preview compiles, renders without clipping, and preserves foreground
+focus. Full updated build, static privacy hygiene, and diff checks pass.
+UI automation sees the running main window but has not exposed the status menu.
+Artifacts: `.context/share-check/appsumo-popup.png`, `appsumo-build.log`.
+Dev running; not committed or released.
+
 ### Clipboard-history fix (2026-09-22, madrid-v1 workspace)
 
 Implemented: clipboard borrows now publish text and the standard transient

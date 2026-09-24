@@ -1,5 +1,13 @@
 const releases = [
   {
+    version: "0.1.28",
+    date: "September 24, 2026",
+    changes: [
+      "Rhino finishes faster after you stop talking. The AI cleanup pass used to re-type your transcript one word-piece at a time; it now guesses ahead from what you said and checks many pieces at once, keeping only what it would have written anyway. In a local benchmark a 77-word dictation dropped from 1.3 seconds to 0.44 and a 249-word one from 4.3 seconds to 0.74. The first dictation after Rhino has been idle is quicker too. The wording of your transcripts is unchanged.",
+      "With \"Pause media during recording\" on, Rhino no longer starts music you had paused yourself. Some apps keep a silent audio stream open in the background, which Rhino mistook for playing media and then \"resumed\" after dictating. Rhino now only resumes known media apps like browsers and music, podcast and video players.",
+    ],
+  },
+  {
     version: "0.1.27",
     date: "September 23, 2026",
     changes: [

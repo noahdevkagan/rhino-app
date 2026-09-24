@@ -7,6 +7,23 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Release→paste speed audit #2 (2026-09-23, halifax workspace)
+
+Audit only, no production change: `docs/performance-audit-2026-09-23.md`. On v0.1.26
+with Noah's settings, LLM generation is 70–90% of the wait (ASR 62–82 ms, paste ~1 ms).
+(1) Prompt-lookup speculative decoding prototype: 249 words 4.3 s→0.76 s, 77 words
+1.4 s→0.44 s, lists break-even, 195/195 outputs byte-identical. (2) First generate on
+a fresh context costs +400 ms; a 2-token throwaway in prewarm removes it. 56% of Noah's
+dictations follow the 5-min idle unload. Next: implement #2 (tiny), then #1 with
+parity harness + real-model tests; add stop→paste Diag marks; fix watchdog log spam.
+Harness: `.context/speed-audit/`.
+
+**Implemented (Noah: "do both"), uncommitted:** `LlamaContext` speculative decoding +
+prefill decode-shape warm-up, new `LlamaSpeculativeDecodingTests`. Build ✓, unit
+424 pass / 6 skip / 0 fail, parity.sh vs installed 0.1.26 96/96 cleanup + ASR
+identical, multilingual 16/16, gate suites ✓. Not installed/released. Next: commit/PR,
+check thresholds on an M1/M3, then stop→paste Diag marks + watchdog log-spam fix.
+
 ### Clipboard-history fix (2026-09-22, madrid-v1 workspace)
 
 Implemented: clipboard borrows now publish text and the standard transient

@@ -1374,3 +1374,29 @@ paste mechanism and restore timing for target-app compatibility. Ordinary copies
 (including existing explicit recovery paths) remain normal clipboard entries.
 This is cooperation with clipboard managers, not a promise that temporary text
 never touches the system clipboard. No network behavior is added to the app.
+
+
+## 2026-09-23 — Prompt-lookup speculative decoding + first-decode warm-up for cleanup
+
+Audit (`docs/performance-audit-2026-09-23.md`): on v0.1.26 LLM generation is 70–90%
+of release→paste, one bandwidth-bound decode per output token, while the output is
+mostly the transcript re-emitted. `LlamaContext.generate` now drafts the tokens that
+followed the output's latest n-gram in the user message and verifies them in one
+batched decode, keeping a drafted token only while it equals the model's own greedy
+choice. The same greedy decode in fewer passes: no second model, no extra memory, no
+prompt or output-policy change. Rejected: a draft model (RAM, second load), smaller
+or lower-quant cleanup model (quality), edit-list output formats (changes behavior).
+
+Draft sizing follows the measured M4 verify cost (1 tok 13 ms, 4 37 ms, 8 72 ms,
+16–32 ~50 ms): a ≥4-token match verifies up to 31 tokens, a weaker match a single
+probe token, never the slow middle sizes. Drafting from the whole prompt was
+rejected: the formatting examples produced bogus list matches. Lists/heavy
+reformatting stay at baseline speed; prose gets 1.5–5.7×. Parity is empirical (batched
+vs single-token Metal kernels round differently), so a real-model test compares
+against `speculativeDecoding: false` and parity.sh runs before release; the
+thresholds are M4-measured and should be rechecked on M1/M3.
+
+Separately, a fresh context's first single-token/verify decode costs ~400 ms of
+one-time setup. `prefill` (recording-start prewarm) now runs both shapes once and
+rewinds them, so the first cleanup after an idle unload — 56% of Noah's dictations —
+no longer pays it after release (first "sounds good" 500 → 150 ms).

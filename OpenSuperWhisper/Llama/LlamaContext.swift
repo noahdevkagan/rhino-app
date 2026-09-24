@@ -36,6 +36,8 @@
 //                                               char * buf, int32_t length, int32_t lstrip,
 //                                               bool special);
 //    llama_batch           llama_batch_get_one(llama_token * tokens, int32_t n_tokens);
+//    llama_batch           llama_batch_init(int32_t n_tokens, int32_t embd, int32_t n_seq_max);
+//    void                  llama_batch_free(llama_batch batch);
 //    int32_t               llama_decode(llama_context * ctx, llama_batch batch);
 //    uint32_t              llama_n_ctx(const llama_context * ctx);
 //    llama_memory_t        llama_get_memory(const llama_context * ctx);
@@ -97,6 +99,15 @@ public final class LlamaContext {
     private var inactivePrompt: PromptSnapshot?
     private let promptCacheByteLimit: Int
 
+    /// Speculative decoding (see `generate`): verify drafted tokens in one batched decode instead
+    /// of one decode per token. Off only for parity tests that compare against plain decoding.
+    private let speculativeDecoding: Bool
+    /// Reused for every draft verification: the sampled token plus up to `maxDraftTokens`.
+    private var verifyBatch: llama_batch
+    /// A fresh context's first decode of each batch shape pays one-time setup (~400 ms on an M4
+    /// for the single-token step). `prefill` runs both shapes once, off the critical path.
+    private var decodeShapesWarm = false
+
     /// Internal diagnostics for real-model regression probes; no transcript content.
     var cachedPromptBytes: Int { inactivePrompt?.data.count ?? 0 }
     private(set) var promptCacheHits = 0
@@ -115,8 +126,9 @@ public final class LlamaContext {
     /// `promptCacheByteLimit` bounds in-memory prefix snapshots; zero disables snapshots
     /// for baseline comparisons while retaining ordinary in-sequence prefix reuse.
     public init?(modelPath: String, contextLength: UInt32 = 4096, gpuLayers: Int32 = 999,
-                 promptCacheByteLimit: Int = 64 * 1024 * 1024) {
+                 promptCacheByteLimit: Int = 64 * 1024 * 1024, speculativeDecoding: Bool = true) {
         self.promptCacheByteLimit = max(0, promptCacheByteLimit)
+        self.speculativeDecoding = speculativeDecoding
         _ = LlamaContext.backendInit
 
         // --- Load the model ---
@@ -165,12 +177,16 @@ public final class LlamaContext {
         // Greedy = argmax. Deterministic, no temperature.
         llama_sampler_chain_add(chain, llama_sampler_init_greedy())
         self.sampler = chain
+        // Allocated last: every failure path above returns before it, so a failed init has
+        // nothing of it to free (deinit only runs for a fully initialized object).
+        self.verifyBatch = llama_batch_init(Int32(Self.maxDraftTokens + 1), 0, 1)
     }
 
     deinit {
         if let sampler { llama_sampler_free(sampler) }
         if let ctx { llama_free(ctx) }
         if let model { llama_model_free(model) }
+        llama_batch_free(verifyBatch)
         // We intentionally do NOT call llama_backend_free() here: ggml/Metal global
         // state is shared process-wide (and also used by whisper.cpp via the same
         // ggml). Freeing it on a single context teardown would be unsafe.
@@ -329,6 +345,72 @@ public final class LlamaContext {
         return ok
     }
 
+    /// Decodes `tokens` appended to the current KV contents with logits for EVERY position, so a
+    /// drafted run can be checked in one pass: output `i` is the model's prediction after
+    /// `tokens[0...i]`. On success the KV mirror grows by exactly these tokens.
+    private func decodeVerifyBatch(_ tokens: [LlamaToken]) -> Bool {
+        guard let ctx, !tokens.isEmpty, tokens.count <= Self.maxDraftTokens + 1 else { return false }
+        let start = kvTokens.count
+        for (i, token) in tokens.enumerated() {
+            verifyBatch.token[i] = token
+            verifyBatch.pos[i] = llama_pos(start + i)
+            verifyBatch.n_seq_id[i] = 1
+            verifyBatch.seq_id[i]![0] = 0
+            verifyBatch.logits[i] = 1
+        }
+        verifyBatch.n_tokens = Int32(tokens.count)
+        let ok = llama_decode(ctx, verifyBatch) == 0
+        if ok { kvTokens.append(contentsOf: tokens) }
+        return ok
+    }
+
+    /// Runs the single-token and full-draft decode shapes once on a fresh context, then rewinds
+    /// them. Without this the first dictation after a load/idle unload pays that setup after the
+    /// user stops talking. The logits these leave behind are never read: `generate` always
+    /// decodes at least its final prompt token itself.
+    private func warmDecodeShapesIfNeeded() {
+        guard !decodeShapesWarm, let last = kvTokens.last else { return }
+        decodeShapesWarm = true
+        let base = kvTokens.count
+        if decodeAppending([last]) { _ = rewindMemory(keepingFirst: base) }
+        guard speculativeDecoding, kvTokens.count == base else { return }
+        if decodeVerifyBatch(Array(repeating: last, count: Self.maxDraftTokens + 1)) {
+            _ = rewindMemory(keepingFirst: base)
+        }
+    }
+
+    // MARK: - Speculative decoding (prompt lookup)
+
+    /// Longest draft verified in one decode. Measured on an M4 (Qwen2.5-1.5B Q4_K_M): one token
+    /// costs ~13 ms, 2 ~18 ms, 4 ~37 ms, 8 ~72 ms, but 16 or 32 ~50 ms (Metal switches kernels),
+    /// so drafts are either a single probe token or a long run — never the slow middle sizes.
+    static let maxDraftTokens = 31
+    /// Output tokens that must match the transcript before a long draft is worth its ~50 ms.
+    static let longDraftMinMatch = 4
+
+    /// Tokens to verify after the output so far: cleanup mostly re-emits the transcript, so find
+    /// the output's most recent n-gram (4…1 tokens) in `source` — searched from the end, where
+    /// the transcript sits — and propose what followed it there. A strong match proposes a long
+    /// run; a weak one a single probe token (cheap to be wrong about); no match, nothing.
+    /// Drafts only choose WHAT to verify: every emitted token is still the model's own argmax.
+    static func draftTokens(source: [LlamaToken], output: [LlamaToken], limit: Int) -> [LlamaToken] {
+        guard limit > 0, !output.isEmpty, !source.isEmpty else { return [] }
+        for n in stride(from: min(longDraftMinMatch, output.count), through: 1, by: -1) {
+            let key = output.suffix(n)
+            var j = source.count - n - 1
+            while j >= 0 {
+                if source[j..<(j + n)].elementsEqual(key) {
+                    let continuation = source[(j + n)...]
+                    let longRun = n >= longDraftMinMatch && continuation.count >= longDraftMinMatch
+                    let count = min(limit, longRun ? maxDraftTokens : 1)
+                    return Array(continuation.prefix(count))
+                }
+                j -= 1
+            }
+        }
+        return []
+    }
+
     /// Length of the shared leading run of two token sequences.
     private static func commonPrefixLength(_ a: [LlamaToken], _ b: [LlamaToken]) -> Int {
         var n = 0
@@ -417,12 +499,16 @@ public final class LlamaContext {
 
         preparePromptCache(for: system)
         let shared = Self.commonPrefixLength(kvTokens, prefixTokens)
-        if shared == prefixTokens.count { return }  // already resident (possibly with more after it)
-        let kept = rewindMemory(keepingFirst: shared)
-        if !decodeAppending(Array(prefixTokens[kept...])) {
-            // Leave a clean slate rather than a half-decoded mirror; generate will start over.
-            clearMemory()
+        // Already resident (possibly with more after it) → nothing to decode.
+        if shared < prefixTokens.count {
+            let kept = rewindMemory(keepingFirst: shared)
+            if !decodeAppending(Array(prefixTokens[kept...])) {
+                // Leave a clean slate rather than a half-decoded mirror; generate will start over.
+                clearMemory()
+                return
+            }
         }
+        warmDecodeShapesIfNeeded()
     }
 
     /// Runs a single-shot chat completion: formats the prompt, decodes the prompt
@@ -481,22 +567,61 @@ public final class LlamaContext {
         var generated = 0
         var sawEndOfGeneration = false
         let budget = min(maxTokens, max(0, nCtx - promptTokens.count))
-        while generated < budget {
-            // Sample the next token from the logits of the last decoded position.
-            let nextToken = llama_sampler_sample(sampler, ctx, -1)
-
+        // Speculative decoding: the output is mostly the transcript re-emitted, so each step
+        // also feeds in a draft of the tokens that followed the output's latest n-gram in the
+        // user message (`draftTokens`) and checks them all in one decode. A drafted token is
+        // kept only while it equals the model's own greedy choice at that position; the first
+        // disagreement is replaced by that choice and the rest of the draft is rewound out of
+        // the KV cache. Output is therefore the same greedy decode, in fewer decodes. The
+        // sampler chain is greedy-only (stateless), which is what makes that exact.
+        let draftSource = speculativeDecoding ? tokenize(user, addSpecial: false) : []
+        var outputTokens: [LlamaToken] = []
+        // Sample the first token from the logits of the last prompt position.
+        var nextToken = budget > 0 ? llama_sampler_sample(sampler, ctx, -1) : 0
+        decoding: while generated < budget {
             if isEndOfGeneration(nextToken) {
                 sawEndOfGeneration = true
                 break
             }
-
-            llama_sampler_accept(sampler, nextToken)
+            outputTokens.append(nextToken)
             outputBytes.append(contentsOf: pieceBytes(for: nextToken))
-
-            // Feed the sampled token back in for the next step.
-            if !decodeAppending([nextToken]) { break }
-
             generated += 1
+            // Budget spent without EOG: stop here (truncated) rather than decode past it.
+            if generated == budget { break }
+
+            // Draft length is capped by the remaining budget, which also keeps the KV cache
+            // within the context: prompt + generated + draft <= prompt + budget <= n_ctx.
+            let draft = Self.draftTokens(source: draftSource, output: outputTokens,
+                                         limit: min(Self.maxDraftTokens, budget - generated))
+                .prefix { !isEndOfGeneration($0) }
+            if draft.isEmpty {
+                // Feed the sampled token back in for the next step.
+                guard decodeAppending([nextToken]) else { break }
+                nextToken = llama_sampler_sample(sampler, ctx, -1)
+                continue
+            }
+
+            let base = kvTokens.count
+            guard decodeVerifyBatch([nextToken] + draft) else { break }
+            var accepted = 0
+            while true {
+                // Output `accepted` = the model's choice after nextToken + draft[..<accepted].
+                let predicted = llama_sampler_sample(sampler, ctx, Int32(accepted))
+                guard accepted < draft.count, predicted == draft[draft.startIndex + accepted] else {
+                    nextToken = predicted
+                    break
+                }
+                outputTokens.append(predicted)
+                outputBytes.append(contentsOf: pieceBytes(for: predicted))
+                generated += 1
+                accepted += 1
+                if generated == budget { break decoding }
+            }
+            // Drop the rejected draft tail; a failed rewind leaves an unknown cache, so stop.
+            if accepted < draft.count {
+                let keep = base + 1 + accepted
+                guard rewindMemory(keepingFirst: keep) == keep else { break }
+            }
         }
         // Ending any way other than sampling EOG — budget exhausted or a failed decode —
         // means the output stops mid-thought.

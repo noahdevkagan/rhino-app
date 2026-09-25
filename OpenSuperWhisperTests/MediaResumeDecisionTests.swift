@@ -1,93 +1,185 @@
 import XCTest
 @testable import OpenSuperWhisper
 
-/// The "was media playing when we paused?" decision that arms the post-dictation resume, on the
-/// public-signal path (now-playing reads are entitlement-gated since macOS 15.4). Every case here
-/// is a way the old device-level probe started music the user was not listening to.
+/// Commands are injected: these tests never control real media or depend on system playback.
 final class MediaResumeDecisionTests: XCTestCase {
-    private typealias Process = MediaPlaybackController.AudioProcess
-    private let me: pid_t = 4242
+    private var commands: [UInt32] = []
+    private var pauseSucceeds = true
+    private var controller: MediaPlaybackController!
+    private let music = "com.apple.Music"
+    private let spotify = "com.spotify.client"
 
-    private func decide(_ processes: [Process], players: [String: Bool] = [:]) -> Bool {
-        MediaPlaybackController.isMediaPlaying(processes: processes, selfPID: me, knownPlayerStates: players)
+    override func setUp() {
+        super.setUp()
+        commands = []
+        pauseSucceeds = true
+        controller = MediaPlaybackController(sendCommand: { [unowned self] command in
+            self.commands.append(command)
+            return command != 1 || self.pauseSucceeds
+        })
     }
 
-    func testNothingRenderingIsNotPlaying() {
-        XCTAssertFalse(decide([]))
-        XCTAssertFalse(decide([Process(pid: 7, bundleID: "com.example.idle", isRunningOutput: false, isRunningInput: false)]))
+    override func tearDown() {
+        controller = nil
+        super.tearDown()
     }
 
-    func testMediaAppRenderingOutputIsPlaying() {
-        // A browser tab or video player we have no announcements for: output IO is all we have.
-        XCTAssertTrue(decide([Process(pid: 7, bundleID: "com.google.Chrome", isRunningOutput: true, isRunningInput: false)]))
-        XCTAssertTrue(decide([Process(pid: 7, bundleID: "org.videolan.vlc", isRunningOutput: true, isRunningInput: false)]))
-        // Helpers count through the app responsible for them.
-        XCTAssertTrue(decide([Process(pid: 7, bundleID: "com.google.Chrome.helper", isRunningOutput: true, isRunningInput: false)]))
-        XCTAssertTrue(decide([Process(pid: 7, bundleID: "com.apple.WebKit.GPU", isRunningOutput: true, isRunningInput: false,
-                                      responsibleBundleID: "com.apple.Safari")]))
+    private func confirmPause(_ bundleID: String = "com.apple.Music") {
+        controller.notePlayerState(bundleID: bundleID, state: "Playing")
+        controller.pauseMedia()
+        controller.notePlayerState(bundleID: bundleID, state: "Paused")
     }
 
-    func testNonMediaAppHoldingOutputIsNotPlaying() {
-        // Observed 2026-09-23: Conductor's web view keeps a silent output stream open all day
-        // through the shared WebKit GPU helper. Counting it armed a resume on every dictation,
-        // and the play command started the user's paused Spotify.
-        let conductor = Process(pid: 7, bundleID: "com.apple.WebKit.GPU", isRunningOutput: true, isRunningInput: false,
-                                responsibleBundleID: "com.conductor.app")
-        XCTAssertFalse(decide([conductor]))
-        XCTAssertFalse(decide([conductor], players: ["com.spotify.client": false]))
-        // An unattributed WebKit helper or an unknown app is not evidence of media either.
-        XCTAssertFalse(decide([Process(pid: 7, bundleID: "com.apple.WebKit.GPU", isRunningOutput: true, isRunningInput: false)]))
-        XCTAssertFalse(decide([Process(pid: 7, bundleID: "com.example.game", isRunningOutput: true, isRunningInput: false)]))
-        XCTAssertFalse(decide([Process(pid: 7, bundleID: nil, isRunningOutput: true, isRunningInput: false)]))
+    func testUnknownPlaybackIncludingPausedBrowserNeverResumes() {
+        // Browser IO is deliberately never consulted: paused and playing tabs can report
+        // identical output IO. An unconditional Pause is safe; an unverified Play is not.
+        controller.pauseMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
     }
 
-    func testOurOwnOutputNeverCounts() {
-        // The start chime holds the output device for ~3s; a quick second dictation used to
-        // read that as "music playing" and wake the paused player on stop.
-        XCTAssertFalse(decide([Process(pid: me, bundleID: "com.noahkagan.rhino", isRunningOutput: true, isRunningInput: false)]))
-        XCTAssertFalse(decide([Process(pid: me, bundleID: "com.noahkagan.rhino", isRunningOutput: true, isRunningInput: true)]))
+    func testMusicBeforeFirstAnnouncementNeverResumes() {
+        controller.pauseMedia()
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
     }
 
-    func testInputOnlyProcessesAreNotMedia() {
-        // Another dictation/meeting app's AVAudioEngine input tap marks the output device running.
-        XCTAssertFalse(decide([Process(pid: 7, bundleID: "com.example.recorder", isRunningOutput: false, isRunningInput: true)]))
+    func testAlreadyPausedMusicAndSpotifyNeverResume() {
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        controller.notePlayerState(bundleID: spotify, state: "Paused")
+        controller.pauseMedia()
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
     }
 
-    func testCallsAreNotMedia() {
-        // Zoom/Teams render output AND capture input; "resuming" after dictating on a call sent
-        // play to the now-playing owner — the user's paused music — instead.
-        XCTAssertFalse(decide([Process(pid: 7, bundleID: "us.zoom.xos", isRunningOutput: true, isRunningInput: true)]))
+    func testPausedMusicWithUnconfirmedBrowserNeverResumes() {
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        // Browsers have no supported playback announcements; arbitrary input cannot arm Play.
+        controller.notePlayerState(bundleID: "com.google.Chrome", state: "Playing")
+        controller.pauseMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
     }
 
-    func testAnnouncedPausedPlayerHoldingTheDeviceIsNotPlaying() {
-        // Observed: a paused Spotify keeps its output stream open for minutes after pausing.
-        let spotify = Process(pid: 7, bundleID: "com.spotify.client", isRunningOutput: true, isRunningInput: false)
-        XCTAssertFalse(decide([spotify], players: ["com.spotify.client": false]))
-        // Without an announcement it's indistinguishable from playing, so the IO wins.
-        XCTAssertTrue(decide([spotify]))
+    func testConfirmedMusicResumesExactlyOnce() {
+        confirmPause()
+        XCTAssertTrue(controller.didPauseMedia)
+        controller.resumeMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1, 0])
+        XCTAssertFalse(controller.didPauseMedia)
     }
 
-    func testAnnouncedPlayingPlayerIsPlayingEvenWithoutLocalOutput() {
-        // Spotify Connect renders on another device: no local IO, but our pause paused it, so
-        // the resume must be armed.
-        XCTAssertTrue(decide([], players: ["com.spotify.client": true]))
-        XCTAssertTrue(decide([Process(pid: 7, bundleID: "com.spotify.client", isRunningOutput: false, isRunningInput: false)],
-                             players: ["com.spotify.client": true]))
+    func testConfirmedSpotifyResumesWithoutLocalAudioIO() {
+        confirmPause(spotify)
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1, 0])
     }
 
-    func testPausedPlayerDoesNotMaskOtherOutput() {
-        let spotify = Process(pid: 7, bundleID: "com.spotify.client", isRunningOutput: true, isRunningInput: false)
-        let browser = Process(pid: 8, bundleID: "com.apple.Safari", isRunningOutput: true, isRunningInput: false)
-        XCTAssertTrue(decide([spotify, browser], players: ["com.spotify.client": false]))
+    func testPlayingWithoutPauseConfirmationDoesNotResume() {
+        controller.notePlayerState(bundleID: music, state: "Playing")
+        controller.pauseMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
     }
 
-    func testAnnouncementParsing() {
-        let controller = MediaPlaybackController.shared
-        controller.notePlayerState(bundleID: "com.apple.Music", state: "Playing")
-        XCTAssertEqual(controller.knownPlayerStates["com.apple.Music"], true)
-        controller.notePlayerState(bundleID: "com.apple.Music", state: "Paused")
-        XCTAssertEqual(controller.knownPlayerStates["com.apple.Music"], false)
-        controller.notePlayerState(bundleID: "com.apple.Music", state: "Stopped")
-        XCTAssertEqual(controller.knownPlayerStates["com.apple.Music"], false)
+    func testFailedPauseDoesNotResumeEvenIfAnnouncementArrives() {
+        pauseSucceeds = false
+        confirmPause()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testDuplicatePausePreservesConfirmedCycle() {
+        confirmPause()
+        controller.pauseMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1, 0])
+    }
+
+    func testRepeatedPauseAnnouncementPreservesConfirmedCycle() {
+        confirmPause()
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1, 0])
+    }
+
+    func testPlaybackRestartDuringRecordingCancelsResume() {
+        confirmPause()
+        controller.notePlayerState(bundleID: music, state: "Playing")
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testStoppedPlayerCancelsResume() {
+        confirmPause()
+        controller.notePlayerState(bundleID: music, state: "Stopped")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testUnknownPlayerStateCancelsResume() {
+        confirmPause()
+        controller.notePlayerState(bundleID: music, state: "Unknown")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+        XCTAssertNil(controller.knownPlayerStates[music])
+    }
+
+    func testAnotherPlayerChangeCancelsResume() {
+        confirmPause()
+        controller.notePlayerState(bundleID: spotify, state: "Paused")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testMultiplePlayingPlayersDoNotArmGlobalResume() {
+        controller.notePlayerState(bundleID: music, state: "Playing")
+        controller.notePlayerState(bundleID: spotify, state: "Playing")
+        controller.pauseMedia()
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testTerminatedPlayerCannotResumeOrLeaveStaleState() {
+        confirmPause()
+        controller.notePlayerTerminated(bundleID: music)
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+        XCTAssertNil(controller.knownPlayerStates[music])
+        controller.pauseMedia()
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1, 1])
+    }
+
+    func testLatePauseDoesNotCarryIntoNextRecording() {
+        controller.notePlayerState(bundleID: music, state: "Playing")
+        controller.pauseMedia()
+        controller.resumeMedia()
+        controller.notePlayerState(bundleID: music, state: "Paused")
+        controller.resumeMedia()
+        controller.pauseMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1, 1])
+    }
+
+    func testDisablingSettingConsumesResumeAndAllowsNextRecording() {
+        confirmPause()
+        controller.resumeMedia(allowResume: false)
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+        confirmPause()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1, 1, 0])
+    }
+
+    func testStopWithoutRecordingDoesNothing() {
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [])
     }
 }

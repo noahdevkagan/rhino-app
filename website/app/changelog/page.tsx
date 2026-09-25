@@ -1,5 +1,15 @@
 const releases = [
   {
+    version: "0.1.30",
+    date: "September 25, 2026",
+    changes: [
+      "Teaching Rhino a word is easier. Rule editing now opens right inside the Dictionary card instead of a popup that could get cut off, asks for the correct spelling first, and makes the \"Rhino hears it as\" spelling optional. Empty rules are cleaned up automatically.",
+      "New \"Fix sound-alikes\" setting (on by default): a word you add also fixes near-miss spellings of it — add \"Klaviyo\" and \"Clavio\" or \"Claviyo\" get fixed too, without listing them. Real words are never changed, so \"Stripe\" won't touch \"strip\".",
+      "Your dictionary now runs again after AI cleanup, so cleanup can no longer undo a spelling you fixed.",
+      "\"Fix a word\" in History: pick a misheard word in a past transcript and teach Rhino the right spelling on the spot.",
+    ],
+  },
+  {
     version: "0.1.29",
     date: "September 25, 2026",
     changes: [

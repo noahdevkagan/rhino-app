@@ -3,6 +3,21 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.30 — 2026-09-25
+
+- Teaching Rhino a word is easier. Rule editing now opens right inside the
+  Dictionary card instead of a popup that could get cut off, asks for the
+  correct spelling first, and makes the "Rhino hears it as" spelling
+  optional. Empty rules are cleaned up automatically.
+- New "Fix sound-alikes" setting (on by default): a word you add also fixes
+  near-miss spellings of it — add "Klaviyo" and "Clavio" or "Claviyo" get
+  fixed too, without listing them. Real words are never changed, so "Stripe"
+  won't touch "strip".
+- Your dictionary now runs again after AI cleanup, so cleanup can no longer
+  undo a spelling you fixed.
+- "Fix a word" in History: pick a misheard word in a past transcript and
+  teach Rhino the right spelling on the spot.
+
 ## 0.1.29 — 2026-09-25
 
 - With "Pause media during recording" on, Rhino no longer starts music or

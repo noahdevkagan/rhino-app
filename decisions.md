@@ -1463,6 +1463,37 @@ are unchanged. A real-model regression uses a nearly full 256-token context
 to force verify failure, then checks successful retry and output parity against
 both a fresh speculative context and plain greedy decoding.
 
+## 2026-09-24 — Never infer media playback from an open audio stream
+
+The .26 report still reproduces against .28's decision code: a paused browser,
+Music before its first notification, or paused Music plus a silent browser all
+arm a global Play. The media-app allowlist fixed unrelated web views but cannot
+separate paused media from playing media. Remove both CoreAudio fallback levels
+and cached MediaRemote reads (unavailable in shipped builds and stale between
+polls). Do not replace them with another audio-activity heuristic or a helper
+that borrows an Apple-signed executable's private entitlements.
+
+Conservative behavior: always send Pause; resume only when exactly one known
+Music/Spotify player was Playing and subsequently announces Paused during that
+recording. A failed command, termination, unknown/stopped/restarted playback,
+or another player's state change invalidates resume. Consume state on every
+stop/cancel, including when the setting was disabled mid-recording. Inject the
+command sender so regression tests never touch the user's playback.
+
+Trade-off: browsers and other non-announcing players require manual resume;
+Music/Spotify also stay paused if their initial state or pause confirmation is
+missing. The setting help text states the browser limitation. User was offered
+the trade-off asynchronously; absent a response, chose the stated conservative
+behavior to address the explicit request to stop unintended playback. This
+reverses the earlier choice to prefer approximate automatic resume. Commands
+remain system-wide, so this does not promise restoration of multiple players
+or track unannounced browser ownership changes during recording. All-local;
+no new processes, automation permissions, or networking.
+
+Player announcements are observed with `.deliverImmediately` (selector API):
+AppKit suspends distributed delivery while an app is inactive, and Rhino is
+inactive during every dictation, so the default coalescing could hold the
+Paused announcement until after resumeMedia has already declined.
 
 ## 2026-09-25 — Dictionary: sound-alike matching, re-run after LLM, inline editor
 

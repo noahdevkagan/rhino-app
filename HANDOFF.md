@@ -10,7 +10,7 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 ### Dictionary overhaul (2026-09-25, port-au-prince workspace)
 
 Trigger: Steven Wagner email ("Klaviyo" → "Clavio"; the rule popover was
-clipped). Implemented, uncommitted, not released: inline rule editor
+clipped). In PR #61 (master merged in), not released: inline rule editor
 (correct spelling first, "hears it as" optional, spacing only for punctuation,
 blank rules pruned), sound-alike matching (`Models/SoundAlike.swift`, toggle
 "Fix sound-alikes" in Settings → Output, default on), dictionary re-run after
@@ -18,8 +18,27 @@ LLM cleanup, Dictionary tab copy fixed, History row "Fix a word" sheet
 (`FixSpellingSheet.swift`). Why: decisions.md 2026-09-25. Build and full
 unit suite pass (449, 0 failures). Not yet eyeballed in the running app: the
 dev build shares the installed app's bundle ID and would quit it. Next: run it,
-click through Settings → Output → Dictionary, History → Fix a word, then
-push/PR, changelog entry, reply to Steven.
+click through Settings → Output → Dictionary, History → Fix a word; review
+follow-ups ("Git Hub" pair not joined, English-only real-word guard,
+possessives in Fix a word); changelog entry, reply to Steven.
+
+### Paused-media restart regression (2026-09-24, minnetonka workspace)
+
+Implemented on user request after confirming .26 and .28 both arm resume for
+paused browser output / Music before its first announcement / paused Music plus
+silent browser output. Removed CoreAudio guesses and stale MediaRemote polling.
+Pause remains unconditional; resume requires one known-playing Music/Spotify
+player to announce Paused during the recording. Failed commands, state changes,
+termination, repeated stops and disabling the setting cannot reuse a resume.
+Browser media now requires manual resume; settings help states this trade-off.
+User was offered the trade-off asynchronously; no response received, so proceeded
+with the stated conservative default. See decisions.md for rationale/limits.
+
+Validation: original decision code fails nine assertions across three regression
+cases; updated controller passes 19 isolated XCTest cases. Full app build passes;
+normal Xcode media/recording selection passes 28 tests, zero failures. Static
+privacy hygiene passes (dynamic check skipped). Logs: `.context/media-recheck/`.
+No live YouTube/Music playback test, install, release, commit or push performed.
 
 ### Master merge (2026-09-24, halifax workspace)
 

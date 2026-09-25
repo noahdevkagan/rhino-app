@@ -1676,7 +1676,7 @@ struct SettingsView: View {
                 }
                 .frame(minHeight: 26)
                 SRow(title: "Pause media during recording",
-                     hint: "Resumes what was actually playing when you stop") {
+                     hint: "Music and Spotify resume when playback is confirmed. Resume browser media manually.") {
                     SToggle(isOn: $viewModel.pauseMediaOnRecord)
                 }
             }

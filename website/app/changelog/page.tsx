@@ -1,5 +1,13 @@
 const releases = [
   {
+    version: "0.1.29",
+    date: "September 25, 2026",
+    changes: [
+      "With \"Pause media during recording\" on, Rhino no longer starts music or videos you had paused yourself. It used to guess what was playing from background audio activity, which could restart a paused browser tab or Music after you finished dictating. Rhino now resumes playback only when it actually paused Music or Spotify for that recording.",
+      "Browser media (YouTube and similar) still pauses while you dictate, but no longer resumes on its own afterward — press play when you're ready.",
+    ],
+  },
+  {
     version: "0.1.28",
     date: "September 24, 2026",
     changes: [

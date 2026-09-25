@@ -1,5 +1,5 @@
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.28/Rhino-0.1.28.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.29/Rhino-0.1.29.dmg";
 
 export default function Thanks() {
   return (

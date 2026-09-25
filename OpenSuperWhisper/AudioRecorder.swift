@@ -204,11 +204,7 @@ class AudioRecorder: NSObject, ObservableObject {
         }
 
         if AppPreferences.shared.pauseMediaOnRecord {
-            // Snapshot who is rendering audio NOW, before `.record()` can renegotiate a
-            // Bluetooth headset and make other apps' output flicker (#32's invariant); the
-            // pause itself hops to main, where MediaPlaybackController's state lives.
-            let audioProcesses = MediaPlaybackController.audioProcesses()
-            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia(audioProcessesHint: audioProcesses) }
+            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia() }
         }
 
         if AppPreferences.shared.playSoundOnRecordStart {
@@ -315,8 +311,8 @@ class AudioRecorder: NSObject, ObservableObject {
             self?.primeAudioHardware()  // re-prime so the next recording starts instantly too
         }
 
-        if AppPreferences.shared.pauseMediaOnRecord {
-            DispatchQueue.main.async { MediaPlaybackController.shared.resumeMedia() }
+        DispatchQueue.main.async {
+            MediaPlaybackController.shared.resumeMedia(allowResume: AppPreferences.shared.pauseMediaOnRecord)
         }
 
         if let url = currentRecordingURL,
@@ -352,8 +348,8 @@ class AudioRecorder: NSObject, ObservableObject {
         Task { @MainActor in SpectrumAnalyzer.shared.stop() }
         stopConnectionMonitoring()
 
-        if AppPreferences.shared.pauseMediaOnRecord {
-            DispatchQueue.main.async { MediaPlaybackController.shared.resumeMedia() }
+        DispatchQueue.main.async {
+            MediaPlaybackController.shared.resumeMedia(allowResume: AppPreferences.shared.pauseMediaOnRecord)
         }
 
         if let url = currentRecordingURL {

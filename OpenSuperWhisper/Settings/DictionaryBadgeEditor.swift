@@ -12,31 +12,58 @@ struct DictionaryBadgeEditor: View {
     @State private var editing: UUID?
 
     var body: some View {
-        FlowLayout(spacing: 6) {
-            ForEach(entries) { entry in
-                badge(for: entry)
+        VStack(alignment: .leading, spacing: 10) {
+            FlowLayout(spacing: 6) {
+                ForEach(entries) { entry in
+                    badge(for: entry)
+                }
+                addBadge
             }
-            addBadge
+
+            // The rule opens inside the card rather than in a popover. A popover anchored to a
+            // badge near the bottom of the Settings sheet opened past the window edge and was
+            // cut off, so people couldn't see what they were typing (Steven, 2026-09-25).
+            if let id = editing, let value = entries.first(where: { $0.id == id }) {
+                Divider().overlay(STheme.border)
+                DictionaryRuleEditor(
+                    entry: stableDictionaryEntryBinding(entries: $entries, fallback: value),
+                    onDone: { close() },
+                    onDelete: {
+                        entries.removeAll { $0.id == id }
+                        editing = nil
+                    })
+                    .id(id)
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 9).fill(STheme.cardBg))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(STheme.border, lineWidth: 1))
+        .onDisappear { close() }
     }
 
     private func badge(for value: CustomDictionaryEntry) -> some View {
-        let entry = stableDictionaryEntryBinding(entries: $entries, fallback: value)
         let label = value.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
-        let count = value.triggers.count
+        let triggers = value.triggers
+        let selected = editing == value.id
 
-        return Button { editing = value.id } label: {
+        return Button { open(value.id) } label: {
             HStack(spacing: 5) {
-                Text(label.isEmpty ? "empty" : label)
+                // With one phrasing the whole rule fits on the badge, so show it: seeing
+                // "clavio → Klaviyo" says what the rule does without opening it.
+                if triggers.count == 1, !label.isEmpty {
+                    Text(triggers[0])
+                        .scaledFont(size: 12)
+                        .foregroundColor(STheme.hint)
+                    Image(systemName: "arrow.right")
+                        .scaledFont(size: 8, weight: .semibold)
+                        .foregroundColor(STheme.hint)
+                }
+                Text(label.isEmpty ? "New word" : label)
                     .scaledFont(size: 12, weight: .medium)
                     .foregroundColor(label.isEmpty ? STheme.hint : STheme.textBright)
-                // Only worth showing when there is more than the obvious one behind it.
-                if count > 1 {
-                    Text("\(count)")
+                if triggers.count > 1 {
+                    Text("\(triggers.count)")
                         .scaledFont(size: 9, weight: .semibold)
                         .foregroundColor(STheme.accent)
                         .padding(.horizontal, 4)
@@ -46,37 +73,47 @@ struct DictionaryBadgeEditor: View {
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .background(Capsule().fill(STheme.controlBg))
-            .overlay(Capsule().stroke(STheme.controlBorder, lineWidth: 1))
+            .background(Capsule().fill(selected ? STheme.accentSoft : STheme.controlBg))
+            .overlay(Capsule().stroke(selected ? STheme.accent : STheme.controlBorder, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .help(value.triggers.joined(separator: ", "))
-        .popover(isPresented: Binding(get: { editing == value.id },
-                                      set: { if !$0 { editing = nil } }),
-                 arrowEdge: .bottom) {
-            DictionaryRuleEditor(entry: entry) {
-                entries.removeAll { $0.id == value.id }
-                editing = nil
-            }
-        }
+        .help(triggers.isEmpty ? label : triggers.joined(separator: ", ") + " → " + label)
     }
 
     private var addBadge: some View {
         Button {
             let entry = CustomDictionaryEntry()
             entries.append(entry)
-            editing = entry.id
+            open(entry.id)
         } label: {
-            Image(systemName: "plus")
+            Label("Add word", systemImage: "plus")
                 .scaledFont(size: 11, weight: .semibold)
                 .foregroundColor(STheme.hint)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.vertical, 5)
                 .background(Capsule().strokeBorder(STheme.controlBorder,
                                                    style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
         }
         .buttonStyle(.plain)
-        .help("Add a rule")
+        .help("Add a word or phrase to spell your way")
+    }
+
+    private func open(_ id: UUID) {
+        guard editing != id else { return close() }
+        close()
+        editing = id
+    }
+
+    /// Closing a rule nobody filled in drops it, so "Add word" then clicking away doesn't leave
+    /// a blank badge behind.
+    private func close() {
+        if let id = editing,
+           let entry = entries.first(where: { $0.id == id }),
+           entry.replacement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           entry.triggers.isEmpty {
+            entries.removeAll { $0.id == id }
+        }
+        editing = nil
     }
 }
 
@@ -100,43 +137,58 @@ func stableDictionaryEntryBinding(entries: Binding<[CustomDictionaryEntry]>,
     )
 }
 
-/// What sits behind one badge: the result on top, everything that reaches it underneath.
+/// What sits behind one badge: the right spelling on top, what the model hears underneath.
 private struct DictionaryRuleEditor: View {
     @Binding var entry: CustomDictionaryEntry
+    let onDone: () -> Void
     let onDelete: () -> Void
 
-    @FocusState private var focused: Int?
+    @FocusState private var focused: Field?
+
+    private enum Field: Hashable {
+        case replacement
+        case trigger(Int)
+    }
+
+    private var replacement: String {
+        entry.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Punctuation ("open quote" → `"`) is the only kind of rule where spacing is a question.
+    /// Existing rules that already use it keep the control.
+    private var showsSpacing: Bool {
+        (!replacement.isEmpty && replacement.rangeOfCharacter(from: .alphanumerics) == nil)
+            || entry.spacing != .standalone
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("Writes")
-                    .scaledFont(size: 9, weight: .bold)
-                    .tracking(0.6)
-                    .textCase(.uppercase)
-                    .foregroundColor(STheme.sectionTitle)
-
-                TextField("", text: $entry.replacement, prompt: Text("GitHub"))
+                sectionTitle("Correct spelling")
+                TextField("", text: $entry.replacement, prompt: Text("e.g. Klaviyo"))
                     .textFieldStyle(.plain)
-                    .scaledFont(size: 16, weight: .semibold)
+                    .scaledFont(size: 15, weight: .semibold)
                     .foregroundColor(STheme.textBright)
+                    .focused($focused, equals: .replacement)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(STheme.inputBg))
             }
 
-            Divider().overlay(STheme.border)
-
             VStack(alignment: .leading, spacing: 5) {
-                Text("When it hears")
-                    .scaledFont(size: 9, weight: .bold)
-                    .tracking(0.6)
-                    .textCase(.uppercase)
-                    .foregroundColor(STheme.sectionTitle)
+                HStack(spacing: 6) {
+                    sectionTitle("Rhino hears it as")
+                    Text("optional")
+                        .scaledFont(size: 10)
+                        .foregroundColor(STheme.hint)
+                }
 
                 ForEach(Array(triggerBindings().enumerated()), id: \.offset) { position, binding in
                     HStack(spacing: 6) {
-                        TextField("", text: binding, prompt: Text("git hub"))
+                        TextField("", text: binding, prompt: Text("e.g. clavio"))
                             .textFieldStyle(.plain)
                             .scaledFont(size: 12)
-                            .focused($focused, equals: position)
+                            .focused($focused, equals: .trigger(position))
 
                         Button { entry.removeTrigger(at: position) } label: {
                             Image(systemName: "minus.circle")
@@ -145,6 +197,7 @@ private struct DictionaryRuleEditor: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(position == 0 && entry.alternates.isEmpty)
+                        .help("Remove this spelling")
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
@@ -153,52 +206,90 @@ private struct DictionaryRuleEditor: View {
 
                 Button {
                     entry.alternates.append("")
-                    focused = entry.triggers.count
+                    focused = .trigger(entry.alternates.count)
                 } label: {
-                    Label("Another way of saying it", systemImage: "plus")
+                    Label("Another way it's heard", systemImage: "plus")
                         .scaledFont(size: 11)
                         .foregroundColor(STheme.accent)
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 2)
-            }
 
-            Divider().overlay(STheme.border)
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Spacing")
-                    .scaledFont(size: 9, weight: .bold)
-                    .tracking(0.6)
-                    .textCase(.uppercase)
-                    .foregroundColor(STheme.sectionTitle)
-
-                Picker("", selection: $entry.spacing) {
-                    Text("Keep spaces").tag(CustomDictionaryEntry.Spacing.standalone)
-                    Text("Opens").tag(CustomDictionaryEntry.Spacing.attachesRight)
-                    Text("Closes").tag(CustomDictionaryEntry.Spacing.attachesLeft)
+                if let note = matchingNote {
+                    Text(note)
+                        .scaledFont(size: 11)
+                        .foregroundColor(STheme.hint)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-
-                // The rule doing its job beats a description of what it does.
-                Text(preview)
-                    .scaledFont(size: 11, design: .monospaced)
-                    .foregroundColor(STheme.hint)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
             }
 
-            Divider().overlay(STheme.border)
+            if showsSpacing {
+                VStack(alignment: .leading, spacing: 5) {
+                    sectionTitle("Spacing")
 
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete this rule", systemImage: "trash")
-                    .scaledFont(size: 11)
+                    Picker("", selection: $entry.spacing) {
+                        Text("Keep spaces").tag(CustomDictionaryEntry.Spacing.standalone)
+                        Text("Opens").tag(CustomDictionaryEntry.Spacing.attachesRight)
+                        Text("Closes").tag(CustomDictionaryEntry.Spacing.attachesLeft)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(maxWidth: 280)
+
+                    // The rule doing its job beats a description of what it does.
+                    Text(preview)
+                        .scaledFont(size: 11, design: .monospaced)
+                        .foregroundColor(STheme.hint)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
-            .buttonStyle(.plain)
-            .foregroundColor(STheme.hint)
+
+            HStack {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                        .scaledFont(size: 11)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(STheme.hint)
+
+                Spacer()
+
+                Button("Done", action: onDone)
+                    .controlSize(.small)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
-        .padding(14)
-        .frame(width: 280)
+        .frame(maxWidth: 420, alignment: .leading)
+        .onAppear {
+            if replacement.isEmpty { focused = .replacement }
+        }
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .scaledFont(size: 9, weight: .bold)
+            .tracking(0.6)
+            .textCase(.uppercase)
+            .foregroundColor(STheme.sectionTitle)
+    }
+
+    /// What happens when nothing is listed under "hears it as", so the optional field reads as
+    /// optional rather than as a step that was skipped.
+    private var matchingNote: String? {
+        guard !replacement.isEmpty, replacement.rangeOfCharacter(from: .alphanumerics) != nil
+        else { return nil }
+        let guessable = !SoundAlike.eligibleTerms([entry]).isEmpty
+        let soundAlikes = AppPreferences.shared.customDictionarySoundAlikesEnabled
+        if guessable && soundAlikes {
+            return "Close misspellings are fixed automatically. Add one here only if Rhino keeps getting it wrong."
+        }
+        if entry.triggers.isEmpty {
+            return guessable
+                ? "Add how Rhino spells it now — sound-alike fixing is off in Settings → Output."
+                : "Add how Rhino spells it now — short words and phrases need an exact match."
+        }
+        return nil
     }
 
     private var preview: String {

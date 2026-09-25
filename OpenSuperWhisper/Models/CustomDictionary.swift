@@ -123,6 +123,52 @@ enum CustomDictionary {
         return result
     }
 
+    /// Everything the dictionary does to finished text: the user's exact phrasings, then the
+    /// sound-alike pass for words nobody listed a phrasing for (`SoundAlike`).
+    static func correct(_ text: String, entries: [CustomDictionaryEntry],
+                        soundAlikes: Bool) -> String {
+        let exact = apply(text, entries: entries)
+        return soundAlikes ? SoundAlike.apply(exact, entries: entries) : exact
+    }
+
+    /// The rules that can run a second time without changing their own output.
+    ///
+    /// The dictionary runs again after LLM cleanup, because the cleanup model can put back a
+    /// spelling the dictionary already fixed. A rule whose result contains its own trigger
+    /// ("noah" → "Noah Kagan") would grow on every pass, so it only ever runs once.
+    static func reapplicable(_ entries: [CustomDictionaryEntry]) -> [CustomDictionaryEntry] {
+        entries.filter { entry in
+            let replacement = entry.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+            return apply(replacement, entries: [entry]) == replacement
+        }
+    }
+
+    /// Adds a correction taught from a transcript ("Clavio" should be "Klaviyo"), folded into
+    /// the rule that already writes that spelling if there is one.
+    static func teaching(heard: String, correct: String,
+                         to entries: [CustomDictionaryEntry]) -> [CustomDictionaryEntry] {
+        let heard = heard.trimmingCharacters(in: .whitespacesAndNewlines)
+        let correct = correct.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !heard.isEmpty, !correct.isEmpty, heard != correct else { return entries }
+        return merged(entries + [CustomDictionaryEntry(original: heard, replacement: correct)])
+    }
+
+    /// The distinct words of a transcript, in order, for picking the one that came out wrong.
+    static func pickableWords(in text: String, limit: Int = 80) -> [String] {
+        var seen = Set<String>()
+        var words: [String] = []
+        for raw in text.split(whereSeparator: { $0.isWhitespace }) {
+            // Keep inner apostrophes and hyphens ("Klaviyo's", "e-mail"), drop the punctuation
+            // a sentence puts around a word.
+            let word = raw.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+            guard word.rangeOfCharacter(from: .letters) != nil,
+                  seen.insert(word.lowercased()).inserted else { continue }
+            words.append(word)
+            if words.count == limit { break }
+        }
+        return words
+    }
+
     /// Folds rules that write the same thing into one.
     ///
     /// Before a rule could hold several phrasings, saying a thing three ways meant three rows

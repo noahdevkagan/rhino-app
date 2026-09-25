@@ -189,6 +189,9 @@ final class DictationPipeline: ObservableObject {
             // RECORDED — the app the user was dictating into — not whatever is frontmost now that
             // the background queue got to it. (parallel-recording)
             text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID)
+            // The cleanup model doesn't know the user's spellings and can undo them, so the
+            // dictionary gets the last word. (A no-op pass when cleanup is off.)
+            text = settings.applyCustomDictionary(text, afterCleanup: true)
 
             // Trailing "press enter" voice command (opt-in): strip it and remember to press Return
             // after insertion, submitting the message/prompt.

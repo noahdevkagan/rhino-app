@@ -316,10 +316,7 @@ class WhisperEngine: TranscriptionEngine {
             return TranscriptionResult.noSpeech
         }
 
-        var processedText = cleanedText
-        if settings.shouldApplyCustomDictionary {
-            processedText = CustomDictionary.apply(processedText, entries: settings.customDictionaryEntries)
-        }
+        let processedText = settings.applyCustomDictionary(cleanedText)
 
         return processedText.isEmpty ? TranscriptionResult.noSpeech : processedText
     }

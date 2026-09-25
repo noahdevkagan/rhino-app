@@ -165,9 +165,7 @@ class FluidAudioEngine: TranscriptionEngine {
         let postStart = CFAbsoluteTimeGetCurrent()
         var processedText = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if settings.shouldApplyCustomDictionary {
-            processedText = CustomDictionary.apply(processedText, entries: settings.customDictionaryEntries)
-        }
+        processedText = settings.applyCustomDictionary(processedText)
         let postProcessMs = (CFAbsoluteTimeGetCurrent() - postStart) * 1000
 
         let timings = TranscriptionStageTimings(

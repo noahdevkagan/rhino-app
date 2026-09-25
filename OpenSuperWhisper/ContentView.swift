@@ -269,8 +269,10 @@ class ContentViewModel: ObservableObject {
                     // App-aware formatting keys off the app captured at record-start, not the
                     // frontmost app: recording from the main window makes OSW itself frontmost, so
                     // asking the workspace here would never match a profile.
-                    let text = await LLMPostProcessor.process(
-                        cleanedText, bundleID: RecordingContext.shared.bundleID)
+                    let text = Settings().applyCustomDictionary(
+                        await LLMPostProcessor.process(
+                            cleanedText, bundleID: RecordingContext.shared.bundleID),
+                        afterCleanup: true)
 
                     if AppPreferences.shared.saveTranscriptionHistory {
                         // Capture the current recording duration
@@ -891,6 +893,7 @@ struct RecordingRow: View {
         return context.isEmpty ? nil : context
     }
     @State private var showTranscription = false
+    @State private var showFixSpelling = false
     @State private var isHovered = false
     @Environment(\.colorScheme) private var colorScheme
 
@@ -1160,6 +1163,15 @@ struct RecordingRow: View {
                         .buttonStyle(.plain)
                         .help("Copy entire text")
                         .transition(.opacity)
+
+                        Button(action: { showFixSpelling = true }) {
+                            Image(systemName: "character.book.closed.fill")
+                                .scaledFont(size: 17)
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Fix a misspelled word — teaches your dictionary")
+                        .transition(.opacity)
                     }
 
                     if (recording.status == .completed || recording.status == .failed) && isHovered {
@@ -1229,6 +1241,9 @@ struct RecordingRow: View {
         )
         .onHover { hovering in
             isHovered = hovering
+        }
+        .sheet(isPresented: $showFixSpelling) {
+            FixSpellingSheet(recording: recording)
         }
         .padding(.vertical, 4)
     }

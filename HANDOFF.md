@@ -7,6 +7,20 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Dictionary overhaul (2026-09-25, port-au-prince workspace)
+
+Trigger: Steven Wagner email ("Klaviyo" → "Clavio"; the rule popover was
+clipped). Implemented, uncommitted, not released: inline rule editor
+(correct spelling first, "hears it as" optional, spacing only for punctuation,
+blank rules pruned), sound-alike matching (`Models/SoundAlike.swift`, toggle
+"Fix sound-alikes" in Settings → Output, default on), dictionary re-run after
+LLM cleanup, Dictionary tab copy fixed, History row "Fix a word" sheet
+(`FixSpellingSheet.swift`). Why: decisions.md 2026-09-25. Build and full
+unit suite pass (449, 0 failures). Not yet eyeballed in the running app: the
+dev build shares the installed app's bundle ID and would quit it. Next: run it,
+click through Settings → Output → Dictionary, History → Fix a word, then
+push/PR, changelog entry, reply to Steven.
+
 ### Master merge (2026-09-24, halifax workspace)
 
 Merged origin/master (e7e9e84) into local/test-speed-plus-media. Resolved

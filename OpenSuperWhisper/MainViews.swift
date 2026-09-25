@@ -402,7 +402,7 @@ struct DictionaryTabView: View {
                 }
                 .padding(.top, 26)
 
-                Text("Your names and jargon, spelled right every time — fixed after transcription and boosted during it. Stored only on this Mac.")
+                Text("Your names and jargon, spelled right every time. Add the correct spelling and Rhino fixes close misspellings of it; add how it's misheard for anything it still misses. Stored only on this Mac.")
                     .scaledFont(size: 12.5)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -421,8 +421,9 @@ struct DictionaryTabView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ThemePalette.windowBackground(colorScheme))
         .onReceive(NotificationCenter.default.publisher(for: .customDictionaryDidChange)) { _ in
-            // Another editor (Settings) changed the rules; refresh our copy.
+            // Another editor (a history row's "Fix a word") changed the rules; refresh our copy.
             entries = CustomDictionary.merged(AppPreferences.shared.customDictionaryEntries)
+            enabled = AppPreferences.shared.customDictionaryEnabled
         }
     }
 }

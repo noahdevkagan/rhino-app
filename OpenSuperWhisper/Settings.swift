@@ -128,6 +128,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var customDictionarySoundAlikesEnabled: Bool {
+        didSet {
+            AppPreferences.shared.customDictionarySoundAlikesEnabled = customDictionarySoundAlikesEnabled
+        }
+    }
+
     @Published var customDictionaryEntries: [CustomDictionaryEntry] {
         didSet {
             AppPreferences.shared.customDictionaryEntries = customDictionaryEntries
@@ -391,6 +397,7 @@ class SettingsViewModel: ObservableObject {
         self.suppressBlankAudio = prefs.suppressBlankAudio
         self.customDictionaryEnabled = prefs.customDictionaryEnabled
         self.customDictionaryBoostEnabled = prefs.customDictionaryBoostEnabled
+        self.customDictionarySoundAlikesEnabled = prefs.customDictionarySoundAlikesEnabled
         // Folded when the window opens rather than as the user types: merging live would yank a
         // row away mid-keystroke the moment its replacement matched another.
         self.customDictionaryEntries = CustomDictionary.merged(prefs.customDictionaryEntries)
@@ -870,6 +877,7 @@ struct Settings {
     var beamSize: Int
     var customDictionaryEnabled: Bool
     var customDictionaryBoostEnabled: Bool
+    var customDictionarySoundAlikesEnabled: Bool
     var customDictionaryEntries: [CustomDictionaryEntry]
 
     var shouldApplyCustomDictionary: Bool {
@@ -899,7 +907,20 @@ struct Settings {
         self.beamSize = prefs.beamSize
         self.customDictionaryEnabled = prefs.customDictionaryEnabled
         self.customDictionaryBoostEnabled = prefs.customDictionaryBoostEnabled
+        self.customDictionarySoundAlikesEnabled = prefs.customDictionarySoundAlikesEnabled
         self.customDictionaryEntries = prefs.customDictionaryEntries
+    }
+
+    /// The dictionary's full pass over finished text: exact phrasings, then sound-alikes.
+    /// `afterCleanup` is the second pass over LLM output, which skips rules that aren't safe to
+    /// run twice (`CustomDictionary.reapplicable`).
+    func applyCustomDictionary(_ text: String, afterCleanup: Bool = false) -> String {
+        guard shouldApplyCustomDictionary else { return text }
+        let entries = afterCleanup
+            ? CustomDictionary.reapplicable(customDictionaryEntries)
+            : customDictionaryEntries
+        return CustomDictionary.correct(text, entries: entries,
+                                        soundAlikes: customDictionarySoundAlikesEnabled)
     }
 }
 
@@ -1373,10 +1394,20 @@ struct SettingsView: View {
             }
 
             SSection(title: "Dictionary") {
-                SRow(title: "Custom dictionary", hint: "Whole-word replacement, case-insensitive") {
+                SRow(title: "Custom dictionary", hint: "Names and jargon, spelled your way") {
                     SToggle(isOn: $viewModel.customDictionaryEnabled)
                 }
                 if viewModel.customDictionaryEnabled {
+                    HStack(spacing: 8) {
+                        Text("Fix sound-alikes")
+                            .scaledFont(size: 12).foregroundColor(STheme.text)
+                        InfoButton(text: "A word you add also fixes near-miss spellings of it that aren't real words — add “Klaviyo” and “Clavio” or “Claviyo” get fixed too, without listing them. Real words are never changed (“Stripe” won't touch “strip”), and words under 5 letters need an exact “hears it as” spelling.")
+                        Spacer()
+                        SToggle(isOn: $viewModel.customDictionarySoundAlikesEnabled)
+                    }
+                    .padding(.leading, 16)
+                    .frame(minHeight: 24)
+
                     HStack(spacing: 8) {
                         Text("Boost recognition")
                             .scaledFont(size: 12).foregroundColor(STheme.text)

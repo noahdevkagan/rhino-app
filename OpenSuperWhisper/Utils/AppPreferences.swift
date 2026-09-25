@@ -184,6 +184,12 @@ final class AppPreferences {
     @UserDefault(key: "customDictionaryBoostEnabled", defaultValue: false)
     var customDictionaryBoostEnabled: Bool
 
+    /// Whether a rule's word also fixes spellings that sound like it and aren't real words
+    /// ("Clavio" → "Klaviyo"), so a rule works without the user knowing what the model mishears.
+    /// On by default; the real-word guard keeps it off ordinary speech. See `SoundAlike`.
+    @UserDefault(key: "customDictionarySoundAlikesEnabled", defaultValue: true)
+    var customDictionarySoundAlikesEnabled: Bool
+
     @OptionalUserDefault(key: "customDictionaryData")
     private var customDictionaryData: Data?
 
@@ -197,6 +203,8 @@ final class AppPreferences {
         }
         set {
             customDictionaryData = try? JSONEncoder().encode(newValue)
+            // A first word worth guessing at: have the word list ready before it's dictated.
+            if !SoundAlike.eligibleTerms(newValue).isEmpty { SystemWordList.prewarm() }
         }
     }
     

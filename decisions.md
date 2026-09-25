@@ -1462,3 +1462,30 @@ next prefill retries normally. Model, prompts, drafting and output acceptance
 are unchanged. A real-model regression uses a nearly full 256-token context
 to force verify failure, then checks successful retry and output parity against
 both a fresh speculative context and plain greedy decoding.
+
+
+## 2026-09-25 — Dictionary: sound-alike matching, re-run after LLM, inline editor
+
+Trigger: a customer said "Klaviyo" always landed as "Clavio", and the rule
+popover in Settings was cut off. (1) A rule's word now also fixes near-misses
+nobody listed (`SoundAlike`): same consonant skeleton, a small sound-aware edit
+distance (c/k, v/f, s/z, b/p, d/t swaps are free), words of 5+ letters only, and
+never a real English word (/usr/share/dict/words) or another rule's word.
+Adjacent pairs must spell the word exactly ("git hub"); a looser pair rule
+rewrote "as an" → Asana and "you type" → YouTube over real text. Links, emails
+and paths are skipped. Measured with 71 brand names over ~600k words (man pages,
+repo docs, Noah's own history): zero wrong edits. On Noah's history it fixed real
+mishearings: Upsumo/Apsumo → AppSumo, Sandfox → SendFox. Default ON, with a
+Settings toggle as the escape hatch. Cost: ~100 ms and ~10 MB to load the word
+list, prewarmed off the dictation path and only when an eligible word exists.
+(2) The dictionary runs again after LLM cleanup, because the cleanup model
+doesn't know the user's spellings. Rules whose result contains their own trigger
+("noah" → "Noah Kagan") are left out of the second pass so they can't compound.
+We deliberately did NOT add a glossary to the cleanup prompt: it would change a
+prompt tuned against byte-identical benchmarks, and a 1.5B model given a list of
+words tends to insert them. The deterministic second pass covers the same failure.
+(3) The rule editor opens inside the dictionary card, not in a popover: anchored
+near the bottom of the Settings sheet, the popover opened past the window edge.
+(4) History rows get "Fix a word": pick the wrong word, type the right one, and
+the rule is created (plus that transcript fixed). Recognition boost stays opt-in:
+the boosted Parakeet path gives different results on identical clips (2026-08-31).

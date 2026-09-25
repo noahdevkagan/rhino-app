@@ -154,6 +154,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // — take over from any older instance before arming anything. (#duplicate-paste)
         SingleInstanceGuard.terminateOtherInstances()
 
+        // Load the word list the sound-alike pass needs now, not on the first dictation.
+        let prefs = AppPreferences.shared
+        if prefs.customDictionaryEnabled, prefs.customDictionarySoundAlikesEnabled,
+           !SoundAlike.eligibleTerms(prefs.customDictionaryEntries).isEmpty {
+            SystemWordList.prewarm()
+        }
+
         // White-first product (design: Gebbia minimal, per the Typeless-style
         // mockups) — the whole app renders light regardless of system theme.
         NSApp.appearance = NSAppearance(named: .aqua)

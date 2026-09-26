@@ -31,6 +31,12 @@
 	<string>5pICUVveoLSZXI7/h90i8nBE4jOh74mx317W8jF7gfE=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
+	<!-- Default for "Install updates automatically" (Updates tab). Downloads in
+	     the background; SparkleUpdater installs it once Rhino is idle. -->
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!-- All-local app: every network call is HTTPS to a public host (Sparkle

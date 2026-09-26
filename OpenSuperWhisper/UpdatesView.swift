@@ -2,8 +2,7 @@ import SwiftUI
 
 /// The "Updates" settings tab: current version + the release notes that shipped
 /// in this build (CHANGELOG.md is bundled at build time, so the app and its
-/// notes can't drift apart). Update *checking* stays disabled until Rhino's
-/// signed appcast goes live — see Info.plist.
+/// notes can't drift apart), plus the auto-install switch.
 struct UpdatesView: View {
     /// The running app's marketing version, straight from the bundle.
     static var currentVersion: String {
@@ -35,6 +34,7 @@ struct UpdatesView: View {
     }
 
     private let notes = Self.releaseNotes()
+    @State private var autoInstall = SparkleUpdater.shared.automaticallyInstallsUpdates
 
     var body: some View {
         SPane(title: "Updates") {
@@ -42,6 +42,14 @@ struct UpdatesView: View {
                  hint: "Updates install in place over Rhino's own signed feed, then the app relaunches.") {
                 Button("Check for Updates") { SparkleUpdater.shared.checkForUpdates() }
                     .controlSize(.small)
+            }
+
+            SRow(title: "Install updates automatically",
+                 hint: "Downloads in the background and installs while you're away, never mid-dictation. Off: you'll see a red dot on the menu bar icon instead.") {
+                SToggle(isOn: $autoInstall)
+                    .onChange(of: autoInstall) { _, on in
+                        SparkleUpdater.shared.automaticallyInstallsUpdates = on
+                    }
             }
 
             ForEach(notes, id: \.version) { section in

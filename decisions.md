@@ -1520,3 +1520,21 @@ near the bottom of the Settings sheet, the popover opened past the window edge.
 (4) History rows get "Fix a word": pick the wrong word, type the right one, and
 the rule is created (plus that transcript fixed). Recognition boost stays opt-in:
 the boosted Parakeet path gives different results on identical clips (2026-08-31).
+
+**2026-09-25 — Updates install automatically, only while the user is away.**
+Rhino previously only asked (red dot plus Sparkle prompt), so many installs
+stayed several releases behind. For example, people kept hitting the AirPods hang
+after its fix shipped. `SUAutomaticallyUpdate` now defaults ON, with a checkbox
+in the Updates tab as the escape hatch. Stock Sparkle installs silently only on
+quit, and a menu-bar app almost never quits. So `SparkleUpdater` takes Sparkle's
+immediate-install handler (`willInstallUpdateOnQuit`) and fires it only when
+nothing is recording, connecting, transcribing or showing the indicator, AND the
+Mac has had 5 minutes with no keyboard or mouse input
+(`CGEventSource.secondsSinceLastEventType`, which needs no TCC permission). The
+relaunch takes about 1 second. Quitting still installs, as before. The appcast now
+uses a 4-hour phased rollout (7 groups, everyone within about a day), so a bad
+build can be pulled before most installs take it. A longer spread would leave
+people permanently behind at our 1–3 day release cadence. This only applies from
+the first build that contains the change: older installs need one more manual
+update to get it. It adds no new network calls, since Sparkle was already the one
+sanctioned channel.

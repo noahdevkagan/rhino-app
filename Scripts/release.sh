@@ -66,7 +66,11 @@ SPARKLE_BIN=$(find SourcePackages/artifacts -type d -name bin -path "*parkle*" |
 # from a shell (per-binary keychain ACLs), so export-sign-shred each run.
 KEYFILE="$(mktemp -u)"
 "$SPARKLE_BIN/generate_keys" -x "$KEYFILE" --account Rhino
+# Phased rollout: 1/7 of automatic updaters per 4h, everyone within a day, so a
+# bad build can be pulled from the feed before it reaches most installs.
+# Manual "Check for Updates" ignores phasing.
 "$SPARKLE_BIN/generate_appcast" --ed-key-file "$KEYFILE" --embed-release-notes \
+    --phased-rollout-interval 14400 \
     --download-url-prefix "https://github.com/$RELEASES_REPO/releases/download/v$VERSION/" \
     -o dist/appcast.xml "$ARCHIVE"
 rm -f "$KEYFILE"

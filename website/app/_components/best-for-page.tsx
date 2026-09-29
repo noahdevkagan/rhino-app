@@ -9,7 +9,9 @@ export type BestForPick = {
   local: string;
   body: string[];
   url?: string;
-  /** Marks Rhino Voice, so the page discloses it is the author's own app. */
+  /** Overrides the "Visit {name}" link text. */
+  linkText?: string;
+  /** Marks an app Noah makes (Rhino Voice, MeetMouse), so the page discloses it. */
   mine?: boolean;
 };
 
@@ -42,6 +44,13 @@ export type BestForContent = {
   today: string[];
   faq: BestForFaq[];
   ctaBody: string;
+  /** Replaces the Rhino buy form, e.g. to send Otter shoppers to MeetMouse. */
+  cta?: { heading: string; href: string; label: string };
+  /**
+   * Middle breadcrumb. Defaults to the /best guides hub; null for pages that
+   * live outside it (the /alternatives/* pages).
+   */
+  crumbParent?: { href: string; label: string } | null;
   /** Month + year the pricing and claims on the page were last checked. */
   checked: string;
 };
@@ -60,27 +69,42 @@ export const BEST_FOR_GUIDES: { href: string; label: string }[] = [
   { href: "/best/offline-dictation-app-for-mac", label: "Best offline dictation app for Mac" },
 ];
 
-const COMPARISON_LINKS: { href: string; label: string }[] = [
+const GUIDES_CRUMB = { href: "/best", label: "Guides" };
+
+export const COMPARISON_LINKS: { href: string; label: string }[] = [
   { href: "/vs/wispr-flow", label: "Rhino Voice vs Wispr Flow" },
   { href: "/vs/superwhisper", label: "Rhino Voice vs superwhisper" },
   { href: "/vs/macwhisper", label: "Rhino Voice vs MacWhisper" },
   { href: "/vs/apple-dictation", label: "Rhino Voice vs Apple Dictation" },
   { href: "/alternatives/wispr-flow", label: "Wispr Flow alternatives" },
   { href: "/alternatives/dragon", label: "Dragon alternatives for Mac" },
+  { href: "/alternatives/superwhisper", label: "superwhisper alternatives" },
+  { href: "/alternatives/macwhisper", label: "MacWhisper alternatives" },
+  { href: "/alternatives/otter", label: "Otter.ai alternatives" },
 ];
+
+function crumbParent(content: BestForContent) {
+  return content.crumbParent === undefined ? GUIDES_CRUMB : content.crumbParent;
+}
 
 export function bestForJsonLd(content: BestForContent) {
   const url = `https://rhinovoice.app${content.slug}`;
+  const parent = crumbParent(content);
+  const crumbs = [
+    { name: "Rhino", item: "https://rhinovoice.app/" },
+    ...(parent ? [{ name: parent.label, item: `https://rhinovoice.app${parent.href}` }] : []),
+    { name: content.label, item: url },
+  ];
 
   return [
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Rhino", item: "https://rhinovoice.app/" },
-        { "@type": "ListItem", position: 2, name: "Guides", item: "https://rhinovoice.app/best" },
-        { "@type": "ListItem", position: 3, name: content.label, item: url },
-      ],
+      itemListElement: crumbs.map((crumb, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        ...crumb,
+      })),
     },
     {
       "@context": "https://schema.org",
@@ -116,6 +140,8 @@ function Sections({ sections }: { sections: BestForSection[] }) {
 }
 
 export function BestForPage({ content }: { content: BestForContent }) {
+  const parent = crumbParent(content);
+
   return (
     <div className="doc-page">
       <script
@@ -132,8 +158,12 @@ export function BestForPage({ content }: { content: BestForContent }) {
         <nav className="breadcrumb" aria-label="Breadcrumb">
           <a href="/">Rhino</a>
           <span aria-hidden="true">/</span>
-          <a href="/best">Guides</a>
-          <span aria-hidden="true">/</span>
+          {parent ? (
+            <>
+              <a href={parent.href}>{parent.label}</a>
+              <span aria-hidden="true">/</span>
+            </>
+          ) : null}
           <span>{content.label}</span>
         </nav>
 
@@ -197,7 +227,7 @@ export function BestForPage({ content }: { content: BestForContent }) {
                 <dd>{pick.price}</dd>
               </div>
               <div>
-                <dt>Where your speech is processed</dt>
+                <dt>Where your audio is processed</dt>
                 <dd>{pick.where}</dd>
               </div>
             </dl>
@@ -213,7 +243,8 @@ export function BestForPage({ content }: { content: BestForContent }) {
                     ? { target: "_blank", rel: "noopener noreferrer" }
                     : {})}
                 >
-                  {pick.mine ? "See what Rhino Voice does" : `Visit ${pick.name}`}
+                  {pick.linkText ??
+                    (pick.url === "/" ? "See what Rhino Voice does" : `Visit ${pick.name}`)}
                 </a>
               </p>
             ) : null}
@@ -251,9 +282,15 @@ export function BestForPage({ content }: { content: BestForContent }) {
         </section>
 
         <section className="doc-cta">
-          <h2>Try Rhino Voice</h2>
+          <h2>{content.cta?.heading ?? "Try Rhino Voice"}</h2>
           <p>{content.ctaBody}</p>
-          <BuyForm />
+          {content.cta ? (
+            <a className="button button-primary" href={content.cta.href}>
+              {content.cta.label}
+            </a>
+          ) : (
+            <BuyForm />
+          )}
         </section>
 
         <p className="checked-note">
@@ -273,7 +310,7 @@ export function BestForPage({ content }: { content: BestForContent }) {
           </ul>
           <h2>Head-to-head comparisons</h2>
           <ul>
-            {COMPARISON_LINKS.map((link) => (
+            {COMPARISON_LINKS.filter((link) => link.href !== content.slug).map((link) => (
               <li key={link.href}>
                 <a href={link.href}>{link.label}</a>
               </li>

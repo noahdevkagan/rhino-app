@@ -1555,3 +1555,16 @@ could stretch `.doc-page` past the viewport, now clamped with
 `grid-template-columns: minmax(0, 1fr)`. `public/sitemap.xml` is static, so the
 guides were added by hand and the test now asserts they stay listed.
 
+**2026-09-29 — superwhisper, MacWhisper and Otter alternatives pages reuse the
+guide component, and the Otter page sells MeetMouse, not Rhino.** The three
+biggest missing "X alternatives" queries next to our existing Wispr Flow and
+Dragon pages. They render through `BestForPage` (now with `crumbParent: null`
+for pages outside the /best hub, per-pick `linkText`, and a `cta` override)
+instead of copying the hand-written Dragon page again. `COMPARISON_LINKS` in
+best-for-page.tsx is now the one list every comparison, alternatives and guide
+page cross-links from; the old hand-maintained copies were replaced. Otter
+shoppers want meeting notes, which is MeetMouse's job, so that page leads with
+MeetMouse (disclosed as "mine") and its CTA links there; Rhino appears only for
+"dictate the takeaways after the call". Unverified-by-us prices (Granola,
+Fireflies, Descript, Otter) are described as "free tier; paid plans monthly".
+

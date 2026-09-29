@@ -800,6 +800,7 @@ footer span { color: var(--ink); font-weight: 700; }
 .more-links { margin-top: 46px; }
 .more-links h2 { font-size: 18px; }
 .more-links ul { margin: 0; padding: 0 0 0 20px; display: grid; gap: 9px; }
+.more-links ul + h2 { margin-top: 28px; }
 
 @media (max-width: 980px) {
   .hero { grid-template-columns: 1fr; padding-top: 70px; text-align: center; gap: 55px; }

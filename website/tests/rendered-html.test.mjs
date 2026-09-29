@@ -163,6 +163,9 @@ test("renders the changelog and post-purchase download routes", async () => {
   ]);
 
   assert.match(changelog, /<h1>Changelog<\/h1>/);
+  // The changelog has its own title, not a copy of the homepage's.
+  assert.match(changelog, /<title>Rhino Voice Changelog/);
+  assert.match(changelog, /rel="canonical" href="https:\/\/rhinovoice\.app\/changelog"/);
   assert.match(changelog, /0\.1\.9/);
   assert.match(changelog, /downloads the on-device cleanup model automatically/);
   assert.match(changelog, /Smart formatting/);

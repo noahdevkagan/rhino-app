@@ -74,21 +74,21 @@ button { font: inherit; }
   text-indent: -0.02em;
 }
 
-nav {
+.site-header nav {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 26px;
 }
 
-nav > a,
+.site-header nav > a,
 footer a {
   color: var(--muted);
   font-size: 14px;
   font-weight: 600;
 }
 
-nav > a:hover,
+.site-header nav > a:hover,
 footer a:hover { color: var(--ink); }
 
 .buy-form { margin: 0; }
@@ -677,6 +677,8 @@ footer span { color: var(--ink); font-weight: 700; }
   min-height: 100svh;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  /* minmax(0, …) stops a wide table from stretching the page past the viewport. */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .doc {
@@ -800,6 +802,10 @@ footer span { color: var(--ink); font-weight: 700; }
 .more-links { margin-top: 46px; }
 .more-links h2 { font-size: 18px; }
 .more-links ul { margin: 0; padding: 0 0 0 20px; display: grid; gap: 9px; }
+.more-links ul + h2 { margin-top: 28px; }
+.doc ol.today { margin: 0; padding: 0 0 0 24px; list-style: decimal; line-height: 1.68; }
+.doc ol.today li + li { margin-top: 12px; }
+.doc ol.today li::marker { color: var(--coral-dark); font-weight: 750; }
 
 @media (max-width: 980px) {
   .hero { grid-template-columns: 1fr; padding-top: 70px; text-align: center; gap: 55px; }
@@ -810,8 +816,8 @@ footer span { color: var(--ink); font-weight: 700; }
 
 @media (max-width: 680px) {
   .site-header { height: 70px; }
-  nav { gap: 14px; }
-  nav > a { display: none; }
+  .site-header nav { gap: 14px; }
+  .site-header nav > a { display: none; }
   .hero { width: calc(100% - 28px); min-height: 0; padding: 58px 0 35px; }
   .hero h1 { font-size: clamp(43px, 13vw, 60px); }
   .hero-description { font-size: 17px; }

@@ -106,6 +106,49 @@ test("renders every comparison page with its schema and canonical", async () => 
   }
 });
 
+test("renders every best-for guide with its schema, canonical and disclosure", async () => {
+  const guides = [
+    ["/best/dictation-app-for-lawyers", /dictation app for lawyers/, /privilege/i],
+    ["/best/dictation-app-for-doctors", /dictation app for doctors/, /ambient/i],
+    ["/best/dictation-app-for-writers", /dictation app for writers/, /Scrivener/],
+    ["/best/dictation-app-for-developers", /dictation app for developers/, /Talon/],
+    ["/best/dictation-app-for-adhd", /dictation app for ADHD/, /friction/i],
+    ["/best/dictation-app-for-rsi", /RSI and carpal tunnel/, /Voice Control/],
+    ["/best/dictation-app-for-students", /dictation app for students/, /Google Docs voice typing/],
+    ["/best/dictation-app-for-non-native-english-speakers", /non-native English speakers/, /Parakeet v3/],
+    ["/best/dictation-app-for-journalists", /apps for journalists/, /MacWhisper/],
+    ["/best/offline-dictation-app-for-mac", /offline dictation app for Mac/, /Wi-Fi off/],
+  ];
+
+  const sitemap = await readFile(new URL("../public/sitemap.xml", import.meta.url), "utf8");
+  assert.match(sitemap, /<loc>https:\/\/rhinovoice\.app\/best<\/loc>/);
+  const hub = await (await render("/best")).text();
+  const home = await (await render("/")).text();
+  assert.match(home, /href="\/best"/);
+
+  for (const [path, headline, body] of guides) {
+    const response = await render(path);
+    assert.equal(response.status, 200, `${path} should render`);
+
+    const html = await response.text();
+    assert.match(html, headline, `${path} headline`);
+    assert.match(html, body, `${path} body`);
+    assert.match(html, /"@type":"FAQPage"/, `${path} FAQ schema`);
+    assert.match(html, /"@type":"ItemList"/, `${path} list schema`);
+    assert.match(html, /"@type":"BreadcrumbList"/, `${path} breadcrumb schema`);
+    assert.match(
+      html,
+      new RegExp(`rel="canonical" href="https://rhinovoice\\.app${path}"`),
+      `${path} canonical`,
+    );
+    // Rhino appears on every guide and is always disclosed as the author's own.
+    assert.match(html, /class="mine-badge"/, `${path} discloses Rhino is mine`);
+    assert.match(html, /name="amount" value="20\.00"/, `${path} buy form`);
+    assert.match(hub, new RegExp(`href="${path}"`), `${path} listed on /best`);
+    assert.ok(sitemap.includes(`<loc>https://rhinovoice.app${path}</loc>`), `${path} in sitemap`);
+  }
+});
+
 test("renders the changelog and post-purchase download routes", async () => {
   const [changelogResponse, thanksResponse] = await Promise.all([
     render("/changelog"),
@@ -120,6 +163,9 @@ test("renders the changelog and post-purchase download routes", async () => {
   ]);
 
   assert.match(changelog, /<h1>Changelog<\/h1>/);
+  // The changelog has its own title, not a copy of the homepage's.
+  assert.match(changelog, /<title>Rhino Voice Changelog/);
+  assert.match(changelog, /rel="canonical" href="https:\/\/rhinovoice\.app\/changelog"/);
   assert.match(changelog, /0\.1\.9/);
   assert.match(changelog, /downloads the on-device cleanup model automatically/);
   assert.match(changelog, /Smart formatting/);

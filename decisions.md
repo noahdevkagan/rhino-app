@@ -1520,3 +1520,38 @@ near the bottom of the Settings sheet, the popover opened past the window edge.
 (4) History rows get "Fix a word": pick the wrong word, type the right one, and
 the rule is created (plus that transcript fixed). Recognition boost stays opt-in:
 the boosted Parakeet path gives different results on identical clips (2026-08-31).
+
+**2026-09-29 — "Best dictation app for X" guides live under `/best/*`, rendered
+by one shared component.** Ten audience guides (lawyers, doctors, writers,
+developers, ADHD, RSI, students, non-native speakers, journalists, offline) plus
+a `/best` hub target the "best X for Y" queries people ask search engines and AI
+assistants. Same reasoning as the 2026-09-17 comparison pages:
+`app/_components/best-for-page.tsx` owns the skeleton (liftable short answer,
+numbered picks, BreadcrumbList + ItemList + FAQPage JSON-LD, buy form,
+checked-on date) so each guide is a content object and `BEST_FOR_GUIDES` is the
+one list every page cross-links from. Rhino is deliberately *not* #1 everywhere:
+on RSI, Voice Control and Talon come first; on journalists, MacWhisper; on
+students, the free tools; on doctors, ambient scribes — because a guide that
+always crowns its author is one nobody quotes. Rhino carries the "mine" badge on
+every guide (the test enforces it). Product claims were checked against the
+code (e.g. the verbatim list is hardcoded to the Claude/ChatGPT desktop apps and
+terminals; spoken edits default off). Competitor prices reuse the figures
+already verified on the comparison pages; categories without a verified price
+(ambient scribes, Dragon Legal, Otter) are described without one.
+
+**2026-09-29 — The /best guides are written in Noah's voice, and each ends in a
+verdict and actions.** The first draft read like a British magazine ("licence",
+"it is not", "weigh this accordingly"). Noah asked for his voice: first person,
+contractions, American spelling, short sentences, the bias stated in line one,
+and a plain "My pick" plus a "What I'd do today" list of mostly free steps
+(try Apple Dictation first, write your dictionary list, ask IT). Each guide also
+gets a picks-at-a-glance table built from the pick data. No invented anecdotes:
+personal claims are limited to what's true (he built Rhino, builds it with AI
+coding agents, AppSumo founder). Two pre-existing CSS bugs were fixed along the
+way because the guides exposed them: the global `nav` rules (meant for the
+header) were also hiding breadcrumb links on phones and laying out link lists
+as flex rows, so they are now scoped to `.site-header nav`; and a wide table
+could stretch `.doc-page` past the viewport, now clamped with
+`grid-template-columns: minmax(0, 1fr)`. `public/sitemap.xml` is static, so the
+guides were added by hand and the test now asserts they stay listed.
+

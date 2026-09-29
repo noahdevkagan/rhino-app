@@ -280,6 +280,11 @@ export default function Home() {
             <li><a href="/alternatives/wispr-flow">Wispr Flow alternatives</a></li>
             <li><a href="/alternatives/dragon">Dragon alternatives for Mac</a></li>
           </ul>
+          <p className="band-intro">
+            Not sure which kind of app you need?{" "}
+            <a href="/best">Guides to the best dictation app by who you are</a> — for
+            lawyers, doctors, writers, developers, ADHD, RSI, students and more.
+          </p>
         </section>
 
         <section className="band">

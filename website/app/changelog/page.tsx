@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Rhino Voice Changelog: Every Release in Plain English",
+  description:
+    "What changed in each Rhino Voice release for Mac, newest first: faster dictation, dictionary fixes, new settings and bug fixes.",
+  alternates: { canonical: "https://rhinovoice.app/changelog" },
+};
+
 const releases = [
   {
     version: "0.1.30",

@@ -120,6 +120,8 @@ test("renders every best-for guide with its schema, canonical and disclosure", a
     ["/best/offline-dictation-app-for-mac", /offline dictation app for Mac/, /Wi-Fi off/],
   ];
 
+  const sitemap = await readFile(new URL("../public/sitemap.xml", import.meta.url), "utf8");
+  assert.match(sitemap, /<loc>https:\/\/rhinovoice\.app\/best<\/loc>/);
   const hub = await (await render("/best")).text();
   const home = await (await render("/")).text();
   assert.match(home, /href="\/best"/);
@@ -143,6 +145,7 @@ test("renders every best-for guide with its schema, canonical and disclosure", a
     assert.match(html, /class="mine-badge"/, `${path} discloses Rhino is mine`);
     assert.match(html, /name="amount" value="20\.00"/, `${path} buy form`);
     assert.match(hub, new RegExp(`href="${path}"`), `${path} listed on /best`);
+    assert.ok(sitemap.includes(`<loc>https://rhinovoice.app${path}</loc>`), `${path} in sitemap`);
   }
 });
 

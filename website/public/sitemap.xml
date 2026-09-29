@@ -7,5 +7,16 @@
   <url><loc>https://rhinovoice.app/vs/superwhisper</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://rhinovoice.app/vs/apple-dictation</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://rhinovoice.app/vs/macwhisper</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-lawyers</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-doctors</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-writers</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-developers</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-adhd</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-rsi</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-students</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-non-native-english-speakers</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/dictation-app-for-journalists</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://rhinovoice.app/best/offline-dictation-app-for-mac</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://rhinovoice.app/changelog</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
 </urlset>

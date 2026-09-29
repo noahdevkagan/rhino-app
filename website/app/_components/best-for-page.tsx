@@ -5,6 +5,8 @@ export type BestForPick = {
   bestFor: string;
   price: string;
   where: string;
+  /** One or two words for the summary table: "Yes", "No", "Optional". */
+  local: string;
   body: string[];
   url?: string;
   /** Marks Rhino Voice, so the page discloses it is the author's own app. */
@@ -34,6 +36,10 @@ export type BestForContent = {
   intro: BestForSection[];
   picks: BestForPick[];
   outro?: BestForSection[];
+  /** "My pick": the recommendation in plain words, after the list. */
+  verdict: string[];
+  /** "What I'd do today": concrete steps, most of them free. */
+  today: string[];
   faq: BestForFaq[];
   ctaBody: string;
   /** Month + year the pricing and claims on the page were last checked. */
@@ -135,7 +141,7 @@ export function BestForPage({ content }: { content: BestForContent }) {
         <p className="dek">{content.dek}</p>
 
         <aside className="answer-box">
-          <h2>The short answer</h2>
+          <h2>TL;DR</h2>
           <p>{content.shortAnswer}</p>
           <ul>
             {content.shortPicks.map((entry) => (
@@ -145,6 +151,33 @@ export function BestForPage({ content }: { content: BestForContent }) {
             ))}
           </ul>
         </aside>
+
+        <div className="table-wrap">
+          <table className="compare-table">
+            <caption>The picks at a glance</caption>
+            <thead>
+              <tr>
+                <th scope="col">App</th>
+                <th scope="col">Best for</th>
+                <th scope="col">Price</th>
+                <th scope="col">Runs on your Mac</th>
+              </tr>
+            </thead>
+            <tbody>
+              {content.picks.map((pick) => (
+                <tr key={pick.name}>
+                  <th scope="row">
+                    {pick.name}
+                    {pick.mine ? " (mine)" : null}
+                  </th>
+                  <td>{pick.bestFor}</td>
+                  <td>{pick.price}</td>
+                  <td>{pick.local}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <Sections sections={content.intro} />
 
@@ -190,6 +223,22 @@ export function BestForPage({ content }: { content: BestForContent }) {
         {content.outro ? <Sections sections={content.outro} /> : null}
 
         <section>
+          <h2>My pick</h2>
+          {content.verdict.map((paragraph) => (
+            <p key={paragraph.slice(0, 40)}>{paragraph}</p>
+          ))}
+        </section>
+
+        <section>
+          <h2>What I&apos;d do today</h2>
+          <ol className="today">
+            {content.today.map((step) => (
+              <li key={step.slice(0, 40)}>{step}</li>
+            ))}
+          </ol>
+        </section>
+
+        <section>
           <h2>Questions</h2>
           <dl className="faq">
             {content.faq.map((entry) => (
@@ -208,9 +257,9 @@ export function BestForPage({ content }: { content: BestForContent }) {
         </section>
 
         <p className="checked-note">
-          Pricing and capabilities for every app on this page checked {content.checked}.
-          This field moves fast — verify current details on each site before you buy.
-          Nothing here is legal, medical or compliance advice.
+          I checked prices and features for every app here in {content.checked}. This
+          stuff changes constantly, so double-check before you buy. And I&apos;m not your
+          lawyer, doctor or compliance officer.
         </p>
 
         <nav className="more-links" aria-label="More guides">

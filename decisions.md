@@ -1539,3 +1539,19 @@ terminals; spoken edits default off). Competitor prices reuse the figures
 already verified on the comparison pages; categories without a verified price
 (ambient scribes, Dragon Legal, Otter) are described without one.
 
+**2026-09-29 — The /best guides are written in Noah's voice, and each ends in a
+verdict and actions.** The first draft read like a British magazine ("licence",
+"it is not", "weigh this accordingly"). Noah asked for his voice: first person,
+contractions, American spelling, short sentences, the bias stated in line one,
+and a plain "My pick" plus a "What I'd do today" list of mostly free steps
+(try Apple Dictation first, write your dictionary list, ask IT). Each guide also
+gets a picks-at-a-glance table built from the pick data. No invented anecdotes:
+personal claims are limited to what's true (he built Rhino, builds it with AI
+coding agents, AppSumo founder). Two pre-existing CSS bugs were fixed along the
+way because the guides exposed them: the global `nav` rules (meant for the
+header) were also hiding breadcrumb links on phones and laying out link lists
+as flex rows, so they are now scoped to `.site-header nav`; and a wide table
+could stretch `.doc-page` past the viewport, now clamped with
+`grid-template-columns: minmax(0, 1fr)`. `public/sitemap.xml` is static, so the
+guides were added by hand and the test now asserts they stay listed.
+

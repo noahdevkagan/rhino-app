@@ -27,13 +27,13 @@ const jsonLd = [
 export const metadata: Metadata = {
   title: "Best Dictation App for Mac, by Who You Are (2026 Guides)",
   description:
-    "Ten honest guides to choosing a Mac dictation app — for lawyers, doctors, writers, developers, ADHD, RSI, students, non-native speakers, journalists and offline use.",
+    "Ten guides to picking a Mac dictation app: for lawyers, doctors, writers, developers, ADHD, RSI, students, non-native speakers, journalists and offline use.",
   alternates: { canonical: "https://rhinovoice.app/best" },
   openGraph: {
     type: "website",
     url: "https://rhinovoice.app/best",
     title: "Best Dictation App for Mac, by Who You Are (2026 Guides)",
-    description: "The right dictation app depends on the job. Ten guides, written by a competitor who says so.",
+    description: "The right dictation app depends on the job. Ten guides from someone who makes one and says when it loses.",
   },
 };
 
@@ -60,9 +60,10 @@ export default function Page() {
         <h1>The best dictation app for Mac depends on who you are</h1>
         <p className="dek">
           A lawyer protecting privilege, a developer prompting Claude and a student on
-          a budget should not buy the same thing. These guides pick the right tool for
-          each job. I make Rhino Voice, which appears in all of them and wins some of
-          them — each page says where it does not.
+          a budget shouldn&apos;t buy the same thing. So I wrote a guide for each. Yes, I
+          make Rhino Voice, and it shows up in all of them. It doesn&apos;t win all of
+          them, and each page tells you when something else is better, including the
+          free stuff.
         </p>
 
         <nav className="more-links" aria-label="Guides">
@@ -78,8 +79,8 @@ export default function Page() {
         <section className="doc-cta">
           <h2>Try Rhino Voice</h2>
           <p>
-            $20 once, no subscription and no account, and nothing leaves your Mac. If it
-            does not earn its keep, email me inside 30 days and I will refund you.
+            $20 once. No subscription, no account, and nothing leaves your Mac. Try it
+            for 30 days. If it&apos;s not worth it, email me and I&apos;ll refund you.
           </p>
           <BuyForm />
         </section>

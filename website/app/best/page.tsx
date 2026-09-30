@@ -76,6 +76,14 @@ export default function Page() {
           </ul>
         </nav>
 
+        <p>
+          Looking for a meeting tool instead? Same rules, same honesty:{" "}
+          <a className="inline-link" href="https://meetmouse.com/best/">
+            MeetMouse meeting tool guides
+          </a>
+          . MeetMouse is mine too.
+        </p>
+
         <section className="doc-cta">
           <h2>Try Rhino Voice</h2>
           <p>

@@ -156,6 +156,14 @@ test("renders every best-for guide with its schema, canonical and disclosure", a
   }
 });
 
+test("cross-links the sister site per SITE-PLAYBOOK.md", async () => {
+  const hub = await (await render("/best")).text();
+  assert.match(hub, /href="https:\/\/meetmouse\.com\/best\/"/);
+
+  const lawyers = await (await render("/best/dictation-app-for-lawyers")).text();
+  assert.match(lawyers, /href="https:\/\/meetmouse\.com\/best\/ai-notetaker-for-lawyers"/);
+});
+
 test("renders the changelog and post-purchase download routes", async () => {
   const [changelogResponse, thanksResponse] = await Promise.all([
     render("/changelog"),

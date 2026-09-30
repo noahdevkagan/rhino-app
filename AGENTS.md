@@ -87,6 +87,7 @@ gate before anything publishes.
 | `bench/` | Scorecard trend (`history.jsonl`) + `corpus/` (Noah's-voice head-to-head vs Wispr Flow) |
 | `.github/workflows/test-gate.yml` | Same gate on CI; release workflows must `workflow_call` it |
 | `docs/` | Upstream docs (PUBLISHING.md, release notes) |
+| `website/` | rhinovoice.app (vinext/Next). Guides and comparisons are content objects rendered by `app/_components/*-page.tsx`; follow `SITE-PLAYBOOK.md` (shared with the MeetMouse repo) for voice, facts and cross-linking. `npm test` in `website/` |
 
 ## Gotchas (agents hit these)
 

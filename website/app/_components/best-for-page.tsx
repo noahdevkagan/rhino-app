@@ -40,6 +40,11 @@ export type BestForContent = {
   outro?: BestForSection[];
   /** "My pick": the recommendation in plain words, after the list. */
   verdict: string[];
+  /**
+   * One sister-app pointer for readers who also have the other job
+   * (SITE-PLAYBOOK.md §5): rendered as the last line of "My pick".
+   */
+  sister?: { text: string; href: string; label: string };
   /** "What I'd do today": concrete steps, most of them free. */
   today: string[];
   faq: BestForFaq[];
@@ -258,6 +263,14 @@ export function BestForPage({ content }: { content: BestForContent }) {
           {content.verdict.map((paragraph) => (
             <p key={paragraph.slice(0, 40)}>{paragraph}</p>
           ))}
+          {content.sister ? (
+            <p>
+              {content.sister.text}{" "}
+              <a className="inline-link" href={content.sister.href}>
+                {content.sister.label}
+              </a>
+            </p>
+          ) : null}
         </section>
 
         <section>

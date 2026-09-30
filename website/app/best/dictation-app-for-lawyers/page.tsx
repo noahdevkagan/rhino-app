@@ -109,6 +109,11 @@ const content: BestForContent = {
     "If you're a solo or small-firm lawyer on a Mac: get something that runs locally and move on with your life. Try Apple Dictation first because it's free. If the ums and cleanup drive you nuts (they will), that's the gap Rhino fills for $20.",
     "If you're at a bigger firm: ask IT what's already approved before you buy anything. If the answer is \"Dragon on Windows,\" use Dragon. If it's \"nothing,\" local dictation is the easiest thing to get approved, because there's nothing to approve.",
   ],
+  sister: {
+    text: "For the client calls themselves, my other app, MeetMouse, takes notes and coaches you live, also entirely on your Mac.",
+    href: "https://meetmouse.com/best/ai-notetaker-for-lawyers",
+    label: "Best AI notetaker for lawyers",
+  },
   today: [
     "Turn on Apple Dictation (System Settings → Keyboard → Dictation) and dictate your next three emails. Free, five minutes.",
     "Write down the 20 names and terms you say most: clients, parties, case names. That list is your custom dictionary in any app.",

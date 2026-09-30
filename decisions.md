@@ -1579,3 +1579,15 @@ loudly if it is missing, and refuses to deploy while the pinned DMG is not yet
 published (the window between a "Stage X.Y.Z" commit and its release), so it
 cannot hand buyers a 404 download.
 
+
+**2026-09-30 — One site playbook shared with MeetMouse.** `SITE-PLAYBOOK.md`
+(identical copy in the meetmouse repo) now holds the rules both sites' marketing
+pages follow: one page per search intent, "us vs X" before "X vs Y", Noah's voice
+with no invented anecdotes, verified-or-unnumbered prices with a checked-on month,
+one page list driving every cross-link, and at most one sister-app pointer per page.
+meetmouse.com moved its pages onto a port of this site's doc-page template. Two
+changes here came out of that: `.answer-box h2` lost to the later `.doc h2` at
+equal specificity (the TL;DR label rendered as a full-size heading), now
+`.doc .answer-box h2`; and guides gained an optional `sister` link, used on the
+lawyers guide to point client-call readers at MeetMouse's lawyers guide, with the
+/best hub linking MeetMouse's guide hub.

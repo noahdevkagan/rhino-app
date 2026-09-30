@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { COMPARISON_LINKS } from "../../_components/best-for-page";
 import { BuyForm, SiteFooter, SiteHeader } from "../../_components/site-chrome";
 
 type Pick = {
@@ -315,10 +316,11 @@ export default function Page() {
         <nav className="more-links" aria-label="More comparisons">
           <h2>Head-to-head comparisons</h2>
           <ul>
-            <li><a href="/vs/wispr-flow">Rhino Voice vs Wispr Flow</a></li>
-            <li><a href="/vs/superwhisper">Rhino Voice vs superwhisper</a></li>
-            <li><a href="/vs/macwhisper">Rhino Voice vs MacWhisper</a></li>
-            <li><a href="/vs/apple-dictation">Rhino Voice vs Apple Dictation</a></li>
+            {COMPARISON_LINKS.filter((link) => link.href !== "/alternatives/wispr-flow").map((link) => (
+              <li key={link.href}>
+                <a href={link.href}>{link.label}</a>
+              </li>
+            ))}
           </ul>
         </nav>
       </main>

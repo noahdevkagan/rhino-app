@@ -73,6 +73,10 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
     "/vs/macwhisper",
     "/vs/apple-dictation",
     "/alternatives/wispr-flow",
+    "/alternatives/dragon",
+    "/alternatives/superwhisper",
+    "/alternatives/macwhisper",
+    "/alternatives/otter",
   ]) {
     assert.match(html, new RegExp(`href="${href}"`));
   }
@@ -85,6 +89,9 @@ test("renders every comparison page with its schema and canonical", async () => 
     ["/vs/macwhisper", /Rhino Voice vs MacWhisper/, /file transcription|transcribing/i],
     ["/vs/apple-dictation", /Rhino Voice vs Apple Dictation/, /transcribes you literally/],
     ["/alternatives/wispr-flow", /Wispr Flow alternatives/, /superwhisper/],
+    ["/alternatives/superwhisper", /superwhisper alternatives/, /VoiceInk/],
+    ["/alternatives/macwhisper", /MacWhisper alternatives/, /Aiko/],
+    ["/alternatives/otter", /Otter\.ai alternatives/, /MeetMouse/],
   ];
 
   for (const [path, headline, body] of routes) {

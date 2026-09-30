@@ -279,6 +279,9 @@ export default function Home() {
             <li><a href="/vs/apple-dictation">Rhino Voice vs Apple Dictation</a></li>
             <li><a href="/alternatives/wispr-flow">Wispr Flow alternatives</a></li>
             <li><a href="/alternatives/dragon">Dragon alternatives for Mac</a></li>
+            <li><a href="/alternatives/superwhisper">superwhisper alternatives</a></li>
+            <li><a href="/alternatives/macwhisper">MacWhisper alternatives</a></li>
+            <li><a href="/alternatives/otter">Otter.ai alternatives</a></li>
           </ul>
           <p className="band-intro">
             Not sure which kind of app you need?{" "}

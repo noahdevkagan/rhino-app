@@ -282,6 +282,7 @@ export default function Home() {
             <li><a href="/alternatives/superwhisper">superwhisper alternatives</a></li>
             <li><a href="/alternatives/macwhisper">MacWhisper alternatives</a></li>
             <li><a href="/alternatives/otter">Otter.ai alternatives</a></li>
+            <li><a href="/macwhisper-pricing">MacWhisper pricing</a></li>
           </ul>
           <p className="band-intro">
             Not sure which kind of app you need?{" "}

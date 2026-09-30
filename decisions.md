@@ -1591,3 +1591,18 @@ equal specificity (the TL;DR label rendered as a full-size heading), now
 `.doc .answer-box h2`; and guides gained an optional `sister` link, used on the
 lawyers guide to point client-call readers at MeetMouse's lawyers guide, with the
 /best hub linking MeetMouse's guide hub.
+
+**2026-09-30 — MacWhisper "free" and "discount code" searches: one new page, one
+upgraded page, not three.** Search results show a crowd of competitor pages on
+"free MacWhisper alternative", "is MacWhisper free" and "MacWhisper discount
+code" (VoiceInk, Voibe, LumeVoice, Spokenly, OpenWhispr and others), which is the
+demand signal we had; no keyword-volume tool is connected, so there are no exact
+numbers. Per SITE-PLAYBOOK §1 (one page per intent), "free MacWhisper
+alternative" was folded into `/alternatives/macwhisper` (Buzz added, a
+free-tier section, "free" in the title) instead of a near-duplicate page.
+Pricing, free tier and discount codes are a distinct intent, so
+`/macwhisper-pricing` is new. It doesn't pretend to have a coupon: it says no
+public code exists, cites the 25% student/journalist/nonprofit discount from
+MacWhisper's own docs, warns about coupon farms and copycat download sites, and
+only sells Rhino to readers who really wanted dictation.
+

@@ -77,6 +77,7 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
     "/alternatives/superwhisper",
     "/alternatives/macwhisper",
     "/alternatives/otter",
+    "/macwhisper-pricing",
   ]) {
     assert.match(html, new RegExp(`href="${href}"`));
   }
@@ -92,6 +93,7 @@ test("renders every comparison page with its schema and canonical", async () => 
     ["/alternatives/superwhisper", /superwhisper alternatives/, /VoiceInk/],
     ["/alternatives/macwhisper", /MacWhisper alternatives/, /Aiko/],
     ["/alternatives/otter", /Otter\.ai alternatives/, /MeetMouse/],
+    ["/macwhisper-pricing", /MacWhisper pricing/, /support@macwhisper\.com/],
   ];
 
   for (const [path, headline, body] of routes) {

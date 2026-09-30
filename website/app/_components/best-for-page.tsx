@@ -205,9 +205,9 @@ export function BestForPage({ content }: { content: BestForContent }) {
                     {pick.name}
                     {pick.mine ? " (mine)" : null}
                   </th>
-                  <td>{pick.bestFor}</td>
-                  <td>{pick.price}</td>
-                  <td>{pick.local}</td>
+                  <td data-label="Best for">{pick.bestFor}</td>
+                  <td data-label="Price">{pick.price}</td>
+                  <td data-label="Runs on your Mac">{pick.local}</td>
                 </tr>
               ))}
             </tbody>

@@ -164,6 +164,13 @@ test("cross-links the sister site per SITE-PLAYBOOK.md", async () => {
   assert.match(lawyers, /href="https:\/\/meetmouse\.com\/best\/ai-notetaker-for-lawyers"/);
 });
 
+test("labels table cells so phones can stack rows into cards", async () => {
+  const guide = await (await render("/best/dictation-app-for-lawyers")).text();
+  assert.match(guide, /<td data-label="Price">/);
+  const vs = await (await render("/vs/wispr-flow")).text();
+  assert.match(vs, /<td data-label="Rhino Voice">/);
+});
+
 test("renders the changelog and post-purchase download routes", async () => {
   const [changelogResponse, thanksResponse] = await Promise.all([
     render("/changelog"),

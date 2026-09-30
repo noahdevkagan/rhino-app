@@ -264,9 +264,9 @@ export default function Home() {
                 {comparisonRows.map((row) => (
                   <tr key={row.label}>
                     <th scope="row">{row.label}</th>
-                    <td>{row.rhino}</td>
-                    <td>{row.cloud}</td>
-                    <td>{row.apple}</td>
+                    <td data-label="Rhino Voice">{row.rhino}</td>
+                    <td data-label="Cloud apps">{row.cloud}</td>
+                    <td data-label="Apple Dictation">{row.apple}</td>
                   </tr>
                 ))}
               </tbody>

@@ -108,8 +108,8 @@ export function ComparisonPage({ content }: { content: ComparisonContent }) {
               {content.rows.map((row) => (
                 <tr key={row.label}>
                   <th scope="row">{row.label}</th>
-                  <td>{row.rhino}</td>
-                  <td>{row.them}</td>
+                  <td data-label="Rhino Voice">{row.rhino}</td>
+                  <td data-label={content.competitor}>{row.them}</td>
                 </tr>
               ))}
             </tbody>

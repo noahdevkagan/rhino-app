@@ -1568,3 +1568,14 @@ MeetMouse (disclosed as "mine") and its CTA links there; Rhino appears only for
 "dictate the takeaways after the call". Unverified-by-us prices (Granola,
 Fireflies, Descript, Otter) are described as "free tier; paid plans monthly".
 
+**2026-09-30 — The website can deploy on its own, from GitHub Actions.** Until
+now rhinovoice.app only deployed inside an app release (Scripts/release.sh on
+Noah's Mac, or release.yml, whose publish job skips without signing secrets),
+so site-only work like the /best guides sat merged but unpublished and could not
+be shipped from a phone session. `.github/workflows/deploy-website.yml` deploys
+on pushes to master that touch website/**, or by hand from the Actions tab. It
+reuses the CLOUDFLARE_API_TOKEN secret name release.yml already expects, fails
+loudly if it is missing, and refuses to deploy while the pinned DMG is not yet
+published (the window between a "Stage X.Y.Z" commit and its release), so it
+cannot hand buyers a 404 download.
+

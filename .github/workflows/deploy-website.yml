@@ -1,0 +1,82 @@
+name: Deploy website
+
+# Deploys rhinovoice.app (website/) to Cloudflare Workers without cutting an
+# app release. Runs when website changes land on master, or by hand from the
+# Actions tab (works from a phone). The release workflow and Scripts/release.sh
+# still deploy the site as part of every app release.
+#
+# Needs repo secret CLOUDFLARE_API_TOKEN (Workers edit on the account that owns
+# the rhinovoice.app zone). CLOUDFLARE_ACCOUNT_ID is optional — wrangler only
+# needs it if the token can see more than one account.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "website/**"
+      - ".github/workflows/deploy-website.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-website
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the Cloudflare token is configured
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Repo secret CLOUDFLARE_API_TOKEN is not set. Add it under Settings → Secrets and variables → Actions, then re-run this workflow."
+            exit 1
+          fi
+
+      # A "Stage X.Y.Z" commit pins the site to a DMG before the release
+      # publishes it. Deploying in that window would hand buyers a 404, so
+      # refuse until the pinned DMG actually exists.
+      - name: Check the pinned DMG is published
+        run: |
+          set -euo pipefail
+          url=$(grep -o 'https://github.com/noahdevkagan/rhino-releases/releases/download/[^"]*\.dmg' website/app/thanks/page.tsx | head -1)
+          [ -n "$url" ] || { echo "::error::No DMG link found in website/app/thanks/page.tsx"; exit 1; }
+          grep -qF "$url" website/app/appsumo/redeem-form.tsx \
+            || { echo "::error::thanks page and AppSumo form link different DMGs"; exit 1; }
+          code=$(curl -sIL -o /dev/null -w '%{http_code}' "$url")
+          [ "$code" = 200 ] || { echo "::error::$url returns $code — release not published yet, not deploying"; exit 1; }
+          echo "DMG live: $url"
+
+      - name: Build, test and deploy
+        working-directory: website
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm test
+          npx wrangler deploy -c dist/server/wrangler.json
+
+      - name: Verify the live site
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 12); do
+            if curl -fsS --max-time 15 https://rhinovoice.app/best >/dev/null 2>&1; then
+              echo "rhinovoice.app is serving the new build"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::https://rhinovoice.app/best did not respond after deploy"
+          exit 1

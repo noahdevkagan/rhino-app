@@ -1606,3 +1606,15 @@ public code exists, cites the 25% student/journalist/nonprofit discount from
 MacWhisper's own docs, warns about coupon farms and copycat download sites, and
 only sells Rhino to readers who really wanted dictation.
 
+**2026-09-30 — The homepage overflowed on iPhones; both page shells now clamp
+their grid column.** Noah's iPhone screenshots showed rhinovoice.app laid out
+~600px wide on a 390px screen (hero cut off, Buy button off-screen). Every iOS
+browser is WebKit, which sizes `.home-page`'s implicit auto grid column to its
+widest descendant, the 560px compare table; headless Chromium does not, so it
+never showed up in local checks. `.home-page` now gets the same
+`grid-template-columns: minmax(0, 1fr)` `.doc-page` got earlier, the mobile hero
+uses `minmax(0, 1fr)`, the eyebrow wraps, and small phones (≤380px) get a tighter
+header. The phone table-cards change (6eff204) also removes the 560px minimum
+under 640px. A test asserts both shells keep the clamp. meetmouse.com shows the
+same symptom and shares the design, so it likely needs the same fix in its repo.
+

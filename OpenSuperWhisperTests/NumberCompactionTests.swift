@@ -26,13 +26,13 @@ final class NumberCompactionTests: XCTestCase {
     }
 
     func testProseNumbersAreLeftAlone() {
-        // Single small number words are prose, not figures.
+        // Idioms stay prose, while clear quantities use digits.
         XCTAssertEqual(NumberCompaction.apply("the one thing I'm watching"),
                        "the one thing I'm watching")
         XCTAssertEqual(NumberCompaction.apply("our one-on-one on Tuesday"),
                        "our one-on-one on Tuesday")
         XCTAssertEqual(NumberCompaction.apply("two lemons and whatever cheese looks good"),
-                       "two lemons and whatever cheese looks good")
+                       "2 lemons and whatever cheese looks good")
         // A run that isn't one well-formed number (a spoken clock time or a
         // list) is not converted — better untouched than wrong.
         XCTAssertEqual(NumberCompaction.apply("ten thirty works for me"),
@@ -44,5 +44,118 @@ final class NumberCompactionTests: XCTestCase {
         XCTAssertEqual(NumberCompaction.apply("twenty five slides"), "25 slides")
         XCTAssertEqual(NumberCompaction.apply("we have ninety-nine problems"),
                        "we have 99 problems")
+    }
+
+    func testSmartQuantitiesAndStandaloneNumbers() {
+        let cases = [
+            "seven items": "7 items", "Seven.": "7.", "zero": "0",
+            "I need seven tickets and five seats.": "I need 7 tickets and 5 seats.",
+            "two dollars": "2 dollars", "in eight minutes": "in 8 minutes",
+            "room seven": "room 7", "chapter nine": "chapter 9",
+            "at four pm": "at 4pm", "🦏 seven items": "🦏 7 items",
+            "twenty one of them": "21 of them",
+            "seven ideas": "seven ideas" // unknown context is conservative
+        ]
+        for (input, expected) in cases {
+            XCTAssertEqual(NumberCompaction.apply(input), expected, input)
+        }
+    }
+
+    func testPreferDigitsWorksOutsideQuantityVocabulary() {
+        XCTAssertEqual(NumberCompaction.apply("I have seven ideas", style: .digits), "I have 7 ideas")
+        XCTAssertEqual(NumberCompaction.apply("I picked seven", style: .digits), "I picked 7")
+        XCTAssertEqual(NumberCompaction.apply("ninety", style: .digits), "90")
+    }
+
+    func testIdiomsAndIdentifiersInBothFormattingModes() {
+        for style in [NumberFormattingStyle.smart, .digits] {
+            for input in ["one of the best", "one another", "one at a time", "one by one",
+                          "two by two", "one and only", "one or two", "no one knows",
+                          "all in one", "the one thing", "one-on-one", "my two cents",
+                          "at one with nature", "seven@example.com", "https://seven.com",
+                          "folder/seven.txt", "seven_items", "v.seven", "two times as many"] {
+                XCTAssertEqual(NumberCompaction.apply(input, style: style), input, input)
+            }
+        }
+    }
+
+    func testKeepAsSpokenIsExactPassThrough() {
+        for input in ["Seven items at four p. m.", "forty-two thousand", "8 percent",
+                      "7 items", "  one hundred and seven\n"] {
+            XCTAssertEqual(NumberCompaction.apply(input, style: .spoken), input)
+        }
+    }
+
+    func testConjunctionsAreNotLostOrAddedTogether() {
+        XCTAssertEqual(NumberCompaction.apply("and twenty five people and seven items"),
+                       "and 25 people and 7 items")
+        XCTAssertEqual(NumberCompaction.apply("one hundred and seven items"), "107 items")
+        for input in ["seven and eight", "twenty and five", "ten thirty", "one two three",
+                      "seven  eight", "one hundred hundred", "one thousand million",
+                      "zero thousand", "twenty zero", "one hundred zero", "one hundred and two hundred"] {
+            XCTAssertEqual(NumberCompaction.apply(input, style: .digits), input, input)
+        }
+    }
+
+    func testRepeatedMagnitudesCannotOverflow() {
+        let input = "one " + Array(repeating: "hundred", count: 40).joined(separator: " ")
+        XCTAssertEqual(NumberCompaction.apply(input), input)
+    }
+
+    func testFormattingIsIdempotent() {
+        for style in NumberFormattingStyle.allCases {
+            for input in ["seven items", "one hundred and seven", "one-on-one", "4 p. m.",
+                          "and twenty five people", "seven and eight"] {
+                let once = NumberCompaction.apply(input, style: style)
+                XCTAssertEqual(NumberCompaction.apply(once, style: style), once)
+            }
+        }
+    }
+
+    func testCleanupMustKeepNumberRepresentationInSpokenMode() {
+        XCTAssertTrue(NumberCompaction.preservesNumberRepresentation(
+            input: "seven items and 42 dollars", output: "Seven items and 42 dollars."))
+        XCTAssertFalse(NumberCompaction.preservesNumberRepresentation(input: "seven items", output: "7 items"))
+        XCTAssertFalse(NumberCompaction.preservesNumberRepresentation(input: "7 items", output: "seven items"))
+        XCTAssertFalse(NumberCompaction.preservesNumberRepresentation(input: "7 items", output: "8 items"))
+        XCTAssertFalse(NumberCompaction.preservesNumberRepresentation(input: "-0.725", output: "0.725"))
+        XCTAssertFalse(NumberCompaction.preservesNumberRepresentation(input: "0.725", output: "0.72"))
+    }
+
+    func testCustomerDecimalExamplesWithoutCleanupOrSmartFormatting() {
+        for style in [NumberFormattingStyle.smart, .digits] {
+            let cases = [
+                "zero point seven two five": "0.725",
+                "zero point six seven four": "0.674",
+                "Point six seven four": "0.674",
+                "And zero point seven two five": "And 0.725",
+                "The rate is point six seven four.": "The rate is 0.674.",
+                "three point one four": "3.14",
+                "point zero zero seven": "0.007",
+                "minus zero point zero five": "-0.05",
+                "negative two point five": "-2.5",
+                "zero point 7 two 5": "0.725",
+                "0 point six seven four": "0.674",
+                "one hundred and seven point zero five": "107.05",
+                "three point seven percent": "3.7%",
+                "zero point one of the total": "0.1 of the total",
+                "point one two three four five six seven eight nine zero": "0.1234567890"
+            ]
+            for (input, expected) in cases {
+                XCTAssertEqual(NumberCompaction.apply(input, style: style), expected, input)
+            }
+        }
+    }
+
+    func testDecimalFormattingCanBeDisabled() {
+        let input = "zero point seven two five"
+        XCTAssertEqual(NumberCompaction.apply(input, style: .spoken), input)
+    }
+
+    func testDecimalAmbiguitiesStayUnchanged() {
+        for input in ["point taken", "the point is seven", "point seven twenty",
+                      "one two point five", "point seven point five"] {
+            XCTAssertEqual(NumberCompaction.apply(input), input, input)
+        }
     }
 }

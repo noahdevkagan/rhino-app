@@ -224,10 +224,10 @@ class TranscriptionService: ObservableObject {
         lastUsedFallback = false
 
         // Deterministic formatting AFTER the engine, BEFORE any LLM cleanup:
-        // spoken numbers/percent/meridiem become digits ("forty-two thousand"
-        // → "42,000") without depending on a small model's compliance.
+        // English decimals, quantities, percentages and times follow the number
+        // preference without depending on a small model's compliance.
         let raw = try await runOnEngine(engine, url: url, settings: settings)
-        return NumberCompaction.apply(raw)
+        return NumberCompaction.apply(raw, style: AppPreferences.shared.numberFormattingStyle)
     }
 
     /// Run one transcription on a specific engine: wire its progress callback, run it

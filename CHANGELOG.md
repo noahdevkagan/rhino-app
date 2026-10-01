@@ -3,6 +3,13 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- English numbers format automatically: “zero point seven two five” becomes
+  “0.725,” and “seven items” becomes “7 items.” No cleanup model or Smart
+  formatting toggle required. Choose Smart, Prefer digits, or Keep as spoken
+  in Settings → Output → Numbers.
+
 ## 0.1.30 — 2026-09-25
 
 - Teaching Rhino a word is easier. Rule editing now opens right inside the

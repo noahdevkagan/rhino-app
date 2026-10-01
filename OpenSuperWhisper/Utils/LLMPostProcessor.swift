@@ -161,9 +161,14 @@ enum LLMPostProcessor {
                     + "\(shift.input) to \(shift.output)")
                 return working
             }
-            return smartFormatting
+            if prefs.numberFormattingStyle == .spoken,
+               !NumberCompaction.preservesNumberRepresentation(input: working, output: result) {
+                return working
+            }
+            let formatted = smartFormatting
                 ? stripSpuriousListMarker(result, originalInput: working)
                 : result
+            return NumberCompaction.apply(formatted, style: prefs.numberFormattingStyle)
         } catch {
             print("AI post-processing failed, using the raw transcription: \(error)")
             return working

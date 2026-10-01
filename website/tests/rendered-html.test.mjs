@@ -85,6 +85,7 @@ test("renders every comparison page with its schema and canonical", async () => 
     ["/vs/macwhisper", /Rhino Voice vs MacWhisper/, /file transcription|transcribing/i],
     ["/vs/apple-dictation", /Rhino Voice vs Apple Dictation/, /transcribes you literally/],
     ["/alternatives/wispr-flow", /Wispr Flow alternatives/, /superwhisper/],
+    ["/alternatives/dragon", /Dragon alternatives for Mac/, /Voice Control/],
   ];
 
   for (const [path, headline, body] of routes) {
@@ -103,6 +104,31 @@ test("renders every comparison page with its schema and canonical", async () => 
     );
     // Every page keeps a working buy path.
     assert.match(html, /name="amount" value="20\.00"/, `${path} buy form`);
+  }
+});
+
+test("ranked alternatives pages carry the byline, quick answer and ranked list", async () => {
+  for (const path of ["/alternatives/wispr-flow", "/alternatives/dragon"]) {
+    const html = await (await render(path)).text();
+
+    assert.match(html, /The \d best/, `${path} H1 states the count`);
+    assert.match(html, /Noah Kagan/, `${path} byline`);
+    assert.match(html, /Prices checked September 2026/, `${path} checked date`);
+    assert.match(html, /Quick answer/, `${path} quick answer`);
+    assert.match(html, /class="compare-table rank-table"/, `${path} ranked table`);
+    assert.match(html, /Best value/, `${path} badge`);
+    assert.match(html, /How we checked/, `${path} method`);
+    assert.match(html, /Checked, but not ranked/, `${path} not ranked`);
+    assert.match(html, /"@type":"ItemList"/, `${path} ItemList schema`);
+    assert.match(html, /"@type":"Person"/, `${path} author schema`);
+    const main = html.slice(html.indexOf("<main"), html.indexOf("</main>"));
+    assert.doesNotMatch(main.replace(/Buy(?: Rhino)? — \$\d+/g, ""), /—/, `${path} has no em dashes`);
+
+    // The buy form sits in the top third: before the ranked table.
+    assert.ok(
+      html.indexOf('name="amount"', html.indexOf("Quick answer")) < html.indexOf("rank-table"),
+      `${path} CTA before the ranked table`,
+    );
   }
 });
 

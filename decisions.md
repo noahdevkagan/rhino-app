@@ -1520,3 +1520,17 @@ near the bottom of the Settings sheet, the popover opened past the window edge.
 (4) History rows get "Fix a word": pick the wrong word, type the right one, and
 the rule is created (plus that transcript fixed). Recognition boost stays opt-in:
 the boosted Parakeet path gives different results on identical clips (2026-08-31).
+
+**2026-10-01 — Alternatives pages use the ranked format, Rhino first.**
+`/alternatives/wispr-flow` and `/alternatives/dragon` now follow the format
+Noah approved on sendfox.com/compare/mailchimp-alternatives: founder byline
+with a "Prices checked" date, a Quick answer that names a pick, a buy button
+above the ranked table, one identical card per app (Best for, price, review,
+Good / Not so good), a 1- and 3-year cost table, "When X is enough",
+"Checked, but not ranked" and "How we checked". Competitor facts live once in
+`app/_components/competitors.ts`; the layout is `ranked-page.tsx`. Rhino's
+price is `rhinoPrice` in site-chrome.tsx, which the PayPal form also reads, so
+the pages cannot disagree with checkout. The /vs pages keep the 2026-09-17
+two-column component. The honesty rule stands: our own card lists real
+limits, and "How we checked" reports the August 2026 voice test where
+Typeless beat Rhino (10/10 vs 8/10).

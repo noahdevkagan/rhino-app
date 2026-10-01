@@ -69,6 +69,10 @@ enum LLMPostProcessor {
         let spokenEdits = prefs.spokenEditsEnabled
 
         guard general else { return text }
+        // Spoken punctuation ("rad. Period." / "New paragraph:") is part of smart formatting
+        // but deterministic, so it runs first: every fallback below returns the converted
+        // text, and verbatim targets still get the marks the speaker asked for.
+        let text = smartFormatting ? SpokenPunctuation.apply(text) : text
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
 
         // Dictations aimed at an AI assistant or a terminal are prompts and commands, not

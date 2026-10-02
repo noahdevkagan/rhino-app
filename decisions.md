@@ -1614,3 +1614,31 @@ since one-sided commands converted "the Oxford comma." to "the Oxford,". The
 cost: an unpaused "the deck comma." stays as words; dropping a word the speaker
 meant is worse than leaving one. Troy's own email is the
 test fixture: every command converts, his mentions of "period" don't.
+
+## 2026-10-01 — Number formatting is a local default, independent of Smart formatting
+
+Deepak's v0.1.30 screenshots show LLM cleanup already enabled, yet "zero point
+seven two five" and "point six seven four" remain words. Smart formatting is
+for lists/email layout and must not be required for numeric entry. The cleanup length guard also rejects the valid shortening
+from "zero point seven two five" to "0.725" (5/25 < 0.3); formatting before
+cleanup fixes that without weakening the guard. Extend the
+existing deterministic pass to decimals (fractional digits kept as strings to
+preserve zeros and precision), standalone numbers and a conservative English
+quantity vocabulary. This revises the 2026-08-11 choice to leave all small
+quantities as prose; known idioms and ambiguous digit runs remain unchanged.
+
+Expose Smart (default), Prefer digits, and Keep as spoken under Output → Numbers.
+The last means keep ASR output, which may already contain digits; it cannot
+recover the user's literal spoken words. No other preferences are changed or
+reset. An absent new key selects Smart; explicit choices persist. Cleanup's
+old blanket digits instruction becomes a preservation instruction, and the
+formatter runs on accepted cleanup output too. Keep as spoken rejects cleanup
+when its number-token representation changes, falling back to the pre-cleanup
+text (after any explicitly enabled spoken edits). This may decline a cleanup
+that adds/removes numbered list markers; honoring the explicit preservation
+choice takes priority. English rules only; no remote calls or new model.
+
+Parser changes also preserve conjunctions outside numeric phrases and reject
+repeated/ascending magnitudes and malformed runs rather than adding unrelated
+numbers or overflowing. Other proposed default changes (fillers, onboarding,
+smart layout) remain outside this numbers-focused change.

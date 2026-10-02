@@ -181,7 +181,8 @@ final class DictationPipeline: ObservableObject {
                     IndicatorWindowManager.shared.flash(.info("No speech detected"))
                     return
                 }
-                text = fallback
+                // The preview bypasses TranscriptionService's number formatter.
+                text = NumberCompaction.apply(fallback, style: AppPreferences.shared.numberFormattingStyle)
             }
 
             // Optional LLM cleanup (no-op when disabled; returns the raw text on failure). The

@@ -227,6 +227,10 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var numberFormattingStyle: NumberFormattingStyle {
+        didSet { AppPreferences.shared.numberFormattingStyle = numberFormattingStyle }
+    }
+
     @Published var smartFormattingEnabled: Bool {
         didSet {
             AppPreferences.shared.smartFormattingEnabled = smartFormattingEnabled
@@ -413,6 +417,7 @@ class SettingsViewModel: ObservableObject {
         self.doubleTapLock = prefs.doubleTapLock
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
+        self.numberFormattingStyle = prefs.numberFormattingStyle
         self.smartFormattingEnabled = prefs.smartFormattingEnabled
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
         self.verbatimInAIApps = prefs.verbatimInAIApps
@@ -1353,6 +1358,19 @@ struct SettingsView: View {
                     // clamp the stored language to a supported one when this view appears.
                     .id(viewModel.supportedLanguages)
                     .onAppear { viewModel.clampLanguageToSupported() }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+
+            SSection(title: "Numbers") {
+                SRow(title: "Number formatting", hint: LocalizedStringKey(viewModel.numberFormattingStyle.hint)) {
+                    Picker("Number formatting", selection: $viewModel.numberFormattingStyle) {
+                        ForEach(NumberFormattingStyle.allCases) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }
                     .pickerStyle(.menu)
                     .labelsHidden()
                     .fixedSize()

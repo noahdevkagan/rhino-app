@@ -16,13 +16,13 @@ const content: ComparisonContent = {
   checked: "September 2026",
   rows: [
     { label: "Price", rhino: "$20 once, forever", them: "Free tier; Pro around $8.49/month, with a lifetime option" },
-    { label: "Local speech recognition", rhino: "Yes — Whisper or Parakeet, on your Mac", them: "Yes — Whisper models, on your Mac" },
-    { label: "Cloud models available", rhino: "No. There is no cloud pathway in the app", them: "Yes, on Pro — GPT-5, Claude, Gemini and others" },
+    { label: "Local speech recognition", rhino: "Yes: Whisper or Parakeet, on your Mac", them: "Yes: Whisper models, on your Mac" },
+    { label: "Cloud models available", rhino: "No. There is no cloud pathway in the app", them: "Yes, on Pro: GPT-5, Claude, Gemini and others" },
     { label: "Works offline", rhino: "Yes, always", them: "Yes, with local models selected" },
     { label: "Account required", rhino: "No", them: "Not for the free local tier" },
     { label: "Platforms", rhino: "macOS 14+ on Apple silicon only", them: "Mac, Windows, iPhone, Android" },
     { label: "Configurability", rhino: "Deliberately small: one flow, sane defaults", them: "Extensive: modes, custom prompts, per-app behaviour" },
-    { label: "Verbatim in AI apps and terminals", rhino: "Automatic — cleanup is skipped there by default", them: "Achievable by configuring a mode yourself" },
+    { label: "Verbatim in AI apps and terminals", rhino: "Automatic. Cleanup is skipped there by default", them: "Achievable by configuring a mode yourself" },
     { label: "Built by", rhino: "One person (me)", them: "A small independent team" },
   ],
   sections: [
@@ -36,7 +36,7 @@ const content: ComparisonContent = {
     {
       heading: "superwhisper is the configurable one",
       paragraphs: [
-        "It has modes, custom prompts, per-context behaviour, and a growing menu of models — including, on the paid tier, cloud models from the big labs if you want to point a hard transcript at one. It runs on Windows and on your phone. If you enjoy tuning a tool until it fits you exactly, superwhisper gives you far more surface to tune than Rhino does, and the free tier means you can find that out at no cost.",
+        "It has modes, custom prompts, per-context behaviour, and a growing menu of models, including, on the paid tier, cloud models from the big labs if you want to point a hard transcript at one. It runs on Windows and on your phone. If you enjoy tuning a tool until it fits you exactly, superwhisper gives you far more surface to tune than Rhino does, and the free tier means you can find that out at no cost.",
         "That breadth has a cost that is worth naming: an app that can use cloud models has a cloud pathway in it. It is opt-in and clearly labelled, and plenty of people want it there. But if your bar is \"I want to be able to say that this software cannot transmit my audio, full stop,\" a configurable option is a weaker guarantee than an absent one.",
       ],
     },
@@ -45,13 +45,13 @@ const content: ComparisonContent = {
       paragraphs: [
         "Rhino does one thing: hold Fn, talk, release, get clean text in the app you were already in. There are no modes to pick, and the defaults are the settings I would have told you to choose. There is no cloud option to audit, because there is no code in Rhino that sends audio anywhere.",
         "A few of those opinions are load-bearing. Dictate into Claude, ChatGPT or a terminal and Rhino automatically skips its AI cleanup, so an instruction meant for the assistant arrives verbatim instead of being tidied into prose. Recordings over five minutes go to your clipboard with a note instead of pasting themselves into whatever happened to be focused. You can configure both, but you should not have to.",
-        "And it is $20 once. Not a free tier that you will eventually outgrow into a subscription — one payment, every feature, forever.",
+        "And it is $20 once. Not a free tier that you will eventually outgrow into a subscription. One payment, every feature, forever.",
       ],
     },
     {
       heading: "The honest recommendation",
       paragraphs: [
-        "Try superwhisper's free tier first. It costs nothing, it runs locally, and it will teach you whether hold-to-talk dictation belongs in your day at all — which is the question that actually matters, and the one neither of us can answer for you.",
+        "Try superwhisper's free tier first. It costs nothing, it runs locally, and it will teach you whether hold-to-talk dictation belongs in your day at all, which is the question that actually matters, and the one neither of us can answer for you.",
         "If it sticks and you find yourself either reaching for the paid tier or wishing the app would stop asking you to configure it, that is the moment Rhino makes sense: one price, one flow, no cloud pathway, done.",
       ],
     },
@@ -60,7 +60,7 @@ const content: ComparisonContent = {
     {
       question: "Is superwhisper private?",
       answer:
-        "With local models selected, yes — it transcribes on your Mac and works offline, the same as Rhino. The distinction is that superwhisper's paid tier can also route transcription or cleanup to cloud models from providers like OpenAI, Anthropic and Google if you choose to enable them. Rhino has no such option.",
+        "With local models selected, yes. It transcribes on your Mac and works offline, the same as Rhino. The distinction is that superwhisper's paid tier can also route transcription or cleanup to cloud models from providers like OpenAI, Anthropic and Google if you choose to enable them. Rhino has no such option.",
     },
     {
       question: "Is Rhino Voice cheaper than superwhisper?",
@@ -70,7 +70,7 @@ const content: ComparisonContent = {
     {
       question: "Which one is more accurate?",
       answer:
-        "They run the same family of open speech models on the same hardware, so raw transcription accuracy is close enough that the difference in practice comes from the cleanup pass and your custom vocabulary rather than the recogniser. Test both on your own voice and your own jargon — that is the only benchmark that predicts your experience.",
+        "They run the same family of open speech models on the same hardware, so raw transcription accuracy is close enough that the difference in practice comes from the cleanup pass and your custom vocabulary rather than the recogniser. Test both on your own voice and your own jargon. That is the only benchmark that predicts your experience.",
     },
     {
       question: "Does Rhino Voice have a free trial?",

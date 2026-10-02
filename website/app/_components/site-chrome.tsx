@@ -30,7 +30,7 @@ export function BuyForm({ compact = false }: { compact?: boolean }) {
       <input type="hidden" name="return" value="https://rhinovoice.app/thanks" />
       <input type="hidden" name="cancel_return" value="https://rhinovoice.app/" />
       <button className={compact ? "button button-compact" : "button button-primary"} type="submit">
-        {compact ? `Buy — $${rhinoPrice}` : `Buy Rhino — $${rhinoPrice}`}
+        {compact ? `Buy for $${rhinoPrice}` : `Buy Rhino for $${rhinoPrice}`}
       </button>
     </form>
   );

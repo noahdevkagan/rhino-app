@@ -30,10 +30,10 @@ test("server-renders the concise PayPal purchase page", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Rhino Voice — Private dictation for Mac<\/title>/i);
+  assert.match(html, /<title>Rhino Voice: Private dictation for Mac<\/title>/i);
   assert.match(html, /Talk\. Rhino types\./);
   assert.match(html, /Nothing leaves your Mac\./);
-  assert.match(html, /Buy Rhino — \$20/);
+  assert.match(html, /Buy Rhino for \$20/);
   assert.match(html, /action="https:\/\/www\.paypal\.com\/cgi-bin\/webscr"/);
   assert.match(html, /name="business" value="paypal@okdork\.com"/);
   assert.match(html, /name="item_name" value="Rhino for Mac"/);
@@ -122,7 +122,7 @@ test("ranked alternatives pages carry the byline, quick answer and ranked list",
     assert.match(html, /"@type":"ItemList"/, `${path} ItemList schema`);
     assert.match(html, /"@type":"Person"/, `${path} author schema`);
     const main = html.slice(html.indexOf("<main"), html.indexOf("</main>"));
-    assert.doesNotMatch(main.replace(/Buy(?: Rhino)? — \$\d+/g, ""), /—/, `${path} has no em dashes`);
+    assert.doesNotMatch(main, /—/, `${path} has no em dashes`);
 
     // The buy form sits in the top third: before the ranked table.
     assert.ok(
@@ -130,6 +130,29 @@ test("ranked alternatives pages carry the byline, quick answer and ranked list",
       `${path} CTA before the ranked table`,
     );
   }
+});
+
+test("no rendered page uses an em dash", async () => {
+  const paths = [
+    "/",
+    "/changelog",
+    "/thanks",
+    "/appsumo",
+    "/vs/wispr-flow",
+    "/vs/superwhisper",
+    "/vs/macwhisper",
+    "/vs/apple-dictation",
+    "/alternatives/wispr-flow",
+    "/alternatives/dragon",
+  ];
+  for (const path of paths) {
+    const html = await (await render(path)).text();
+    const body = html.slice(html.indexOf("<body"));
+    assert.doesNotMatch(body.replace(/<style[\s\S]*?<\/style>/g, ""), /—/, `${path} has an em dash`);
+    assert.doesNotMatch(html.match(/<title>[^<]*<\/title>/)?.[0] ?? "", /—/, `${path} title`);
+  }
+  const llms = await readFile(new URL("../public/llms.txt", import.meta.url), "utf8");
+  assert.doesNotMatch(llms, /—/, "llms.txt has an em dash");
 });
 
 test("renders the changelog and post-purchase download routes", async () => {

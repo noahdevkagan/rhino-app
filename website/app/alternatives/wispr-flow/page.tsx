@@ -4,6 +4,7 @@ import { costOver, tools } from "../../_components/competitors";
 import { rhinoPrice } from "../../_components/site-chrome";
 
 const wisprYear = costOver(tools.wisprFlow.cost, 1);
+const typelessYear = costOver(tools.typeless.cost, 1);
 
 const content: RankedPageContent = {
   slug: "/alternatives/wispr-flow",
@@ -13,9 +14,10 @@ const content: RankedPageContent = {
     <p>
       Rhino Voice is the best Wispr Flow alternative if you want dictation that never
       leaves your Mac and never bills you again: ${rhinoPrice} once, against Wispr
-      Flow&apos;s {wisprYear} a year. Pick superwhisper if you want to start free, Aqua
-      Voice if you only want a cheaper cloud bill, and MacWhisper if what you really need
-      is to transcribe files.
+      Flow&apos;s {wisprYear} a year. Pick Typeless if accuracy matters most: it beat
+      Rhino on my voice test, 10 of 10 against 8 of 10, for {typelessYear} a year against
+      Rhino&apos;s ${rhinoPrice} once. Pick superwhisper to start free, Aqua Voice for a
+      cheaper cloud bill, and MacWhisper to transcribe files.
     </p>
   ),
   intro: (
@@ -27,10 +29,7 @@ const content: RankedPageContent = {
         which matters when what you dictate is client notes, patient notes or unreleased
         work.
       </p>
-      <p>
-        Yes, I make Rhino Voice, so it&apos;s first. Every other app below says what it does
-        better than us, and if one of them fits you better, use it.
-      </p>
+      <p>I make Rhino, so it&apos;s listed first. Each tool below says what it does better than us.</p>
     </>
   ),
   rankedFor:
@@ -41,8 +40,8 @@ const content: RankedPageContent = {
       badge: "Best value",
       bestFor: "local dictation you pay for once",
       review: [
-        "I built Rhino for people who want Wispr Flow's hold-a-key, talk, release workflow without the cloud or the subscription. Speech recognition and the AI cleanup pass both run on your Mac, it works with Wi-Fi off, and there is no account and no cloud model to switch on.",
-        "It is deliberately small: no modes, no per-app profiles, no free tier. What it does have is good defaults, like passing text through verbatim when you dictate into Claude, ChatGPT or a terminal, and a dictionary for the names you repeat all day. Pick it if you are on Apple silicon and want to stop thinking about dictation.",
+        "I built Rhino to keep Wispr Flow's hold a key, talk, release workflow without the cloud or the subscription. Speech recognition and the AI cleanup pass both run on your Mac, it works with Wi-Fi off, and there is no account and no cloud model to switch on.",
+        "It is small on purpose: no modes, no per-app profiles, no free tier. It passes text through verbatim when you dictate into Claude, ChatGPT or a terminal, and keeps a dictionary for the names you repeat. Pick it if you are on Apple silicon and want local dictation you pay for once.",
       ],
       shot: {
         src: "/img/rhino-home.jpg",
@@ -84,7 +83,7 @@ const content: RankedPageContent = {
       tool: tools.typeless,
       bestFor: "a big free tier on every device",
       review: [
-        "The free allowance is the headline: 8,000 words a week, on Mac, Windows, iPhone and Android. It also beat Rhino on my own voice test (more on that below). It is a good cloud option, not an escape from the cloud.",
+        `The most accurate app I tested. On my own voice it got 10 of 10 clips right with no fixing, against Rhino's 8 of 10. It also costs more: ${typelessYear} a year on Pro billed annually, against Rhino's $${rhinoPrice} once. The free tier of 8,000 words a week, on Mac, Windows, iPhone and Android, is real daily use. Pick it if accuracy matters most and you are fine with the cloud.`,
       ],
     },
     {
@@ -138,8 +137,10 @@ const content: RankedPageContent = {
       <p>
         For accuracy I recorded 10 clips of my own voice and scored each app on whether the
         text needed fixing, accepting any reasonable formatting. In August 2026 Typeless got
-        10 of 10 and Rhino got 8 of 10. Your voice and your jargon are the only benchmark
-        that predicts your experience, so try two of these before you commit.
+        10 of 10 and Rhino got 8 of 10, so Typeless is more accurate. Rhino is cheaper:
+        ${rhinoPrice} once against {typelessYear} a year for Typeless Pro billed annually.
+        Your voice and your jargon are the only benchmark that predicts your experience, so
+        try two of these before you commit.
       </p>
     </>
   ),
@@ -152,7 +153,7 @@ const content: RankedPageContent = {
   faq: [
     {
       question: "What is the best alternative to Wispr Flow?",
-      answer: `For dictation that stays on your Mac with no subscription, Rhino Voice at $${rhinoPrice} once. For a free local option, superwhisper. For a cheaper cloud service, Aqua Voice. For transcribing recordings, MacWhisper.`,
+      answer: `For dictation that stays on your Mac with no subscription, Rhino Voice at $${rhinoPrice} once. For a free local option, superwhisper. For the highest accuracy on my voice test, Typeless. For a cheaper cloud service, Aqua Voice. For transcribing recordings, MacWhisper.`,
     },
     {
       question: "Why would I leave Wispr Flow?",

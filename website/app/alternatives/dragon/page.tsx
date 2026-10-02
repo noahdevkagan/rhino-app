@@ -39,8 +39,8 @@ const content: RankedPageContent = {
       <p>
         If you came to Dragon because of RSI, a mobility impairment or an injury, set up
         Voice Control first. The dictation apps on this list assume you can still reach a
-        keyboard. Yes, I make Rhino Voice, so it&apos;s first. Every other app below says
-        what it does better than us.
+        keyboard. I make Rhino, so it&apos;s listed first. Each tool below says what it does
+        better than us.
       </p>
     </>
   ),
@@ -52,7 +52,7 @@ const content: RankedPageContent = {
       badge: "Best value",
       bestFor: "the Dragon deal you remember: pay once, runs locally",
       review: [
-        "Rhino is the closest thing here to how Dragon worked: you pay once, you own it, and it runs on your machine. Hold Fn, talk, release, and cleaned-up text lands wherever your cursor was, in Mail, Pages, a browser or a terminal.",
+        "Rhino works the way Dragon did: you pay once, you own it, and it runs on your machine. Hold Fn, talk, release, and cleaned-up text lands wherever your cursor was, in Mail, Pages, a browser or a terminal.",
         "The part that maps to Dragon habits is the vocabulary. Teach it the client names, drug names and case numbers you say fifty times a day and it fixes the spelling and boosts recognition. Its cleanup pass also removes the ums and false starts, which Dragon never did. Pick it if dictation is the half of Dragon you miss.",
       ],
       shot: {

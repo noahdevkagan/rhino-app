@@ -156,7 +156,7 @@ export function ComparisonPage({ content }: { content: ComparisonContent }) {
 
         <p className="checked-note">
           {content.competitor} pricing and capabilities checked {content.checked}.
-          Competitors ship fast — verify current details on their site before you buy
+          Competitors ship fast, so verify current details on their site before you buy
           either one.
         </p>
 

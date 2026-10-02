@@ -324,7 +324,8 @@ final class AppPreferences {
 
     /// Lay dictated enumerations out as lists ("item 1, yes, item 2, no" → bulleted lines)
     /// during LLM cleanup. Opt-in: it loosens the transform-only contract by letting the
-    /// model add layout, so it stays off until asked for. No effect unless
+    /// model add layout, so it stays off until asked for. Also turns paused spoken
+    /// punctuation ("…, period.") into marks (`SpokenPunctuation`). No effect unless
     /// `aiPostProcessingEnabled` is also on.
     @UserDefault(key: "smartFormattingEnabled", defaultValue: false)
     var smartFormattingEnabled: Bool

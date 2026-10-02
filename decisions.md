@@ -1591,3 +1591,26 @@ equal specificity (the TL;DR label rendered as a full-size heading), now
 `.doc .answer-box h2`; and guides gained an optional `sister` link, used on the
 lawyers guide to point client-call readers at MeetMouse's lawyers guide, with the
 /best hub linking MeetMouse's guide hub.
+
+## 2026-10-01 — Spoken punctuation joins smart formatting (reverses 2026-08-20)
+Customer (Troy Cole, v0.1.30, coming from phone dictation) says "period",
+"comma", "new paragraph" out loud; with LLM cleanup on they still landed as
+words — the cleanup contract's "keep every word" wins, and his speech model
+output ("rad. Period. I will") isn't the unpunctuated form the 08-20 layout
+rule was tuned on. Reversed the 08-20 "no spoken punctuation" call, but
+deterministically (`Utils/SpokenPunctuation.swift`), not as a prompt rule,
+and with no new toggle (Noah: fewer toggles) — it runs whenever smart
+formatting is on, at the top of `LLMPostProcessor.process`, so model
+fallbacks and verbatim targets still get it. The collision worry from 08-20
+is handled by the pause, not the word: Parakeet brackets a paused command with
+punctuation ("Sam comma. New paragraph. The site…") and leaves run-on speech
+bare ("rad period I will" vs "the trial period ended" — indistinguishable, so
+bare commands are left alone). period/colon/new line/new paragraph collide
+with sentence-final prose ("a grace period.") and need punctuation on both
+sides; comma/question mark/etc. need one side; with no pause before it, a
+determiner in the two words before ("a period", "the word comma", "the Oxford
+comma.", "a big question mark.") is always a mention — one word wasn't enough,
+since one-sided commands converted "the Oxford comma." to "the Oxford,". The
+cost: an unpaused "the deck comma." stays as words; dropping a word the speaker
+meant is worse than leaving one. Troy's own email is the
+test fixture: every command converts, his mentions of "period" don't.

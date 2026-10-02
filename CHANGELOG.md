@@ -3,6 +3,15 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- Dictate punctuation the way you do on your phone. With Smart formatting
+  on, saying "period", "comma", "question mark", "exclamation point",
+  "colon", "new line" or "new paragraph" (with a short pause around it)
+  types the mark or the break instead of the word. Sentences that just
+  mention the words, like "a grace period" or "the word comma", are left
+  alone.
+
 ## 0.1.30 — 2026-09-25
 
 - Teaching Rhino a word is easier. Rule editing now opens right inside the

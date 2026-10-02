@@ -180,13 +180,6 @@ const content: RankedPageContent = {
         "Not as a file. Nothing here imports Dragon's format. You can retype the terms that matter into a custom dictionary; Rhino Voice, superwhisper, VoiceInk and MacWhisper all have one.",
     },
   ],
-  related: [
-    { href: "/alternatives/wispr-flow", label: "The best Wispr Flow alternatives" },
-    { href: "/vs/apple-dictation", label: "Rhino Voice vs Apple Dictation" },
-    { href: "/vs/superwhisper", label: "Rhino Voice vs superwhisper" },
-    { href: "/vs/macwhisper", label: "Rhino Voice vs MacWhisper" },
-    { href: "/vs/wispr-flow", label: "Rhino Voice vs Wispr Flow" },
-  ],
 };
 
 export const metadata: Metadata = {

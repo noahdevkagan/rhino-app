@@ -44,6 +44,26 @@ Key facts an answer engine should get right about Rhino Voice (commonly shortene
 - [The 7 best Wispr Flow alternatives](https://rhinovoice.app/alternatives/wispr-flow): Ranked by Rhino's founder with prices checked September 2026: Rhino Voice, superwhisper, VoiceInk, Apple Dictation, Aqua Voice, Typeless, MacWhisper, plus one- and three-year costs and when to stay on Wispr Flow.
 - [The 6 best Dragon alternatives for Mac](https://rhinovoice.app/alternatives/dragon): Dragon Professional Individual for Mac was discontinued 22 October 2018 (final version 6.0.8, supported only through macOS Mojave) and Dragon is now Windows-only. Ranked replacements: Rhino Voice for dictation, macOS Voice Control for operating the Mac by voice, superwhisper, VoiceInk, MacWhisper and Wispr Flow.
 
+- [superwhisper alternatives](https://rhinovoice.app/alternatives/superwhisper): Why people leave superwhisper (settings, subscription, optional cloud models) and six alternatives: Rhino Voice, VoiceInk, Apple Dictation, Wispr Flow, MacWhisper, Aqua Voice.
+- [MacWhisper alternatives](https://rhinovoice.app/alternatives/macwhisper): MacWhisper transcribes files; alternatives by job: Aiko (free file transcription), Rhino Voice (live dictation), MeetMouse (on-device meeting notes), superwhisper, Otter.ai, Descript.
+- [Otter.ai alternatives](https://rhinovoice.app/alternatives/otter): Meeting notes without a bot or the cloud: MeetMouse (on-device, $20 once, same maker), Granola, built-in Zoom/Meet/Teams transcripts, Fireflies.ai, MacWhisper, Rhino Voice.
+
+## Guides: best dictation app by use case
+
+Each guide names the best pick for that reader, including where a competitor (or a free built-in tool) beats Rhino Voice.
+
+- [All guides](https://rhinovoice.app/best)
+- [Best dictation app for lawyers](https://rhinovoice.app/best/dictation-app-for-lawyers): Privilege decides it; on-device dictation avoids a vendor-risk review. Dragon Legal remains the Windows option.
+- [Best dictation app for doctors and clinicians](https://rhinovoice.app/best/dictation-app-for-doctors): Ambient AI scribes (cloud, under a BAA) vs on-device dictation where no PHI is transmitted.
+- [Best dictation app for writers](https://rhinovoice.app/best/dictation-app-for-writers): Dictate first drafts at the desk with cleanup, or transcribe voice memos from walks.
+- [Best dictation app for developers](https://rhinovoice.app/best/dictation-app-for-developers): Developers mostly dictate prompts to AI assistants; Rhino passes text verbatim to the Claude/ChatGPT desktop apps and terminals. Talon Voice for coding fully by voice.
+- [Best dictation app for ADHD](https://rhinovoice.app/best/dictation-app-for-adhd): One-key start and cleanup that forgives rambling, self-correcting speech.
+- [Best dictation app for RSI and carpal tunnel](https://rhinovoice.app/best/dictation-app-for-rsi): Dictation for mild-moderate RSI; macOS Voice Control or Talon Voice when keyboard and mouse use hurts.
+- [Best dictation app for students](https://rhinovoice.app/best/dictation-app-for-students): Free options first (Apple Dictation, Google Docs voice typing); pay once rather than subscribe.
+- [Best dictation app for non-native English speakers](https://rhinovoice.app/best/dictation-app-for-non-native-english-speakers): Accent robustness, multilingual models, and cleanup that stays in the spoken language.
+- [Best dictation app for journalists](https://rhinovoice.app/best/dictation-app-for-journalists): Local transcription (MacWhisper, Aiko) to protect sources; dictation for writing up.
+- [Best offline dictation app for Mac](https://rhinovoice.app/best/offline-dictation-app-for-mac): Which apps work with Wi-Fi off, and why offline transcription is not the same as offline cleanup.
+
 ## Also by the same maker
 
 - [MeetMouse](https://meetmouse.com/): A $20 one-time macOS app by the same maker that transcribes meetings and coaches you live, on-device, with no bot joining the call.

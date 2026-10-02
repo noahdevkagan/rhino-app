@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { COMPARISON_LINKS } from "./best-for-page";
 import { BuyForm, SiteFooter, SiteHeader } from "./site-chrome";
 import { type Tool, costOver, priceShort, pricesChecked } from "./competitors";
 
@@ -29,7 +30,6 @@ export type RankedPageContent = {
   howWeChecked: ReactNode;
   howToSwitch: string[];
   faq: Faq[];
-  related: { href: string; label: string }[];
 };
 
 const site = "https://rhinovoice.app";
@@ -123,13 +123,13 @@ export function RankTable({ entries }: { entries: RankedEntry[] }) {
         <tbody>
           {entries.map((entry, index) => (
             <tr key={entry.tool.key} className={entry.badge ? "rank-ours" : undefined}>
-              <td>{index + 1}</td>
+              <td data-label="Rank">{index + 1}</td>
               <th scope="row">
                 <a href={`#${anchor(entry.tool)}`}>{entry.tool.name}</a>
                 {entry.badge ? <span className="mine-badge">{entry.badge}</span> : null}
               </th>
-              <td>{entry.bestFor}</td>
-              <td>{priceShort(entry.tool.cost)}</td>
+              <td data-label="Best for">{entry.bestFor}</td>
+              <td data-label="Price">{priceShort(entry.tool.cost)}</td>
             </tr>
           ))}
         </tbody>
@@ -225,9 +225,9 @@ export function CostTable({ caption, tools }: { caption: string; tools: Tool[] }
           {tools.map((tool) => (
             <tr key={tool.key}>
               <th scope="row">{tool.name}</th>
-              <td>{priceShort(tool.cost)}</td>
-              <td>{costOver(tool.cost, 1)}</td>
-              <td>{costOver(tool.cost, 3)}</td>
+              <td data-label="Price">{priceShort(tool.cost)}</td>
+              <td data-label="1 year">{costOver(tool.cost, 1)}</td>
+              <td data-label="3 years">{costOver(tool.cost, 3)}</td>
             </tr>
           ))}
         </tbody>
@@ -333,7 +333,7 @@ export function RankedPage({ content }: { content: RankedPageContent }) {
         <nav className="more-links" aria-label="More comparisons">
           <h2>More comparisons</h2>
           <ul>
-            {content.related.map((link) => (
+            {COMPARISON_LINKS.filter((link) => link.href !== content.slug).map((link) => (
               <li key={link.href}>
                 <a href={link.href}>{link.label}</a>
               </li>

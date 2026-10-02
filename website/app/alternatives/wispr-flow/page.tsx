@@ -179,13 +179,6 @@ const content: RankedPageContent = {
       answer: `For anything you use more than a few months, yes. A year of Wispr Flow at the annual rate is ${wisprYear}. Rhino Voice is $${rhinoPrice} once, VoiceInk starts at $29 once, and MacWhisper Pro is around €59 once. The subscription buys cross-platform support, which is a fair thing to want.`,
     },
   ],
-  related: [
-    { href: "/vs/wispr-flow", label: "Rhino Voice vs Wispr Flow" },
-    { href: "/vs/superwhisper", label: "Rhino Voice vs superwhisper" },
-    { href: "/vs/macwhisper", label: "Rhino Voice vs MacWhisper" },
-    { href: "/vs/apple-dictation", label: "Rhino Voice vs Apple Dictation" },
-    { href: "/alternatives/dragon", label: "The best Dragon alternatives for Mac" },
-  ],
 };
 
 export const metadata: Metadata = {

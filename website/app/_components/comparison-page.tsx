@@ -1,3 +1,4 @@
+import { COMPARISON_LINKS as OTHER_LINKS } from "./best-for-page";
 import { BuyForm, SiteFooter, SiteHeader } from "./site-chrome";
 
 export type ComparisonRow = {
@@ -32,15 +33,6 @@ export type ComparisonContent = {
   /** Month + year the competitor's pricing and claims were last checked. */
   checked: string;
 };
-
-const OTHER_LINKS: { href: string; label: string }[] = [
-  { href: "/vs/wispr-flow", label: "Rhino Voice vs Wispr Flow" },
-  { href: "/vs/superwhisper", label: "Rhino Voice vs superwhisper" },
-  { href: "/vs/macwhisper", label: "Rhino Voice vs MacWhisper" },
-  { href: "/vs/apple-dictation", label: "Rhino Voice vs Apple Dictation" },
-  { href: "/alternatives/wispr-flow", label: "Wispr Flow alternatives" },
-  { href: "/alternatives/dragon", label: "Dragon alternatives for Mac" },
-];
 
 export function comparisonJsonLd(content: ComparisonContent) {
   const url = `https://rhinovoice.app${content.slug}`;
@@ -116,8 +108,8 @@ export function ComparisonPage({ content }: { content: ComparisonContent }) {
               {content.rows.map((row) => (
                 <tr key={row.label}>
                   <th scope="row">{row.label}</th>
-                  <td>{row.rhino}</td>
-                  <td>{row.them}</td>
+                  <td data-label="Rhino Voice">{row.rhino}</td>
+                  <td data-label={content.competitor}>{row.them}</td>
                 </tr>
               ))}
             </tbody>

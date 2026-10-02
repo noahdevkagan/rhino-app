@@ -264,9 +264,9 @@ export default function Home() {
                 {comparisonRows.map((row) => (
                   <tr key={row.label}>
                     <th scope="row">{row.label}</th>
-                    <td>{row.rhino}</td>
-                    <td>{row.cloud}</td>
-                    <td>{row.apple}</td>
+                    <td data-label="Rhino Voice">{row.rhino}</td>
+                    <td data-label="Cloud apps">{row.cloud}</td>
+                    <td data-label="Apple Dictation">{row.apple}</td>
                   </tr>
                 ))}
               </tbody>
@@ -279,7 +279,15 @@ export default function Home() {
             <li><a href="/vs/apple-dictation">Rhino Voice vs Apple Dictation</a></li>
             <li><a href="/alternatives/wispr-flow">Wispr Flow alternatives</a></li>
             <li><a href="/alternatives/dragon">Dragon alternatives for Mac</a></li>
+            <li><a href="/alternatives/superwhisper">superwhisper alternatives</a></li>
+            <li><a href="/alternatives/macwhisper">MacWhisper alternatives</a></li>
+            <li><a href="/alternatives/otter">Otter.ai alternatives</a></li>
           </ul>
+          <p className="band-intro">
+            Not sure which kind of app you need?{" "}
+            <a href="/best">Guides to the best dictation app by who you are</a>, for
+            lawyers, doctors, writers, developers, ADHD, RSI, students and more.
+          </p>
         </section>
 
         <section className="band">

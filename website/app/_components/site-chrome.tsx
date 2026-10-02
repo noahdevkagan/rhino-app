@@ -58,6 +58,7 @@ export function SiteFooter() {
       <a href="mailto:noahkagan@gmail.com">Email</a>
       <a href="/changelog">Changelog</a>
       <a href="/vs/wispr-flow">Rhino Voice vs Wispr Flow</a>
+      <a href="/best">Dictation app guides</a>
       <a href={releasesUrl}>Releases on GitHub</a>
       <a href="https://meetmouse.com/">Also by me: MeetMouse, private meeting notes</a>
     </footer>

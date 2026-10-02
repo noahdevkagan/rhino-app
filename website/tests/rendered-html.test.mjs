@@ -73,6 +73,10 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
     "/vs/macwhisper",
     "/vs/apple-dictation",
     "/alternatives/wispr-flow",
+    "/alternatives/dragon",
+    "/alternatives/superwhisper",
+    "/alternatives/macwhisper",
+    "/alternatives/otter",
   ]) {
     assert.match(html, new RegExp(`href="${href}"`));
   }
@@ -86,6 +90,9 @@ test("renders every comparison page with its schema and canonical", async () => 
     ["/vs/apple-dictation", /Rhino Voice vs Apple Dictation/, /transcribes you literally/],
     ["/alternatives/wispr-flow", /Wispr Flow alternatives/, /superwhisper/],
     ["/alternatives/dragon", /Dragon alternatives for Mac/, /Voice Control/],
+    ["/alternatives/superwhisper", /superwhisper alternatives/, /VoiceInk/],
+    ["/alternatives/macwhisper", /MacWhisper alternatives/, /Aiko/],
+    ["/alternatives/otter", /Otter\.ai alternatives/, /MeetMouse/],
   ];
 
   for (const [path, headline, body] of routes) {
@@ -144,6 +151,20 @@ test("no rendered page uses an em dash", async () => {
     "/vs/apple-dictation",
     "/alternatives/wispr-flow",
     "/alternatives/dragon",
+    "/alternatives/superwhisper",
+    "/alternatives/macwhisper",
+    "/alternatives/otter",
+    "/best",
+    "/best/dictation-app-for-lawyers",
+    "/best/dictation-app-for-doctors",
+    "/best/dictation-app-for-writers",
+    "/best/dictation-app-for-developers",
+    "/best/dictation-app-for-adhd",
+    "/best/dictation-app-for-rsi",
+    "/best/dictation-app-for-students",
+    "/best/dictation-app-for-non-native-english-speakers",
+    "/best/dictation-app-for-journalists",
+    "/best/offline-dictation-app-for-mac",
   ];
   for (const path of paths) {
     const html = await (await render(path)).text();
@@ -153,6 +174,64 @@ test("no rendered page uses an em dash", async () => {
   }
   const llms = await readFile(new URL("../public/llms.txt", import.meta.url), "utf8");
   assert.doesNotMatch(llms, /—/, "llms.txt has an em dash");
+});
+
+test("renders every best-for guide with its schema, canonical and disclosure", async () => {
+  const guides = [
+    ["/best/dictation-app-for-lawyers", /dictation app for lawyers/, /privilege/i],
+    ["/best/dictation-app-for-doctors", /dictation app for doctors/, /ambient/i],
+    ["/best/dictation-app-for-writers", /dictation app for writers/, /Scrivener/],
+    ["/best/dictation-app-for-developers", /dictation app for developers/, /Talon/],
+    ["/best/dictation-app-for-adhd", /dictation app for ADHD/, /friction/i],
+    ["/best/dictation-app-for-rsi", /RSI and carpal tunnel/, /Voice Control/],
+    ["/best/dictation-app-for-students", /dictation app for students/, /Google Docs voice typing/],
+    ["/best/dictation-app-for-non-native-english-speakers", /non-native English speakers/, /Parakeet v3/],
+    ["/best/dictation-app-for-journalists", /apps for journalists/, /MacWhisper/],
+    ["/best/offline-dictation-app-for-mac", /offline dictation app for Mac/, /Wi-Fi off/],
+  ];
+
+  const sitemap = await readFile(new URL("../public/sitemap.xml", import.meta.url), "utf8");
+  assert.match(sitemap, /<loc>https:\/\/rhinovoice\.app\/best<\/loc>/);
+  const hub = await (await render("/best")).text();
+  const home = await (await render("/")).text();
+  assert.match(home, /href="\/best"/);
+
+  for (const [path, headline, body] of guides) {
+    const response = await render(path);
+    assert.equal(response.status, 200, `${path} should render`);
+
+    const html = await response.text();
+    assert.match(html, headline, `${path} headline`);
+    assert.match(html, body, `${path} body`);
+    assert.match(html, /"@type":"FAQPage"/, `${path} FAQ schema`);
+    assert.match(html, /"@type":"ItemList"/, `${path} list schema`);
+    assert.match(html, /"@type":"BreadcrumbList"/, `${path} breadcrumb schema`);
+    assert.match(
+      html,
+      new RegExp(`rel="canonical" href="https://rhinovoice\\.app${path}"`),
+      `${path} canonical`,
+    );
+    // Rhino appears on every guide and is always disclosed as the author's own.
+    assert.match(html, /class="mine-badge"/, `${path} discloses Rhino is mine`);
+    assert.match(html, /name="amount" value="20\.00"/, `${path} buy form`);
+    assert.match(hub, new RegExp(`href="${path}"`), `${path} listed on /best`);
+    assert.ok(sitemap.includes(`<loc>https://rhinovoice.app${path}</loc>`), `${path} in sitemap`);
+  }
+});
+
+test("cross-links the sister site per SITE-PLAYBOOK.md", async () => {
+  const hub = await (await render("/best")).text();
+  assert.match(hub, /href="https:\/\/meetmouse\.com\/best\/"/);
+
+  const lawyers = await (await render("/best/dictation-app-for-lawyers")).text();
+  assert.match(lawyers, /href="https:\/\/meetmouse\.com\/best\/ai-notetaker-for-lawyers"/);
+});
+
+test("labels table cells so phones can stack rows into cards", async () => {
+  const guide = await (await render("/best/dictation-app-for-lawyers")).text();
+  assert.match(guide, /<td data-label="Price">/);
+  const vs = await (await render("/vs/wispr-flow")).text();
+  assert.match(vs, /<td data-label="Rhino Voice">/);
 });
 
 test("renders the changelog and post-purchase download routes", async () => {
@@ -169,6 +248,9 @@ test("renders the changelog and post-purchase download routes", async () => {
   ]);
 
   assert.match(changelog, /<h1>Changelog<\/h1>/);
+  // The changelog has its own title, not a copy of the homepage's.
+  assert.match(changelog, /<title>Rhino Voice Changelog/);
+  assert.match(changelog, /rel="canonical" href="https:\/\/rhinovoice\.app\/changelog"/);
   assert.match(changelog, /0\.1\.9/);
   assert.match(changelog, /downloads the on-device cleanup model automatically/);
   assert.match(changelog, /Smart formatting/);
@@ -178,7 +260,7 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(changelog, /permission loop/);
   assert.match(changelog, /updates itself automatically/);
   assert.match(thanks, /Thanks for buying Rhino/);
-  assert.match(thanks, /Rhino-0\.1\.30\.dmg/);
+  assert.match(thanks, /Rhino-0\.1\.31\.dmg/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 
@@ -226,7 +308,7 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /noahkagan@gmail\.com/);
   assert.match(
     await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8"),
-    /Rhino-0\.1\.30\.dmg/,
+    /Rhino-0\.1\.31\.dmg/,
   );
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });

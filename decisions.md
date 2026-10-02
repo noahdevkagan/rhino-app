@@ -1521,6 +1521,128 @@ near the bottom of the Settings sheet, the popover opened past the window edge.
 the rule is created (plus that transcript fixed). Recognition boost stays opt-in:
 the boosted Parakeet path gives different results on identical clips (2026-08-31).
 
+**2026-09-29 — "Best dictation app for X" guides live under `/best/*`, rendered
+by one shared component.** Ten audience guides (lawyers, doctors, writers,
+developers, ADHD, RSI, students, non-native speakers, journalists, offline) plus
+a `/best` hub target the "best X for Y" queries people ask search engines and AI
+assistants. Same reasoning as the 2026-09-17 comparison pages:
+`app/_components/best-for-page.tsx` owns the skeleton (liftable short answer,
+numbered picks, BreadcrumbList + ItemList + FAQPage JSON-LD, buy form,
+checked-on date) so each guide is a content object and `BEST_FOR_GUIDES` is the
+one list every page cross-links from. Rhino is deliberately *not* #1 everywhere:
+on RSI, Voice Control and Talon come first; on journalists, MacWhisper; on
+students, the free tools; on doctors, ambient scribes — because a guide that
+always crowns its author is one nobody quotes. Rhino carries the "mine" badge on
+every guide (the test enforces it). Product claims were checked against the
+code (e.g. the verbatim list is hardcoded to the Claude/ChatGPT desktop apps and
+terminals; spoken edits default off). Competitor prices reuse the figures
+already verified on the comparison pages; categories without a verified price
+(ambient scribes, Dragon Legal, Otter) are described without one.
+
+**2026-09-29 — The /best guides are written in Noah's voice, and each ends in a
+verdict and actions.** The first draft read like a British magazine ("licence",
+"it is not", "weigh this accordingly"). Noah asked for his voice: first person,
+contractions, American spelling, short sentences, the bias stated in line one,
+and a plain "My pick" plus a "What I'd do today" list of mostly free steps
+(try Apple Dictation first, write your dictionary list, ask IT). Each guide also
+gets a picks-at-a-glance table built from the pick data. No invented anecdotes:
+personal claims are limited to what's true (he built Rhino, builds it with AI
+coding agents, AppSumo founder). Two pre-existing CSS bugs were fixed along the
+way because the guides exposed them: the global `nav` rules (meant for the
+header) were also hiding breadcrumb links on phones and laying out link lists
+as flex rows, so they are now scoped to `.site-header nav`; and a wide table
+could stretch `.doc-page` past the viewport, now clamped with
+`grid-template-columns: minmax(0, 1fr)`. `public/sitemap.xml` is static, so the
+guides were added by hand and the test now asserts they stay listed.
+
+**2026-09-29 — superwhisper, MacWhisper and Otter alternatives pages reuse the
+guide component, and the Otter page sells MeetMouse, not Rhino.** The three
+biggest missing "X alternatives" queries next to our existing Wispr Flow and
+Dragon pages. They render through `BestForPage` (now with `crumbParent: null`
+for pages outside the /best hub, per-pick `linkText`, and a `cta` override)
+instead of copying the hand-written Dragon page again. `COMPARISON_LINKS` in
+best-for-page.tsx is now the one list every comparison, alternatives and guide
+page cross-links from; the old hand-maintained copies were replaced. Otter
+shoppers want meeting notes, which is MeetMouse's job, so that page leads with
+MeetMouse (disclosed as "mine") and its CTA links there; Rhino appears only for
+"dictate the takeaways after the call". Unverified-by-us prices (Granola,
+Fireflies, Descript, Otter) are described as "free tier; paid plans monthly".
+
+**2026-09-30 — The website can deploy on its own, from GitHub Actions.** Until
+now rhinovoice.app only deployed inside an app release (Scripts/release.sh on
+Noah's Mac, or release.yml, whose publish job skips without signing secrets),
+so site-only work like the /best guides sat merged but unpublished and could not
+be shipped from a phone session. `.github/workflows/deploy-website.yml` deploys
+on pushes to master that touch website/**, or by hand from the Actions tab. It
+reuses the CLOUDFLARE_API_TOKEN secret name release.yml already expects, fails
+loudly if it is missing, and refuses to deploy while the pinned DMG is not yet
+published (the window between a "Stage X.Y.Z" commit and its release), so it
+cannot hand buyers a 404 download.
+
+
+**2026-09-30 — One site playbook shared with MeetMouse.** `SITE-PLAYBOOK.md`
+(identical copy in the meetmouse repo) now holds the rules both sites' marketing
+pages follow: one page per search intent, "us vs X" before "X vs Y", Noah's voice
+with no invented anecdotes, verified-or-unnumbered prices with a checked-on month,
+one page list driving every cross-link, and at most one sister-app pointer per page.
+meetmouse.com moved its pages onto a port of this site's doc-page template. Two
+changes here came out of that: `.answer-box h2` lost to the later `.doc h2` at
+equal specificity (the TL;DR label rendered as a full-size heading), now
+`.doc .answer-box h2`; and guides gained an optional `sister` link, used on the
+lawyers guide to point client-call readers at MeetMouse's lawyers guide, with the
+/best hub linking MeetMouse's guide hub.
+
+## 2026-10-01 — Spoken punctuation joins smart formatting (reverses 2026-08-20)
+Customer (Troy Cole, v0.1.30, coming from phone dictation) says "period",
+"comma", "new paragraph" out loud; with LLM cleanup on they still landed as
+words — the cleanup contract's "keep every word" wins, and his speech model
+output ("rad. Period. I will") isn't the unpunctuated form the 08-20 layout
+rule was tuned on. Reversed the 08-20 "no spoken punctuation" call, but
+deterministically (`Utils/SpokenPunctuation.swift`), not as a prompt rule,
+and with no new toggle (Noah: fewer toggles) — it runs whenever smart
+formatting is on, at the top of `LLMPostProcessor.process`, so model
+fallbacks and verbatim targets still get it. The collision worry from 08-20
+is handled by the pause, not the word: Parakeet brackets a paused command with
+punctuation ("Sam comma. New paragraph. The site…") and leaves run-on speech
+bare ("rad period I will" vs "the trial period ended" — indistinguishable, so
+bare commands are left alone). period/colon/new line/new paragraph collide
+with sentence-final prose ("a grace period.") and need punctuation on both
+sides; comma/question mark/etc. need one side; with no pause before it, a
+determiner in the two words before ("a period", "the word comma", "the Oxford
+comma.", "a big question mark.") is always a mention — one word wasn't enough,
+since one-sided commands converted "the Oxford comma." to "the Oxford,". The
+cost: an unpaused "the deck comma." stays as words; dropping a word the speaker
+meant is worse than leaving one. Troy's own email is the
+test fixture: every command converts, his mentions of "period" don't.
+
+## 2026-10-01 — Number formatting is a local default, independent of Smart formatting
+
+Deepak's v0.1.30 screenshots show LLM cleanup already enabled, yet "zero point
+seven two five" and "point six seven four" remain words. Smart formatting is
+for lists/email layout and must not be required for numeric entry. The cleanup length guard also rejects the valid shortening
+from "zero point seven two five" to "0.725" (5/25 < 0.3); formatting before
+cleanup fixes that without weakening the guard. Extend the
+existing deterministic pass to decimals (fractional digits kept as strings to
+preserve zeros and precision), standalone numbers and a conservative English
+quantity vocabulary. This revises the 2026-08-11 choice to leave all small
+quantities as prose; known idioms and ambiguous digit runs remain unchanged.
+
+Expose Smart (default), Prefer digits, and Keep as spoken under Output → Numbers.
+The last means keep ASR output, which may already contain digits; it cannot
+recover the user's literal spoken words. No other preferences are changed or
+reset. An absent new key selects Smart; explicit choices persist. Cleanup's
+old blanket digits instruction becomes a preservation instruction, and the
+formatter runs on accepted cleanup output too. Keep as spoken rejects cleanup
+when its number-token representation changes, falling back to the pre-cleanup
+text (after any explicitly enabled spoken edits). This may decline a cleanup
+that adds/removes numbered list markers; honoring the explicit preservation
+choice takes priority. English rules only; no remote calls or new model.
+
+Parser changes also preserve conjunctions outside numeric phrases and reject
+repeated/ascending magnitudes and malformed runs rather than adding unrelated
+numbers or overflowing. Other proposed default changes (fillers, onboarding,
+smart layout) remain outside this numbers-focused change.
+
 **2026-10-01 — Alternatives pages use the ranked format, Rhino first.**
 `/alternatives/wispr-flow` and `/alternatives/dragon` now follow the format
 Noah approved on sendfox.com/compare/mailchimp-alternatives: founder byline

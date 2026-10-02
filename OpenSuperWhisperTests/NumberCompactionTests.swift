@@ -152,6 +152,45 @@ final class NumberCompactionTests: XCTestCase {
         XCTAssertEqual(NumberCompaction.apply(input, style: .spoken), input)
     }
 
+    func testPointAsANounIsNotADecimal() {
+        for style in [NumberFormattingStyle.smart, .digits] {
+            for input in ["at that point two people left", "At this point three of us agreed",
+                          "my point two is simple", "good point two", "by which point five teams",
+                          "the turning point seven years ago", "point two people showed up"] {
+                XCTAssertEqual(NumberCompaction.apply(input, style: style), input, input)
+            }
+            // Number position still decimalizes, with or without a leading number.
+            let cases = ["it's point two of a gram": "it's 0.2 of a gram",
+                         "drop it by point five percent": "drop it by 0.5%",
+                         "the rate is point six seven four": "the rate is 0.674"]
+            for (input, expected) in cases {
+                XCTAssertEqual(NumberCompaction.apply(input, style: style), expected, input)
+            }
+        }
+    }
+
+    func testIndefiniteOneStaysAWord() {
+        for style in [NumberFormattingStyle.smart, .digits] {
+            for input in ["one day we'll ship it", "I finished it in one day", "one time I tried",
+                          "give me one second", "one more thing", "one last question",
+                          "the one I liked", "you're the only one", "which one is it",
+                          "One thing I learned is patience", "Thanks. One reason is cost",
+                          "someone called", "no one knows", "one by one", "one of them"] {
+                XCTAssertEqual(NumberCompaction.apply(input, style: style), input, input)
+            }
+        }
+        // Clear counts and lone answers still convert.
+        XCTAssertEqual(NumberCompaction.apply("one ticket please"), "one ticket please") // sentence-initial
+        XCTAssertEqual(NumberCompaction.apply("I need one ticket"), "I need 1 ticket")
+        XCTAssertEqual(NumberCompaction.apply("it costs one dollar"), "it costs 1 dollar")
+        XCTAssertEqual(NumberCompaction.apply("One."), "1.")
+        XCTAssertEqual(NumberCompaction.apply("room one"), "room 1")
+        XCTAssertEqual(NumberCompaction.apply("I have one idea", style: .digits), "I have 1 idea")
+        XCTAssertEqual(NumberCompaction.apply("seven items"), "7 items")
+        XCTAssertEqual(NumberCompaction.apply("Seven days later"), "7 days later")
+        XCTAssertEqual(NumberCompaction.apply("twenty one days"), "21 days")
+    }
+
     func testDecimalAmbiguitiesStayUnchanged() {
         for input in ["point taken", "the point is seven", "point seven twenty",
                       "one two point five", "point seven point five"] {

@@ -14,7 +14,8 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 - English numbers format automatically: “zero point seven two five” becomes
   “0.725,” and “seven items” becomes “7 items.” No cleanup model or Smart
   formatting toggle required. Choose Smart, Prefer digits, or Keep as spoken
-  in Settings → Output → Numbers.
+  in Settings → Output → Numbers. Everyday phrases stay words: "at that
+  point two people left", "one day", "one more thing", "the one".
 
 ## 0.1.30 — 2026-09-25
 

@@ -78,6 +78,11 @@ enum NumberCompaction {
             // An unsupported continuation is not a smaller valid decimal.
             guard after.range(of: "^[ \\t-]+(?:" + numberWord + "|point)\\b",
                               options: [.regularExpression, .caseInsensitive]) == nil else { return groups[0] }
+            // Without a leading number, "point" is usually the noun: "at that point two
+            // people left", "my point two". Only a bare "point" in number position decimalizes.
+            if groups[2].isEmpty, groups[1].isEmpty, isNounPoint(before: before, fraction: groups[3], after: after) {
+                return groups[0]
+            }
             let integer: String
             if groups[2].isEmpty {
                 integer = "0"
@@ -93,6 +98,19 @@ enum NumberCompaction {
                 .map { units[String($0)].map(String.init) ?? String($0) }.joined()
             return (groups[1].isEmpty ? "" : "-") + integer + "." + fractional
         }
+    }
+
+    private static let nounPointModifiers = "the|that|this|which|what|whose|a|an|some|any|every|each|no|my|your|his|her|its|our|their|good|great|fair|valid|main|key|turning|breaking|boiling|starting|sore|high|low|end|same|different|other|another|whole|focal|vantage|entry|exit|data|talking|selling|pressure|pain|price|bullet|match|set|game|power|one"
+    private static let countNounsAfterPoint = "people|persons|things|items|ways|reasons|options|questions|ideas|guys|kids|men|women|teams|customers|users"
+
+    private static func isNounPoint(before: String, fraction: String, after: String) -> Bool {
+        if before.range(of: "\\b(?:" + nounPointModifiers + ")[ \\t]+$",
+                        options: [.regularExpression, .caseInsensitive]) != nil { return true }
+        // "point two people": a single digit followed by a count noun is a count, not 0.2.
+        let digits = fraction.split(whereSeparator: { $0.isWhitespace || $0 == "-" })
+        return digits.count == 1
+            && after.range(of: "^[ \\t]+(?:" + countNounsAfterPoint + ")\\b",
+                           options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     private static func parsePhrase(_ phrase: String) -> Int? {
@@ -143,18 +161,29 @@ enum NumberCompaction {
                                   matchRange: NSRange, style: NumberFormattingStyle) -> Bool {
         guard !words.isEmpty else { return false }
         if words.contains(where: { magnitudes[$0] != nil }) || words.count >= 2 { return true }
-        if style == .digits { return true }
         let source = text as NSString
         let before = source.substring(to: matchRange.location)
         let after = source.substring(from: NSMaxRange(matchRange))
         // A number alone is usually a form-field answer: "Seven." → "7."
         let padding = CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters)
-        if before.trimmingCharacters(in: padding).isEmpty,
-           after.trimmingCharacters(in: padding).isEmpty { return true }
+        let isLoneAnswer = before.trimmingCharacters(in: padding).isEmpty
+            && after.trimmingCharacters(in: padding).isEmpty
+        if words == ["one"], !isLoneAnswer, isIndefiniteOne(before: before, after: after) { return false }
+        if style == .digits || isLoneAnswer { return true }
         if after.range(of: "^\\s+(?:" + quantities + ")\\b|^\\s*[ap]\\.?\\s?m\\.?(?=[^\\w]|$)",
                        options: [.regularExpression, .caseInsensitive]) != nil { return true }
         return before.range(of: "\\b(?:number|item|step|room|chapter|page|version)\\s+$",
                             options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// "One" opening a sentence ("One thing I learned") or meaning "a/some"
+    /// ("one day we'll", "one time I", "give me one second") reads as prose, not a count.
+    private static func isIndefiniteOne(before: String, after: String) -> Bool {
+        if before.range(of: "(?:^|[.!?…][\"')\\]]*)[ \\t\\n]*$", options: .regularExpression) != nil { return true }
+        if before.range(of: "\\b(?:the|that|this|which|any|every|some|no|each|someone's|the only)[ \\t]+$",
+                        options: [.regularExpression, .caseInsensitive]) != nil { return true }
+        return after.range(of: "^[ \\t]+(?:day|days|time|times|week|month|year|minute|second|sec|hour|point|points|more|last|another)\\b",
+                           options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     private static func isProtected(in text: String, range: NSRange) -> Bool {

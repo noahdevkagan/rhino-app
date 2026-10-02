@@ -1,5 +1,8 @@
 const paypalAction = "https://www.paypal.com/cgi-bin/webscr";
 
+/** The one Rhino price. The PayPal form and every comparison page read it. */
+export const rhinoPrice = 20;
+
 export const releasesUrl =
   "https://github.com/noahdevkagan/rhino-releases/releases";
 
@@ -21,13 +24,13 @@ export function BuyForm({ compact = false }: { compact?: boolean }) {
       <input type="hidden" name="cmd" value="_xclick" />
       <input type="hidden" name="business" value="paypal@okdork.com" />
       <input type="hidden" name="item_name" value="Rhino for Mac" />
-      <input type="hidden" name="amount" value="20.00" />
+      <input type="hidden" name="amount" value={rhinoPrice.toFixed(2)} />
       <input type="hidden" name="currency_code" value="USD" />
       <input type="hidden" name="no_shipping" value="1" />
       <input type="hidden" name="return" value="https://rhinovoice.app/thanks" />
       <input type="hidden" name="cancel_return" value="https://rhinovoice.app/" />
       <button className={compact ? "button button-compact" : "button button-primary"} type="submit">
-        {compact ? "Buy — $20" : "Buy Rhino — $20"}
+        {compact ? `Buy for $${rhinoPrice}` : `Buy Rhino for $${rhinoPrice}`}
       </button>
     </form>
   );

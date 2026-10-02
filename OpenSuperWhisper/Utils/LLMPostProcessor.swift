@@ -69,6 +69,10 @@ enum LLMPostProcessor {
         let spokenEdits = prefs.spokenEditsEnabled
 
         guard general else { return text }
+        // Spoken punctuation ("rad. Period." / "New paragraph:") is part of smart formatting
+        // but deterministic, so it runs first: every fallback below returns the converted
+        // text, and verbatim targets still get the marks the speaker asked for.
+        let text = smartFormatting ? SpokenPunctuation.apply(text) : text
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
 
         // Dictations aimed at an AI assistant or a terminal are prompts and commands, not
@@ -161,9 +165,14 @@ enum LLMPostProcessor {
                     + "\(shift.input) to \(shift.output)")
                 return working
             }
-            return smartFormatting
+            if prefs.numberFormattingStyle == .spoken,
+               !NumberCompaction.preservesNumberRepresentation(input: working, output: result) {
+                return working
+            }
+            let formatted = smartFormatting
                 ? stripSpuriousListMarker(result, originalInput: working)
                 : result
+            return NumberCompaction.apply(formatted, style: prefs.numberFormattingStyle)
         } catch {
             print("AI post-processing failed, using the raw transcription: \(error)")
             return working

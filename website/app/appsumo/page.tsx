@@ -3,7 +3,7 @@ import Link from "next/link";
 import RedeemForm from "./redeem-form";
 
 export const metadata: Metadata = {
-  title: "Redeem your AppSumo code — Rhino",
+  title: "Redeem your AppSumo code | Rhino",
   description: "Redeem your AppSumo code and download Rhino for Mac.",
   robots: { index: false, follow: false },
 };

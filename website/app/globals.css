@@ -8,6 +8,7 @@
   --line: #e5ded8;
   --coral: #ff705f;
   --coral-dark: #ee5143;
+  --green: #2f8f5b;
 }
 
 * { box-sizing: border-box; }
@@ -854,6 +855,92 @@ footer span { color: var(--ink); font-weight: 700; }
   .doc { width: calc(100% - 28px); }
   .answer-box { padding: 22px 20px; }
   .doc-cta { padding: 26px 20px; }
+}
+
+/* ---- Ranked comparison pages (/alternatives/*) ---- */
+
+/* The mobile header rule `nav > a { display: none }` also caught the
+   breadcrumb, and `.doc h2` outranked the small answer-box label. */
+.breadcrumb > a { display: inline; }
+.doc .answer-box h2 { font-size: 13px; margin: 0 0 12px; }
+/* A grid item defaults to min-width: auto, so a wide table pushed the whole
+   page past the phone viewport instead of scrolling inside .table-wrap. */
+.doc { min-width: 0; }
+
+.byline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0 0 30px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.byline-who { display: flex; align-items: center; gap: 12px; }
+.byline-who img { width: 44px; height: 44px; border-radius: 50%; display: block; }
+.byline-name { font-weight: 700; font-size: 15px; }
+.byline-role, .byline-date { color: var(--muted); font-size: 14px; }
+
+.top-cta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin: -16px 0 36px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.intro { margin-bottom: 26px; }
+
+.rank-table { min-width: 520px; }
+.rank-table td:first-child { width: 36px; color: var(--muted); }
+.rank-table tbody th { width: auto; }
+.rank-table tbody th a { display: block; text-decoration: underline; text-underline-offset: 3px; }
+.rank-table .mine-badge { display: inline-block; margin: 6px 0 0; white-space: nowrap; }
+.mine-badge { white-space: nowrap; }
+.rank-table tbody td:first-of-type { color: var(--muted); font-weight: 400; }
+.rank-table tbody tr.rank-ours { background: color-mix(in srgb, var(--coral) 8%, var(--white)); }
+
+.tool-card { margin-top: 40px; padding-top: 36px; border-top: 1px solid var(--line); }
+.tool-card h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.tool-card h2 .mine-badge { margin-left: 0; }
+.tool-num { color: var(--coral-dark); font-size: 16px; font-weight: 750; }
+.tool-best { margin: -6px 0 16px !important; color: var(--coral-dark); font-weight: 650; }
+
+.tool-card-ours {
+  padding: 30px 28px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--white);
+}
+
+.tool-shot { margin: 22px 0 8px; }
+.tool-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.tool-shot figcaption { margin-top: 10px; color: var(--muted); font-size: 13px; text-align: center; }
+
+.procon { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; margin: 22px 0 18px; }
+.procon p { margin: 0 0 6px !important; font-weight: 700; font-size: 15px; }
+.procon ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.procon li { position: relative; padding-left: 22px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.procon-good li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+.procon-bad li::before { content: "✕"; position: absolute; left: 1px; top: 1px; color: var(--muted); font-size: 13px; }
+
+.tool-links { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 22px; }
+
+.switch-steps { margin: 0; padding-left: 22px; display: grid; gap: 8px; line-height: 1.6; }
+
+@media (max-width: 680px) {
+  .procon { grid-template-columns: 1fr; }
+  .tool-card-ours { padding: 22px 18px; }
 }
 
 /* Phones: stack table rows into cards so no column hides off-screen.

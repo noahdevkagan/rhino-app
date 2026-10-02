@@ -3,6 +3,20 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.31 — 2026-10-02
+
+- Dictate punctuation the way you do on your phone. With Smart formatting
+  on, saying "period", "comma", "question mark", "exclamation point",
+  "colon", "new line" or "new paragraph" (with a short pause around it)
+  types the mark or the break instead of the word. Sentences that just
+  mention the words, like "a grace period" or "the word comma", are left
+  alone.
+- English numbers format automatically: “zero point seven two five” becomes
+  “0.725,” and “seven items” becomes “7 items.” No cleanup model or Smart
+  formatting toggle required. Choose Smart, Prefer digits, or Keep as spoken
+  in Settings → Output → Numbers. Everyday phrases stay words: "at that
+  point two people left", "one day", "one more thing", "the one".
+
 ## 0.1.30 — 2026-09-25
 
 - Teaching Rhino a word is easier. Rule editing now opens right inside the

@@ -1618,3 +1618,67 @@ header. The phone table-cards change (6eff204) also removes the 560px minimum
 under 640px. A test asserts both shells keep the clamp. meetmouse.com shows the
 same symptom and shares the design, so it likely needs the same fix in its repo.
 
+## 2026-10-01 — Spoken punctuation joins smart formatting (reverses 2026-08-20)
+Customer (Troy Cole, v0.1.30, coming from phone dictation) says "period",
+"comma", "new paragraph" out loud; with LLM cleanup on they still landed as
+words — the cleanup contract's "keep every word" wins, and his speech model
+output ("rad. Period. I will") isn't the unpunctuated form the 08-20 layout
+rule was tuned on. Reversed the 08-20 "no spoken punctuation" call, but
+deterministically (`Utils/SpokenPunctuation.swift`), not as a prompt rule,
+and with no new toggle (Noah: fewer toggles) — it runs whenever smart
+formatting is on, at the top of `LLMPostProcessor.process`, so model
+fallbacks and verbatim targets still get it. The collision worry from 08-20
+is handled by the pause, not the word: Parakeet brackets a paused command with
+punctuation ("Sam comma. New paragraph. The site…") and leaves run-on speech
+bare ("rad period I will" vs "the trial period ended" — indistinguishable, so
+bare commands are left alone). period/colon/new line/new paragraph collide
+with sentence-final prose ("a grace period.") and need punctuation on both
+sides; comma/question mark/etc. need one side; with no pause before it, a
+determiner in the two words before ("a period", "the word comma", "the Oxford
+comma.", "a big question mark.") is always a mention — one word wasn't enough,
+since one-sided commands converted "the Oxford comma." to "the Oxford,". The
+cost: an unpaused "the deck comma." stays as words; dropping a word the speaker
+meant is worse than leaving one. Troy's own email is the
+test fixture: every command converts, his mentions of "period" don't.
+
+## 2026-10-01 — Number formatting is a local default, independent of Smart formatting
+
+Deepak's v0.1.30 screenshots show LLM cleanup already enabled, yet "zero point
+seven two five" and "point six seven four" remain words. Smart formatting is
+for lists/email layout and must not be required for numeric entry. The cleanup length guard also rejects the valid shortening
+from "zero point seven two five" to "0.725" (5/25 < 0.3); formatting before
+cleanup fixes that without weakening the guard. Extend the
+existing deterministic pass to decimals (fractional digits kept as strings to
+preserve zeros and precision), standalone numbers and a conservative English
+quantity vocabulary. This revises the 2026-08-11 choice to leave all small
+quantities as prose; known idioms and ambiguous digit runs remain unchanged.
+
+Expose Smart (default), Prefer digits, and Keep as spoken under Output → Numbers.
+The last means keep ASR output, which may already contain digits; it cannot
+recover the user's literal spoken words. No other preferences are changed or
+reset. An absent new key selects Smart; explicit choices persist. Cleanup's
+old blanket digits instruction becomes a preservation instruction, and the
+formatter runs on accepted cleanup output too. Keep as spoken rejects cleanup
+when its number-token representation changes, falling back to the pre-cleanup
+text (after any explicitly enabled spoken edits). This may decline a cleanup
+that adds/removes numbered list markers; honoring the explicit preservation
+choice takes priority. English rules only; no remote calls or new model.
+
+Parser changes also preserve conjunctions outside numeric phrases and reject
+repeated/ascending magnitudes and malformed runs rather than adding unrelated
+numbers or overflowing. Other proposed default changes (fillers, onboarding,
+smart layout) remain outside this numbers-focused change.
+
+**2026-10-01 — Alternatives pages use the ranked format, Rhino first.**
+`/alternatives/wispr-flow` and `/alternatives/dragon` now follow the format
+Noah approved on sendfox.com/compare/mailchimp-alternatives: founder byline
+with a "Prices checked" date, a Quick answer that names a pick, a buy button
+above the ranked table, one identical card per app (Best for, price, review,
+Good / Not so good), a 1- and 3-year cost table, "When X is enough",
+"Checked, but not ranked" and "How we checked". Competitor facts live once in
+`app/_components/competitors.ts`; the layout is `ranked-page.tsx`. Rhino's
+price is `rhinoPrice` in site-chrome.tsx, which the PayPal form also reads, so
+the pages cannot disagree with checkout. The /vs pages keep the 2026-09-17
+two-column component. The honesty rule stands: our own card lists real
+limits, and "How we checked" reports the August 2026 voice test where
+Typeless beat Rhino (10/10 vs 8/10).

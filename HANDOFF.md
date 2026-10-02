@@ -7,6 +7,26 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Smart numbers (2026-10-01, dalat workspace)
+
+Implemented, not installed/released: Output → Numbers offers Smart (default),
+Prefer digits, and Keep as spoken. Local English formatter handles standalone
+numbers, clear quantities and decimals, preserving fractional zeros/precision,
+common idioms and ambiguous runs. Customer screenshot regressions now convert:
+"zero point seven two five" → 0.725; "point six seven four" → 0.674.
+Cleanup was already on in his screenshot. Its length guard rejects 25 chars →
+5 chars; formatting before cleanup fixes that without relaxing the guard.
+Streaming fallback also formats numbers. Cleanup now asks to preserve number
+formatting, reapplies the formatter afterward, and rejects number-token changes
+when Keep as spoken is selected. Other default changes are outside this pass.
+
+Validation: app build passed after initializing the pinned submodules; focused
+Xcode number/preference/pipeline and cleanup-prompt tests pass. Static privacy
+hygiene passes (dynamic check not run). Logs: `.context/number-*.log`.
+No live microphone/UI or real-model cleanup validation, commit, push, install,
+or release performed. New setting is English-focused; unknown quantity contexts
+remain words under Smart. Decisions and Unreleased changelog updated.
+
 ### Dictionary overhaul (2026-09-25, port-au-prince workspace)
 
 Trigger: Steven Wagner email ("Klaviyo" → "Clavio"; the rule popover was

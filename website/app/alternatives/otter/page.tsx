@@ -131,7 +131,7 @@ const content: BestForContent = {
         "Fireflies.ai is the closest match, with a shared meeting library, team sharing and integrations. It also uses a bot and the cloud, like Otter.",
     },
   ],
-  cta: { heading: "Try MeetMouse", href: "https://meetmouse.com/", label: "Get MeetMouse — $20" },
+  cta: { heading: "Try MeetMouse", href: "https://meetmouse.com/", label: "Get MeetMouse for $20" },
   ctaBody:
     "Meeting notes on your Mac, no bot in the call, and nothing uploaded. $20 once instead of another monthly bill.",
   checked: "September 2026",

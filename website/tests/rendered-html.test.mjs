@@ -30,10 +30,10 @@ test("server-renders the concise PayPal purchase page", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Rhino Voice — Private dictation for Mac<\/title>/i);
+  assert.match(html, /<title>Rhino Voice: Private dictation for Mac<\/title>/i);
   assert.match(html, /Talk\. Rhino types\./);
   assert.match(html, /Nothing leaves your Mac\./);
-  assert.match(html, /Buy Rhino — \$20/);
+  assert.match(html, /Buy Rhino for \$20/);
   assert.match(html, /action="https:\/\/www\.paypal\.com\/cgi-bin\/webscr"/);
   assert.match(html, /name="business" value="paypal@okdork\.com"/);
   assert.match(html, /name="item_name" value="Rhino for Mac"/);
@@ -90,6 +90,7 @@ test("renders every comparison page with its schema and canonical", async () => 
     ["/vs/macwhisper", /Rhino Voice vs MacWhisper/, /file transcription|transcribing/i],
     ["/vs/apple-dictation", /Rhino Voice vs Apple Dictation/, /transcribes you literally/],
     ["/alternatives/wispr-flow", /Wispr Flow alternatives/, /superwhisper/],
+    ["/alternatives/dragon", /Dragon alternatives for Mac/, /Voice Control/],
     ["/alternatives/superwhisper", /superwhisper alternatives/, /VoiceInk/],
     ["/alternatives/macwhisper", /MacWhisper alternatives/, /Aiko/],
     ["/alternatives/otter", /Otter\.ai alternatives/, /MeetMouse/],
@@ -113,6 +114,69 @@ test("renders every comparison page with its schema and canonical", async () => 
     // Every page keeps a working buy path.
     assert.match(html, /name="amount" value="20\.00"/, `${path} buy form`);
   }
+});
+
+test("ranked alternatives pages carry the byline, quick answer and ranked list", async () => {
+  for (const path of ["/alternatives/wispr-flow", "/alternatives/dragon"]) {
+    const html = await (await render(path)).text();
+
+    assert.match(html, /The \d best/, `${path} H1 states the count`);
+    assert.match(html, /Noah Kagan/, `${path} byline`);
+    assert.match(html, /Prices checked September 2026/, `${path} checked date`);
+    assert.match(html, /Quick answer/, `${path} quick answer`);
+    assert.match(html, /class="compare-table rank-table"/, `${path} ranked table`);
+    assert.match(html, /Best value/, `${path} badge`);
+    assert.match(html, /How we checked/, `${path} method`);
+    assert.match(html, /Checked, but not ranked/, `${path} not ranked`);
+    assert.match(html, /"@type":"ItemList"/, `${path} ItemList schema`);
+    assert.match(html, /"@type":"Person"/, `${path} author schema`);
+    const main = html.slice(html.indexOf("<main"), html.indexOf("</main>"));
+    assert.doesNotMatch(main, /—/, `${path} has no em dashes`);
+
+    // The buy form sits in the top third: before the ranked table.
+    assert.ok(
+      html.indexOf('name="amount"', html.indexOf("Quick answer")) < html.indexOf("rank-table"),
+      `${path} CTA before the ranked table`,
+    );
+  }
+});
+
+test("no rendered page uses an em dash", async () => {
+  const paths = [
+    "/",
+    "/changelog",
+    "/thanks",
+    "/appsumo",
+    "/vs/wispr-flow",
+    "/vs/superwhisper",
+    "/vs/macwhisper",
+    "/vs/apple-dictation",
+    "/alternatives/wispr-flow",
+    "/alternatives/dragon",
+    "/alternatives/superwhisper",
+    "/alternatives/macwhisper",
+    "/alternatives/otter",
+    "/macwhisper-pricing",
+    "/best",
+    "/best/dictation-app-for-lawyers",
+    "/best/dictation-app-for-doctors",
+    "/best/dictation-app-for-writers",
+    "/best/dictation-app-for-developers",
+    "/best/dictation-app-for-adhd",
+    "/best/dictation-app-for-rsi",
+    "/best/dictation-app-for-students",
+    "/best/dictation-app-for-non-native-english-speakers",
+    "/best/dictation-app-for-journalists",
+    "/best/offline-dictation-app-for-mac",
+  ];
+  for (const path of paths) {
+    const html = await (await render(path)).text();
+    const body = html.slice(html.indexOf("<body"));
+    assert.doesNotMatch(body.replace(/<style[\s\S]*?<\/style>/g, ""), /—/, `${path} has an em dash`);
+    assert.doesNotMatch(html.match(/<title>[^<]*<\/title>/)?.[0] ?? "", /—/, `${path} title`);
+  }
+  const llms = await readFile(new URL("../public/llms.txt", import.meta.url), "utf8");
+  assert.doesNotMatch(llms, /—/, "llms.txt has an em dash");
 });
 
 test("renders every best-for guide with its schema, canonical and disclosure", async () => {
@@ -199,7 +263,7 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(changelog, /permission loop/);
   assert.match(changelog, /updates itself automatically/);
   assert.match(thanks, /Thanks for buying Rhino/);
-  assert.match(thanks, /Rhino-0\.1\.30\.dmg/);
+  assert.match(thanks, /Rhino-0\.1\.31\.dmg/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 
@@ -247,7 +311,7 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /noahkagan@gmail\.com/);
   assert.match(
     await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8"),
-    /Rhino-0\.1\.30\.dmg/,
+    /Rhino-0\.1\.31\.dmg/,
   );
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });

@@ -227,6 +227,10 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var numberFormattingStyle: NumberFormattingStyle {
+        didSet { AppPreferences.shared.numberFormattingStyle = numberFormattingStyle }
+    }
+
     @Published var smartFormattingEnabled: Bool {
         didSet {
             AppPreferences.shared.smartFormattingEnabled = smartFormattingEnabled
@@ -413,6 +417,7 @@ class SettingsViewModel: ObservableObject {
         self.doubleTapLock = prefs.doubleTapLock
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
+        self.numberFormattingStyle = prefs.numberFormattingStyle
         self.smartFormattingEnabled = prefs.smartFormattingEnabled
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
         self.verbatimInAIApps = prefs.verbatimInAIApps
@@ -1359,6 +1364,19 @@ struct SettingsView: View {
                 }
             }
 
+            SSection(title: "Numbers") {
+                SRow(title: "Number formatting", hint: LocalizedStringKey(viewModel.numberFormattingStyle.hint)) {
+                    Picker("Number formatting", selection: $viewModel.numberFormattingStyle) {
+                        ForEach(NumberFormattingStyle.allCases) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+
             SSection(title: "Cleanup") {
                 SRow(title: "Remove filler words", hint: "Strip um, uh, er… before inserting") {
                     SToggle(isOn: $viewModel.removeFillerWords)
@@ -1375,7 +1393,7 @@ struct SettingsView: View {
                     HStack(spacing: 8) {
                         Text("Smart formatting")
                             .scaledFont(size: 12).foregroundColor(STheme.text)
-                        InfoButton(text: "Lay dictated lists out as lists (“item 1, yes, item 2, no” becomes bulleted lines) and dictated emails out as emails — greeting on its own line, paragraph breaks, sign-off and name on their own lines. You can also say “new line” or “new paragraph” to insert breaks. Normal sentences stay prose.")
+                        InfoButton(text: "Lay dictated lists out as lists (“item 1, yes, item 2, no” becomes bulleted lines) and dictated emails out as emails — greeting on its own line, paragraph breaks, sign-off and name on their own lines. You can also say “period”, “comma”, “question mark”, “new line” or “new paragraph” — pause briefly around them — and Rhino types the mark instead of the word. Normal sentences stay prose.")
                         Spacer()
                         SToggle(isOn: $viewModel.smartFormattingEnabled)
                     }

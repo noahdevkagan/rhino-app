@@ -3,7 +3,7 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
-## Unreleased
+## 0.1.31 — 2026-10-02
 
 - Dictate punctuation the way you do on your phone. With Smart formatting
   on, saying "period", "comma", "question mark", "exclamation point",

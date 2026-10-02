@@ -77,6 +77,7 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
     "/alternatives/superwhisper",
     "/alternatives/macwhisper",
     "/alternatives/otter",
+    "/macwhisper-pricing",
   ]) {
     assert.match(html, new RegExp(`href="${href}"`));
   }
@@ -93,6 +94,7 @@ test("renders every comparison page with its schema and canonical", async () => 
     ["/alternatives/superwhisper", /superwhisper alternatives/, /VoiceInk/],
     ["/alternatives/macwhisper", /MacWhisper alternatives/, /Aiko/],
     ["/alternatives/otter", /Otter\.ai alternatives/, /MeetMouse/],
+    ["/macwhisper-pricing", /MacWhisper pricing/, /support@macwhisper\.com/],
   ];
 
   for (const [path, headline, body] of routes) {
@@ -154,6 +156,7 @@ test("no rendered page uses an em dash", async () => {
     "/alternatives/superwhisper",
     "/alternatives/macwhisper",
     "/alternatives/otter",
+    "/macwhisper-pricing",
     "/best",
     "/best/dictation-app-for-lawyers",
     "/best/dictation-app-for-doctors",
@@ -336,3 +339,14 @@ test("generates AppSumo codes whose hashes match the published format", async ()
   assert.ok(codes.every((code) => /^RH-[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){2}$/.test(code)));
   assert.ok(codes.every((code) => hashCode(code) === createHash("sha256").update(code).digest("hex")));
 });
+
+test("page grids can't grow wider than a phone (iOS WebKit overflow)", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  // Safari/WebKit sizes an auto grid column to its widest descendant (the
+  // 560px compare table), so both page shells must clamp their column.
+  for (const shell of [".home-page", ".doc-page"]) {
+    const block = css.match(new RegExp(`\\${shell} \\{[^}]*\\}`))?.[0] ?? "";
+    assert.match(block, /grid-template-columns: minmax\(0, 1fr\)/, `${shell} clamps its column`);
+  }
+});
+

@@ -30,6 +30,10 @@ button { font: inherit; }
   min-height: 100svh;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  /* minmax(0, …): Safari/WebKit (every iOS browser) otherwise sizes this column
+     to the widest descendant, e.g. the 560px compare table, and the whole page
+     lays out wider than the phone. Same fix as .doc-page. */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .skip-link {
@@ -810,7 +814,7 @@ footer span { color: var(--ink); font-weight: 700; }
 .doc ol.today li::marker { color: var(--coral-dark); font-weight: 750; }
 
 @media (max-width: 980px) {
-  .hero { grid-template-columns: 1fr; padding-top: 70px; text-align: center; gap: 55px; }
+  .hero { grid-template-columns: minmax(0, 1fr); padding-top: 70px; text-align: center; gap: 55px; }
   .hero-copy { display: flex; flex-direction: column; align-items: center; }
   .hero-description { max-width: 680px; }
   footer { margin-top: 40px; }
@@ -820,8 +824,10 @@ footer span { color: var(--ink); font-weight: 700; }
   .site-header { height: 70px; }
   .site-header nav { gap: 14px; }
   .site-header nav > a { display: none; }
+  .brand, .button-compact { white-space: nowrap; }
   .hero { width: calc(100% - 28px); min-height: 0; padding: 58px 0 35px; }
-  .hero h1 { font-size: clamp(43px, 13vw, 60px); }
+  .hero h1 { font-size: clamp(38px, 12vw, 60px); overflow-wrap: anywhere; }
+  .eyebrow { flex-wrap: wrap; justify-content: center; row-gap: 4px; }
   .hero-description { font-size: 17px; }
   .hero-visual { padding: 28px 14px 74px; border-radius: 23px; }
   .app-window { min-height: 345px; }
@@ -950,3 +956,11 @@ footer span { color: var(--ink); font-weight: 700; }
   .compare-table tbody td { display: grid; grid-template-columns: minmax(96px, 38%) 1fr; gap: 10px; padding: 5px 0; }
   .compare-table tbody td::before { content: attr(data-label); color: var(--muted); font-size: 13px; font-weight: 620; }
 }
+
+/* Small phones (iPhone SE/mini): keep brand and Buy on one line each. */
+@media (max-width: 380px) {
+  .brand { gap: 8px; font-size: 19px; }
+  .brand .rhino-mark { width: 36px !important; height: 36px !important; font-size: 22px !important; }
+  .button-compact { padding: 0 12px; font-size: 13px; }
+}
+

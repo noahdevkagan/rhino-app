@@ -5,15 +5,15 @@ const content: BestForContent = {
   slug: "/alternatives/macwhisper",
   label: "MacWhisper alternatives",
   crumbParent: null,
-  headline: "MacWhisper alternatives (2026): what to use instead, and when",
+  headline: "MacWhisper alternatives (2026): free and paid, picked by job",
   dek: "Full disclosure: I make two apps that show up on this page, so I'm biased. I'll also say it straight: MacWhisper is excellent at what it does. People leave it for one of two reasons. They wanted live dictation, not file transcription. Or they want to pay nothing. Here's what to use for each.",
   shortAnswer:
-    "MacWhisper transcribes audio and video files on your Mac. If what you actually want is to talk and have text appear in any app, you want a dictation app like Rhino Voice, superwhisper or Wispr Flow. If you want free local transcription, Aiko is free and runs on your Mac. If you want meeting notes without recording files yourself, look at a meeting app like MeetMouse or Otter.",
+    "MacWhisper transcribes audio and video files on your Mac. If what you actually want is to talk and have text appear in any app, you want a dictation app like Rhino Voice, superwhisper or Wispr Flow. If you want free local transcription, Aiko and Buzz are free and run on your Mac, and MacWhisper itself has a free tier. If you want meeting notes without recording files yourself, look at a meeting app like MeetMouse or Otter.",
   shortPicks: [
     { label: "Best free alternative", pick: "Aiko" },
+    { label: "Best free open-source alternative", pick: "Buzz" },
     { label: "Best if you wanted live dictation", pick: "Rhino Voice. $20 once, on your Mac (mine)" },
     { label: "Best for meeting notes, on-device", pick: "MeetMouse. $20 once, no bot (also mine)" },
-    { label: "Best for editing audio and video by text", pick: "Descript" },
   ],
   intro: [
     {
@@ -25,6 +25,13 @@ const content: BestForContent = {
         "2. Meeting notes. You don't want to record a file and import it. You want the meeting transcribed and summarized automatically. That's a meeting app.",
         "3. Editing audio or video. You want to cut a podcast by deleting words in the transcript. That's Descript.",
         "Pick the job, then pick the tool.",
+      ],
+    },
+    {
+      heading: "Want free? Check MacWhisper's own free tier first",
+      paragraphs: [
+        "MacWhisper is free to download. The free tier isn't a trial: it transcribes files on your Mac with the smaller Whisper models, no time limit. Pro (about €59 once on Gumroad) adds the bigger, more accurate models, speaker labels, batch jobs and subtitles.",
+        "If the free tier's accuracy is fine for your recordings, you don't need anything else. If it isn't and you don't want to pay, Aiko and Buzz below are the free alternatives.",
       ],
     },
   ],
@@ -39,6 +46,17 @@ const content: BestForContent = {
         "A free Whisper-based transcription app for Mac and iPhone by Sindre Sorhus. Drop in a file, get a transcript, all on your device. No speaker labels or batch jobs, so it's lighter than MacWhisper Pro. But for the price of zero, it covers a lot of people.",
       ],
       url: "https://sindresorhus.com/aiko",
+    },
+    {
+      name: "Buzz",
+      bestFor: "free, open-source transcription with subtitle export",
+      price: "Free on GitHub; paid native version on the Mac App Store",
+      where: "On your Mac",
+      local: "Yes",
+      body: [
+        "Open source, powered by Whisper, runs offline on Mac, Windows and Linux. It transcribes files and live mic audio, handles YouTube links, and exports TXT, SRT and VTT. That covers the subtitle part of MacWhisper Pro for free. The free version comes from GitHub; the App Store version is a paid native app. Current Mac versions need Apple silicon.",
+      ],
+      url: "https://github.com/chidiwilliams/buzz",
     },
     {
       name: "Rhino Voice",
@@ -115,7 +133,7 @@ const content: BestForContent = {
     {
       question: "What's the best free alternative to MacWhisper?",
       answer:
-        "Aiko. It's free, runs Whisper on your Mac, and transcribes audio and video files. It doesn't have speaker labels or batch jobs like MacWhisper Pro. MacWhisper also has its own free tier.",
+        "Aiko for simple, free file transcription on your Mac, or Buzz if you want open source and subtitle export (SRT, VTT). MacWhisper also has its own free tier with the smaller Whisper models.",
     },
     {
       question: "Is Rhino Voice a MacWhisper alternative?",
@@ -130,18 +148,18 @@ const content: BestForContent = {
     {
       question: "Do these work offline?",
       answer:
-        "Aiko, Rhino Voice, MeetMouse, MacWhisper, and superwhisper with local models run on your Mac. Otter.ai and Descript rely on the cloud.",
+        "Aiko, Buzz, Rhino Voice, MeetMouse, MacWhisper, and superwhisper with local models run on your Mac. Otter.ai and Descript rely on the cloud.",
     },
   ],
   ctaBody:
-    "If what you wanted was live dictation: $20 once, no subscription, and nothing leaves your Mac. Try it for 30 days. If it's not for you, email me and I'll refund you.",
+    "If what you wanted was live dictation: $20 once, no subscription, and nothing leaves your Mac. If it doesn't save you time, email me within 30 days and I'll refund you.",
   checked: "September 2026",
 };
 
 export const metadata: Metadata = {
-  title: "MacWhisper Alternatives (2026): For Dictation, Meetings or Free",
+  title: "MacWhisper Alternatives (2026): Free and Paid, Picked by Job",
   description:
-    "MacWhisper transcribes files. If you wanted live dictation, meeting notes, a free app or text-based editing, here's what to use instead, from someone who makes two of them.",
+    "Free and paid MacWhisper alternatives by job: Aiko and Buzz for free transcription, Rhino for dictation, MeetMouse for meetings. From someone who makes two.",
   alternates: { canonical: "https://rhinovoice.app/alternatives/macwhisper" },
   openGraph: {
     type: "article",

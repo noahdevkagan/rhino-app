@@ -86,6 +86,7 @@ export const COMPARISON_LINKS: { href: string; label: string }[] = [
   { href: "/alternatives/superwhisper", label: "superwhisper alternatives" },
   { href: "/alternatives/macwhisper", label: "MacWhisper alternatives" },
   { href: "/alternatives/otter", label: "Otter.ai alternatives" },
+  { href: "/macwhisper-pricing", label: "MacWhisper pricing and discount codes" },
 ];
 
 function crumbParent(content: BestForContent) {

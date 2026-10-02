@@ -1592,6 +1592,32 @@ equal specificity (the TL;DR label rendered as a full-size heading), now
 lawyers guide to point client-call readers at MeetMouse's lawyers guide, with the
 /best hub linking MeetMouse's guide hub.
 
+**2026-09-30 — MacWhisper "free" and "discount code" searches: one new page, one
+upgraded page, not three.** Search results show a crowd of competitor pages on
+"free MacWhisper alternative", "is MacWhisper free" and "MacWhisper discount
+code" (VoiceInk, Voibe, LumeVoice, Spokenly, OpenWhispr and others), which is the
+demand signal we had; no keyword-volume tool is connected, so there are no exact
+numbers. Per SITE-PLAYBOOK §1 (one page per intent), "free MacWhisper
+alternative" was folded into `/alternatives/macwhisper` (Buzz added, a
+free-tier section, "free" in the title) instead of a near-duplicate page.
+Pricing, free tier and discount codes are a distinct intent, so
+`/macwhisper-pricing` is new. It doesn't pretend to have a coupon: it says no
+public code exists, cites the 25% student/journalist/nonprofit discount from
+MacWhisper's own docs, warns about coupon farms and copycat download sites, and
+only sells Rhino to readers who really wanted dictation.
+
+**2026-09-30 — The homepage overflowed on iPhones; both page shells now clamp
+their grid column.** Noah's iPhone screenshots showed rhinovoice.app laid out
+~600px wide on a 390px screen (hero cut off, Buy button off-screen). Every iOS
+browser is WebKit, which sizes `.home-page`'s implicit auto grid column to its
+widest descendant, the 560px compare table; headless Chromium does not, so it
+never showed up in local checks. `.home-page` now gets the same
+`grid-template-columns: minmax(0, 1fr)` `.doc-page` got earlier, the mobile hero
+uses `minmax(0, 1fr)`, the eyebrow wraps, and small phones (≤380px) get a tighter
+header. The phone table-cards change (6eff204) also removes the 560px minimum
+under 640px. A test asserts both shells keep the clamp. meetmouse.com shows the
+same symptom and shares the design, so it likely needs the same fix in its repo.
+
 ## 2026-10-01 — Spoken punctuation joins smart formatting (reverses 2026-08-20)
 Customer (Troy Cole, v0.1.30, coming from phone dictation) says "period",
 "comma", "new paragraph" out loud; with LLM cleanup on they still landed as

@@ -1393,7 +1393,7 @@ struct SettingsView: View {
                     HStack(spacing: 8) {
                         Text("Smart formatting")
                             .scaledFont(size: 12).foregroundColor(STheme.text)
-                        InfoButton(text: "Lay dictated lists out as lists (“item 1, yes, item 2, no” becomes bulleted lines) and dictated emails out as emails — greeting on its own line, paragraph breaks, sign-off and name on their own lines. You can also say “new line” or “new paragraph” to insert breaks. Normal sentences stay prose.")
+                        InfoButton(text: "Lay dictated lists out as lists (“item 1, yes, item 2, no” becomes bulleted lines) and dictated emails out as emails — greeting on its own line, paragraph breaks, sign-off and name on their own lines. You can also say “period”, “comma”, “question mark”, “new line” or “new paragraph” — pause briefly around them — and Rhino types the mark instead of the word. Normal sentences stay prose.")
                         Spacer()
                         SToggle(isOn: $viewModel.smartFormattingEnabled)
                     }

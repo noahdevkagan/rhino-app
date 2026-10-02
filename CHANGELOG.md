@@ -5,6 +5,12 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Dictate punctuation the way you do on your phone. With Smart formatting
+  on, saying "period", "comma", "question mark", "exclamation point",
+  "colon", "new line" or "new paragraph" (with a short pause around it)
+  types the mark or the break instead of the word. Sentences that just
+  mention the words, like "a grace period" or "the word comma", are left
+  alone.
 - English numbers format automatically: “zero point seven two five” becomes
   “0.725,” and “seven items” becomes “7 items.” No cleanup model or Smart
   formatting toggle required. Choose Smart, Prefer digits, or Keep as spoken

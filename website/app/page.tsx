@@ -3,7 +3,7 @@ import { BuyForm, RhinoMark, SiteFooter, SiteHeader } from "./_components/site-c
 const steps = [
   {
     title: "Hold Fn",
-    body: "Anywhere on your Mac — an email, a doc, Slack, a terminal, a prompt box. Rhino does not need to be the front-most app.",
+    body: "Anywhere on your Mac: an email, a doc, Slack, a terminal, a prompt box. Rhino does not need to be the front-most app.",
   },
   {
     title: "Talk normally",
@@ -84,7 +84,7 @@ const faq = [
   {
     question: "Does Rhino work offline?",
     answer:
-      "Yes. Once you have downloaded a speech model, dictation and cleanup both work with the network off — on a plane, on hotel Wi-Fi you do not trust, or with the machine air-gapped.",
+      "Yes. Once you have downloaded a speech model, dictation and cleanup both work with the network off: on a plane, on hotel Wi-Fi you do not trust, or with the machine air-gapped.",
   },
   {
     question: "What are the system requirements?",
@@ -94,7 +94,7 @@ const faq = [
   {
     question: "Which apps does Rhino work with?",
     answer:
-      "Any Mac app that accepts text. Rhino inserts at your cursor wherever it happens to be — mail clients, browsers, editors, Slack, terminals. It needs Microphone and Accessibility permissions to do that.",
+      "Any Mac app that accepts text. Rhino inserts at your cursor wherever it happens to be: mail clients, browsers, editors, Slack, terminals. It needs Microphone and Accessibility permissions to do that.",
   },
   {
     question: "How is this different from Wispr Flow?",
@@ -104,7 +104,7 @@ const faq = [
   {
     question: "How is this different from the dictation built into macOS?",
     answer:
-      "Apple's dictation also runs on-device, so it solves the privacy question too. What it does not do is clean up how people speak — it transcribes you literally, ums and false starts included. Rhino Voice runs a local AI pass that turns what you said into the sentence you meant.",
+      "Apple's dictation also runs on-device, so it solves the privacy question too. What it does not do is clean up how people speak. It transcribes you literally, ums and false starts included. Rhino Voice runs a local AI pass that turns what you said into the sentence you meant.",
   },
   {
     question: "Is there a free trial?",
@@ -173,7 +173,7 @@ export default function Home() {
           <p className="hero-description">
             Hold Fn, speak naturally, and release. Rhino turns your voice into
             polished text in whatever app you&apos;re using. Transcription and AI
-            cleanup run 100% on your Mac—even with Wi-Fi off.
+            cleanup run 100% on your Mac, even with Wi-Fi off.
           </p>
           <BuyForm />
           <p className="purchase-note">
@@ -197,7 +197,7 @@ export default function Home() {
               <span className="document-label">TEAM NOTES</span>
               <h2>Tuesday launch update</h2>
               <p>
-                Hey team, quick update—the launch brief is ready for review. I
+                Hey team, quick update: the launch brief is ready for review. I
                 added the final screenshots and moved our kickoff to 4pm.
                 <span className="caret" aria-hidden="true" />
               </p>
@@ -285,7 +285,7 @@ export default function Home() {
           </ul>
           <p className="band-intro">
             Not sure which kind of app you need?{" "}
-            <a href="/best">Guides to the best dictation app by who you are</a> — for
+            <a href="/best">Guides to the best dictation app by who you are</a>, for
             lawyers, doctors, writers, developers, ADHD, RSI, students and more.
           </p>
         </section>

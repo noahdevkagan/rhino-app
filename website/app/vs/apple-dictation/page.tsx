@@ -5,7 +5,7 @@ const content: ComparisonContent = {
   slug: "/vs/apple-dictation",
   competitor: "Apple Dictation",
   headline: "Rhino Voice vs Apple Dictation (2026): is the free one already good enough?",
-  dek: "macOS has had built-in dictation for years, it runs on-device, and it costs nothing. Here is the honest case for when that is all you need — and the specific things it does not do.",
+  dek: "macOS has had built-in dictation for years, it runs on-device, and it costs nothing. Here is the honest case for when that is all you need, and the specific things it does not do.",
   shortAnswer:
     "Apple Dictation is free, built into macOS, and on Apple silicon it runs on-device, so it already solves the privacy problem. What it does not do is clean up how people actually talk: it transcribes you literally, leaving your filler words, false starts and spoken-aloud punctuation in the text. Rhino Voice adds a local AI cleanup pass that turns a rambling sentence into the one you meant to write.",
   pickThem:
@@ -17,12 +17,12 @@ const content: ComparisonContent = {
   rows: [
     { label: "Price", rhino: "$20 once", them: "Free, built into macOS" },
     { label: "Runs on-device", rhino: "Yes, always", them: "Yes on Apple silicon, with on-device dictation enabled" },
-    { label: "Removes filler words and false starts", rhino: "Yes — that is the cleanup pass", them: "No, it transcribes you literally" },
+    { label: "Removes filler words and false starts", rhino: "Yes, that is the cleanup pass", them: "No, it transcribes you literally" },
     { label: "Punctuation", rhino: "Inferred for you from how you spoke", them: "Auto-punctuation for commas, periods and question marks; the rest you say aloud" },
     { label: "Formatting and structure", rhino: "Cleanup handles casing, lists and paragraphing", them: "You speak it, or you fix it afterwards" },
     { label: "Custom vocabulary for names and jargon", rhino: "Yes, with recognition boosting", them: "Limited" },
     { label: "Local history, search and stats", rhino: "Yes, and you can turn it off", them: "No" },
-    { label: "Verbatim mode in AI apps and terminals", rhino: "Automatic", them: "Always verbatim — that is all it does" },
+    { label: "Verbatim mode in AI apps and terminals", rhino: "Automatic", them: "Always verbatim. That is all it does" },
     { label: "Requirements", rhino: "Apple silicon Mac, macOS 14+", them: "Any supported Mac" },
   ],
   sections: [
@@ -30,13 +30,13 @@ const content: ComparisonContent = {
       heading: "Start with the free one. Seriously.",
       paragraphs: [
         "Apple Dictation is already on your Mac. Turn it on in System Settings, enable on-device dictation, and press the shortcut. If that covers what you need, you have just saved twenty dollars and I would rather you did that than bought something you do not need.",
-        "A lot of people never get past the first week, though, and the reason is consistent. Apple Dictation transcribes what you said. Not what you meant — what you actually said, ums and restarts and all.",
+        "A lot of people never get past the first week, though, and the reason is consistent. Apple Dictation transcribes what you said. Not what you meant. What you actually said, ums and restarts and all.",
       ],
     },
     {
       heading: "The gap is cleanup, not accuracy",
       paragraphs: [
-        "Modern speech recognition is good. Apple's recogniser will usually get your words right, and so will Rhino's. The problem is that nobody speaks in finished prose. You say \"so I think we should, um, actually let's move the kickoff — move it to four\" and a literal transcriber writes exactly that down.",
+        "Modern speech recognition is good. Apple's recogniser will usually get your words right, and so will Rhino's. The problem is that nobody speaks in finished prose. You say \"so I think we should, um, actually let's move the kickoff, move it to four\" and a literal transcriber writes exactly that down.",
         "Rhino runs a second pass over the raw transcript with a language model on your Mac. That pass drops the filler, resolves the false start, works out that \"move it to four\" is the sentence you actually wanted, and applies casing and punctuation you never had to say aloud. What lands at your cursor is a line you can send.",
         "That is the whole difference, and it is worth twenty dollars or it is not, depending entirely on how much you dictate.",
       ],
@@ -52,7 +52,7 @@ const content: ComparisonContent = {
       heading: "What Apple Dictation is better at",
       paragraphs: [
         "It is free, it is already installed, and it runs on every supported Mac including Intel machines, where Rhino does not run at all. It needs no model download and no permissions dance beyond the microphone. It supports a long list of languages maintained by a company with Apple's resources.",
-        "And because it is literal, it is predictable. If your work is dictating exact strings — codes, commands, quoted text — a cleanup pass is an active nuisance, and the free tool is the right tool. Rhino's answer is to detect those contexts and disable cleanup, but Apple's answer of never having it in the first place is simpler.",
+        "And because it is literal, it is predictable. If your work is dictating exact strings (codes, commands, quoted text), a cleanup pass is an active nuisance, and the free tool is the right tool. Rhino's answer is to detect those contexts and disable cleanup, but Apple's answer of never having it in the first place is simpler.",
       ],
     },
   ],
@@ -60,7 +60,7 @@ const content: ComparisonContent = {
     {
       question: "Does Apple Dictation send my voice to Apple?",
       answer:
-        "Not if you are on an Apple silicon Mac with on-device dictation enabled — in that configuration speech recognition happens locally. That is why privacy alone is not a good reason to leave it; the reason to leave it is that it transcribes you literally.",
+        "Not if you are on an Apple silicon Mac with on-device dictation enabled. In that configuration speech recognition happens locally. That is why privacy alone is not a good reason to leave it; the reason to leave it is that it transcribes you literally.",
     },
     {
       question: "Is there a time limit on Apple Dictation?",
@@ -88,7 +88,7 @@ const content: ComparisonContent = {
 export const metadata: Metadata = {
   title: "Rhino Voice vs Apple Dictation (2026): Is Mac's Free Dictation Good Enough?",
   description:
-    "macOS dictation is free and runs on-device — so when is it not enough? The honest gap is cleanup: Apple transcribes you literally, filler words and all. Compared by Rhino Voice's founder.",
+    "macOS dictation is free and runs on-device, so when is it not enough? The honest gap is cleanup: Apple transcribes you literally, filler words and all. Compared by Rhino Voice's founder.",
   alternates: { canonical: "https://rhinovoice.app/vs/apple-dictation" },
   openGraph: {
     type: "article",

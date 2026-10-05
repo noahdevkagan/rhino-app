@@ -59,7 +59,10 @@ final class LocalAudioReaderTests: XCTestCase {
             XCTAssertGreaterThan(samples.map { abs($0) }.max() ?? 0, 0.1)
             let saved = directory.appendingPathComponent("history.wav")
             try FileManager.default.copyItem(at: url, to: saved)
-            XCTAssertEqual(try LocalAudioReader.samples(at: saved), samples)
+            // AAC decode + resample isn't bit-reproducible across runs (~1e-7 drift).
+            let reread = try LocalAudioReader.samples(at: saved)
+            XCTAssertEqual(reread.count, samples.count)
+            XCTAssertLessThan(zip(reread, samples).map { abs($0 - $1) }.max() ?? 0, 0.0001)
         }
     }
 

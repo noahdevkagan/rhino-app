@@ -168,10 +168,10 @@ export default function Home() {
           </p>
           <h1>
             Talk. Rhino types.
-            <span>Nothing leaves your Mac.</span>
+            <span>Free, and nothing leaves your Mac.</span>
           </h1>
           <p className="hero-description">
-            Free for Mac. Hold Fn, speak naturally, and release. Rhino turns your voice into
+            Hold Fn, speak naturally, and release. Rhino turns your voice into
             polished text in whatever app you&apos;re using. Transcription and AI
             cleanup run 100% on your Mac, even with Wi-Fi off.
           </p>

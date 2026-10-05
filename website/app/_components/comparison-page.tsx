@@ -1,5 +1,5 @@
 import { COMPARISON_LINKS as OTHER_LINKS } from "./best-for-page";
-import { BuyForm, SiteFooter, SiteHeader } from "./site-chrome";
+import { DownloadButton, SiteFooter, SiteHeader } from "./site-chrome";
 
 export type ComparisonRow = {
   label: string;
@@ -140,10 +140,9 @@ export function ComparisonPage({ content }: { content: ComparisonContent }) {
         <section className="doc-cta">
           <h2>Try Rhino Voice</h2>
           <p>
-            $20 once, no subscription and no account. If it does not earn its keep,
-            email me inside 30 days and I will refund you.
+            Free to start: unlimited your first week, then 2,000 words a week. Unlimited is $20 once, no subscription and no account.
           </p>
-          <BuyForm />
+          <DownloadButton />
         </section>
 
         <p className="checked-note">

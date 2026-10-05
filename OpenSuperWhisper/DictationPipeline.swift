@@ -247,6 +247,9 @@ final class DictationPipeline: ObservableObject {
             if outcome == .inserted {
                 ShareRhino.shared.recordSuccessfulDictation()
             }
+            if hasText {
+                UnlockRhino.shared.record(text: text)
+            }
 
             if hasText && AppPreferences.shared.saveTranscriptionHistory {
                 // Use the record-start time as the row timestamp (when the user actually dictated),

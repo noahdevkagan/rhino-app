@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { COMPARISON_LINKS } from "./best-for-page";
-import { BuyForm, SiteFooter, SiteHeader } from "./site-chrome";
+import { DownloadButton, SiteFooter, SiteHeader } from "./site-chrome";
 import { type Tool, costOver, priceShort, pricesChecked } from "./competitors";
 
 /** A tool's place on one page: shared facts plus this page's verdict. */
@@ -192,7 +192,7 @@ export function ToolCard({ entry, rank }: { entry: RankedEntry; rank: number }) 
         </div>
       </div>
       <div className="tool-links">
-        {ours ? <BuyForm /> : null}
+        {ours ? <DownloadButton /> : null}
         {tool.site ? (
           <a className="inline-link" href={tool.site} target="_blank" rel="nofollow noopener noreferrer">
             {tool.name} website ↗
@@ -261,8 +261,8 @@ export function RankedPage({ content }: { content: RankedPageContent }) {
         <QuickAnswer>{content.quickAnswer}</QuickAnswer>
 
         <div className="top-cta">
-          <BuyForm />
-          <span>One payment. Refund inside 30 days if it does not earn its keep.</span>
+          <DownloadButton />
+          <span>Free to start. Unlimited is $20 once.</span>
         </div>
 
         <div className="intro">{content.intro}</div>
@@ -324,10 +324,9 @@ export function RankedPage({ content }: { content: RankedPageContent }) {
         <section className="doc-cta">
           <h2>Try Rhino Voice</h2>
           <p>
-            One payment, no subscription and no account. If it does not earn its keep,
-            email me inside 30 days and I will refund you.
+            Free to start: unlimited your first week, then 2,000 words a week. Unlimited is $20 once, no subscription and no account.
           </p>
-          <BuyForm />
+          <DownloadButton />
         </section>
 
         <nav className="more-links" aria-label="More comparisons">

@@ -167,6 +167,7 @@ class ShortcutManager {
 
         Task { @MainActor in
             if self.activeVm == nil {
+                guard UnlockRhino.shared.allowRecording() else { return }
                 Diag.mark("keyDown → start recording")
                 let cursorPosition = FocusUtils.getCurrentCursorPosition()
                 let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier

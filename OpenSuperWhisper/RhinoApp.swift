@@ -154,6 +154,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // — take over from any older instance before arming anything. (#duplicate-paste)
         SingleInstanceGuard.terminateOtherInstances()
 
+        // Before onboarding can flip: installs onboarded before the free tier are grandfathered.
+        MainActor.assumeIsolated { UnlockRhino.shared.bootstrap() }
+
         // Load the word list the sound-alike pass needs now, not on the first dictation.
         let prefs = AppPreferences.shared
         if prefs.customDictionaryEnabled, prefs.customDictionarySoundAlikesEnabled,
@@ -350,6 +353,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             selector: #selector(menuBarIconVisibilityChanged),
             name: .menuBarIconVisibilityChanged,
             object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(unlockChanged),
+            name: .rhinoUnlockChanged,
+            object: nil)
+    }
+
+    @objc private func unlockChanged() {
+        updateStatusBarMenu()
     }
 
     private func buildStatusItem() {
@@ -586,10 +599,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         shareItem.target = self
         menu.addItem(shareItem)
 
+        if !MainActor.assumeIsolated({ UnlockRhino.shared.gate.isUnlocked }) {
+            let unlockItem = NSMenuItem(title: "Get Rhino Unlimited…",
+                                        action: #selector(unlockRhino), keyEquivalent: "")
+            unlockItem.target = self
+            menu.addItem(unlockItem)
+        }
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: NSLocalizedString("Quit", comment: ""), action: #selector(quitApp), keyEquivalent: "q"))
 
         statusItem?.menu = menu
+    }
+
+    @objc private func unlockRhino() {
+        MainActor.assumeIsolated { UnlockRhino.shared.show() }
     }
 
     @objc private func shareRhino() {

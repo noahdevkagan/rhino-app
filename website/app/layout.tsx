@@ -43,7 +43,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       url: baseUrl,
       siteName: "Rhino Voice",
-      title: "Rhino Voice: Talk. Rhino types. Nothing leaves your Mac.",
+      title: "Rhino Voice: Talk. Rhino types. Free, and nothing leaves your Mac.",
       description:
         "Free, private, on-device dictation for Mac. Hold Fn, speak naturally, and release to type in any app.",
       images: [

@@ -11,6 +11,13 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
   once, preventing extra full stops. Literal phrases such as "billing period"
   stay intact.
 
+- Drop MP4 videos into Rhino to transcribe their audio entirely on-device.
+  History keeps the extracted audio, without storing a copy of the video.
+- Fixed a launch crash loop after an audio import was interrupted. Interrupted
+  recordings now show a failure with a manual retry option in History.
+- Hardened Parakeet audio imports so unreadable files report an error instead
+  of using the conversion path implicated in M4A crashes.
+
 ## 0.1.34 — 2026-10-05
 
 - The Rhino Unlimited window is easier to read: the "Get Unlimited" button is

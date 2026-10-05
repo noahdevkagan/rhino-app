@@ -9,9 +9,45 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Master sync (2026-10-05, hong-kong workspace)
 
-Plan: merge fetched origin/master into the existing punctuation-fix branch,
-resolve conflicts while retaining both sets of changes, run the normal push
-gate, commit the merge and push. No branch rename, install or release.
+Merged origin/master (733bdaf) into the punctuation-fix branch. Resolved
+changelog, handoff, decisions and benchmark-history conflicts by retaining
+both sides; conflicting benchmark entries are in date order. App code merged
+cleanly. Next: normal push gate and push. No install or release.
+
+### MP4 import (2026-10-05, las-vegas — implemented)
+MP4/.m4v drops extract the first audio track locally to a temporary 16 kHz mono
+WAV with AVFoundation, then use the existing transcription queue. History
+retains only audio and keeps the original filename; reruns prefer retained
+audio even if the original video moves. Cancellation/error removes temp files.
+Imported recording filenames use UUIDs to prevent same-second collisions.
+
+Validation: full app build and six focused Xcode extraction tests pass
+(stereo resampling, no audio, corruption, cancellation, remote URL rejection,
+video type detection).
+Static privacy hygiene passes; dynamic egress skipped. Logs: `.context/mp4-check/`.
+No live drag/drop or real-model MP4 transcription check; no install or release. Dependencies initialized in this previously fresh workspace.
+
+### Imported-audio crash loop (2026-10-05, bogota workspace)
+
+Implemented: Parakeet reads local audio via ExtAudioFile/OSStatus instead of
+FluidAudio's exception-raising AVAudioFile.framePosition path. At store startup,
+interrupted converting/transcribing rows become failed with a retry explanation;
+source paths and transcripts survive, and untouched pending jobs still run.
+Queue commits its converting marker before decoding, stops if that write fails,
+and selects only pending jobs. Interrupted jobs now require a manual retry,
+including after quitting normally during transcription (see decisions.md).
+
+Validation: app build passes; seven focused Xcode tests pass (WAV sample parity,
+stereo resampling, generated AAC/M4A including a renamed history copy,
+malformed/empty/missing files, remote URL rejection, cancellation, persisted
+restart recovery). Static privacy hygiene passes; dynamic egress not run.
+Logs: `.context/import-build.log`, `.context/import-tests.log`,
+`.context/import-hygiene.log`. Customer's exact failing M4A wasn't attached;
+that specific file remains unverified. No install or release.
+
+PR plan (user requested): review and commit this change, push through the
+repository gate, review the full diff against origin/master, and open a PR
+from crxnamja/cleanshot targeting master.
 
 ### Free tier shipped — v0.1.32–0.1.34 (2026-10-04/05)
 

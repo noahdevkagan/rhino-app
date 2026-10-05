@@ -9,13 +9,6 @@ export const metadata: Metadata = {
 
 const releases = [
   {
-    version: "0.1.34",
-    date: "October 5, 2026",
-    changes: [
-      "The Rhino Unlimited window is easier to read: the Get Unlimited button is always highlighted, even while you're working in another app, and the window is more compact.",
-    ],
-  },
-  {
     version: "0.1.33",
     date: "October 5, 2026",
     changes: [

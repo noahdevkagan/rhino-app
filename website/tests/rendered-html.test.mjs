@@ -32,7 +32,7 @@ test("server-renders the concise PayPal purchase page", async () => {
   const html = await response.text();
   assert.match(html, /<title>Rhino Voice: Free private dictation for Mac<\/title>/i);
   assert.match(html, /Talk\. Rhino types\./);
-  assert.match(html, /Nothing leaves your Mac\./);
+  assert.match(html, /Free, and nothing leaves your Mac\./);
   assert.match(html, /Buy Rhino for \$20/);
   assert.match(html, /href="\/get"/);
   assert.match(html, /action="https:\/\/www\.paypal\.com\/cgi-bin\/webscr"/);
@@ -265,7 +265,7 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(changelog, /permission loop/);
   assert.match(changelog, /updates itself automatically/);
   assert.match(thanks, /Thanks for buying Rhino/);
-  assert.match(thanks, /Rhino-0\.1\.34\.dmg/);
+  assert.match(thanks, /Rhino-0\.1\.33\.dmg/);
   assert.match(thanks, /RHINO-33MY-Q56S/);
   assert.match(thanks, /href="rhinovoice:\/\/unlock\?code=RHINO-33MY-Q56S"/);
   const download = await (await render("/download")).text();
@@ -273,7 +273,7 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(download, /href="\/get"/);
   const get = await render("/get");
   assert.equal(get.status, 302);
-  assert.match(get.headers.get("location") ?? "", /\/v0\.1\.34\/Rhino-0\.1\.34\.dmg$/);
+  assert.match(get.headers.get("location") ?? "", /\/v0\.1\.33\/Rhino-0\.1\.33\.dmg$/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 
@@ -321,7 +321,7 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /noahkagan@gmail\.com/);
   assert.match(
     await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8"),
-    /Rhino-0\.1\.34\.dmg/,
+    /Rhino-0\.1\.33\.dmg/,
   );
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });

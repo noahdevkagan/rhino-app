@@ -1703,6 +1703,38 @@ predates the free tier and is unlocked for good. Word count is whitespace-split,
 so CJK dictations under-count (generous, acceptable for v1). Anyone can bypass
 by resetting preferences; people who would do that were never going to pay.
 
+
+## 2026-10-05 — Imported audio cannot auto-retry after a process interruption
+
+Customer report (0.1.30/build 79): an M4A raised an Objective-C exception in
+FluidAudio's AVAudioFile.framePosition getter; the persisted transcribing row
+replayed the crash on every launch, even after reinstalling. Swift do/catch
+already handled ordinary errors but cannot catch this exception. Replace
+Parakeet's file reader with ExtAudioFile's OSStatus-based local decoder,
+reading chunks to EOF into 16 kHz mono Float32 without querying framePosition
+or allocating from untrusted container lengths. No network or new dependency.
+
+On each database open, converting/transcribing rows become failed, with a
+retry explanation; their transcript and source path remain intact. Pending
+jobs that never started still run. This deliberately gives up automatic
+resumption after a normal quit during transcription: an interrupted job must
+be retried explicitly, because a normal quit and a decoder crash are not
+reliably distinguishable. Commit the converting marker before calling the
+engine and stop processing if that write fails. A queue pass selects only
+pending rows so an incomplete or cancelled active row cannot loop within the
+same session. The original failing M4A was not provided; regression coverage
+uses generated valid audio, malformed containers and persisted interrupted rows.
+
+## 2026-10-05 — Interrupted-row recovery is read-first and non-fatal
+
+The startup UPDATE took SQLite's write lock even when it matched no rows, so it
+failed with "database is locked" whenever another process held the lock
+(parallel XCTest hosts, a second Rhino instance) and `RecordingStore.init`
+crashed through its `fatalError`. Recovery now counts interrupted rows with a
+read, writes only if there are any, and only logs a failure. That's safe
+because the queue selects only pending rows: a row the recovery leaves
+unlabelled still can't auto-retry.
+
 ## 2026-10-05 — MP4 imports normalize to local audio before transcription
 
 Accept MP4 alongside audio drops (detected by MPEG-4 movie type, so .m4v

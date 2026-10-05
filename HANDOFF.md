@@ -20,6 +20,28 @@ video type detection).
 Static privacy hygiene passes; dynamic egress skipped. Logs: `.context/mp4-check/`.
 No live drag/drop or real-model MP4 transcription check; no install or release. Dependencies initialized in this previously fresh workspace.
 
+### Imported-audio crash loop (2026-10-05, bogota workspace)
+
+Implemented: Parakeet reads local audio via ExtAudioFile/OSStatus instead of
+FluidAudio's exception-raising AVAudioFile.framePosition path. At store startup,
+interrupted converting/transcribing rows become failed with a retry explanation;
+source paths and transcripts survive, and untouched pending jobs still run.
+Queue commits its converting marker before decoding, stops if that write fails,
+and selects only pending jobs. Interrupted jobs now require a manual retry,
+including after quitting normally during transcription (see decisions.md).
+
+Validation: app build passes; seven focused Xcode tests pass (WAV sample parity,
+stereo resampling, generated AAC/M4A including a renamed history copy,
+malformed/empty/missing files, remote URL rejection, cancellation, persisted
+restart recovery). Static privacy hygiene passes; dynamic egress not run.
+Logs: `.context/import-build.log`, `.context/import-tests.log`,
+`.context/import-hygiene.log`. Customer's exact failing M4A wasn't attached;
+that specific file remains unverified. No install or release.
+
+PR plan (user requested): review and commit this change, push through the
+repository gate, review the full diff against origin/master, and open a PR
+from crxnamja/cleanshot targeting master.
+
 ### Free tier shipped — v0.1.32–0.1.34 (2026-10-04/05)
 
 Rhino is free: unlimited first 7 days, then 2,000 words/week (resets Monday);

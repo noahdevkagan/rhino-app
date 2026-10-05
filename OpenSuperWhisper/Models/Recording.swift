@@ -115,6 +115,31 @@ class RecordingStore: ObservableObject {
         } catch {
             fatalError("Failed to setup database: \(error)")
         }
+        // Best effort: the queue only selects pending rows, so a row left interrupted
+        // can't auto-retry even if relabelling fails (e.g. another process holds the lock).
+        do {
+            try Self.recoverInterruptedRecordings(in: dbQueue)
+        } catch {
+            Diag.log.error("Could not mark interrupted recordings failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Run once when opening the store, before any queue work. Never automatically
+    /// retry a file that may have terminated the previous process. Keep its source
+    /// and any existing transcript so History can offer an explicit retry.
+    nonisolated static func recoverInterruptedRecordings(in database: DatabaseQueue) throws {
+        let interrupted = Recording.filter([RecordingStatus.converting.rawValue, RecordingStatus.transcribing.rawValue]
+            .contains(Recording.Columns.status))
+        // Read first: an UPDATE takes the write lock even when it matches nothing.
+        guard try database.read({ try interrupted.fetchCount($0) }) > 0 else { return }
+        try database.write { db in
+            try interrupted.updateAll(db, [
+                Recording.Columns.status.set(to: RecordingStatus.failed.rawValue),
+                Recording.Columns.progress.set(to: 0),
+                Recording.Columns.failureDetail.set(to:
+                    "Transcription was interrupted when Rhino closed. Retry this recording from History.")
+            ])
+        }
     }
 
     private nonisolated func setupDatabase() throws {
@@ -229,7 +254,7 @@ class RecordingStore: ObservableObject {
         do {
             return try dbQueue.read { db in
                 try Recording
-                    .filter([RecordingStatus.pending.rawValue, RecordingStatus.converting.rawValue, RecordingStatus.transcribing.rawValue].contains(Recording.Columns.status))
+                    .filter(Recording.Columns.status == RecordingStatus.pending.rawValue)
                     .order(Recording.Columns.timestamp.asc)
                     .limit(1)
                     .fetchOne(db)

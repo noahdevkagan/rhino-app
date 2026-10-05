@@ -1,5 +1,5 @@
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.32/Rhino-0.1.32.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.33/Rhino-0.1.33.dmg";
 
 /** The app checks this code against a SHA-256 hash in UsageGate.swift. */
 const unlockCode = "RHINO-33MY-Q56S";
@@ -17,21 +17,25 @@ export default function Thanks() {
           🦏
         </span>
         <h1>Thanks for buying Rhino.</h1>
-        <p>Your unlock code for Rhino Unlimited:</p>
-        <p className="unlock-code">
-          <code>{unlockCode}</code>
-        </p>
-        <p>
-          In Rhino, open the menu bar icon, choose Get Rhino Unlimited, and
-          enter this code. Save it somewhere: it works on every Mac you own.
-        </p>
-        <a className="button button-primary download-button" href={downloadUrl}>
-          Download Rhino for Mac
-        </a>
+        <ol className="unlock-steps">
+          <li>
+            <a className="button button-primary download-button" href={downloadUrl}>
+              Download Rhino for Mac
+            </a>
+            <span>Open the DMG and drag Rhino to Applications.</span>
+          </li>
+          <li>
+            <a className="button button-primary" href={`rhinovoice://unlock?code=${unlockCode}`}>
+              Unlock Rhino
+            </a>
+            <span>Once Rhino is installed, click this. Rhino opens already unlimited.</span>
+          </li>
+        </ol>
         <p className="install-note">
-          Requires macOS 14 or later on Apple silicon. Open the DMG, drag Rhino
-          to Applications, then follow the short setup. If you already use
-          Rhino from before the free version, you are unlocked already.
+          Requires macOS 14 or later on Apple silicon. Using Rhino on another
+          Mac? Click Unlock Rhino there too, or enter your code in Rhino under
+          Get Rhino Unlimited: <code>{unlockCode}</code>. If you used Rhino
+          before it went free, you are unlocked already.
         </p>
       </div>
     </main>

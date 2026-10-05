@@ -3,6 +3,12 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.33 — 2026-10-05
+
+- One-click unlock. After buying Rhino or redeeming an AppSumo code, click
+  Unlock Rhino on the website and Rhino opens already unlimited. No code to
+  copy or type.
+
 ## 0.1.32 — 2026-10-04
 
 - Rhino is now free to download. New installs get unlimited dictation for

@@ -1703,6 +1703,44 @@ predates the free tier and is unlocked for good. Word count is whitespace-split,
 so CJK dictations under-count (generous, acceptable for v1). Anyone can bypass
 by resetting preferences; people who would do that were never going to pay.
 
+## 2026-10-04 — Reject blanket relaxation of spoken "period" guard (investigation)
+
+Matt's `period .` report reproduces on installed 0.1.31 with Smart formatting
+on. Local Parakeet v2 synthetic speech emits `See you there period.` without
+a pause; the strict formatter skips it and cleanup produces `.\n.`. Paused
+versions convert correctly. A context-only prototype allowing either pause
+boundary fixes that case but deletes literal `period` from `the next billing
+period` and other noun phrases; it also duplicates marks for spaced punctuation.
+Do not apply that simple relaxation. No production changes chosen yet; a fix
+must handle noun phrases and the `this` mention-guard false negative as well
+as existing punctuation. Evidence: `.context/punctuation-investigation/`.
+
+## 2026-10-04 — Recognize clear unpaused period endings; consume pause marks once
+
+User requested the fix after the investigation. Keep the general pause rule,
+adding positive English sentence-ending evidence for `period`: common terminal
+pronouns/adverbs, a small set of complete verb phrases, and action + this/that
+(e.g. `reporting this`, but not `during this` or `extend this`). Require a mark
+after the command or end of text. This fixes the captured no-pause ASR and email
+cases without a denylist of period modifiers: unseen noun phrases remain
+unchanged. Arbitrary unpaused commands and ambiguous literal language cannot
+all be resolved from ASR text; do not claim this recognizes every command.
+The existing cleanup/Smart formatting gates and LLM prompt are unchanged.
+
+The matcher consumes horizontal whitespace and repeated punctuation together
+on both sides of a matched command. The replacement emits the requested mark
+once; line boundaries are not swallowed and unmatched prose is unchanged.
+This avoids both `Thanks . period .` being missed and the naive fix producing
+`Thanks ..`. Tests cover failure shapes, noun phrases, existing layout commands,
+and idempotence. No new model, dependencies, preference, or network access.
+
+Review follow-up (same day): action + this/that converted literal time phrases
+("did we fix this period?", "we are reporting this period."), and a `?`/`!`
+after `period` was accepted as a boundary ("Is it period?" → "Is it."). Narrowed
+this/that to thanks/requests (`for reporting|fixing|sending|sharing this`,
+`please fix|send|share that`), and a `?`/`!` after `period` now keeps the word:
+the speech model heard a question, not a dictated full stop.
+
 
 ## 2026-10-05 — Imported audio cannot auto-retry after a process interruption
 

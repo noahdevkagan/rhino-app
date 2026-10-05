@@ -7,6 +7,15 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Master sync (2026-10-05, hong-kong workspace)
+
+Merged origin/master (733bdaf) into the punctuation-fix branch. Resolved
+changelog, handoff, decisions and benchmark-history conflicts by retaining
+both sides; conflicting benchmark entries are in date order. App code merged
+cleanly. Merge commit 6c00d6c is pushed. Full gate passed: 509 unit tests
+passed, 6 skipped, 0 failed; ASR, latency, privacy, release and smoke checks
+passed. No install or release.
+
 ### MP4 import (2026-10-05, las-vegas — implemented)
 MP4/.m4v drops extract the first audio track locally to a temporary 16 kHz mono
 WAV with AVFoundation, then use the existing transcription queue. History
@@ -64,6 +73,35 @@ Gotchas fixed: SwiftUI routed URLs to the Feedback `Window` (now
 grey `.borderedProminent` in a non-activating panel (custom PrimaryPillStyle).
 Not verified: typing into the panel's code field (no synthetic-input permission
 here). Dev-build tests trigger a mic TCC prompt for the dev identity; leave it.
+
+### Spoken punctuation fix (2026-10-04, hong-kong workspace)
+
+PR #74 (branch crxnamja/cleanshot-screenshot); not released. Matt's
+`period .` report reproduces on installed 0.1.31 with Smart formatting on:
+no-pause synthetic speech → `See you there period.` → `See you there.\n.`;
+`Thanks for reporting this period.` keeps the word. Paused versions work.
+
+`SpokenPunctuation` now accepts clear unpaused English sentence endings and
+consumes spaced/repeated marks once. Positive ending rules preserve unfamiliar
+noun phrases, unlike the rejected blanket relaxation that deleted "billing
+period". This is intentionally conservative, not universal command recognition.
+Existing cleanup/Smart formatting gates and prompts unchanged. Changelog and
+regression tests added; rationale in decisions.md.
+
+Validation: original source fails 14 assertions; fixed standalone XCTest suite
+passes all 12 cases. Full app build and 41 focused Xcode punctuation/pipeline/
+cleanup tests pass (0 skips/failures). Built-app raw-input cleanup matches all
+66 verified cases, including 12 captured synthetic ASR clips and the 24-entry
+parity corpus. Static privacy hygiene passes; dynamic egress not run. Test
+preferences were isolated and removed. No live microphone test or old-release
+comparison, so a newly introduced release regression is not established.
+Evidence: `.context/punctuation-investigation/` (report, JSON, logs, harnesses).
+Review follow-up: narrowed the this/that rule to thanks/requests and made
+`?`/`!` after "period" keep the word (fixed "did we fix this period?",
+"reporting this period.", "Is it period?"); 12/12 SpokenPunctuationTests pass.
+Open low-severity nit: break commands keep doubled marks ("First. . new line"
+→ "First..\n").
+Push gate passed. Next: merge PR #74 and ship in the next release when asked.
 
 ### Smart numbers (2026-10-01, dalat workspace)
 

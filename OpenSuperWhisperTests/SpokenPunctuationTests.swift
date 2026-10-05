@@ -3,8 +3,8 @@ import XCTest
 @testable import OpenSuperWhisper
 
 /// Spoken punctuation commands ("period", "comma", "new paragraph") become the marks they
-/// name, as part of smart formatting. The speech model brackets a dictated command with the
-/// punctuation of its pause; a word that is part of the sentence has none, and stays.
+/// name, as part of smart formatting. Cover pause-delimited commands, clear unpaused
+/// sentence endings, and preservation of literal punctuation/time-period mentions.
 final class SpokenPunctuationTests: XCTestCase {
 
     /// The customer email that reported it (2026-09-29), as the speech model produced it.
@@ -54,6 +54,70 @@ final class SpokenPunctuationTests: XCTestCase {
     func testCommandAtTheEndOfTheText() {
         XCTAssertEqual(SpokenPunctuation.apply("See you there, period"), "See you there.")
         XCTAssertEqual(SpokenPunctuation.apply("See you there. New paragraph."), "See you there.")
+    }
+
+    /// Matt's report: ASR puts a mark AFTER the command, without a pause before it.
+    func testUnpausedPeriodAfterSentenceEndings() {
+        for (input, expected) in [
+            ("See you there period .", "See you there."),
+            ("See you there period.", "See you there."),
+            ("See you there period", "See you there."),
+            ("I will send it tomorrow period. let me know what you think period.",
+             "I will send it tomorrow. Let me know what you think."),
+            ("Hi Matt comma. Thanks for reporting this period .",
+             "Hi Matt, Thanks for reporting this."),
+            ("Please fix that period.", "Please fix that."),
+            ("Please send it period .", "Please send it."),
+            ("I disagree period.", "I disagree."),
+        ] {
+            let output = SpokenPunctuation.apply(input)
+            XCTAssertEqual(output, expected, input)
+            XCTAssertEqual(SpokenPunctuation.apply(output), output, "Must be idempotent: " + input)
+        }
+    }
+
+    func testSpacedAndRepeatedPauseMarksAreConsumedOnce() {
+        for input in ["Thanks . period .", "Thanks. . Period . .", "Thanks... Period.",
+                      "Thanks . Period . New paragraph. See you there period ."] {
+            let expected = input.contains("paragraph") ? "Thanks.\n\nSee you there." : "Thanks."
+            XCTAssertEqual(SpokenPunctuation.apply(input), expected, input)
+        }
+        XCTAssertEqual(SpokenPunctuation.apply("Is it ready . question mark . ."), "Is it ready?")
+        XCTAssertEqual(SpokenPunctuation.apply("First . new line . Second."), "First.\nSecond.")
+    }
+
+    func testUnpausedPeriodDoesNotRemoveNounPhrases() {
+        for text in [
+            "It happened during summer period.",
+            "We studied Jurassic period.",
+            "Allow sufficient time for recovery period.",
+            "Revenue grew over our initial reporting period.",
+            "Please wait until the next billing period.",
+            "This course covers early modern period.",
+            "It happened in that difficult period.",
+            "That was a difficult period.",
+            "Sales rose during this period.",
+            "We budgeted for that period.",
+            "Please extend this period.",
+            "Please report on this period.",
+            "Please report this period.",
+            "This is our reporting period.",
+            "I meant the word period .",
+            "Use a period . .",
+            "The Jurassic period. Dinosaurs lived then.",
+            "That is an adjustment period.",
+            "There is a grace period.",
+            "See you there period of time.",
+            "See you there period I will call you",
+            "How many bugs did we fix this period?",
+            "What did we do this period?",
+            "These are the numbers we are reporting this period.",
+            "We fixed that period.",
+            "Is it period?",
+            "Thank you period!",
+        ] {
+            XCTAssertEqual(SpokenPunctuation.apply(text), text, text)
+        }
     }
 
     // MARK: - Prose stays prose

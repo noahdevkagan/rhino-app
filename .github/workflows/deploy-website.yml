@@ -53,8 +53,8 @@ jobs:
           [ -n "$url" ] || { echo "::error::No DMG link found in website/app/thanks/page.tsx"; exit 1; }
           grep -qF "$url" website/app/appsumo/redeem-form.tsx \
             || { echo "::error::thanks page and AppSumo form link different DMGs"; exit 1; }
-          grep -qF "$url" website/app/download/page.tsx \
-            || { echo "::error::thanks page and download page link different DMGs"; exit 1; }
+          grep -qF "$url" website/app/_components/site-chrome.tsx \
+            || { echo "::error::thanks page and site-chrome downloadUrl link different DMGs"; exit 1; }
           code=$(curl -sIL -o /dev/null -w '%{http_code}' "$url")
           [ "$code" = 200 ] || { echo "::error::$url returns $code — release not published yet, not deploying"; exit 1; }
           echo "DMG live: $url"

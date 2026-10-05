@@ -34,7 +34,7 @@ test("server-renders the concise PayPal purchase page", async () => {
   assert.match(html, /Talk\. Rhino types\./);
   assert.match(html, /Nothing leaves your Mac\./);
   assert.match(html, /Buy Rhino for \$20/);
-  assert.match(html, /href="\/download"/);
+  assert.match(html, /href="\/get"/);
   assert.match(html, /action="https:\/\/www\.paypal\.com\/cgi-bin\/webscr"/);
   assert.match(html, /name="business" value="paypal@okdork\.com"/);
   assert.match(html, /name="item_name" value="Rhino for Mac"/);
@@ -113,7 +113,7 @@ test("renders every comparison page with its schema and canonical", async () => 
       `${path} canonical`,
     );
     // Every page keeps a working download path.
-    assert.match(html, /href="\/download"/, `${path} download link`);
+    assert.match(html, /href="\/get"/, `${path} download link`);
   }
 });
 
@@ -218,7 +218,7 @@ test("renders every best-for guide with its schema, canonical and disclosure", a
     );
     // Rhino appears on every guide and is always disclosed as the author's own.
     assert.match(html, /class="mine-badge"/, `${path} discloses Rhino is mine`);
-    assert.match(html, /href="\/download"/, `${path} download link`);
+    assert.match(html, /href="\/get"/, `${path} download link`);
     assert.match(hub, new RegExp(`href="${path}"`), `${path} listed on /best`);
     assert.ok(sitemap.includes(`<loc>https://rhinovoice.app${path}</loc>`), `${path} in sitemap`);
   }
@@ -270,7 +270,10 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(thanks, /href="rhinovoice:\/\/unlock\?code=RHINO-33MY-Q56S"/);
   const download = await (await render("/download")).text();
   assert.match(download, /Download Rhino free/);
-  assert.match(download, /Rhino-0\.1\.33\.dmg/);
+  assert.match(download, /href="\/get"/);
+  const get = await render("/get");
+  assert.equal(get.status, 302);
+  assert.match(get.headers.get("location") ?? "", /\/v0\.1\.33\/Rhino-0\.1\.33\.dmg$/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 

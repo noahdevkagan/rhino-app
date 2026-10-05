@@ -51,12 +51,26 @@ struct Recording: Identifiable, Codable, FetchableRecord, PersistableRecord, Equ
                lhs.isRegeneration == rhs.isRegeneration
     }
 
-    static var recordingsDirectory: URL {
+    /// Holds recordings.sqlite and the recordings/ audio folder.
+    ///
+    /// Under XCTest it's a directory private to the test process. xcodebuild runs the test bundle
+    /// in parallel workers, each hosting its own Rhino.app with our bundle id, and they all used to
+    /// open and migrate the developer's real database at the same instant — one would get "database
+    /// is locked" and die in RecordingStore.init's fatalError (and any test that wrote recordings
+    /// wrote them into the real history). Same reasoning as DefaultsStore.
+    static let storageDirectory: URL = {
+        if DefaultsStore.isRunningTests {
+            return FileManager.default.temporaryDirectory.appendingPathComponent(
+                "rhino-tests-\(ProcessInfo.processInfo.processIdentifier)")
+        }
         let applicationSupport = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first!
-        let appDirectory = applicationSupport.appendingPathComponent(Bundle.main.bundleIdentifier!)
-        return appDirectory.appendingPathComponent("recordings")
+        return applicationSupport.appendingPathComponent(Bundle.main.bundleIdentifier!)
+    }()
+
+    static var recordingsDirectory: URL {
+        storageDirectory.appendingPathComponent("recordings")
     }
 
     var url: URL {
@@ -101,16 +115,18 @@ class RecordingStore: ObservableObject {
     private var retentionTimer: Timer?
 
     private init() {
-        let applicationSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first!
-        let appDirectory = applicationSupport.appendingPathComponent(Bundle.main.bundleIdentifier!)
+        let appDirectory = Recording.storageDirectory
         let dbPath = appDirectory.appendingPathComponent("recordings.sqlite")
+
+        // Another process can hold the write lock (the installed Rhino alongside a dev build, or
+        // a CLI run of this binary). Wait for it rather than failing the migration and crashing.
+        var config = Configuration()
+        config.busyMode = .timeout(5)
 
         do {
             try FileManager.default.createDirectory(
                 at: appDirectory, withIntermediateDirectories: true)
-            dbQueue = try DatabaseQueue(path: dbPath.path)
+            dbQueue = try DatabaseQueue(path: dbPath.path, configuration: config)
             try setupDatabase()
         } catch {
             fatalError("Failed to setup database: \(error)")

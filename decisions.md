@@ -1702,3 +1702,15 @@ records an install date; if onboarding was already complete, the install
 predates the free tier and is unlocked for good. Word count is whitespace-split,
 so CJK dictations under-count (generous, acceptable for v1). Anyone can bypass
 by resetting preferences; people who would do that were never going to pay.
+
+## 2026-10-05 — Test hosts get a private recordings database
+
+Crash reports kept arriving from `xcodebuild test`: parallel test workers (and
+other Conductor workspaces running the gate) each launch Rhino.app with the
+same bundle id, so they all opened and migrated the one real
+`recordings.sqlite` at launch. The loser of the lock race hit
+`RecordingStore.init`'s `fatalError`. Under XCTest the database and audio
+folder now live in a per-process temp directory (`Recording.storageDirectory`,
+same reasoning as DefaultsStore #59), so tests also stop touching the real
+history. The queue also has a 5 s busy timeout so the installed app and a dev
+build briefly contending for the lock wait instead of crashing.

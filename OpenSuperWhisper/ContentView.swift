@@ -784,7 +784,7 @@ struct ContentView: View {
                                     Image(systemName: "arrow.down.doc.fill")
                                         .foregroundColor(.secondary)
                                         .imageScale(.medium)
-                                    Text("Drop audio file here to transcribe")
+                                    Text("Drop audio or MP4 file here to transcribe")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }

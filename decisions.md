@@ -1703,6 +1703,50 @@ predates the free tier and is unlocked for good. Word count is whitespace-split,
 so CJK dictations under-count (generous, acceptable for v1). Anyone can bypass
 by resetting preferences; people who would do that were never going to pay.
 
+
+## 2026-10-05 — Imported audio cannot auto-retry after a process interruption
+
+Customer report (0.1.30/build 79): an M4A raised an Objective-C exception in
+FluidAudio's AVAudioFile.framePosition getter; the persisted transcribing row
+replayed the crash on every launch, even after reinstalling. Swift do/catch
+already handled ordinary errors but cannot catch this exception. Replace
+Parakeet's file reader with ExtAudioFile's OSStatus-based local decoder,
+reading chunks to EOF into 16 kHz mono Float32 without querying framePosition
+or allocating from untrusted container lengths. No network or new dependency.
+
+On each database open, converting/transcribing rows become failed, with a
+retry explanation; their transcript and source path remain intact. Pending
+jobs that never started still run. This deliberately gives up automatic
+resumption after a normal quit during transcription: an interrupted job must
+be retried explicitly, because a normal quit and a decoder crash are not
+reliably distinguishable. Commit the converting marker before calling the
+engine and stop processing if that write fails. A queue pass selects only
+pending rows so an incomplete or cancelled active row cannot loop within the
+same session. The original failing M4A was not provided; regression coverage
+uses generated valid audio, malformed containers and persisted interrupted rows.
+
+## 2026-10-05 — Interrupted-row recovery is read-first and non-fatal
+
+The startup UPDATE took SQLite's write lock even when it matched no rows, so it
+failed with "database is locked" whenever another process held the lock
+(parallel XCTest hosts, a second Rhino instance) and `RecordingStore.init`
+crashed through its `fatalError`. Recovery now counts interrupted rows with a
+read, writes only if there are any, and only logs a failure. That's safe
+because the queue selects only pending rows: a row the recovery leaves
+unlabelled still can't auto-retry.
+
+## 2026-10-05 — MP4 imports normalize to local audio before transcription
+
+Accept MP4 alongside audio drops (detected by MPEG-4 movie type, so .m4v
+too, not by extension). AVAssetReader extracts the first audio track
+in bounded chunks into a temporary 16 kHz mono WAV, shared by Whisper and
+Parakeet. This avoids depending on each engine's container support and avoids
+retaining large videos in history. The queue saves that WAV and points reruns
+at it; temporary output is removed on success, error, or cancellation. Multiple
+tracks use the first track for this initial version. Imported recording names
+use UUIDs so a multi-file drop cannot overwrite another recording in the same
+second. No additional dependency, model, or network access.
+
 ## 2026-10-05 — Test hosts get a private recordings database
 
 Crash reports kept arriving from `xcodebuild test`: parallel test workers (and

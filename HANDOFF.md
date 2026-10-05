@@ -7,6 +7,29 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Free tier shipped — v0.1.32–0.1.34 (2026-10-04/05)
+
+Rhino is free: unlimited first 7 days, then 2,000 words/week (resets Monday);
+$20 once unlocks. Installs onboarded before 0.1.32 are grandfathered. Code:
+`Utils/UsageGate.swift` (local, honor-based), `UnlockRhino.swift` (panel +
+`rhinovoice://unlock?code=` handler), gate in `ShortcutManager.handleKeyDown`,
+word count in `DictationPipeline`. Purchase code `RHINO-33MY-Q56S` (hash in
+UsageGate; shown on /thanks); AppSumo hashes bundled as `appsumo-hashes.json`.
+Site: Download free buttons → `/get` (302 to DMG; Cloudflare count of /get =
+new website downloads, Sparkle doesn't use it); `/download` page; /thanks and
+/appsumo show ① Download ② Unlock Rhino (one-click link). DMG URL lives once in
+`site-chrome.tsx` (release scripts check it). Why: decisions.md 2026-10-04.
+Baseline for before/after is in Noah's Claude memory (rhino-free-tier-baseline).
+
+Verified on screen 2026-10-05 (isolated RHINO_PREFS_SUITE): link unlock shows
+"Rhino is unlimited"; out-of-words paywall appears over other apps; bad code
+doesn't unlock; real AppSumo + purchase codes unlock the published 0.1.33.
+Gotchas fixed: SwiftUI routed URLs to the Feedback `Window` (now
+`handlesExternalEvents(matching: [])`); NSPanel `hidesOnDeactivate` and
+grey `.borderedProminent` in a non-activating panel (custom PrimaryPillStyle).
+Not verified: typing into the panel's code field (no synthetic-input permission
+here). Dev-build tests trigger a mic TCC prompt for the dev identity; leave it.
+
 ### Smart numbers (2026-10-01, dalat workspace)
 
 Implemented, not installed/released: Output → Numbers offers Smart (default),

@@ -1702,3 +1702,15 @@ records an install date; if onboarding was already complete, the install
 predates the free tier and is unlocked for good. Word count is whitespace-split,
 so CJK dictations under-count (generous, acceptable for v1). Anyone can bypass
 by resetting preferences; people who would do that were never going to pay.
+
+## 2026-10-05 — MP4 imports normalize to local audio before transcription
+
+Accept MP4 alongside audio drops (detected by MPEG-4 movie type, so .m4v
+too, not by extension). AVAssetReader extracts the first audio track
+in bounded chunks into a temporary 16 kHz mono WAV, shared by Whisper and
+Parakeet. This avoids depending on each engine's container support and avoids
+retaining large videos in history. The queue saves that WAV and points reruns
+at it; temporary output is removed on success, error, or cancellation. Multiple
+tracks use the first track for this initial version. Imported recording names
+use UUIDs so a multi-file drop cannot overwrite another recording in the same
+second. No additional dependency, model, or network access.

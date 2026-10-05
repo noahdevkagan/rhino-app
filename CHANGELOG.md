@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- Drop MP4 videos into Rhino to transcribe their audio entirely on-device.
+  History keeps the extracted audio, without storing a copy of the video.
+
 ## 0.1.34 — 2026-10-05
 
 - The Rhino Unlimited window is easier to read: the "Get Unlimited" button is

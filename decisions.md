@@ -1747,6 +1747,18 @@ tracks use the first track for this initial version. Imported recording names
 use UUIDs so a multi-file drop cannot overwrite another recording in the same
 second. No additional dependency, model, or network access.
 
+## 2026-10-05 — Test hosts get a private recordings database
+
+Crash reports kept arriving from `xcodebuild test`: parallel test workers (and
+other Conductor workspaces running the gate) each launch Rhino.app with the
+same bundle id, so they all opened and migrated the one real
+`recordings.sqlite` at launch. The loser of the lock race hit
+`RecordingStore.init`'s `fatalError`. Under XCTest the database and audio
+folder now live in a per-process temp directory (`Recording.storageDirectory`,
+same reasoning as DefaultsStore #59), so tests also stop touching the real
+history. The queue also has a 5 s busy timeout so the installed app and a dev
+build briefly contending for the lock wait instead of crashing.
+
 ## 2026-10-05 — Cleanup output must keep the spoken words (word-retention guard)
 
 Audit 3 (`docs/performance-audit-2026-10-05.md`) replayed 84 of Noah's real

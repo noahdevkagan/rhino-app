@@ -7,6 +7,12 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Master sync (2026-10-05, hong-kong workspace)
+
+Plan: merge fetched origin/master into the existing punctuation-fix branch,
+resolve conflicts while retaining both sets of changes, run the normal push
+gate, commit the merge and push. No branch rename, install or release.
+
 ### Free tier shipped — v0.1.32–0.1.34 (2026-10-04/05)
 
 Rhino is free: unlimited first 7 days, then 2,000 words/week (resets Monday);

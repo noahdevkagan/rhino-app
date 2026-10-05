@@ -197,7 +197,16 @@ class TranscriptionQueue: ObservableObject {
         while let recording = recordingStore.getNextPendingRecording() {
             currentRecordingId = recording.id
             processingStartedAt = Date()
-            await processRecording(recording)
+            do {
+                try await processRecording(recording)
+            } catch {
+                // Without a durable in-progress marker a crash would leave this
+                // job pending and auto-retry it at launch. Stop if saving fails.
+                Diag.log.error("Could not start queued transcription: \(error.localizedDescription, privacy: .public)")
+                currentRecordingId = nil
+                processingStartedAt = nil
+                break
+            }
             currentRecordingId = nil
             processingStartedAt = nil
             // Enforce the retention limit after each recording finishes so the
@@ -207,7 +216,7 @@ class TranscriptionQueue: ObservableObject {
         }
     }
 
-    private func processRecording(_ recording: Recording) async {
+    private func processRecording(_ recording: Recording) async throws {
         if isRecordingCancelled(recording.id) {
             clearCancellation(recording.id)
             return
@@ -246,20 +255,11 @@ class TranscriptionQueue: ObservableObject {
             recording.transcription != "In queue..." && 
             recording.transcription != "Starting transcription..."
 
-        if isRegeneration {
-            await recordingStore.updateRecordingStatusOnly(
-                recording.id,
-                progress: 0.0,
-                status: .converting
-            )
-        } else {
-            await recordingStore.updateRecordingProgressOnlySync(
-                recording.id,
-                transcription: "",
-                progress: 0.0,
-                status: .converting
-            )
-        }
+        var started = recording
+        started.status = .converting
+        started.progress = 0
+        if !isRegeneration { started.transcription = "" }
+        try await recordingStore.updateRecordingSync(started)
 
         // Pull this rerun's one-off model (from the rerun dropdown) and hand it to
         // transcribeAudio, which swaps + restores the engine *inside* the shared engine gate.

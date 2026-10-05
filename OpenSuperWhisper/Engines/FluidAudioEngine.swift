@@ -114,7 +114,7 @@ class FluidAudioEngine: TranscriptionEngine {
         // WAV, so for a real dictation this is a plain read — any resample cost showing up in
         // `loadConvertMs` means the input wasn't ours. (#latency)
         let loadStart = CFAbsoluteTimeGetCurrent()
-        let samples = try AudioConverter().resampleAudioFile(url)
+        let samples = try LocalAudioReader.samples(at: url)
         let loadConvertMs = (CFAbsoluteTimeGetCurrent() - loadStart) * 1000
 
         // Parakeet has no VAD front-end (Whisper's Silero gate doesn't run on this path), so

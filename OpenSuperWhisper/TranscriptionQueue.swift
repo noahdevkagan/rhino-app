@@ -91,7 +91,7 @@ class TranscriptionQueue: ObservableObject {
                     continue
                 }
 
-                let sourceURL = URL(fileURLWithPath: sourceURLString)
+                let sourceURL = Self.transcriptionSource(for: recording, original: URL(fileURLWithPath: sourceURLString))
                 if !FileManager.default.fileExists(atPath: sourceURL.path) {
                     toDelete.append(recording)
                 }
@@ -128,8 +128,8 @@ class TranscriptionQueue: ObservableObject {
             }.value) ?? 0.0
 
             let timestamp = Date()
-            let fileName = "\(Int(timestamp.timeIntervalSince1970)).wav"
             let id = UUID()
+            let fileName = "\(id.uuidString).wav"
 
             let recording = Recording(
                 id: id,
@@ -157,7 +157,8 @@ class TranscriptionQueue: ObservableObject {
         let sourceURL: URL? = await Task.detached(priority: .userInitiated) {
             if let existingSource = recording.sourceFileURL,
                !existingSource.isEmpty,
-               FileManager.default.fileExists(atPath: existingSource) {
+               FileManager.default.fileExists(atPath: Self.transcriptionSource(
+                   for: recording, original: URL(fileURLWithPath: existingSource)).path) {
                 return URL(fileURLWithPath: existingSource)
             } else if FileManager.default.fileExists(atPath: recording.url.path) {
                 return recording.url
@@ -216,6 +217,16 @@ class TranscriptionQueue: ObservableObject {
         }
     }
 
+    /// Preserve the original filename for the history label, but use retained
+    /// audio for MP4 reruns even if the original video was moved or deleted.
+    nonisolated static func transcriptionSource(for recording: Recording, original: URL) -> URL {
+        if VideoAudioExtractor.isVideo(original),
+           FileManager.default.fileExists(atPath: recording.url.path) {
+            return recording.url
+        }
+        return original
+    }
+
     private func processRecording(_ recording: Recording) async throws {
         if isRecordingCancelled(recording.id) {
             clearCancellation(recording.id)
@@ -234,7 +245,7 @@ class TranscriptionQueue: ObservableObject {
             return
         }
 
-        let sourceURL = URL(fileURLWithPath: sourceURLString)
+        let sourceURL = Self.transcriptionSource(for: recording, original: URL(fileURLWithPath: sourceURLString))
 
         let sourceExists = await Task.detached(priority: .userInitiated) {
             FileManager.default.fileExists(atPath: sourceURL.path)
@@ -280,8 +291,21 @@ class TranscriptionQueue: ObservableObject {
                     return
                 }
 
+                // Normalize MP4 to audio once, before either engine sees it. Keep only
+                // that audio in history, never a copy of the original video.
+                let extractedURL: URL?
+                if VideoAudioExtractor.isVideo(sourceURL) {
+                    extractedURL = try await VideoAudioExtractor.extract(from: sourceURL)
+                } else {
+                    extractedURL = nil
+                }
+                defer {
+                    if let extractedURL { try? FileManager.default.removeItem(at: extractedURL) }
+                }
+                try Task.checkCancellation()
+                let audioURL = extractedURL ?? sourceURL
                 let settings = Settings()
-                let text = try await transcriptionService.transcribeAudio(url: sourceURL, settings: settings, modelOverride: overrideOption)
+                let text = try await transcriptionService.transcribeAudio(url: audioURL, settings: settings, modelOverride: overrideOption)
 
                 if isRecordingCancelled(recording.id) || Task.isCancelled {
                     return
@@ -294,11 +318,11 @@ class TranscriptionQueue: ObservableObject {
                         withIntermediateDirectories: true
                     )
 
-                    if sourceURL.path != finalURL.path {
+                    if audioURL.path != finalURL.path {
                         if FileManager.default.fileExists(atPath: finalURL.path) {
                             try? FileManager.default.removeItem(at: finalURL)
                         }
-                        try FileManager.default.copyItem(at: sourceURL, to: finalURL)
+                        try FileManager.default.copyItem(at: audioURL, to: finalURL)
                     }
                 }.value
 

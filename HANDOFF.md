@@ -7,6 +7,19 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### MP4 import (2026-10-05, las-vegas — implemented)
+MP4/.m4v drops extract the first audio track locally to a temporary 16 kHz mono
+WAV with AVFoundation, then use the existing transcription queue. History
+retains only audio and keeps the original filename; reruns prefer retained
+audio even if the original video moves. Cancellation/error removes temp files.
+Imported recording filenames use UUIDs to prevent same-second collisions.
+
+Validation: full app build and six focused Xcode extraction tests pass
+(stereo resampling, no audio, corruption, cancellation, remote URL rejection,
+video type detection).
+Static privacy hygiene passes; dynamic egress skipped. Logs: `.context/mp4-check/`.
+No live drag/drop or real-model MP4 transcription check; no install or release. Dependencies initialized in this previously fresh workspace.
+
 ### Imported-audio crash loop (2026-10-05, bogota workspace)
 
 Implemented: Parakeet reads local audio via ExtAudioFile/OSStatus instead of

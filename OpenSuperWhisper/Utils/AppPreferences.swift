@@ -175,8 +175,8 @@ final class AppPreferences {
     @UserDefault(key: "customDictionaryEnabled", defaultValue: true)
     var customDictionaryEnabled: Bool
 
-    /// Whether the dictionary's terms also bias *recognition* (Whisper prompt boost / Parakeet
-    /// vocabulary boosting), on top of the always-on text replacement. Opt-in and default OFF:
+    /// Whether the dictionary's terms also bias *recognition* (Whisper prompt boost; Parakeet
+    /// no longer boosts, see FluidAudioEngine), on top of the always-on text replacement. Opt-in and default OFF:
     /// boosting is fuzzy and helps rare, distinctive jargon ("Kubernetes") but over-corrects
     /// short, common terms (it rewrites vaguely-similar spans). Replacement alone is exact and
     /// safe, so the common case (fixing the spelling/casing of correctly-heard words) needs no
@@ -345,6 +345,14 @@ final class AppPreferences {
     /// is also on.
     @UserDefault(key: "spokenEditsEnabled", defaultValue: false)
     var spokenEditsEnabled: Bool
+
+    /// Run the cleanup pass only on dictations that have layout to produce (a message, a
+    /// list, "new paragraph") and insert ordinary sentences as recognized. The model
+    /// returns those unchanged most of the time, so skipping it removes most of the wait
+    /// and most of its bad rewrites. English with smart formatting only; see
+    /// `LLMPostProcessor.containsLayoutCue`. Off restores cleanup on every dictation.
+    @UserDefault(key: "cleanupOnlyWhenNeeded", defaultValue: true)
+    var cleanupOnlyWhenNeeded: Bool
 
     /// Insert dictations verbatim (skip every LLM pass) when the target app is an AI
     /// assistant or a terminal. Those dictations are prompts and commands, not prose:

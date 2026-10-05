@@ -146,6 +146,9 @@ enum NumberCompaction {
                 .replacingOccurrences(of: "-", with: " ")
                 .split(whereSeparator: { $0.isWhitespace }).map(String.init)
             let words = tokens.filter { $0 != "and" }
+            // A magnitude with no count is prose or a title, not a figure: "thanks a
+            // million", "Million Dollar Weekend", "a hundred times better".
+            if words.count == 1, magnitudes[words[0]] != nil { return phrase }
             guard !isProtected(in: text, range: range),
                   qualifies(words, in: text, matchRange: range, style: style) else { return phrase }
             guard let value = parsePhrase(phrase) else { return phrase }

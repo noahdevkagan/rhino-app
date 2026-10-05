@@ -5,6 +5,20 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Faster dictation with cleanup on: ordinary sentences are now inserted as soon
+  as they're recognized. The cleanup model runs only when there is something to
+  format — an email or message, a list, or "new line" / "new paragraph". Turn
+  this off under Settings → Output → Cleanup to clean up every dictation
+  (English; other languages are unchanged).
+- Cleanup can no longer silently delete a sentence or replace your words with
+  a drafted reply: when its output drops or invents too much, Rhino keeps the
+  transcript as spoken.
+- "Thanks a million" and "Million Dollar Weekend" stay as words instead of
+  becoming 1,000,000.
+- Parakeet no longer uses dictionary "Boost recognition", which could drop
+  whole sentences. The dictionary still fixes your names and terms. The toggle
+  remains for Whisper.
+- Dictations into Conductor are inserted as spoken, like Claude and ChatGPT.
 - Drop MP4 videos into Rhino to transcribe their audio entirely on-device.
   History keeps the extracted audio, without storing a copy of the video.
 - Fixed a launch crash loop after an audio import was interrupted. Interrupted

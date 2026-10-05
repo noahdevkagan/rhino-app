@@ -7,6 +7,36 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Speed + accuracy audit #3 and fixes (2026-10-05, reykjavik workspace)
+
+Audit: `docs/performance-audit-2026-10-05.md`. 85 real history clips replayed through
+the CLI with Noah's settings. Speed is fine and unregressed (release→paste p50 234 ms,
+p90 661 ms; LLM cleanup is 66% of it).
+
+Implemented on Noah's go-ahead, uncommitted: (1) bare "million/thousand/hundred" stays a
+word; (2) Parakeet always uses the offline path, boost toggle shown only for Whisper;
+(3) `CleanupFidelityGuard` keeps the transcript when cleanup drops or invents words;
+(4) Conductor is a verbatim target. Why: decisions.md 2026-10-05.
+
+Validation: app build passes; full unit suite 520 tests, 514 pass, 6 skipped, 0 fail.
+Replay on the real clips with the rebuilt app: the guard rejects exactly the 3 bad
+rewrites and leaves the other 81 outputs byte-identical; ASR text changes only in the 4
+"million" spots; boost pref ON now takes the offline path. Push gate suites, install and
+release not run. Not eyeballed in the GUI (Settings → Output with Whisper vs Parakeet).
+
+(5) Cue gate, on Noah's "yes": cleanup runs only when the dictation has a greeting/sign-off,
+list cue or "new line/paragraph" (`LLMPostProcessor.containsLayoutCue`, pref
+`cleanupOnlyWhenNeeded`, default on, toggle under Smart formatting; English + smart
+formatting only). Replay: 64 of 84 real dictations skip the model, cleanup time 40.1 s →
+11.9 s; unit suite 523 tests, 517 pass, 6 skipped. No length exception was built: on the
+data, dictations over 100 words came back unchanged or with one word changed. AppSumo
+(hears-as Hapsumo), SendFox and Ilona were added to Noah's real dictionary (backup in
+`.context/audit3/dict-before-2026-10-05.json`).
+
+Open: Noah to record `bench/corpus`; stop→paste
+Diag marks and the watchdog log-spam fix. Harness and raw results in `.context/audit3/`
+(contains transcripts; never commit).
+
 ### MP4 import (2026-10-05, las-vegas — implemented)
 MP4/.m4v drops extract the first audio track locally to a temporary 16 kHz mono
 WAV with AVFoundation, then use the existing transcription queue. History

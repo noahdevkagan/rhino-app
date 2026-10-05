@@ -21,6 +21,7 @@ final class CustomerFeedbackGuardsTests: XCTestCase {
     func testAIAssistantsAndTerminalsAreVerbatimTargets() {
         XCTAssertTrue(LLMPostProcessor.isVerbatimTarget("com.anthropic.claudefordesktop"))
         XCTAssertTrue(LLMPostProcessor.isVerbatimTarget("com.openai.chat"))
+        XCTAssertTrue(LLMPostProcessor.isVerbatimTarget("com.conductor.app"))
         XCTAssertTrue(LLMPostProcessor.isVerbatimTarget("com.apple.Terminal"))
         XCTAssertTrue(LLMPostProcessor.isVerbatimTarget("com.googlecode.iterm2"))
     }

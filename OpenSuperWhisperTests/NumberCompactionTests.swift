@@ -197,4 +197,16 @@ final class NumberCompactionTests: XCTestCase {
             XCTAssertEqual(NumberCompaction.apply(input), input, input)
         }
     }
+
+    /// From Noah's own history: his book title came out "1,000,000 Dollar Weekend".
+    func testBareMagnitudeStaysAWord() {
+        for input in ["Million Dollar Weekend", "Thanks a million.", "One in a million.",
+                      "It was a million dollar idea.", "a hundred times better", "Thousand Oaks"] {
+            XCTAssertEqual(NumberCompaction.apply(input), input, input)
+            XCTAssertEqual(NumberCompaction.apply(input, style: .digits), input, input)
+        }
+        XCTAssertEqual(NumberCompaction.apply("a twenty five million dollar house"),
+                       "a 25,000,000 dollar house")
+        XCTAssertEqual(NumberCompaction.apply("one million views"), "1,000,000 views")
+    }
 }

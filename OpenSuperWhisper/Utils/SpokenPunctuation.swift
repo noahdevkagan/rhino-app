@@ -6,18 +6,13 @@ import Foundation
 /// the cleanup contract says "keep every word", so the model kept the command words
 /// (customer report, 2026-09-29: "it actually inserts them as words").
 ///
-/// The speech model marks a command by the pause around it: dictated with a pause, it
-/// comes back as "rad. Period. I will"; run on without one it reads "rad period I will",
-/// which cannot be told apart from "the trial period ended". So a command converts only
-/// next to that pause punctuation:
-///   - period, colon, new line, new paragraph collide with prose at a sentence end
-///     ("a grace period.", "a new line.") and need punctuation on BOTH sides
-///     (end of text counts as the far side)
-///   - comma, semicolon, question mark, exclamation point, full stop need it on either side
-/// Without a pause before it, a determiner in the two words before ("a period", "the word
-/// comma", "the Oxford comma.", "a big question mark.") marks a mention, never a command —
-/// at the cost of leaving "the deck comma." as words. Unpunctuated commands are left to
-/// the LLM's layout rule.
+/// Pause punctuation is the strongest command cue. Colon and layout commands need it
+/// on both sides; comma/question mark/etc. need it on either side. Period also accepts
+/// a sentence boundary after a clear sentence ending ("see you there period."). Unknown
+/// endings stay conservative: "billing period" and other noun phrases must not lose words.
+/// Without a pause before a command, nearby determiners protect literal mentions such as
+/// "the Oxford comma". The period-specific check can recognize "thanks for reporting this
+/// period." as a command without treating "during this period." as one.
 enum SpokenPunctuation {
     private struct Command {
         let mark: String
@@ -46,14 +41,15 @@ enum SpokenPunctuation {
         "word", "my", "your", "his", "her", "its", "our", "their",
     ]
 
-    /// Optional pause punctuation, the gap, the command, optional trailing punctuation.
+    /// Optional pause punctuation (including spaced/repeated marks), the gap, the command,
+    /// optional trailing punctuation. Only a matched command consumes these marks.
     /// The lookbehind keeps a command at the very start of the text (nothing to punctuate)
     /// or of a line from matching.
     private static let regex = try! NSRegularExpression(
-        pattern: "(?i)(?<=\\S)([.,!?;:]?)[ \\t]+"
+        pattern: "(?i)(?<=\\S)((?:[ \\t]*[.,!?;:])*)[ \\t]+"
             + "\\b(period|full stop|comma|question mark|exclamation (?:point|mark)"
             + "|semi-?colon|colon|new ?line|new paragraph)\\b"
-            + "([ \\t]*[.,!?;:]+)?")
+            + "((?:[ \\t]*[.,!?;:])+)?")
 
     static func apply(_ text: String) -> String {
         var result = text
@@ -66,7 +62,7 @@ enum SpokenPunctuation {
                       range: NSRange(location: searchStart, length: ns.length - searchStart))
             else { break }
 
-            let pre = ns.substring(with: m.range(at: 1))
+            let pre = ns.substring(with: m.range(at: 1)).filter { !$0.isWhitespace }
             let word = ns.substring(with: m.range(at: 2))
             let post = m.range(at: 3).location == NSNotFound ? "" : ns.substring(with: m.range(at: 3))
             let prefix = ns.substring(to: m.range.location)
@@ -74,7 +70,7 @@ enum SpokenPunctuation {
             let key = word.lowercased().replacingOccurrences(of: "-", with: "")
 
             guard let command = commands[key],
-                  qualifies(command, pre: pre, post: post, prefix: prefix, rest: rest) else {
+                  qualifies(command, key: key, pre: pre, post: post, prefix: prefix, rest: rest) else {
                 let wordRange = m.range(at: 2)
                 searchStart = wordRange.location + wordRange.length
                 continue
@@ -105,14 +101,48 @@ enum SpokenPunctuation {
         return result
     }
 
-    private static func qualifies(_ command: Command, pre: String, post: String,
+    private static func qualifies(_ command: Command, key: String, pre: String, post: String,
                                   prefix: String, rest: String) -> Bool {
+        if key == "period", pre.isEmpty,
+           // A comma alone is not a sentence boundary. Keep unpunctuated mid-sentence
+           // uses intact too ("period of time", "period I will..."). A "?" or "!" after
+           // it means the speech model heard a question or exclamation, not a full stop.
+           !post.contains(where: { "?!".contains($0) }),
+           post.contains(".") || rest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           hasUnpausedPeriodEnding(prefix) {
+            return true
+        }
         if pre.isEmpty, lastWords(of: prefix, count: 2).contains(where: mentionWords.contains) {
             return false
         }
         let before = !pre.isEmpty
         let after = !post.isEmpty || rest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return command.strict ? before && after : before || after
+    }
+
+    /// Positive evidence, rather than a denylist of period modifiers: an open-ended
+    /// modifier list would silently eat unfamiliar noun phrases ("early modern period").
+    /// These pronouns/adverbs and complete verb phrases can end the dictated sentence.
+    /// This deliberately does not try to recognize every possible unpaused command.
+    private static func hasUnpausedPeriodEnding(_ prefix: String) -> Bool {
+        let words = lastWords(of: prefix, count: 3)
+        guard let last = words.last else { return false }
+        if ["here", "there", "now", "today", "tomorrow", "yesterday", "tonight",
+            "soon", "again", "it", "them", "me", "us", "you"].contains(last) {
+            // Do not reinterpret explicit mentions: "the word it period".
+            return !words.dropLast().contains(where: mentionWords.contains)
+        }
+        if ["this", "that"].contains(last), words.count == 3 {
+            // Only thanks ("for reporting this") and requests ("please fix that"): a bare
+            // verb + this/that is often a time phrase ("did we fix this period",
+            // "we are reporting this period", "during this period").
+            let (lead, verb) = (words[0], words[1])
+            return lead == "for" && ["reporting", "fixing", "sending", "sharing"].contains(verb)
+                || lead == "please" && ["fix", "send", "share"].contains(verb)
+        }
+        return words.suffix(2).joined(separator: " ") == "i disagree"
+            || words.suffix(2).joined(separator: " ") == "i agree"
+            || words.suffix(3).joined(separator: " ") == "what you think"
     }
 
     /// The last `count` words of the clause `text` ends in, lowercased. Stops at punctuation

@@ -7,6 +7,35 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Spoken punctuation fix (2026-10-04, hong-kong workspace)
+
+Implemented on user request, uncommitted and not installed/released. Matt's
+`period .` report reproduces on installed 0.1.31 with Smart formatting on:
+no-pause synthetic speech → `See you there period.` → `See you there.\n.`;
+`Thanks for reporting this period.` keeps the word. Paused versions work.
+
+`SpokenPunctuation` now accepts clear unpaused English sentence endings and
+consumes spaced/repeated marks once. Positive ending rules preserve unfamiliar
+noun phrases, unlike the rejected blanket relaxation that deleted "billing
+period". This is intentionally conservative, not universal command recognition.
+Existing cleanup/Smart formatting gates and prompts unchanged. Changelog and
+regression tests added; rationale in decisions.md.
+
+Validation: original source fails 14 assertions; fixed standalone XCTest suite
+passes all 12 cases. Full app build and 41 focused Xcode punctuation/pipeline/
+cleanup tests pass (0 skips/failures). Built-app raw-input cleanup matches all
+66 verified cases, including 12 captured synthetic ASR clips and the 24-entry
+parity corpus. Static privacy hygiene passes; dynamic egress not run. Test
+preferences were isolated and removed. No live microphone test or old-release
+comparison, so a newly introduced release regression is not established.
+Evidence: `.context/punctuation-investigation/` (report, JSON, logs, harnesses).
+Review follow-up: narrowed the this/that rule to thanks/requests and made
+`?`/`!` after "period" keep the word (fixed "did we fix this period?",
+"reporting this period.", "Is it period?"); 12/12 SpokenPunctuationTests pass.
+Open low-severity nit: break commands keep doubled marks ("First. . new line"
+→ "First..\n").
+No install, release, commit or push. Next: review/commit and release when asked.
+
 ### Smart numbers (2026-10-01, dalat workspace)
 
 Implemented, not installed/released: Output → Numbers offers Smart (default),

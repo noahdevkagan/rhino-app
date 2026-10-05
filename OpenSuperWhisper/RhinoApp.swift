@@ -73,6 +73,9 @@ struct RhinoApp: App {
             FeedbackFormView()
         }
         .windowResizability(.contentSize)
+        // Without this SwiftUI routes any URL (e.g. rhinovoice://unlock) to this window
+        // and opens it; with no matching scene the URL reaches the app delegate instead.
+        .handlesExternalEvents(matching: [])
     }
 
     init() {
@@ -260,7 +263,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        let audioURLs = urls.filter { isAudioFile($0) }
+        // rhinovoice://unlock?code=… from rhinovoice.app/thanks or /appsumo: one-click unlock.
+        for url in urls where url.scheme == "rhinovoice" {
+            MainActor.assumeIsolated { UnlockRhino.shared.handle(url: url) }
+        }
+        let audioURLs = urls.filter { $0.isFileURL && isAudioFile($0) }
         queueAudioURLs(audioURLs)
     }
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { rhinoPrice } from "../_components/site-chrome";
 
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.32/Rhino-0.1.32.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.33/Rhino-0.1.33.dmg";
 
 export const metadata: Metadata = {
   title: "Download Rhino Voice for Mac (Free)",

@@ -20,6 +20,9 @@ final class UnlockRhino {
     /// free words for this week are used up.
     func allowRecording() -> Bool {
         guard gate.isBlocked else { return true }
+        // The cursor bubble is the proven way to reach a user over any app; the panel
+        // carries the buy button and code field.
+        IndicatorWindowManager.shared.flash(.info("Free words used up this week. Rhino menu → Get Rhino Unlimited"))
         show(limitReached: true)
         return false
     }
@@ -34,14 +37,34 @@ final class UnlockRhino {
         return ok
     }
 
+    /// rhinovoice://unlock?code=RH-XXXX-XXXX-XXXX. The code is checked locally like a typed one;
+    /// a bad or missing code just opens the panel so the user can type it.
+    func handle(url: URL) {
+        guard url.host == "unlock" else { return }
+        let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "code" })?.value ?? ""
+        if !gate.isUnlocked { _ = unlock(code: code) }
+        IndicatorWindowManager.shared.flash(gate.isUnlocked
+            ? .info("Rhino is unlimited 🦏")
+            : .error("That unlock code didn't work. Rhino menu → Get Rhino Unlimited"))
+        show()
+    }
+
     func show(limitReached: Bool = false) {
         if panel == nil {
+            // Same recipe as the Share panel, which is proven to appear over whatever app
+            // is frontmost: a non-activating floating panel that never hides on deactivate.
+            // macOS 14+ often refuses to activate a background app, so nothing here may
+            // depend on Rhino becoming active. A non-activating panel can still take key
+            // focus, so the code field remains typeable.
             let panel = NSPanel(
                 contentRect: NSRect(origin: .zero, size: Self.panelSize),
-                styleMask: [.titled, .closable],
+                styleMask: [.titled, .closable, .nonactivatingPanel],
                 backing: .buffered, defer: false)
             panel.title = "Rhino Unlimited"
             panel.isReleasedWhenClosed = false
+            panel.isFloatingPanel = true
+            panel.hidesOnDeactivate = false
             panel.level = .floating
             panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
             self.panel = panel
@@ -57,9 +80,8 @@ final class UnlockRhino {
         panel.contentViewController = hosting
         panel.setContentSize(Self.panelSize)
         panel.center()
-        // The code field needs keyboard focus, so this panel does activate Rhino.
-        NSApp.activate(ignoringOtherApps: true)
-        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
+        panel.makeKey()
     }
 }
 

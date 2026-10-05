@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.33",
+    date: "October 5, 2026",
+    changes: [
+      "One-click unlock. After buying Rhino or redeeming an AppSumo code, click Unlock Rhino on the website and Rhino opens already unlimited. No code to copy or type.",
+    ],
+  },
+  {
     version: "0.1.32",
     date: "October 4, 2026",
     changes: [

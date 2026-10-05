@@ -164,14 +164,14 @@ export default function Home() {
         <div className="hero-copy">
           <p className="eyebrow">
             <span className="status-dot" aria-hidden="true" />
-            For macOS 14+ · Signed &amp; notarized
+            Free download · macOS 14+ · Signed &amp; notarized
           </p>
           <h1>
             Talk. Rhino types.
             <span>Nothing leaves your Mac.</span>
           </h1>
           <p className="hero-description">
-            Hold Fn, speak naturally, and release. Rhino turns your voice into
+            Free for Mac. Hold Fn, speak naturally, and release. Rhino turns your voice into
             polished text in whatever app you&apos;re using. Transcription and AI
             cleanup run 100% on your Mac, even with Wi-Fi off.
           </p>

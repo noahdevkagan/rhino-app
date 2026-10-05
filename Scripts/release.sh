@@ -28,7 +28,7 @@ fi
 # notarization — a stale link meant discovering the block with a DMG already
 # published (v0.1.10). Checked per-file: a multi-file `grep -q` passes when ANY
 # file matches, which would wave through a half-updated site.
-for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx website/app/download/page.tsx; do
+for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx website/app/_components/site-chrome.tsx; do
     grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
         || { echo "RELEASE BLOCKED: $f doesn't link v$VERSION — update the website download links before releasing"; exit 1; }
 done
@@ -93,7 +93,7 @@ echo "== website (download links + changelog ship with every release)"
 # Re-checked here (already pre-flighted up top) so the deploy can never ship
 # stale links even if this script is entered mid-way. Per-file: a multi-file
 # `grep -q` passes when ANY file matches.
-for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx website/app/download/page.tsx; do
+for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx website/app/_components/site-chrome.tsx; do
     grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
         || { echo "RELEASE BLOCKED: $f doesn't link v$VERSION — update the website download links (+ changelog page/tests)"; exit 1; }
 done

@@ -6,7 +6,7 @@ import SwiftUI
 final class UnlockRhino {
     static let shared = UnlockRhino()
     static let buyURL = URL(string: "https://rhinovoice.app/#buy")!
-    static let panelSize = NSSize(width: 420, height: 380)
+    static let panelSize = NSSize(width: 420, height: 320)
 
     private var panel: NSPanel?
     private lazy var appSumoHashes = UsageGate.loadAppSumoHashes()
@@ -109,7 +109,7 @@ private struct UnlockRhinoView: View {
                 Text("Rhino is unlimited 🦏").font(.title2.bold())
                 Text("Thank you. Dictate as much as you like, forever.")
                 Spacer(minLength: 0)
-                HStack { Spacer(); Button("Done", action: dismiss).buttonStyle(.borderedProminent) }
+                HStack { Spacer(); Button("Done", action: dismiss).buttonStyle(PrimaryPillStyle()) }
             } else {
                 Text(limitReached ? "You've used this week's free words" : "Rhino Unlimited")
                     .font(.title2.bold())
@@ -123,10 +123,12 @@ private struct UnlockRhinoView: View {
                 Button {
                     NSWorkspace.shared.open(UnlockRhino.buyURL)
                 } label: {
-                    Text("Get Unlimited for $20").frame(maxWidth: .infinity)
+                    Text("Get Unlimited for $20")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(PrimaryPillStyle())
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Already bought it, or have an AppSumo code?")
@@ -157,5 +159,19 @@ private struct UnlockRhinoView: View {
         } else {
             status = "That code didn't work. Check it and try again."
         }
+    }
+}
+
+/// Always drawn in the accent color. `.borderedProminent` turns grey whenever Rhino isn't the
+/// active app, which is always the case here: the panel is non-activating by design.
+private struct PrimaryPillStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 14)
+            .padding(.vertical, 5)
+            .foregroundStyle(.white)
+            .background(RoundedRectangle(cornerRadius: 8)
+                .fill(Color.accentColor.opacity(configuration.isPressed ? 0.8 : 1)))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
     }
 }

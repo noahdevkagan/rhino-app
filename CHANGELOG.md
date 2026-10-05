@@ -11,6 +11,12 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
   once, preventing extra full stops. Literal phrases such as "billing period"
   stay intact.
 
+## 0.1.34 — 2026-10-05
+
+- The Rhino Unlimited window is easier to read: the "Get Unlimited" button is
+  always highlighted, even while you're working in another app, and the
+  window is more compact.
+
 ## 0.1.33 — 2026-10-05
 
 - One-click unlock. After buying Rhino or redeeming an AppSumo code, click

@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { rhinoPrice } from "../_components/site-chrome";
 
-const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.33/Rhino-0.1.33.dmg";
-
 export const metadata: Metadata = {
   title: "Download Rhino Voice for Mac (Free)",
   description:
@@ -28,7 +25,7 @@ export default function Download() {
           Unlimited for your first week, then 2,000 words a week, free forever.
           Want unlimited? ${rhinoPrice} once, from inside the app.
         </p>
-        <a className="button button-primary download-button" href={downloadUrl}>
+        <a className="button button-primary download-button" href="/get">
           Download Rhino for Mac
         </a>
         <p className="install-note">

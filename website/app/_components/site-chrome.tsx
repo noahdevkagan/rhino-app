@@ -3,6 +3,10 @@ const paypalAction = "https://www.paypal.com/cgi-bin/webscr";
 /** The one Rhino price. The PayPal form and every comparison page read it. */
 export const rhinoPrice = 20;
 
+/** The current DMG. Release scripts check this file links the version being shipped. */
+export const downloadUrl =
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.34/Rhino-0.1.34.dmg";
+
 export const releasesUrl =
   "https://github.com/noahdevkagan/rhino-releases/releases";
 
@@ -38,7 +42,9 @@ export function BuyForm({ compact = false }: { compact?: boolean }) {
 
 export function DownloadButton({ compact = false }: { compact?: boolean }) {
   return (
-    <a className={compact ? "button button-compact" : "button button-primary"} href="/download">
+    // /get redirects to the DMG: the download starts in place, and Cloudflare counts
+    // website downloads separately from Sparkle updates (which fetch the DMG directly).
+    <a className={compact ? "button button-compact" : "button button-primary"} href="/get">
       {compact ? "Download free" : "Download Rhino free"}
     </a>
   );

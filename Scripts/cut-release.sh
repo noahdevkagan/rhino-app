@@ -121,7 +121,7 @@ if [ "$ci_ready" = "1" ]; then
     # The same website pre-flight release.sh runs locally. The CI path never
     # calls release.sh, so without this an immutable tag gets created for a
     # release the workflow then refuses to deploy.
-    for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx website/app/download/page.tsx; do
+    for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx website/app/_components/site-chrome.tsx; do
         grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
             || die "$f doesn't link v$VERSION — update the website download links before releasing"
     done

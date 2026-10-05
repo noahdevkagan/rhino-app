@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.34/Rhino-0.1.34.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.33/Rhino-0.1.33.dmg";
 
 type Status = "loading" | "ready" | "invalid" | "unavailable" | "success";
 

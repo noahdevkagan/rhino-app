@@ -30,10 +30,11 @@ test("server-renders the concise PayPal purchase page", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Rhino Voice: Private dictation for Mac<\/title>/i);
+  assert.match(html, /<title>Rhino Voice: Free private dictation for Mac<\/title>/i);
   assert.match(html, /Talk\. Rhino types\./);
   assert.match(html, /Nothing leaves your Mac\./);
   assert.match(html, /Buy Rhino for \$20/);
+  assert.match(html, /href="\/download"/);
   assert.match(html, /action="https:\/\/www\.paypal\.com\/cgi-bin\/webscr"/);
   assert.match(html, /name="business" value="paypal@okdork\.com"/);
   assert.match(html, /name="item_name" value="Rhino for Mac"/);
@@ -55,7 +56,7 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
   assert.ok(html.indexOf('class="below-fold"') > html.indexOf('<main class="hero"'));
 
   assert.match(html, /Three keys, one sentence/);
-  assert.match(html, /What you get for \$20/);
+  assert.match(html, /What you get/);
   assert.match(html, /How Rhino Voice compares/);
   assert.match(html, /Stop typing what you could have said\./);
 
@@ -111,8 +112,8 @@ test("renders every comparison page with its schema and canonical", async () => 
       new RegExp(`rel="canonical" href="https://rhinovoice\\.app${path}"`),
       `${path} canonical`,
     );
-    // Every page keeps a working buy path.
-    assert.match(html, /name="amount" value="20\.00"/, `${path} buy form`);
+    // Every page keeps a working download path.
+    assert.match(html, /href="\/download"/, `${path} download link`);
   }
 });
 
@@ -146,6 +147,7 @@ test("no rendered page uses an em dash", async () => {
     "/",
     "/changelog",
     "/thanks",
+    "/download",
     "/appsumo",
     "/vs/wispr-flow",
     "/vs/superwhisper",
@@ -216,7 +218,7 @@ test("renders every best-for guide with its schema, canonical and disclosure", a
     );
     // Rhino appears on every guide and is always disclosed as the author's own.
     assert.match(html, /class="mine-badge"/, `${path} discloses Rhino is mine`);
-    assert.match(html, /name="amount" value="20\.00"/, `${path} buy form`);
+    assert.match(html, /href="\/download"/, `${path} download link`);
     assert.match(hub, new RegExp(`href="${path}"`), `${path} listed on /best`);
     assert.ok(sitemap.includes(`<loc>https://rhinovoice.app${path}</loc>`), `${path} in sitemap`);
   }
@@ -263,7 +265,12 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(changelog, /permission loop/);
   assert.match(changelog, /updates itself automatically/);
   assert.match(thanks, /Thanks for buying Rhino/);
-  assert.match(thanks, /Rhino-0\.1\.31\.dmg/);
+  assert.match(thanks, /Rhino-0\.1\.33\.dmg/);
+  assert.match(thanks, /RHINO-33MY-Q56S/);
+  assert.match(thanks, /href="rhinovoice:\/\/unlock\?code=RHINO-33MY-Q56S"/);
+  const download = await (await render("/download")).text();
+  assert.match(download, /Download Rhino free/);
+  assert.match(download, /Rhino-0\.1\.33\.dmg/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 
@@ -311,7 +318,7 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /noahkagan@gmail\.com/);
   assert.match(
     await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8"),
-    /Rhino-0\.1\.31\.dmg/,
+    /Rhino-0\.1\.33\.dmg/,
   );
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });

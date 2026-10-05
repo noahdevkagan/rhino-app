@@ -73,6 +73,9 @@ struct RhinoApp: App {
             FeedbackFormView()
         }
         .windowResizability(.contentSize)
+        // Without this SwiftUI routes any URL (e.g. rhinovoice://unlock) to this window
+        // and opens it; with no matching scene the URL reaches the app delegate instead.
+        .handlesExternalEvents(matching: [])
     }
 
     init() {
@@ -153,6 +156,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // Two live instances double every dictation's paste (both hear the trigger, both insert)
         // — take over from any older instance before arming anything. (#duplicate-paste)
         SingleInstanceGuard.terminateOtherInstances()
+
+        // Before onboarding can flip: installs onboarded before the free tier are grandfathered.
+        MainActor.assumeIsolated { UnlockRhino.shared.bootstrap() }
 
         // Load the word list the sound-alike pass needs now, not on the first dictation.
         let prefs = AppPreferences.shared
@@ -257,7 +263,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        let audioURLs = urls.filter { isAudioFile($0) }
+        // rhinovoice://unlock?code=… from rhinovoice.app/thanks or /appsumo: one-click unlock.
+        for url in urls where url.scheme == "rhinovoice" {
+            MainActor.assumeIsolated { UnlockRhino.shared.handle(url: url) }
+        }
+        let audioURLs = urls.filter { $0.isFileURL && isAudioFile($0) }
         queueAudioURLs(audioURLs)
     }
 
@@ -350,6 +360,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             selector: #selector(menuBarIconVisibilityChanged),
             name: .menuBarIconVisibilityChanged,
             object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(unlockChanged),
+            name: .rhinoUnlockChanged,
+            object: nil)
+    }
+
+    @objc private func unlockChanged() {
+        updateStatusBarMenu()
     }
 
     private func buildStatusItem() {
@@ -586,10 +606,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         shareItem.target = self
         menu.addItem(shareItem)
 
+        if !MainActor.assumeIsolated({ UnlockRhino.shared.gate.isUnlocked }) {
+            let unlockItem = NSMenuItem(title: "Get Rhino Unlimited…",
+                                        action: #selector(unlockRhino), keyEquivalent: "")
+            unlockItem.target = self
+            menu.addItem(unlockItem)
+        }
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: NSLocalizedString("Quit", comment: ""), action: #selector(quitApp), keyEquivalent: "q"))
 
         statusItem?.menu = menu
+    }
+
+    @objc private func unlockRhino() {
+        MainActor.assumeIsolated { UnlockRhino.shared.show() }
     }
 
     @objc private func shareRhino() {

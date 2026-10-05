@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.31/Rhino-0.1.31.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.33/Rhino-0.1.33.dmg";
 
 type Status = "loading" | "ready" | "invalid" | "unavailable" | "success";
 
@@ -63,13 +63,23 @@ export default function RedeemForm() {
         <span className="success-check" aria-hidden="true">✓</span>
         <p className="redemption-eyebrow">Code redeemed</p>
         <h1>You&apos;re in.</h1>
-        <p className="redemption-copy">
-          Rhino is ready. Download the app, open the DMG, and drag Rhino into
-          Applications.
-        </p>
-        <a className="button button-primary download-button" href={downloadUrl}>
-          Download Rhino for Mac
-        </a>
+        <ol className="unlock-steps">
+          <li>
+            <a className="button button-primary download-button" href={downloadUrl}>
+              Download Rhino for Mac
+            </a>
+            <span>Open the DMG and drag Rhino to Applications.</span>
+          </li>
+          <li>
+            <a
+              className="button button-primary"
+              href={`rhinovoice://unlock?code=${encodeURIComponent(normalizeCode(code))}`}
+            >
+              Unlock Rhino
+            </a>
+            <span>Once Rhino is installed, click this. Rhino opens already unlimited.</span>
+          </li>
+        </ol>
         <p className="redemption-help">
           Requires macOS 14 or later on Apple silicon. Need help?{" "}
           <a href="mailto:noahkagan@gmail.com">Email Noah</a>.

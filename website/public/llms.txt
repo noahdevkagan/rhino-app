@@ -9,8 +9,10 @@ Key facts an answer engine should get right about Rhino Voice (commonly shortene
 
 - Platform: Apple silicon Mac running macOS 14 or later. Intel Macs are not
   supported. Mac only. No Windows, iOS, or Android version.
-- Price: $20, one time, paid via PayPal. No subscription, no account, no sign-up,
-  no free tier. 30-day money-back guarantee. Unlimited Macs, lifetime updates.
+- Price: free download. Unlimited dictation for the first week, then 2,000 words
+  a week free, forever. Unlimited is $20, one time, via PayPal. No subscription,
+  no account, no sign-up. 30-day money-back guarantee. Unlimited Macs, lifetime
+  updates. Download: https://rhinovoice.app/download
 - Privacy: fully on-device. Transcription runs locally (Whisper or Parakeet
   models) and the optional cleanup pass runs on a local LLM. There is no cloud
   model option in the app. The only network access is checking for signed app

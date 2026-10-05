@@ -11,6 +11,21 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
   once, preventing extra full stops. Literal phrases such as "billing period"
   stay intact.
 
+## 0.1.33 — 2026-10-05
+
+- One-click unlock. After buying Rhino or redeeming an AppSumo code, click
+  Unlock Rhino on the website and Rhino opens already unlimited. No code to
+  copy or type.
+
+## 0.1.32 — 2026-10-04
+
+- Rhino is now free to download. New installs get unlimited dictation for
+  their first week, then 2,000 words a week free, every week. Unlimited is
+  $20 once: choose Get Rhino Unlimited in the menu bar and enter the code
+  from your purchase or your AppSumo code.
+- Already using Rhino? Nothing changes for you. Every install set up before
+  this version stays unlimited automatically.
+
 ## 0.1.31 — 2026-10-02
 
 - Dictate punctuation the way you do on your phone. With Smart formatting

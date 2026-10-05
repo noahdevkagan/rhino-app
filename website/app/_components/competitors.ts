@@ -30,7 +30,7 @@ export const tools: Record<string, Tool> = {
   rhino: {
     key: "rhino",
     name: "Rhino Voice",
-    priceLine: `$${rhinoPrice} once, with a 30-day money-back guarantee. No free tier.`,
+    priceLine: `Free for 2,000 words a week (unlimited your first week); $${rhinoPrice} once for unlimited, with a 30-day money-back guarantee.`,
     cost: { kind: "once", amount: rhinoPrice },
     where: "On your Mac, always. There is no cloud option in the app.",
     good: [

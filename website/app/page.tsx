@@ -1,4 +1,4 @@
-import { BuyForm, RhinoMark, SiteFooter, SiteHeader } from "./_components/site-chrome";
+import { BuyForm, DownloadButton, RhinoMark, SiteFooter, SiteHeader } from "./_components/site-chrome";
 
 const steps = [
   {
@@ -37,8 +37,8 @@ const features = [
     body: "Past dictations are searchable on your Mac, and you can re-run a recording through a different local model. Or switch history off entirely and keep nothing.",
   },
   {
-    title: "One payment",
-    body: "$20, once. Every feature, unlimited dictation, unlimited Macs, lifetime updates. No seat count, no word cap, no renewal.",
+    title: "Free to start",
+    body: "Unlimited for your first week, then 2,000 words a week, free forever. Want unlimited? $20, once: unlimited Macs, lifetime updates, no renewal.",
   },
 ];
 
@@ -51,7 +51,7 @@ const comparisonRows = [
   },
   {
     label: "Cost",
-    rhino: "$20 once",
+    rhino: "Free, or $20 once for unlimited",
     cloud: "$8–$15 per month",
     apple: "Free",
   },
@@ -107,9 +107,9 @@ const faq = [
       "Apple's dictation also runs on-device, so it solves the privacy question too. What it does not do is clean up how people speak. It transcribes you literally, ums and false starts included. Rhino Voice runs a local AI pass that turns what you said into the sentence you meant.",
   },
   {
-    question: "Is there a free trial?",
+    question: "Is Rhino free?",
     answer:
-      "There is a 30-day money-back guarantee instead. Buy it, use it properly, and if it has not earned its keep, email me and I will refund you.",
+      "Yes. Download it and dictate as much as you like for your first week. After that you get 2,000 words a week free, every week, forever. If you dictate more than that, unlimited is $20 once, with a 30-day money-back guarantee.",
   },
   {
     question: "Can I delete my dictation history?",
@@ -164,21 +164,21 @@ export default function Home() {
         <div className="hero-copy">
           <p className="eyebrow">
             <span className="status-dot" aria-hidden="true" />
-            For macOS 14+ · Signed &amp; notarized
+            Free download · macOS 14+ · Signed &amp; notarized
           </p>
           <h1>
             Talk. Rhino types.
             <span>Nothing leaves your Mac.</span>
           </h1>
           <p className="hero-description">
-            Hold Fn, speak naturally, and release. Rhino turns your voice into
+            Free for Mac. Hold Fn, speak naturally, and release. Rhino turns your voice into
             polished text in whatever app you&apos;re using. Transcription and AI
             cleanup run 100% on your Mac, even with Wi-Fi off.
           </p>
-          <BuyForm />
+          <DownloadButton />
           <p className="purchase-note">
-            One-time purchase via PayPal. No subscription, no account.
-            <br />30-day money-back guarantee.
+            Free: unlimited for your first week, then 2,000 words a week.
+            <br />Unlimited forever: <a href="#buy">$20 once</a>. No subscription, no account.
           </p>
         </div>
 
@@ -231,7 +231,7 @@ export default function Home() {
         </section>
 
         <section className="band">
-          <h2>What you get for $20</h2>
+          <h2>What you get</h2>
           <div className="feature-grid">
             {features.map((feature) => (
               <div key={feature.title}>
@@ -303,11 +303,13 @@ export default function Home() {
           </dl>
         </section>
 
-        <section className="band closing-cta">
+        <section className="band closing-cta" id="buy">
           <h2>Stop typing what you could have said.</h2>
-          <p>$20 once. No subscription, no account, nothing transmitted.</p>
+          <p>Free to start. Unlimited is $20 once. No subscription, no account, nothing transmitted.</p>
           <BuyForm />
-          <p className="purchase-note">30-day money-back guarantee.</p>
+          <p className="purchase-note">
+            30-day money-back guarantee. Or <a href="/download">download free</a> first.
+          </p>
         </section>
       </div>
 

@@ -1683,6 +1683,26 @@ two-column component. The honesty rule stands: our own card lists real
 limits, and "How we checked" reports the August 2026 voice test where
 Typeless beat Rhino (10/10 vs 8/10).
 
+## 2026-10-04 — Free tier: 2,000 words/week after an unlimited first week
+
+Noah: make Rhino free on the site and charge at a usage threshold, to grow
+usage; keep v1 simple and grandfather existing users. Site traffic was ~1,400
+human visits/month with ~20 PayPal buyers, so the paid-only download was the
+bottleneck. Weekly reset (not a lifetime cap) so free users keep the habit and
+keep sharing; 2,000/week matches Wispr Flow's free plan for the comparison
+pages; first 7 days unlimited so the paywall lands after the habit forms.
+
+Enforcement is local and honor-based, consistent with the 2026-08-12 hashed
+AppSumo gate: counts live in preferences (`usage.*`), the DMG is public at
+/download, and unlock codes are checked against SHA-256 hashes in the app (one
+shared purchase code shown on /thanks, plus the bundled AppSumo hash list).
+No license server, account, or network call: the paywall's buy button only
+opens rhinovoice.app in the browser. Grandfathering: the first launch of 0.1.32
+records an install date; if onboarding was already complete, the install
+predates the free tier and is unlocked for good. Word count is whitespace-split,
+so CJK dictations under-count (generous, acceptable for v1). Anyone can bypass
+by resetting preferences; people who would do that were never going to pay.
+
 ## 2026-10-04 — Reject blanket relaxation of spoken "period" guard (investigation)
 
 Matt's `period .` report reproduces on installed 0.1.31 with Smart formatting

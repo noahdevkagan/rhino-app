@@ -184,7 +184,7 @@ jobs:
           set -euo pipefail
           # Per-file: a multi-file `grep -q` passes when ANY file matches,
           # which would wave through a half-updated site.
-          for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx; do
+          for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx website/app/download/page.tsx; do
               grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
                   || { echo "$f doesn't link v$VERSION"; exit 1; }
           done

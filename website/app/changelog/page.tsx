@@ -9,6 +9,21 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.33",
+    date: "October 5, 2026",
+    changes: [
+      "One-click unlock. After buying Rhino or redeeming an AppSumo code, click Unlock Rhino on the website and Rhino opens already unlimited. No code to copy or type.",
+    ],
+  },
+  {
+    version: "0.1.32",
+    date: "October 4, 2026",
+    changes: [
+      "Rhino is now free to download. New installs get unlimited dictation for their first week, then 2,000 words a week free, every week. Unlimited is $20 once: choose Get Rhino Unlimited in the menu bar and enter the code from your purchase or your AppSumo code.",
+      "Already using Rhino? Nothing changes for you. Every install set up before this version stays unlimited automatically.",
+    ],
+  },
+  {
     version: "0.1.31",
     date: "October 2, 2026",
     changes: [

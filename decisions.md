@@ -1724,3 +1724,13 @@ engine and stop processing if that write fails. A queue pass selects only
 pending rows so an incomplete or cancelled active row cannot loop within the
 same session. The original failing M4A was not provided; regression coverage
 uses generated valid audio, malformed containers and persisted interrupted rows.
+
+## 2026-10-05 — Interrupted-row recovery is read-first and non-fatal
+
+The startup UPDATE took SQLite's write lock even when it matched no rows, so it
+failed with "database is locked" whenever another process held the lock
+(parallel XCTest hosts, a second Rhino instance) and `RecordingStore.init`
+crashed through its `fatalError`. Recovery now counts interrupted rows with a
+read, writes only if there are any, and only logs a failure. That's safe
+because the queue selects only pending rows: a row the recovery leaves
+unlabelled still can't auto-retry.

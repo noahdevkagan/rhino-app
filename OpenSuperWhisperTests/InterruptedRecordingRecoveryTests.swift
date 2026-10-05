@@ -1,4 +1,5 @@
 import GRDB
+import SQLite3
 import XCTest
 @testable import OpenSuperWhisper
 
@@ -42,5 +43,25 @@ final class InterruptedRecordingRecoveryTests: XCTestCase {
             }
         }
         try reopened.close()
+    }
+
+    func testCleanLaunchDoesNotNeedTheWriteLock() throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".sqlite")
+        defer {
+            for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path.path + suffix) }
+        }
+        let database = try DatabaseQueue(path: path.path)
+        try database.write { db in
+            try db.execute(sql: "CREATE TABLE recordings (id TEXT PRIMARY KEY, status TEXT, progress DOUBLE, failureDetail TEXT)")
+            try db.execute(sql: "INSERT INTO recordings VALUES ('done', 'completed', 1, NULL)")
+        }
+        // Another process (a second app instance, a parallel test host) mid-write.
+        var other: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(path.path, &other), SQLITE_OK)
+        defer { sqlite3_close(other) }
+        XCTAssertEqual(sqlite3_exec(other, "BEGIN IMMEDIATE", nil, nil, nil), SQLITE_OK)
+        XCTAssertNoThrow(try RecordingStore.recoverInterruptedRecordings(in: database))
+        XCTAssertEqual(sqlite3_exec(other, "COMMIT", nil, nil, nil), SQLITE_OK)
+        try database.close()
     }
 }

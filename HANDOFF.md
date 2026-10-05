@@ -12,7 +12,9 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 Merged origin/master (733bdaf) into the punctuation-fix branch. Resolved
 changelog, handoff, decisions and benchmark-history conflicts by retaining
 both sides; conflicting benchmark entries are in date order. App code merged
-cleanly. Next: normal push gate and push. No install or release.
+cleanly. Merge commit 6c00d6c is pushed. Full gate passed: 509 unit tests
+passed, 6 skipped, 0 failed; ASR, latency, privacy, release and smoke checks
+passed. No install or release.
 
 ### MP4 import (2026-10-05, las-vegas — implemented)
 MP4/.m4v drops extract the first audio track locally to a temporary 16 kHz mono

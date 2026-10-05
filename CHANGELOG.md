@@ -3,7 +3,7 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
-## Unreleased
+## 0.1.34 — 2026-10-05
 
 - Faster dictation with cleanup on: ordinary sentences are now inserted as soon
   as they're recognized. The cleanup model runs only when there is something to
@@ -30,9 +30,6 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
   recordings now show a failure with a manual retry option in History.
 - Hardened Parakeet audio imports so unreadable files report an error instead
   of using the conversion path implicated in M4A crashes.
-
-## 0.1.34 — 2026-10-05
-
 - The Rhino Unlimited window is easier to read: the "Get Unlimited" button is
   always highlighted, even while you're working in another app, and the
   window is more compact.

@@ -15,8 +15,8 @@ const content: ComparisonContent = {
   tableCaption: "Rhino vs Wispr Flow at a glance",
   checked: "September 2026",
   rows: [
-    { label: "Price", rhino: "$20 once, forever", them: "$15/month, or $12/month billed annually" },
-    { label: "Free tier", rhino: "None. 30-day money-back guarantee instead", them: "Yes, capped at 2,000 words/week on desktop" },
+    { label: "Price", rhino: "Free, or $20 once for unlimited", them: "$15/month, or $12/month billed annually" },
+    { label: "Free tier", rhino: "Yes, 2,000 words/week, unlimited your first week", them: "Yes, capped at 2,000 words/week on desktop" },
     { label: "Where your speech is processed", rhino: "On your Mac, always", them: "On their servers" },
     { label: "Works offline", rhino: "Yes, once your model is downloaded", them: "No, dictation needs a connection" },
     { label: "Account required", rhino: "No account, no sign-in, no telemetry", them: "Yes" },
@@ -46,7 +46,7 @@ const content: ComparisonContent = {
       heading: "What Rhino is genuinely better at",
       paragraphs: [
         "Nothing leaves the machine. Not the audio, not the transcript, not the cleaned-up text, not a usage counter. Turn off Wi-Fi and dictation still works. That is not a privacy policy you have to trust. It is a property of the software you can verify by pulling the plug.",
-        "You pay once. $20, no renewal, no seat count, no per-word cap. At Wispr Flow's annual rate you pass $20 in the second month. That is not a knock on their pricing. A cloud service has a bill to pay every time you speak, and a local app does not.",
+        "Unlimited is one payment. $20, no renewal, no seat count, no per-word cap. At Wispr Flow's annual rate you pass $20 in the second month. That is not a knock on their pricing. A cloud service has a bill to pay every time you speak, and a local app does not.",
         "There is no account. No email, no password, no profile, no history sitting in someone's database with your name attached. You buy it, you run it, and the only record of what you dictated is a local history you can turn off or delete.",
         "It stays out of the way in AI apps and terminals. Dictate into Claude, ChatGPT or a terminal and Rhino skips its cleanup pass entirely, so an instruction you meant for the assistant is passed through verbatim instead of being smoothed into prose.",
       ],
@@ -55,7 +55,7 @@ const content: ComparisonContent = {
       heading: "A note on the free tier",
       paragraphs: [
         "Wispr Flow's free plan gives you 2,000 words a week on desktop, which is roughly fifteen minutes of talking. It is a fair trial and you should use it. You will learn within a day whether hold-to-talk dictation fits how you work at all, which is the bigger question here.",
-        "Rhino has no free tier. It has a 30-day money-back guarantee instead, which is the same promise arranged differently: try it properly, and if it does not earn its keep, email me and I will refund you.",
+        "Rhino's free tier is the same 2,000 words a week, plus your whole first week unlimited. The difference is what happens when you outgrow it: unlimited is $20 once instead of a monthly bill, with a 30-day money-back guarantee.",
       ],
     },
   ],

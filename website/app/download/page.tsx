@@ -1,10 +1,17 @@
+import type { Metadata } from "next";
+import { rhinoPrice } from "../_components/site-chrome";
+
 const downloadUrl =
   "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.32/Rhino-0.1.32.dmg";
 
-/** The app checks this code against a SHA-256 hash in UsageGate.swift. */
-const unlockCode = "RHINO-33MY-Q56S";
+export const metadata: Metadata = {
+  title: "Download Rhino Voice for Mac (Free)",
+  description:
+    "Download Rhino Voice free: private, on-device dictation for Mac. Unlimited for your first week, then 2,000 words a week free.",
+  alternates: { canonical: "https://rhinovoice.app/download" },
+};
 
-export default function Thanks() {
+export default function Download() {
   return (
     <main className="text-page purchase-page">
       <a className="back-link" href="/">← Rhino</a>
@@ -16,22 +23,17 @@ export default function Thanks() {
         >
           🦏
         </span>
-        <h1>Thanks for buying Rhino.</h1>
-        <p>Your unlock code for Rhino Unlimited:</p>
-        <p className="unlock-code">
-          <code>{unlockCode}</code>
-        </p>
+        <h1>Download Rhino free.</h1>
         <p>
-          In Rhino, open the menu bar icon, choose Get Rhino Unlimited, and
-          enter this code. Save it somewhere: it works on every Mac you own.
+          Unlimited for your first week, then 2,000 words a week, free forever.
+          Want unlimited? ${rhinoPrice} once, from inside the app.
         </p>
         <a className="button button-primary download-button" href={downloadUrl}>
           Download Rhino for Mac
         </a>
         <p className="install-note">
           Requires macOS 14 or later on Apple silicon. Open the DMG, drag Rhino
-          to Applications, then follow the short setup. If you already use
-          Rhino from before the free version, you are unlocked already.
+          to Applications, then follow the short setup. No account, no email.
         </p>
       </div>
     </main>

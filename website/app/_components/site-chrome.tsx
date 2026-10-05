@@ -36,6 +36,14 @@ export function BuyForm({ compact = false }: { compact?: boolean }) {
   );
 }
 
+export function DownloadButton({ compact = false }: { compact?: boolean }) {
+  return (
+    <a className={compact ? "button button-compact" : "button button-primary"} href="/download">
+      {compact ? "Download free" : "Download Rhino free"}
+    </a>
+  );
+}
+
 export function SiteHeader() {
   return (
     <header className="site-header">
@@ -45,7 +53,7 @@ export function SiteHeader() {
       </a>
       <nav aria-label="Main navigation">
         <a href="/changelog">Changelog</a>
-        <BuyForm compact />
+        <DownloadButton compact />
       </nav>
     </header>
   );

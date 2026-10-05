@@ -1,4 +1,4 @@
-import { BuyForm, SiteFooter, SiteHeader } from "./site-chrome";
+import { DownloadButton, SiteFooter, SiteHeader } from "./site-chrome";
 
 export type BestForPick = {
   name: string;
@@ -303,7 +303,7 @@ export function BestForPage({ content }: { content: BestForContent }) {
               {content.cta.label}
             </a>
           ) : (
-            <BuyForm />
+            <DownloadButton />
           )}
         </section>
 

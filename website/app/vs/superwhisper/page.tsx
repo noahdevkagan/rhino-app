@@ -7,7 +7,7 @@ const content: ComparisonContent = {
   headline: "Rhino Voice vs superwhisper (2026): the closest competitor Rhino has",
   dek: "Most dictation apps send your voice to a server. superwhisper does not have to, which makes it the one honest comparison I have to work at. Here it is, written by the person who built the competitor.",
   shortAnswer:
-    "superwhisper and Rhino Voice both run speech recognition locally on your Mac, so on the privacy question they largely agree. They differ on shape: superwhisper is a free-to-start, deeply configurable app whose paid tier adds optional cloud AI models and runs on Windows and mobile too, while Rhino is one opinionated $20 Mac app with no free tier, no subscription, and no cloud option at all.",
+    "superwhisper and Rhino Voice both run speech recognition locally on your Mac, so on the privacy question they largely agree. They differ on shape: superwhisper is a free-to-start, deeply configurable app whose paid tier adds optional cloud AI models and runs on Windows and mobile too, while Rhino is one opinionated Mac app that is free to start, $20 once for unlimited, and has no cloud option at all.",
   pickThem:
     "you want to try it for free, you like tuning modes and prompts, you want the option of cloud models for the hard transcripts, or you need Windows and mobile.",
   pickRhino:
@@ -45,7 +45,7 @@ const content: ComparisonContent = {
       paragraphs: [
         "Rhino does one thing: hold Fn, talk, release, get clean text in the app you were already in. There are no modes to pick, and the defaults are the settings I would have told you to choose. There is no cloud option to audit, because there is no code in Rhino that sends audio anywhere.",
         "A few of those opinions are load-bearing. Dictate into Claude, ChatGPT or a terminal and Rhino automatically skips its AI cleanup, so an instruction meant for the assistant arrives verbatim instead of being tidied into prose. Recordings over five minutes go to your clipboard with a note instead of pasting themselves into whatever happened to be focused. You can configure both, but you should not have to.",
-        "And it is $20 once. Not a free tier that you will eventually outgrow into a subscription. One payment, every feature, forever.",
+        "And it is free to start, with every feature. If you outgrow 2,000 words a week, unlimited is $20 once, not a subscription.",
       ],
     },
     {
@@ -65,7 +65,7 @@ const content: ComparisonContent = {
     {
       question: "Is Rhino Voice cheaper than superwhisper?",
       answer:
-        "It depends which superwhisper you compare against. Its free tier is free, and Rhino cannot beat that. Against superwhisper Pro at roughly $8.49 a month, Rhino's single $20 payment pays for itself inside three months.",
+        "It depends which superwhisper you compare against. Both are free to start. Against superwhisper Pro at roughly $8.49 a month, Rhino's single $20 payment pays for itself inside three months.",
     },
     {
       question: "Which one is more accurate?",
@@ -73,9 +73,9 @@ const content: ComparisonContent = {
         "They run the same family of open speech models on the same hardware, so raw transcription accuracy is close enough that the difference in practice comes from the cleanup pass and your custom vocabulary rather than the recogniser. Test both on your own voice and your own jargon. That is the only benchmark that predicts your experience.",
     },
     {
-      question: "Does Rhino Voice have a free trial?",
+      question: "Is Rhino Voice free?",
       answer:
-        "No free tier, but there is a 30-day money-back guarantee. Buy it, use it properly for a month, and if it has not earned its keep, email me for a refund.",
+        "Yes. Your first week is unlimited, then you get 2,000 words a week free, forever. Unlimited is $20 once, with a 30-day money-back guarantee.",
     },
     {
       question: "Can I run Rhino Voice on an Intel Mac or on Windows?",

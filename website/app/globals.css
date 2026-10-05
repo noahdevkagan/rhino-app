@@ -367,6 +367,7 @@ footer span { color: var(--ink); font-weight: 700; }
 .purchase-card { padding: 46px; border: 1px solid var(--line); border-radius: 24px; background: white; box-shadow: 0 20px 55px rgba(49, 39, 34, 0.07); }
 .purchase-card h1 { margin-top: 25px; font-size: clamp(39px, 6vw, 58px); }
 .purchase-card p { color: var(--muted); line-height: 1.65; }
+.purchase-card .unlock-code code { display: inline-block; padding: 10px 16px; border: 1px dashed var(--line); border-radius: 10px; font-size: 22px; font-weight: 700; color: var(--ink, #1d1a17); letter-spacing: 0.04em; user-select: all; }
 .download-button { margin-top: 18px; }
 .download-button::before { content: "↓"; margin-right: 9px; font-family: var(--font-geist-mono), monospace; }
 .install-note { margin-top: 22px; font-size: 13px; }

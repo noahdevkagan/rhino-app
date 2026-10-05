@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BEST_FOR_GUIDES } from "../_components/best-for-page";
-import { BuyForm, SiteFooter, SiteHeader } from "../_components/site-chrome";
+import { DownloadButton, SiteFooter, SiteHeader } from "../_components/site-chrome";
 
 const jsonLd = [
   {
@@ -87,10 +87,10 @@ export default function Page() {
         <section className="doc-cta">
           <h2>Try Rhino Voice</h2>
           <p>
-            $20 once. No subscription, no account, and nothing leaves your Mac. Try it
-            for 30 days. If it&apos;s not worth it, email me and I&apos;ll refund you.
+            Free to start, and nothing leaves your Mac. Unlimited your first week, then
+            2,000 words a week. Unlimited is $20 once.
           </p>
-          <BuyForm />
+          <DownloadButton />
         </section>
       </main>
 

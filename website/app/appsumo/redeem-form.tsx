@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.31/Rhino-0.1.31.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.32/Rhino-0.1.32.dmg";
 
 type Status = "loading" | "ready" | "invalid" | "unavailable" | "success";
 
@@ -65,7 +65,8 @@ export default function RedeemForm() {
         <h1>You&apos;re in.</h1>
         <p className="redemption-copy">
           Rhino is ready. Download the app, open the DMG, and drag Rhino into
-          Applications.
+          Applications. Then open the menu bar icon, choose Get Rhino
+          Unlimited, and enter this same code to remove the weekly word limit.
         </p>
         <a className="button button-primary download-button" href={downloadUrl}>
           Download Rhino for Mac

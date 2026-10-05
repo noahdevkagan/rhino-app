@@ -138,6 +138,18 @@ enum LLMPostProcessor {
             }
         }
 
+        // The speech engines already punctuate and capitalize, so on an ordinary sentence
+        // the model has nothing to add: replaying real dictations it returned the text
+        // unchanged 58% of the time, at two thirds of the wait, and most of its harmful
+        // rewrites were on exactly those dictations (docs/performance-audit-2026-10-05.md).
+        // So the pass runs only when there is layout to produce. An applied spoken edit
+        // comes back unpolished and always goes on to cleanup. English only: the cues are
+        // English words, and other languages keep the pass as it was.
+        if prefs.cleanupOnlyWhenNeeded, smartFormatting, languageCode == "en",
+           working == text, !containsLayoutCue(working) {
+            return working
+        }
+
         do {
             let cleanupStart = CFAbsoluteTimeGetCurrent()
             let raw = try await backend.generate(
@@ -154,6 +166,12 @@ enum LLMPostProcessor {
             guard !result.isEmpty else { return working }
             if backend.enforcesLengthRatio,
                !passesLengthGuard(input: working, output: result, condensingAllowed: false) {
+                return working
+            }
+            // The length ratio misses a deleted sentence or a drafted reply; the words don't.
+            if backend.enforcesLengthRatio,
+               !CleanupFidelityGuard.preservesSpokenWords(input: working, output: result) {
+                print("LLM cleanup rejected: output dropped or invented words")
                 return working
             }
             // Prompting is not a safety boundary: the 1.5B model can ignore even the named
@@ -241,6 +259,7 @@ enum LLMPostProcessor {
     static let verbatimBundleIDs: Set<String> = [
         "com.anthropic.claudefordesktop",  // Claude
         "com.openai.chat",                 // ChatGPT
+        "com.conductor.app",               // Conductor (every dictation is an agent prompt)
         "com.apple.Terminal",
         "com.googlecode.iterm2",
         "com.github.wez.wezterm",
@@ -490,6 +509,23 @@ enum LLMPostProcessor {
         let cues = #"\b(?:scra(?:p|tch) (?:that|all of (?:that|it))|delete that|forget (?:that|it)"#
             + #"|wait,? no|no,? wait|start (?:over|again)|never ?mind|instead say"#
             + #"|actually,? (?:no|make that|say)|I mean\b)"#
+        return text.range(of: cues, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// Whether the dictation has something for smart formatting to lay out: a message
+    /// (opening greeting or closing sign-off), a list (counted or "bullet"-cued items), or
+    /// a spoken "new line" / "new paragraph". Deliberately generous — a false hit only runs
+    /// the cleanup pass, which is what every dictation used to get.
+    static func containsLayoutCue(_ text: String) -> Bool {
+        let number = #"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)"#
+        let cues = #"^\W*(?:hi|hey|hello|dear|good (?:morning|afternoon|evening))\b"#
+            + #"|\b(?:thanks(?: so much| a lot| again)?|thank you(?: so much)?|best(?: wishes| regards)?"#
+            + #"|(?:kind |warm )?regards|cheers|sincerely|talk soon)[,.!]?(?:\s+\w+){0,2}\W*$"#
+            + #"|\b(?:new|next) (?:line|paragraph)\b"#
+            + #"|\bbullet(?:s|ed)?\b|\b(?:a|the|this|to-?do) list\b"#
+            + #"|\b(?:item|number|step|point) "# + number + #"\b"#
+            + #"|\bfirst(?:ly)?\b.*\bsecond(?:ly)?\b"#
+            + #"|\b(?:one|1)\b.*\b(?:two|2)\b.*\b(?:three|3)\b"#
         return text.range(of: cues, options: [.regularExpression, .caseInsensitive]) != nil
     }
 

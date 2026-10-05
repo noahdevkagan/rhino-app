@@ -5,8 +5,8 @@ import Foundation
 ///   - loadConvertMs: reading the audio file and converting to 16kHz mono Float32. Near-zero
 ///     for real dictations (the recorder already writes that format).
 ///   - inferenceMs: the FluidAudio call — mel preprocessing, encoder, TDT decode. `path` says
-///     which invocation ran: "parakeet-offline" (default) or "parakeet-boosted" (custom
-///     dictionary boosting via the sliding-window manager, a much heavier path).
+///     which invocation ran: "parakeet-offline", or "parakeet-silence" when the clip was
+///     digital silence and never reached the model.
 ///   - postProcessMs: trim + custom-dictionary text replacement.
 /// There is no VAD stage — the offline path has none; audio ≤15s runs as a single padded window.
 struct TranscriptionStageTimings {

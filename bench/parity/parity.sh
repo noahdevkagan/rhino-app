@@ -85,6 +85,8 @@ print(json.dumps({"input": sys.argv[2], "text": o["text"]}))' "$o" "$line" >> "$
     done < corpus.txt
     echo ']' >> "$1"
 }
+# Parity compares the model's output, so the model must run on every line.
+defaults write "$SUITE" cleanupOnlyWhenNeeded -bool false
 for config in default smartfmt spokenedits combined; do
     case $config in
         default)     defaults write "$SUITE" smartFormattingEnabled -bool false

@@ -1796,3 +1796,64 @@ folder now live in a per-process temp directory (`Recording.storageDirectory`,
 same reasoning as DefaultsStore #59), so tests also stop touching the real
 history. The queue also has a 5 s busy timeout so the installed app and a dev
 build briefly contending for the lock wait instead of crashing.
+
+## 2026-10-05 — Cleanup output must keep the spoken words (word-retention guard)
+
+Audit 3 (`docs/performance-audit-2026-10-05.md`) replayed 84 of Noah's real
+dictations through cleanup. Three outputs passed every guard while being wrong:
+a 24-word sentence deleted from a 71-word dictation, a dictated request answered
+with the drafted message, and a dropped lead-in. `CleanupFidelityGuard` now
+compares input and output word by word after the length guard and keeps the
+transcript when the output drops a run of 8+ words, drops 4+ content words
+amounting to over 8% of the text, or adds 3+ content words (2% on long texts).
+Function words, list/layout cues and numbers are ignored, list output gets a
+looser 40% bound, texts under 12 words are left to the length guard. On the 84
+real results it rejects exactly those three and none of the other 32 changed
+outputs. Chosen over a cue gate (only run cleanup when there is a greeting, list
+or layout cue), which would also cut 71% of cleanup time but changes behavior for
+every dictation; that stays Noah's open call. Thresholds come from one speaker's
+data and should be revisited if customers report cleanup "not applying".
+
+## 2026-10-05 — Parakeet no longer boosts the dictionary in the decoder
+
+"Boost recognition" routed Parakeet through `SlidingWindowAsrManager`. On 85 real
+clips with a five-term dictionary it lost 5.4% of all words (one 33-word dictation
+came back as 6), inserted dictionary terms that were not said, differed from the
+offline path on 13.8% of words and ran 6–7× slower. This is the nondeterminism
+noted on 2026-08-31, now measured as text loss. The offline path is always used;
+the live preview no longer boosts either; the toggle shows only for Whisper, where
+it is a prompt hint. Replacement + sound-alikes fixed 11 of Noah's misheard brand
+names in the same test with no false changes. The stored pref is left alone.
+
+## 2026-10-05 — A bare "million/thousand/hundred" stays a word
+
+"Million Dollar Weekend" (in Noah's history) became "1,000,000 Dollar Weekend";
+"thanks a million" became "Thanks a 1,000,000." A magnitude word with no count
+before it is prose or a title, in Smart and Prefer digits alike. "two million"
+and "a twenty five million dollar house" still convert.
+
+## 2026-10-05 — Conductor is a verbatim target
+
+Every dictation into Conductor is an agent prompt (10 of Noah's 85), the same
+reason Claude and ChatGPT skip cleanup. IDEs stay off the list as before.
+
+## 2026-10-05 — Cleanup runs only when there is layout to produce (cue gate)
+
+Noah approved after the audit. With smart formatting on and English resolved, the
+cleanup pass is skipped unless the dictation carries a layout cue: opening
+greeting, closing sign-off, list cues, or "new line / new paragraph"
+(`containsLayoutCue`). Pref `cleanupOnlyWhenNeeded`, default on, toggle under
+Smart formatting. On 84 real dictations 64 skip the model and cleanup time drops
+40.1 s → 11.9 s; every list and message layout the model produced before is still
+cued. The cue list is generous because a false hit only restores old behavior.
+An applied spoken edit always continues to cleanup (its output is unpolished).
+
+Not gated: non-English (cues are English words) and smart formatting off (the
+model cannot add layout there, so a cue gate would amount to disabling cleanup
+for people who chose prose-only cleanup). No length exception: I had proposed
+keeping cleanup for long dictations so rambles get paragraphs, but the replay
+showed the model does not paragraph them (over 100 words: unchanged or a single
+word changed), so the exception would only add back the slowest calls.
+Accepted cost: uncued dictations lose occasional comma tweaks and the rare
+garble fix. `bench/parity/parity.sh` pins the pref off so parity still runs the
+model on every line.

@@ -243,6 +243,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var cleanupOnlyWhenNeeded: Bool {
+        didSet {
+            AppPreferences.shared.cleanupOnlyWhenNeeded = cleanupOnlyWhenNeeded
+        }
+    }
+
     @Published var verbatimInAIApps: Bool {
         didSet {
             AppPreferences.shared.verbatimInAIApps = verbatimInAIApps
@@ -420,6 +426,7 @@ class SettingsViewModel: ObservableObject {
         self.numberFormattingStyle = prefs.numberFormattingStyle
         self.smartFormattingEnabled = prefs.smartFormattingEnabled
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
+        self.cleanupOnlyWhenNeeded = prefs.cleanupOnlyWhenNeeded
         self.verbatimInAIApps = prefs.verbatimInAIApps
         self.reviewLongRecordings = prefs.reviewLongRecordings
         self.removeFillerWords = prefs.removeFillerWords
@@ -1399,6 +1406,17 @@ struct SettingsView: View {
                     }
                     .padding(.leading, 16)
                     .frame(minHeight: 24)
+                    if viewModel.smartFormattingEnabled {
+                        HStack(spacing: 8) {
+                            Text("Only when there's something to format")
+                                .scaledFont(size: 12).foregroundColor(STheme.text)
+                            InfoButton(text: "Ordinary sentences are inserted as soon as they're recognized, already punctuated. The cleanup model runs only for emails and messages (a greeting or sign-off), lists, and “new line” or “new paragraph” — so most dictations land faster and are never reworded. Turn off to run cleanup on every dictation. English only; other languages always run cleanup.")
+                            Spacer()
+                            SToggle(isOn: $viewModel.cleanupOnlyWhenNeeded)
+                        }
+                        .padding(.leading, 32)
+                        .frame(minHeight: 24)
+                    }
                     HStack(spacing: 8) {
                         Text("Spoken edits")
                             .scaledFont(size: 12).foregroundColor(STheme.text)
@@ -1426,6 +1444,9 @@ struct SettingsView: View {
                     .padding(.leading, 16)
                     .frame(minHeight: 24)
 
+                    // Whisper only: boosting is a prompt hint there. On Parakeet it cost
+                    // whole sentences, so that engine no longer boosts.
+                    if viewModel.selectedEngine == "whisper" {
                     HStack(spacing: 8) {
                         Text("Boost recognition")
                             .scaledFont(size: 12).foregroundColor(STheme.text)
@@ -1436,6 +1457,7 @@ struct SettingsView: View {
                     }
                     .padding(.leading, 16)
                     .frame(minHeight: 24)
+                    }
 
                     DictionaryBadgeEditor(entries: $viewModel.customDictionaryEntries)
                         .padding(.leading, 16)

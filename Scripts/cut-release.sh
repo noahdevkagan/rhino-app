@@ -99,6 +99,21 @@ if versions and candidate <= max(versions):
     raise SystemExit(f"RELEASE BLOCKED: {sys.argv[1]} must be newer than existing v{latest}")
 PY
 
+# Past this point the gate commits bench records and the bump edits the Xcode
+# project. If anything fails before the push, undo exactly that so a rerun
+# starts clean; a pending CHANGELOG edit stays in the working tree.
+START_HEAD="$(git rev-parse HEAD)"
+pushed=0
+rollback() {
+    local status=$?
+    [ "$status" -ne 0 ] && [ "$pushed" = 0 ] || return 0
+    echo "== release failed; rolling this checkout back to where it started" >&2
+    git tag -d "$TAG" >/dev/null 2>&1 || true
+    git reset -q --mixed "$START_HEAD"
+    git checkout -- OpenSuperWhisper.xcodeproj/project.pbxproj bench/history.jsonl 2>/dev/null || true
+}
+trap rollback EXIT
+
 required_secrets="
 MACOS_CERT_P12_BASE64
 MACOS_CERT_PASSWORD
@@ -149,6 +164,7 @@ echo "== push release commit + tag atomically"
 # all-or-nothing.
 SKIP_GATE=1 git push --atomic origin \
     "HEAD:refs/heads/master" "refs/tags/$TAG"
+pushed=1
 
 if [ "$ci_ready" = "1" ]; then
     echo "== done: $TAG pushed; GitHub Actions is signing and publishing it"

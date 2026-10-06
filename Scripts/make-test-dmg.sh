@@ -92,7 +92,24 @@ echo "== dmg"
 ln -s /Applications "$STAGE/Applications"
 DMG="dist/Rhino-$VERSION-test.dmg"
 rm -f "$DMG"
-hdiutil create -quiet -volname "Rhino" -srcfolder "$STAGE" -format UDZO "$DMG"
+# Not -quiet: that hid the "Operation not permitted" behind the 2026-10-05
+# silent release failures. Retry once for transient "Resource busy" errors.
+dmg_ok=0
+for attempt in 1 2 3; do
+    if hdiutil create -volname "Rhino" -srcfolder "$STAGE" -format UDZO "$DMG"; then
+        dmg_ok=1
+        break
+    fi
+    rm -f "$DMG"
+    echo "   hdiutil create failed (attempt $attempt); retrying" >&2
+    sleep 5
+done
+if [ "$dmg_ok" != 1 ]; then
+    echo "DMG creation failed. If the error above says 'Operation not permitted', macOS is" >&2
+    echo "blocking this terminal from copying an app bundle: enable it under System Settings" >&2
+    echo "→ Privacy & Security → App Management, or release through CI (docs/RELEASING.md)." >&2
+    exit 1
+fi
 codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 
 if [ "${SKIP_NOTARIZE:-0}" != "1" ]; then

@@ -122,7 +122,7 @@ private struct UnlockRhinoView: View {
                      ? "You dictated \(wordsThisWeek.formatted()) words this week, about \(minutesSaved) minutes of typing saved."
                      : "Rhino is free for \(UsageGate.weeklyFreeWords.formatted()) words a week. You've used \(wordsThisWeek.formatted()) this week.")
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Unlimited forever: $20 once, or free when 3 friends join. Otherwise your free words reset Monday.")
+                Text("Unlimited forever: $20 once, or free when \(ReferralLink.friendsNeeded) friends join. Otherwise your free words reset Monday.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {

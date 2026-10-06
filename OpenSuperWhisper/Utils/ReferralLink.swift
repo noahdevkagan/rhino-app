@@ -1,12 +1,12 @@
 import Foundation
 import Security
 
-/// "Invite 3 friends, get Unlimited free." Each install gets a random code; friends who
+/// "Invite 2 friends, get Unlimited free." Each install gets a random code; friends who
 /// click through rhinovoice.app/r/<code> are counted by the website, and the status page
-/// shows the unlock link once three have. The app itself never contacts the site: it
+/// shows the unlock link once two have. The app itself never contacts the site: it
 /// only builds the URLs, and the user opens them in their browser.
 struct ReferralLink {
-    static let friendsNeeded = 3
+    static let friendsNeeded = 2
     static let alphabet = Array("abcdefghijklmnopqrstuvwxyz234567")
     private static let key = "referral.code"
 

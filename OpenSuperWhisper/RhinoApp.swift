@@ -602,7 +602,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         menu.addItem(feedbackItem)
 
         let isUnlocked = MainActor.assumeIsolated { UnlockRhino.shared.gate.isUnlocked }
-        let shareItem = NSMenuItem(title: isUnlocked ? "Share Rhino with friends…" : "Invite 3 friends, get Unlimited free…",
+        let shareItem = NSMenuItem(title: isUnlocked ? "Share Rhino with friends…" : "Invite \(ReferralLink.friendsNeeded) friends, get Unlimited free…",
                                    action: #selector(shareRhino), keyEquivalent: "")
         shareItem.target = self
         menu.addItem(shareItem)

@@ -1869,7 +1869,7 @@ staged version lands on master (MeetMouse's pattern), `cut-release.sh` rolls
 its own leftovers back on failure, `make-test-dmg.sh` shows hdiutil errors and
 retries, and Deploy website skips instead of failing before the DMG exists.
 
-## 2026-10-06 — Referral loop: 3 friends unlock Unlimited
+## 2026-10-06 — Referral loop: 2 friends unlock Unlimited
 
 Noah: "get it free with 3 referrals" yes; keep the AppSumo `rhinofree` coupon
 (he wants AppSumo sales); no auto-popup after 5 dictations. Each install makes
@@ -1877,7 +1877,8 @@ a random 8-char base32 code; the share panel and the paywall send friends to
 rhinovoice.app/r/<code>, which offers AppSumo (coupon) or the free DMG. A
 friend counts when they click either (hash of code+IP+UA, D1 `rhino-referrals`,
 one row per friend), Noah's choice over "download only" or "actually uses it"
-(the latter needs the app online, which breaks zero-cloud). At 3, the status
-page shows the same public unlock link as /thanks. The app never contacts the
+(the latter needs the app online, which breaks zero-cloud). At 2, the status
+page shows the same public unlock link as /thanks. Noah then lowered 3 → 2
+("easy / reasonable") and asked for a standing sidebar card for free users. The app never contacts the
 site; users open the URLs in their browser. Gameable by design: it's a $20
 unlock and the honor-system code is already public.

@@ -29,7 +29,7 @@ export default async function ReferralStatus({ params }: { params: Promise<{ cod
         {done ? (
           <>
             <h1>You unlocked Rhino Unlimited.</h1>
-            <p>Three friends got Rhino through your link. Thank you.</p>
+            <p>{referralsNeeded} friends got Rhino through your link. Thank you.</p>
             <a className="button button-primary" href={`rhinovoice://unlock?code=${unlockCode}`}>
               Unlock Rhino
             </a>

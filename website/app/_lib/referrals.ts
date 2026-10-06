@@ -1,5 +1,5 @@
 /** Friends a referrer needs before their page shows the Unlimited unlock. */
-export const referralsNeeded = 3;
+export const referralsNeeded = 2;
 
 export const appSumoUrl = "https://appsumo.com/products/rhino/";
 export const appSumoCoupon = "rhinofree";

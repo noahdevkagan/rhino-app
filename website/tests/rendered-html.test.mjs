@@ -389,7 +389,7 @@ async function renderWithReferrals(db, path, headers = {}) {
   );
 }
 
-test("referral links count each friend once and unlock at three", async () => {
+test("referral links count each friend once and unlock at two", async () => {
   const db = fakeReferralsDb();
   const landing = await (await renderWithReferrals(db, "/r/abcd2345")).text();
   assert.match(landing, /A friend gave you Rhino/);
@@ -403,12 +403,11 @@ test("referral links count each friend once and unlock at three", async () => {
   // Same friend again: still one.
   await renderWithReferrals(db, "/r/abcd2345/go?to=download", { "cf-connecting-ip": "1.1.1.1" });
   let status = await (await renderWithReferrals(db, "/r/abcd2345/status")).text();
-  assert.match(status, /1<!-- --> of <!-- -->3<!-- --> friends|1 of 3 friends/);
+  assert.match(status, /1<!-- --> of <!-- -->2<!-- --> friends|1 of 2 friends/);
   assert.doesNotMatch(status, /rhinovoice:\/\/unlock/);
 
   const download = await renderWithReferrals(db, "/r/abcd2345/go?to=download", { "cf-connecting-ip": "2.2.2.2" });
   assert.match(download.headers.get("location") ?? "", /Rhino-\d+\.\d+\.\d+\.dmg$/);
-  await renderWithReferrals(db, "/r/abcd2345/go", { "cf-connecting-ip": "3.3.3.3" });
   status = await (await renderWithReferrals(db, "/r/abcd2345/status")).text();
   assert.match(status, /You unlocked Rhino Unlimited/);
   assert.match(status, /href="rhinovoice:\/\/unlock\?code=RHINO-33MY-Q56S"/);

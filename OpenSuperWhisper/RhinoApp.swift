@@ -601,13 +601,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         feedbackItem.target = self
         menu.addItem(feedbackItem)
 
-        let isUnlocked = MainActor.assumeIsolated { UnlockRhino.shared.gate.isUnlocked }
-        let shareItem = NSMenuItem(title: isUnlocked ? "Share Rhino with friends…" : "Invite \(ReferralLink.friendsNeeded) friends, get Unlimited free…",
-                                   action: #selector(shareRhino), keyEquivalent: "")
-        shareItem.target = self
-        menu.addItem(shareItem)
-
-        if !isUnlocked {
+        // One item, not two: free users get the upgrade screen, which offers both $20 and
+        // "invite 2 friends"; unlocked users have nothing to buy, so they get Share.
+        if MainActor.assumeIsolated({ UnlockRhino.shared.gate.isUnlocked }) {
+            let shareItem = NSMenuItem(title: "Share Rhino with friends…",
+                                       action: #selector(shareRhino), keyEquivalent: "")
+            shareItem.target = self
+            menu.addItem(shareItem)
+        } else {
             let unlockItem = NSMenuItem(title: "Get Rhino Unlimited…",
                                         action: #selector(unlockRhino), keyEquivalent: "")
             unlockItem.target = self

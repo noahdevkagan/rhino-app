@@ -49,11 +49,9 @@ final class ShareRhino {
         hosting.sizingOptions = []
         panel.contentViewController = hosting
         panel.setContentSize(NSSize(width: 420, height: 350))
-        if let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main {
-            let frame = screen.visibleFrame
-            panel.setFrameTopLeftPoint(NSPoint(x: frame.maxX - panel.frame.width - 20,
-                                               y: frame.maxY - 20))
-        }
+        // Only ever opened on purpose now (menu, sidebar, paywall), so center it like the
+        // paywall instead of tucking it in a corner the way the old automatic popup did.
+        panel.center()
         // Never activate Rhino or take keyboard focus from the dictation target.
         panel.orderFrontRegardless()
     }

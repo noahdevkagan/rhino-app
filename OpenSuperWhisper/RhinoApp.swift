@@ -609,7 +609,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             shareItem.target = self
             menu.addItem(shareItem)
         } else {
-            let unlockItem = NSMenuItem(title: "Get Rhino Unlimited…",
+            let unlockItem = NSMenuItem(title: "Get Rhino Unlimited for free…",
                                         action: #selector(unlockRhino), keyEquivalent: "")
             unlockItem.target = self
             menu.addItem(unlockItem)

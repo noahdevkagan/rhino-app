@@ -360,3 +360,67 @@ test("page grids can't grow wider than a phone (iOS WebKit overflow)", async () 
   }
 });
 
+
+// In-memory stand-in for the REFERRALS D1 binding: just the statements referrals.ts runs.
+function fakeReferralsDb() {
+  const rows = new Map();
+  const statement = (sql, args = []) => ({
+    bind: (...values) => statement(sql, values),
+    run: async () => {
+      if (sql.startsWith("INSERT OR IGNORE")) {
+        const [code, friend, destination] = args;
+        if (!rows.has(`${code}|${friend}`)) rows.set(`${code}|${friend}`, { code, destination });
+      }
+      return { success: true };
+    },
+    first: async () => ({ n: [...rows.values()].filter((row) => row.code === args[0]).length }),
+  });
+  return { prepare: (sql) => statement(sql), rows };
+}
+
+async function renderWithReferrals(db, path, headers = {}) {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${path}-${Math.random()}`);
+  const { default: worker } = await import(workerUrl.href);
+  return worker.fetch(
+    new Request(new URL(path, "https://rhinovoice.app"), { headers: { accept: "text/html", ...headers } }),
+    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) }, REFERRALS: db },
+    { waitUntil() {}, passThroughOnException() {} },
+  );
+}
+
+test("referral links count each friend once and unlock at three", async () => {
+  const db = fakeReferralsDb();
+  const landing = await (await renderWithReferrals(db, "/r/abcd2345")).text();
+  assert.match(landing, /A friend gave you Rhino/);
+  assert.match(landing, /href="\/r\/abcd2345\/go\?to=appsumo"/);
+  assert.match(landing, /rhinofree/);
+  assert.match(landing, /name="robots" content="noindex, nofollow"/i);
+
+  const go = await renderWithReferrals(db, "/r/abcd2345/go?to=appsumo", { "cf-connecting-ip": "1.1.1.1" });
+  assert.equal(go.status, 302);
+  assert.equal(go.headers.get("location"), "https://appsumo.com/products/rhino/");
+  // Same friend again: still one.
+  await renderWithReferrals(db, "/r/abcd2345/go?to=download", { "cf-connecting-ip": "1.1.1.1" });
+  let status = await (await renderWithReferrals(db, "/r/abcd2345/status")).text();
+  assert.match(status, /1<!-- --> of <!-- -->3<!-- --> friends|1 of 3 friends/);
+  assert.doesNotMatch(status, /rhinovoice:\/\/unlock/);
+
+  const download = await renderWithReferrals(db, "/r/abcd2345/go?to=download", { "cf-connecting-ip": "2.2.2.2" });
+  assert.match(download.headers.get("location") ?? "", /Rhino-\d+\.\d+\.\d+\.dmg$/);
+  await renderWithReferrals(db, "/r/abcd2345/go", { "cf-connecting-ip": "3.3.3.3" });
+  status = await (await renderWithReferrals(db, "/r/abcd2345/status")).text();
+  assert.match(status, /You unlocked Rhino Unlimited/);
+  assert.match(status, /href="rhinovoice:\/\/unlock\?code=RHINO-33MY-Q56S"/);
+
+  // Another referrer's count is separate, and malformed codes are 404s.
+  assert.doesNotMatch(await (await renderWithReferrals(db, "/r/zzzz2345/status")).text(), /unlocked/);
+  assert.equal((await renderWithReferrals(db, "/r/NOT-VALID")).status, 404);
+});
+
+test("a referral click still redirects when the database is down", async () => {
+  const broken = { prepare: () => { throw new Error("D1 down"); } };
+  const go = await renderWithReferrals(broken, "/r/abcd2345/go?to=download", { "cf-connecting-ip": "4.4.4.4" });
+  assert.equal(go.status, 302);
+  assert.match(go.headers.get("location") ?? "", /\.dmg$/);
+});

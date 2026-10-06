@@ -6,7 +6,7 @@ import SwiftUI
 final class UnlockRhino {
     static let shared = UnlockRhino()
     static let buyURL = URL(string: "https://rhinovoice.app/#buy")!
-    static let panelSize = NSSize(width: 420, height: 320)
+    static let panelSize = NSSize(width: 420, height: 360)
 
     private var panel: NSPanel?
     private lazy var appSumoHashes = UsageGate.loadAppSumoHashes()
@@ -75,6 +75,10 @@ final class UnlockRhino {
             wordsThisWeek: gate.wordsThisWeek,
             isUnlocked: gate.isUnlocked,
             unlock: { [weak self] code in self?.unlock(code: code) ?? false },
+            invite: { [weak panel] in
+                panel?.orderOut(nil)
+                ShareRhino.shared.show()
+            },
             dismiss: { [weak panel] in panel?.orderOut(nil) }))
         hosting.sizingOptions = []
         panel.contentViewController = hosting
@@ -94,6 +98,7 @@ private struct UnlockRhinoView: View {
     let wordsThisWeek: Int
     let isUnlocked: Bool
     let unlock: (String) -> Bool
+    let invite: () -> Void
     let dismiss: () -> Void
 
     @State private var code = ""
@@ -117,7 +122,7 @@ private struct UnlockRhinoView: View {
                      ? "You dictated \(wordsThisWeek.formatted()) words this week, about \(minutesSaved) minutes of typing saved."
                      : "Rhino is free for \(UsageGate.weeklyFreeWords.formatted()) words a week. You've used \(wordsThisWeek.formatted()) this week.")
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Unlimited forever: $20 once. Otherwise your free words reset Monday.")
+                Text("Unlimited forever: $20 once, or free when 3 friends join. Otherwise your free words reset Monday.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {
@@ -129,6 +134,11 @@ private struct UnlockRhinoView: View {
                         .padding(.vertical, 9)
                 }
                 .buttonStyle(PrimaryPillStyle())
+                Button(action: invite) {
+                    Text("Or invite \(ReferralLink.friendsNeeded) friends and get it free")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Already bought it, or have an AppSumo code?")

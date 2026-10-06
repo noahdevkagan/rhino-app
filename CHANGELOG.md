@@ -3,6 +3,15 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- Get Rhino Unlimited free by inviting 3 friends. Choose "Invite 3 friends,
+  get Unlimited free" in the menu bar, or from the screen you see when your
+  free words run out, and send your personal link. When 3 friends get Rhino
+  through it, your invite page gives you a one-click unlock. Friends can get
+  Rhino free on AppSumo or download the free version.
+- The share popup no longer appears on its own after a few dictations.
+
 ## 0.1.34 — 2026-10-05
 
 - Faster dictation with cleanup on: ordinary sentences are now inserted as soon

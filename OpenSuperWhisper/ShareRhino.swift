@@ -5,50 +5,28 @@ import SwiftUI
 final class ShareRhino {
     static let shared = ShareRhino()
 
-    // User-provided AppSumo offer. Copying never opens a connection; recipients
-    // apply the coupon at checkout in their browser.
-    static let downloadLink = "https://appsumo.com/products/rhino/"
-    static let couponCode = "rhinofree"
-    static let linkAndCode = "\(downloadLink)\nUse coupon \(couponCode) at checkout to get Rhino for free."
-    static let invitation = """
-    I've been using Rhino Voice to dictate on my Mac, and I can share it with you for free.
-    It turns speech into text and processes everything on your Mac.
+    /// The invite goes to rhinovoice.app/r/<code>, which offers friends Rhino free on
+    /// AppSumo (coupon rhinofree) or the free download, and counts them toward this
+    /// user's 3-friend unlock. Copying never opens a connection.
+    static var link: ReferralLink { ReferralLink(defaults: DefaultsStore.current) }
+    static func invitation(_ url: URL) -> String {
+        """
+        I've been using Rhino Voice to dictate on my Mac and I can give it to you free.
+        Hold a key, talk, and it types for you in any app. Everything runs on your Mac.
 
-    Get Rhino free on AppSumo:
-    \(linkAndCode)
+        Get it here: \(url.absoluteString)
 
-    Requires an Apple silicon Mac with macOS 14 or later. After checkout, follow the redemption instructions in your AppSumo account.
-    """
-
-    private var panel: NSPanel?
-    private var pendingPrompt: Task<Void, Never>?
-    private var policy: SharePromptPolicy { SharePromptPolicy(defaults: DefaultsStore.current) }
-
-    func recordSuccessfulDictation() {
-        guard AppPreferences.shared.hasCompletedOnboarding else { return }
-        policy.recordSuccessfulDictation()
-        guard policy.isEligible else { return }
-        pendingPrompt?.cancel()
-        pendingPrompt = Task { [weak self] in
-            // Give insertion/clipboard restoration time to settle. If the user
-            // starts another take, retry after a later successful dictation.
-            do { try await Task.sleep(nanoseconds: 3_000_000_000) }
-            catch { return }
-            guard let self, self.policy.isEligible,
-                  !DictationPipeline.shared.isProcessing,
-                  IndicatorWindowManager.shared.viewModel == nil else { return }
-            self.show()
-        }
+        Needs an Apple silicon Mac with macOS 14 or later.
+        """
     }
 
+    private var panel: NSPanel?
+
     func dismissForRecording() {
-        pendingPrompt?.cancel()
         panel?.orderOut(nil)
     }
 
     func show() {
-        pendingPrompt?.cancel()
-        policy.markPresented()
         if panel == nil {
             let panel = NSPanel(
                 contentRect: NSRect(x: 0, y: 0, width: 420, height: 350),
@@ -64,9 +42,10 @@ final class ShareRhino {
         }
         guard let panel else { return }
         // Reset the copied state every time the menu item opens this panel.
-        let hosting = NSHostingController(rootView: ShareRhinoView { [weak panel] in
-            panel?.orderOut(nil)
-        })
+        let hosting = NSHostingController(rootView: ShareRhinoView(
+            link: Self.link,
+            isUnlocked: UnlockRhino.shared.gate.isUnlocked,
+            dismiss: { [weak panel] in panel?.orderOut(nil) }))
         hosting.sizingOptions = []
         panel.contentViewController = hosting
         panel.setContentSize(NSSize(width: 420, height: 350))
@@ -81,49 +60,50 @@ final class ShareRhino {
 }
 
 private struct ShareRhinoView: View {
+    let link: ReferralLink
+    let isUnlocked: Bool
     let dismiss: () -> Void
     @State private var copied = false
     @State private var linkCopied = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Happy Rhino Day! 🦏")
+            Text(isUnlocked ? "Share Rhino 🦏" : "Get Rhino Unlimited free 🦏")
                 .font(.title2.bold())
-            Text("Give 3 friends Rhino Voice for free.")
-                .font(.headline)
-            Text("Send them this AppSumo link and coupon.")
+            Text(isUnlocked
+                 ? "Send friends your link. They can get Rhino free."
+                 : "Invite \(ReferralLink.friendsNeeded) friends. When \(ReferralLink.friendsNeeded) get Rhino through your link, Unlimited is yours, free.")
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 8) {
-                Text("AppSumo link")
+                Text("Your link")
                     .font(.caption).foregroundStyle(.secondary)
-                Text(ShareRhino.downloadLink)
-                    .font(.system(size: 12, design: .monospaced))
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 HStack {
-                    Text("Coupon: \(ShareRhino.couponCode)")
+                    Text(link.inviteURL.absoluteString)
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .textSelection(.enabled)
                     Spacer()
-                    Button(linkCopied ? "Copied!" : "Copy link + code") {
-                        ClipboardUtil.copyToClipboard(ShareRhino.linkAndCode)
+                    Button(linkCopied ? "Copied!" : "Copy link") {
+                        ClipboardUtil.copyToClipboard(link.inviteURL.absoluteString)
                         linkCopied = true
                         copied = false
                     }
                 }
-                Text("Apply the coupon at checkout.")
+                Text("Friends get Rhino free on AppSumo, or the free download.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.secondary.opacity(0.2)))
+            if !isUnlocked {
+                Button("See how many friends joined") { NSWorkspace.shared.open(link.statusURL) }
+                    .buttonStyle(.link)
+            }
             Spacer(minLength: 0)
             HStack {
                 Button("Close", action: dismiss)
                 Spacer()
                 Button(copied ? "Invitation copied" : "Copy invitation") {
-                    ClipboardUtil.copyToClipboard(ShareRhino.invitation)
+                    ClipboardUtil.copyToClipboard(ShareRhino.invitation(link.inviteURL))
                     copied = true
                     linkCopied = false
                 }

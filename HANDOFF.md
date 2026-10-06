@@ -7,6 +7,50 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Dictation bubble entrance (2026-10-06, bissau — implemented)
+
+Follow-up: Noah saw the overlay only inside Rhino after permissions were granted.
+Deferred reveal now uses `orderFrontRegardless()` so another app can keep focus;
+diagnostic marker records reveal visibility/geometry. All 26 focused tests pass,
+including inactive-app visibility and no activation/key-window takeover. Re-signed,
+quit via app menu and relaunched dev copy (PID 24435). Permission banner is gone
+after reopening microphone permission setup. Awaiting Noah's live Fn-in-Slack
+check; tests alone do not distinguish window ordering from the pre-restart event
+listener's cached permission state. Logs: `.context/launch-check/background-*`.
+
+Latest: Noah confirmed NO response to Fn outside Rhino. TCC was rejecting the
+dev signature for `kTCCServiceListenEvent`: the stored grant trusted the release.
+On his explicit approval, reset only Rhino's ListenEvent grant with `tccutil`,
+re-added this workspace's exact dev app through System Settings, and restarted
+it. Adding over the existing entry had preserved the stale grant; Settings'
+Quit & Reopen also reopened /Applications, so quit that copy and relaunch the
+dev path explicitly. Dev PID 35869 now has VERIFIED TCC grants for microphone,
+Input Monitoring and Accessibility (`input-monitoring-fixed.log`). No event-tap
+code workaround or extra testing/rebuild needed. Ready for his live Fn check.
+Evidence: `.context/launch-check/tcc-listener.log`, `fn-listener.log`,
+`input-monitoring-fixed.log`. Unsigned XCTest hosts temporarily replace the
+microphone code requirement; avoid another test-host run during his live check.
+
+Noah's MP4 shows hotkey invocation: the bubble flashes wide/grey, then shrinks.
+The host now starts in the intended state, with the current app icon, and is
+created/measured offscreen immediately before reveal. Cursor mode waits at most
+100 ms for the background caret lookup (mic startup never waits); late replies
+keep the mouse fallback instead of moving a visible bubble. Pending presentation,
+resize callbacks and hide work are guarded against cancel/replacement. Empty
+hosting sizing options and manual non-animated window sizing remain intact.
+
+Validation: app builds; all 25 focused Xcode tests pass, including eight real
+panel lifecycle cases and the existing layout/recursion guards. Normal and
+scaled-with-controls render snapshots visually checked. Static privacy hygiene
+passes (dynamic egress not run). Tests caught hidden-host missing geometry
+callbacks and cached pre-change sizes; explicit fitting measurement and deferring
+host creation until reveal fix both. Evidence: `.context/launch-check/`.
+Dev app re-signed and launched on Noah's request; verified this workspace's
+Rhino process is running. Initial Fn check was blocked by TCC's Accessibility
+denial despite an enabled Rhino entry; Noah granted it and the app's logs confirm
+the grant at 13:40. See cross-app follow-up above. No install, release, commit or
+push performed.
+
 ### Speed + accuracy audit #3 and fixes (2026-10-05, reykjavik workspace)
 
 Audit: `docs/performance-audit-2026-10-05.md`. 85 real history clips replayed through

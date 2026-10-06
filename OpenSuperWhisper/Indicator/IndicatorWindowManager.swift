@@ -26,6 +26,15 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     private var resizeObserver: NSObjectProtocol?
     private var drainObserver: AnyCancellable?
 
+    // Lay out offscreen, then reveal once at the chosen anchor. Cursor mode gives the
+    // background AX query a short head start, never delaying the microphone. Once the
+    // bubble is visible, a late AX reply must not teleport it away from the mouse.
+    static let caretPresentationDelay: Duration = .milliseconds(100)
+    private var presentationTask: Task<Void, Never>?
+    private var presentationPending = false
+    private var awaitingCaret = false
+    private var preparePresentation: (() -> Void)?
+
     /// In the `.decoding` state the bubble's only exit is the pipeline draining — and
     /// `DictationPipeline` awaits the engine with no timeout, so a hung (non-throwing)
     /// transcription used to strand the bubble on screen until the app was quit
@@ -38,8 +47,17 @@ class IndicatorWindowManager: IndicatorViewDelegate {
 
     private init() {}
     
-    func show(nearPoint point: NSPoint? = nil) -> IndicatorViewModel {
+    func show(nearPoint point: NSPoint? = nil,
+              initialState: RecordingState = .recording,
+              waitForCaret: Bool = false) -> IndicatorViewModel {
         ShareRhino.shared.dismissForRecording()
+
+        presentationTask?.cancel()
+        presentationTask = nil
+        presentationPending = false
+        preparePresentation = nil
+        awaitingCaret = waitForCaret
+        window?.orderOut(nil)
 
         KeyboardShortcuts.enable(.escape)
 
@@ -52,6 +70,9 @@ class IndicatorWindowManager: IndicatorViewDelegate {
 
         // Create new view model
         let newViewModel = IndicatorViewModel()
+        // Hosting can perform its first layout before show() returns. Starting at
+        // .idle exposed a blank 200pt pill, then animated it down to the recording size.
+        newViewModel.state = initialState
         newViewModel.delegate = self
         viewModel = newViewModel
         
@@ -82,29 +103,6 @@ class IndicatorWindowManager: IndicatorViewDelegate {
             self.window = panel
         }
         
-        // Host the SwiftUI content and size the window to it *ourselves* (see `resizeToContent`).
-        // We deliberately do NOT use `sizingOptions = [.preferredContentSize]`: that auto-resize
-        // runs animated on macOS 26 (NSHostingView.updateAnimatedWindowSize) and recurses into
-        // layout until the main-thread stack overflows — the #11/#15/#19 crash.
-        let hostingController = NSHostingController(
-            rootView: IndicatorWindow(viewModel: newViewModel) { [weak self] size in
-                self?.resizeToContent(size)
-            }
-            // Read once per presentation rather than observed: the bubble is short-lived, and a
-            // size change mid-recording would resize the window under the user (#80).
-            .environment(\.appTextScale, AppPreferences.shared.textScale)
-        )
-        hostingController.sizingOptions = Self.hostingSizingOptions
-        window?.contentViewController = hostingController
-        // Assigning a hosting controller with empty sizingOptions as the contentViewController
-        // can leave the panel at 0×0 (seen on macOS 26; users reported it on macOS 15.7.x too):
-        // SwiftUI then lays out in a 0×0 canvas, the content preference reports 0×0, and
-        // `resizeToContent`'s `> 1` guard discards it — so the window stays 0×0 and the indicator
-        // never appears in ANY position mode (#indicator-invisible). Seed a non-zero canvas
-        // (non-animated, so no NSHostingView recursion-crash risk) so SwiftUI can lay out and
-        // size the window.
-        window?.setContentSize(NSSize(width: 380, height: 120))
-
         // Accept clicks only when the stored layout shows an on-bubble button (so it's
         // tappable); otherwise stay fully click-through (baseline). Re-evaluated each show().
         window?.ignoresMouseEvents = IndicatorLayout
@@ -165,8 +163,57 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         window?.level = .screenSaver
         window?.collectionBehavior = [.fullScreenAuxiliary, .stationary, .canJoinAllSpaces, .ignoresCycle]
 
-        window?.orderFront(nil)
+        // Build the host at reveal time: the mic may enter Connecting (or an error)
+        // while AX is outstanding. A prebuilt host can cache the old state's size,
+        // even when asked for sizeThatFits immediately after that state changes.
+        preparePresentation = { [weak self, weak newViewModel] in
+            guard let self, let newViewModel, self.viewModel === newViewModel else { return }
+            let hostingController = NSHostingController(
+                rootView: IndicatorWindow(viewModel: newViewModel) { [weak self, weak newViewModel] size in
+                    guard let self, let newViewModel, self.viewModel === newViewModel else { return }
+                    self.resizeToContent(size)
+                }
+                // Read once per presentation, so a settings change cannot resize a live pill (#80).
+                .environment(\.appTextScale, AppPreferences.shared.textScale)
+            )
+            // NEVER use .preferredContentSize: its animated auto-resize recurses into
+            // layout on macOS 26 and overflows the stack (#11/#15/#19).
+            hostingController.sizingOptions = Self.hostingSizingOptions
+            self.window?.contentViewController = hostingController
+            // Empty sizingOptions can leave a new host at 0×0 on macOS 15/26.
+            // Seed a nonzero canvas, still hidden, so the content can lay out.
+            self.window?.setContentSize(NSSize(width: 380, height: 120))
+            // Hidden hosts need not publish geometry preferences (macOS 15). Explicit
+            // measurement sizes the first frame; preferences handle later updates.
+            self.resizeToContent(hostingController.sizeThatFits(in: NSSize(width: 380, height: 120)))
+            hostingController.view.layoutSubtreeIfNeeded()
+        }
+        presentationPending = true
+        presentIfReady()
+        if awaitingCaret {
+            presentationTask = Task { [weak self, weak newViewModel] in
+                try? await Task.sleep(for: Self.caretPresentationDelay)
+                guard !Task.isCancelled, let self, let newViewModel,
+                      self.viewModel === newViewModel else { return }
+                self.awaitingCaret = false
+                self.presentIfReady()
+            }
+        }
         return newViewModel
+    }
+
+    private func presentIfReady() {
+        guard presentationPending, !awaitingCaret,
+              let window, let viewModel else { return }
+        presentationPending = false
+        preparePresentation?()
+        preparePresentation = nil
+        // Fn is normally pressed while another app owns the key window. The
+        // conditional orderFront can leave this deferred presentation behind it;
+        // orderFrontRegardless raises only the panel, without taking keyboard focus.
+        window.orderFrontRegardless()
+        viewModel.isVisible = true
+        Diag.mark("indicator presented (appActive=\(NSApp.isActive), visible=\(window.isVisible), frame=\(window.frame))")
     }
 
     /// Sizes the indicator window to its SwiftUI content, *non-animated*. This replaces
@@ -185,17 +232,25 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         }
     }
 
-    /// A delayed AX reply must never move a replacement or already-stopped bubble.
-    func updateCaretAnchor(_ caret: CGRect, for recording: IndicatorViewModel) {
+    /// Finish the startup lookup, including a failed lookup (use the mouse fallback).
+    /// A delayed AX reply must never move a visible, replacement or stopped bubble.
+    func updateCaretAnchor(_ caret: CGRect?, for recording: IndicatorViewModel) {
         guard viewModel === recording,
+              presentationPending, awaitingCaret,
               recording.state == .recording || recording.state == .connecting,
-              AppPreferences.shared.indicatorPosition == "cursor",
               let window else { return }
-        let point = FocusUtils.convertAXPointToCocoa(caret.origin)
-        guard let screen = FocusUtils.screenContaining(point: point) else { return }
-        anchorCenterX = point.x
-        anchorBottomY = point.y + 20
-        reposition(window: window, screen: screen)
+        if AppPreferences.shared.indicatorPosition == "cursor", let caret {
+            let point = FocusUtils.convertAXPointToCocoa(caret.origin)
+            if let screen = FocusUtils.screenContaining(point: point) {
+                anchorCenterX = point.x
+                anchorBottomY = point.y + 20
+                reposition(window: window, screen: screen)
+            }
+        }
+        presentationTask?.cancel()
+        presentationTask = nil
+        awaitingCaret = false
+        presentIfReady()
     }
 
     private func reposition(window: NSWindow, screen: NSScreen) {
@@ -231,7 +286,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         if let current = viewModel, current.state == .recording || current.state == .connecting {
             return
         }
-        let vm = show(nearPoint: FocusUtils.getCurrentCursorPosition())
+        let vm = show(nearPoint: FocusUtils.getCurrentCursorPosition(), initialState: state)
         switch state {
         case .error(let message): vm.showError(message)
         case .info(let message): vm.showInfo(message)
@@ -284,14 +339,21 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     }
 
     func hide() {
+        presentationTask?.cancel()
+        presentationTask = nil
+        presentationPending = false
+        awaitingCaret = false
+        preparePresentation = nil
         KeyboardShortcuts.disable(.escape)
         drainObserver?.cancel()
         drainObserver = nil
         decodeWatchdog?.cancel()
         decodeWatchdog = nil
 
+        let hidingViewModel = viewModel
         Task {
-            if let viewModel = self.viewModel {
+            guard self.viewModel === hidingViewModel else { return }
+            if let viewModel = hidingViewModel {
                 await viewModel.hideWithAnimation()
                 viewModel.cleanup()
 
@@ -305,8 +367,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
             // No `else return`: with no view model at all (never true in the normal flow) the
             // panel is an orphan, and tearing it down is exactly what's needed.
 
-            self.window?.contentView = nil
             self.window?.orderOut(nil)
+            self.window?.contentViewController = nil
             self.viewModel = nil
 
             NotificationCenter.default.post(name: .indicatorWindowDidHide, object: nil)

@@ -171,20 +171,24 @@ class ShortcutManager {
                 Diag.mark("keyDown → start recording")
                 let cursorPosition = FocusUtils.getCurrentCursorPosition()
                 let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+                let needsCaret = FocusUtils.shouldAnchorToCaret(
+                    indicatorPosition: AppPreferences.shared.indicatorPosition) && processID != nil
+                // The first hosted frame needs the current app's icon, too.
+                // Optional title metadata stays on RecordingContext's worker queue.
+                RecordingContext.shared.captureFrontmost()
                 let vm = Diag.measure("IndicatorWindowManager.show") {
-                    IndicatorWindowManager.shared.show(nearPoint: cursorPosition)
+                    IndicatorWindowManager.shared.show(nearPoint: cursorPosition, waitForCaret: needsCaret)
                 }
                 Diag.measure("vm.startRecording") { vm.startRecording() }
                 self.activeVm = vm
                 self.lockedOn = false
-                // Start at the mouse immediately, then refine the anchor without
-                // waiting for another app's Accessibility server before recording.
-                if FocusUtils.shouldAnchorToCaret(indicatorPosition: AppPreferences.shared.indicatorPosition),
-                   let processID {
+                // The mic is already starting. Resolve placement in the background;
+                // the manager briefly holds the bubble offscreen, then keeps its anchor.
+                if needsCaret, let processID {
                     self.caretQueue.async {
                         let caret = FocusUtils.getCaretRect(processID: processID)
                         DispatchQueue.main.async { [weak self, weak vm] in
-                            guard let vm, self?.activeVm === vm, let caret else { return }
+                            guard let vm, self?.activeVm === vm else { return }
                             IndicatorWindowManager.shared.updateCaretAnchor(caret, for: vm)
                         }
                     }

@@ -128,11 +128,6 @@ class IndicatorViewModel: ObservableObject {
             return
         }
 
-        // Capture where the dictation is happening (frontmost app, window title) before
-        // recording. App identity is captured now; optional window-title IPC runs
-        // in the background so an unresponsive target cannot delay the microphone.
-        RecordingContext.shared.captureFrontmost()
-
         // Show recording immediately and optimistically. Whether the mic needs a
         // connection is decided off the main thread inside `recorder.startRecording()`
         // (it runs on the recorder's serial queue — AVFoundation/CoreAudio can stall);
@@ -678,9 +673,6 @@ struct IndicatorWindow: View {
         .onPreferenceChange(IndicatorContentSizeKey.self) { size in
             onContentResize(size)
         }
-        .onAppear {
-            viewModel.isVisible = true
-        }
     }
 }
 
@@ -705,6 +697,11 @@ struct IndicatorWindowPreview: View {
         .padding()
         .frame(height: 200)
         .background(Color(.windowBackgroundColor))
+        .onAppear {
+            recordingVM.state = .recording
+            recordingVM.isVisible = true
+            decodingVM.isVisible = true
+        }
     }
 }
 

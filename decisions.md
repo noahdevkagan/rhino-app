@@ -1882,3 +1882,29 @@ page shows the same public unlock link as /thanks. Noah then lowered 3 → 2
 ("easy / reasonable") and asked for a standing sidebar card for free users. The app never contacts the
 site; users open the URLs in their browser. Gameable by design: it's a $20
 unlock and the honor-system code is already public.
+
+## 2026-10-06 — Prepare the dictation bubble before revealing it
+
+Noah's recording shows the hotkey bubble opening as a wide grey bar, then
+shrinking into the compact pill. `show()` hosted the `.idle` view (200pt wide)
+and ordered a seeded 380×120 panel onscreen before `startRecording()` changed
+its contents. Start with the intended state and current app icon, explicitly
+measure the hidden host with `sizeThatFits`, then reveal it. Geometry preferences
+alone do not fire for an ordered-out host on macOS 15. Manual, non-animated
+window sizing and empty hosting sizing options remain the crash guard.
+
+Revises the 2026-09-17 placement choice: cursor mode gives the background caret
+lookup up to 100 ms before revealing the bubble at the caret or mouse fallback.
+The microphone starts without waiting. After reveal the anchor stays put; slow
+AX replies are ignored rather than moving an already-visible bubble. Non-cursor
+modes, previews and status flashes have no caret delay. Replacement/cancel
+invalidates pending presentation, stale resize callbacks and old hide work.
+
+Follow-up: Noah saw the dev overlay only over Rhino after granting Accessibility.
+Use `orderFrontRegardless()` for the deferred reveal: AppKit explicitly supports
+showing a helper window over another active app without changing its key/main
+window, whereas `orderFront` is conditional on activation. Keep the nonactivating
+panel and its screen-saver level/space behavior. Add an inactive-app presentation
+test and a diagnostic marker for actual reveal state/geometry. Relaunch the dev
+app after the permission grant too; a live Slack hotkey check remains necessary
+to distinguish the old listener's permission state from window ordering.

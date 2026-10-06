@@ -244,9 +244,6 @@ final class DictationPipeline: ObservableObject {
                 break
             }
 
-            if outcome == .inserted {
-                ShareRhino.shared.recordSuccessfulDictation()
-            }
             if hasText {
                 UnlockRhino.shared.record(text: text)
             }

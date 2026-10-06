@@ -72,6 +72,8 @@ struct MainSidebar: View {
 
             Spacer()
 
+            InviteSidebarCard()
+
             // Quiet warm-up pill: the engine preloads at launch so the first
             // dictation is instant; this is the only place that says so.
             if transcriptionService.isLoading {

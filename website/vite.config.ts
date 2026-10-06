@@ -14,15 +14,23 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
-  d1_databases: d1
-    ? [
-        {
-          binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
-        },
-      ]
-    : [],
+  d1_databases: [
+    // Referral counts for "invite 3 friends, get Unlimited" (app/_lib/referrals.ts).
+    {
+      binding: "REFERRALS",
+      database_name: "rhino-referrals",
+      database_id: "2f1230aa-d4f9-4cd5-bcf0-e1eb6924bb1d",
+    },
+    ...(d1
+      ? [
+          {
+            binding: d1,
+            database_name: "site-creator-d1",
+            database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          },
+        ]
+      : []),
+  ],
   r2_buckets: r2
     ? [
         {

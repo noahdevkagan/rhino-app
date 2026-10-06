@@ -9,6 +9,14 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.35",
+    date: "October 6, 2026",
+    changes: [
+      "Get Rhino Unlimited free by inviting 2 friends. Click Get Unlimited free in the sidebar or Get Rhino Unlimited for free in the menu bar (also offered when your free words run out), and send your personal link. When 2 friends get Rhino through it, your invite page gives you a one-click unlock. Friends can get Rhino free on AppSumo or download the free version.",
+      "The share popup no longer appears on its own after a few dictations.",
+    ],
+  },
+  {
     version: "0.1.34",
     date: "October 5, 2026",
     changes: [

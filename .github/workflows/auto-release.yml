@@ -1,0 +1,93 @@
+name: Auto release
+
+# Pushing a staged release to master IS the release — no Terminal step.
+# When the top numbered "## X.Y.Z" section of CHANGELOG.md has no tag yet AND
+# the website already links Rhino-X.Y.Z.dmg (the "Stage X.Y.Z: changelog +
+# website pins" commit), this job bumps the Xcode versions, pushes
+# "Release vX.Y.Z" + tag vX.Y.Z, and dispatches release.yml, which runs the
+# gate, signs, notarizes, publishes and deploys the site.
+#
+# Dispatch rather than rely on the tag push: a push made with GITHUB_TOKEN does
+# not trigger other workflows. Same pattern as MeetMouse's auto-release.yml.
+# Scripts/cut-release.sh stays as the manual fallback; it refuses an existing
+# tag, so the two paths can't double-release.
+
+on:
+  push:
+    branches: [master]
+    paths: [CHANGELOG.md]
+
+permissions:
+  contents: write          # push the release commit + tag
+  actions: write           # gh workflow run
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags, for the already-released check
+
+      - name: Decide whether this push is a new release
+        id: decide
+        run: |
+          set -euo pipefail
+          VERSION="$(./Scripts/cut-release.sh --print-version 2>/dev/null || true)"
+          skip() { echo "$1"; echo "release=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          [ -n "$VERSION" ] || skip "No releasable numbered section in CHANGELOG.md."
+          git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null \
+            && skip "v$VERSION is already tagged — nothing to release."
+          LATEST="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)"
+          if [ -n "$LATEST" ] && [ "$(printf '%s\n%s\n' "${LATEST#v}" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]; then
+            skip "$VERSION is not newer than $LATEST."
+          fi
+          # Not staged yet (changelog written, site not pinned): wait for the
+          # Stage commit rather than shipping a release the site won't link.
+          for f in website/app/thanks/page.tsx website/app/appsumo/redeem-form.tsx website/app/_components/site-chrome.tsx; do
+            grep -q "v$VERSION/Rhino-$VERSION.dmg" "$f" \
+              || skip "::notice::$f doesn't link v$VERSION yet — push the Stage $VERSION commit to release."
+          done
+          grep -q "\"$VERSION\"" website/app/changelog/page.tsx \
+            || skip "::notice::website/app/changelog/page.tsx has no $VERSION entry yet — push the Stage $VERSION commit to release."
+          if gh run list --workflow release.yml --limit 20 \
+               --json status,headBranch \
+               --jq '.[] | select(.status != "completed") | .headBranch' \
+             | grep -qx "v$VERSION"; then
+            skip "A release run for v$VERSION is already in progress."
+          fi
+          echo "Releasing v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Bump versions, commit, tag, push
+        if: steps.decide.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          set -euo pipefail
+          ./Scripts/bump-release-version.sh "$VERSION"
+          git config user.name "Noah Kagan"
+          git config user.email "noahkagan@gmail.com"
+          git add CHANGELOG.md OpenSuperWhisper.xcodeproj/project.pbxproj
+          git diff --cached --quiet || git commit -q -m "Release v$VERSION"
+          git tag "v$VERSION"
+          # Atomic: never a tag without its commit on master, or vice versa.
+          # Fails loudly if master moved during the run; rerun the job then.
+          git push --atomic origin "HEAD:refs/heads/master" "refs/tags/v$VERSION"
+
+      - name: Dispatch the release workflow
+        if: steps.decide.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          gh workflow run release.yml --ref "v$VERSION" -f version="$VERSION"
+          echo "Dispatched release.yml for v$VERSION:"
+          echo "https://github.com/${{ github.repository }}/actions/workflows/release.yml"

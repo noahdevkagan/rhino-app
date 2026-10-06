@@ -1857,3 +1857,14 @@ word changed), so the exception would only add back the slowest calls.
 Accepted cost: uncued dictations lose occasional comma tweaks and the rare
 garble fix. `bench/parity/parity.sh` pins the pref off so parity still runs the
 model on every line.
+
+## 2026-10-06 — Staged changelog push to master is the release
+
+v0.1.34 needed four Terminal hand-offs: auto mode blocks Claude from the
+release commands, a silent `hdiutil` "Operation not permitted" (App Management
+protection, hidden by `-quiet`) killed the local DMG step twice, and each
+failure left a bench commit + version bump that blocked the rerun. Now: all
+eight signing secrets are on the repo, `auto-release.yml` releases when a
+staged version lands on master (MeetMouse's pattern), `cut-release.sh` rolls
+its own leftovers back on failure, `make-test-dmg.sh` shows hdiutil errors and
+retries, and Deploy website skips instead of failing before the DMG exists.

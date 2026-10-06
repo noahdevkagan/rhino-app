@@ -45,8 +45,10 @@ jobs:
 
       # A "Stage X.Y.Z" commit pins the site to a DMG before the release
       # publishes it. Deploying in that window would hand buyers a 404, so
-      # refuse until the pinned DMG actually exists.
+      # skip until the pinned DMG exists. Skip, not fail: the release itself
+      # deploys the site once the DMG is up, so a red run here was only noise.
       - name: Check the pinned DMG is published
+        id: pin
         run: |
           set -euo pipefail
           url=$(grep -o 'https://github.com/noahdevkagan/rhino-releases/releases/download/[^"]*\.dmg' website/app/thanks/page.tsx | head -1)
@@ -56,10 +58,16 @@ jobs:
           grep -qF "$url" website/app/_components/site-chrome.tsx \
             || { echo "::error::thanks page and site-chrome downloadUrl link different DMGs"; exit 1; }
           code=$(curl -sIL -o /dev/null -w '%{http_code}' "$url")
-          [ "$code" = 200 ] || { echo "::error::$url returns $code — release not published yet, not deploying"; exit 1; }
+          if [ "$code" != 200 ]; then
+            echo "::notice::$url returns $code — release not published yet; skipping. The release workflow deploys the site when it publishes."
+            echo "live=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "live=true" >> "$GITHUB_OUTPUT"
           echo "DMG live: $url"
 
       - name: Build, test and deploy
+        if: steps.pin.outputs.live == 'true'
         working-directory: website
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -71,6 +79,7 @@ jobs:
           npx wrangler deploy -c dist/server/wrangler.json
 
       - name: Verify the live site
+        if: steps.pin.outputs.live == 'true'
         run: |
           set -euo pipefail
           for _ in $(seq 1 12); do

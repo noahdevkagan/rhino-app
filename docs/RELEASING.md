@@ -10,7 +10,22 @@ auto-update via Sparkle (`SUFeedURL` already points at the feed).
 > identities/repos/two-arch scheme do not apply — Rhino ships arm64-only,
 > signed as `Developer ID Application: noah kagan (U433SX7BT8)`.
 
-## Cut a release — one command
+## Cut a release — push the Stage commit
+
+Since 2026-10-06 a push to master *is* the release. Commit
+"Stage X.Y.Z: changelog + website pins" (the `## X.Y.Z` section in
+`CHANGELOG.md`, the three website DMG links, the `website/app/changelog/page.tsx`
+entry and `website/tests/rendered-html.test.mjs`) and push it.
+`.github/workflows/auto-release.yml` sees an untagged, newer, staged version,
+bumps the Xcode versions, pushes `Release vX.Y.Z` + the tag, and dispatches
+`release.yml` (gate → sign → notarize → publish → deploy the site). A changelog
+push without the website pins is a no-op with a notice, as is editing an
+already-released section.
+
+The Deploy website workflow skips (green, with a notice) while the pinned DMG
+is not published yet; the release deploys the site itself.
+
+## Manual fallback — one command
 
 ```sh
 # 1. Put the next version at the top of CHANGELOG.md, with release-note bullets:

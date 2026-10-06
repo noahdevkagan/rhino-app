@@ -15,7 +15,7 @@ struct InviteSidebarCard: View {
                         .foregroundColor(STheme.textBright)
                     Text("Invite \(ReferralLink.friendsNeeded) friends")
                         .scaledFont(size: 11)
-                        .foregroundColor(STheme.hint)
+                        .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)

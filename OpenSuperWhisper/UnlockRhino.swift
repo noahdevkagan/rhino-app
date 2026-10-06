@@ -93,7 +93,7 @@ extension Notification.Name {
     static let rhinoUnlockChanged = Notification.Name("rhinoUnlockChanged")
 }
 
-private struct UnlockRhinoView: View {
+struct UnlockRhinoView: View {
     let limitReached: Bool
     let wordsThisWeek: Int
     let isUnlocked: Bool

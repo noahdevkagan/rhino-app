@@ -59,7 +59,7 @@ final class ShareRhino {
     }
 }
 
-private struct ShareRhinoView: View {
+struct ShareRhinoView: View {
     let link: ReferralLink
     let isUnlocked: Bool
     let dismiss: () -> Void

@@ -9,21 +9,20 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Separate dev identity (2026-10-07, zagreb — implemented)
 
-PR plan: review and commit all changes, initialize build dependencies for the
-required push gate, push this branch, review origin/master diff, create PR.
+PR: changes committed and full push gate passed; creating PR against master.
 
 Minimal change: Debug bundle ID com.noahkagan.rhino.dev, display name Rhino Dev,
 keep existing build paths and stable signing. Preserve one active GUI across both
 IDs, disable release updater for Debug, validate configuration and focused guard
 logic. Release identity stays unchanged. No model/data migration or icon changes.
-Validated: both plists lint, Debug/Release IDs and display settings verified,
-eight standalone SingleInstanceGuard tests pass. Existing app-host integration
-test cannot run in the standalone SwiftPM host (NSRunningApplication PID -1),
-so excluded there; it remains unchanged in the Xcode suite. Full app build not
-run: this workspace has empty dependency submodules/no prepared build. No app
-installed or launched with the new identity. First Rhino Dev launch requires
-its own permissions/setup. Older installed releases still require manually
-quitting Dev before opening them. Evidence: .context/dev-identity-check/test.log.
+Validated: full push gate passed (build, Xcode unit tests, ASR, latency,
+privacy hygiene, release and smoke). Fresh dependency resolution initially
+failed to check out four package revisions; retry succeeded without changing
+pins. Built Debug plist confirms com.noahkagan.rhino.dev and display name
+Rhino Dev. Gate benchmark record committed. Evidence: .context/pr-push.log.
+No new app installed or launched for use. First Rhino Dev launch requires its
+own permissions/setup. Older installed releases still require manually quitting
+Dev before opening them.
 
 ### Fn troubleshooting (2026-10-07, zagreb)
 

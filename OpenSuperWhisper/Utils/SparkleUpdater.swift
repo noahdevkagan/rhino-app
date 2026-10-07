@@ -27,16 +27,19 @@ final class SparkleUpdater: NSObject {
 
     private override init() {
         super.init()
+        // Debug has its own identity; never replace it with a release update.
+        #if !DEBUG
         controller = SPUStandardUpdaterController(
             startingUpdater: true,
             updaterDelegate: self,
             userDriverDelegate: nil
         )
+        #endif
     }
 
     /// Manual check — shows Sparkle's UI (up-to-date, or the update prompt).
     func checkForUpdates() {
-        controller.checkForUpdates(nil)
+        controller?.checkForUpdates(nil)
     }
 }
 

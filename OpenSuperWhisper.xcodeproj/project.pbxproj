@@ -848,7 +848,8 @@
 				"OTHER_LDFLAGS[arch=arm64]" = (
 					"$(inherited)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.noahkagan.rhino;
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahkagan.rhino.dev;
+				RHINO_DISPLAY_NAME = "Rhino Dev";
 				PRODUCT_NAME = Rhino;
 				PRODUCT_MODULE_NAME = OpenSuperWhisper;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -915,6 +916,7 @@
 					"$(inherited)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.noahkagan.rhino;
+				RHINO_DISPLAY_NAME = Rhino;
 				PRODUCT_NAME = Rhino;
 				PRODUCT_MODULE_NAME = OpenSuperWhisper;
 				PROVISIONING_PROFILE_SPECIFIER = "";

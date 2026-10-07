@@ -75,6 +75,12 @@ enum SingleInstanceGuard {
     /// healthy instance quits in well under a second; this only matters for a wedged one.
     static let terminationGrace: TimeInterval = 3.0
 
+    /// Dev and release have separate TCC identities, but must not both record Fn.
+    static func competingBundleIDs(for bundleID: String) -> [String] {
+        let rhinoIDs = ["com.noahkagan.rhino", "com.noahkagan.rhino.dev"]
+        return rhinoIDs.contains(bundleID) ? rhinoIDs : [bundleID]
+    }
+
     /// Finds every other running instance with our bundle id and asks the ones we outrank to
     /// quit, escalating to a force-kill if one is still alive after `terminationGrace` (the
     /// stuck-old-instance-after-an-update case is exactly the one where polite doesn't work).
@@ -92,7 +98,8 @@ enum SingleInstanceGuard {
         // Headless CLI runs of this same binary (`Rhino transcribe|bench|cleanup`, including the
         // push gate's suites) register with LaunchServices under our bundle id but never paste —
         // they mark themselves `.prohibited` (CLI.swift) and must not be killed by a GUI launch.
-        let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        let others = competingBundleIDs(for: bundleID)
+            .flatMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0) }
             .filter { $0.processIdentifier != me.pid && $0.activationPolicy != .prohibited }
 
         for other in others {

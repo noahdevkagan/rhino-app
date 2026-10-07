@@ -48,6 +48,11 @@ brew install cmake libomp rust
 A dev copy is the one under `Build/Build/Products/Debug/`; an installed
 copy lives in /Applications. `run.sh` re-signs dev builds with a stable
 identity so TCC (mic/accessibility) permissions survive rebuilds.
+Debug displays as **Rhino Dev** (`com.noahkagan.rhino.dev`), with its own
+permissions, settings and history. Grant its permissions on first launch;
+the regular Rhino grant does not apply. The app/executable paths stay unchanged.
+Debug never installs Sparkle updates. Updated builds quit the other channel on
+launch; quit Dev manually before opening an older release that lacks this guard.
 
 ## Tests / push gate
 

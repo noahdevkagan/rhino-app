@@ -7,6 +7,20 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Invalid caret bubble placement (2026-10-07, tunis — implemented)
+
+Cursor placement now rejects zero-height, negative-size, nonfinite and offscreen
+AX bounds before replacing the mouse fallback. Zero-width insertion carets and
+secondary displays remain supported. Installed 0.1.36 logs confirmed repeated
+frames at (0,20); the exact incoming AX rectangle was not captured.
+
+PR #87: full push gate passed (build, unit tests incl. new caret + panel tests,
+ASR, latency, hygiene). In a fresh workspace, SwiftPM checkout fails inside the
+pre-push hook; run `xcodebuild -resolvePackageDependencies` first. Review gap:
+a nonzero-height caret whose top sits on a display's bottom edge (entirely
+offscreen) is still accepted and matches the logged (0,20) frame. No install or
+live check yet. Evidence: `.context/caret-check/`, `.context/push-gate.log`.
+
 ### Separate dev identity (2026-10-07, zagreb — implemented)
 
 PR: changes committed and full push gate passed; creating PR against master.

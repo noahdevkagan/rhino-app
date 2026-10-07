@@ -68,6 +68,22 @@ final class IndicatorPresentationTests: XCTestCase {
         XCTAssertEqual(frame.minY, point.y + 20, accuracy: 1)
     }
 
+    func testInvalidCaretKeepsMouseFallback() async throws {
+        let invalidCarets = [
+            CGRect.zero,
+            CGRect(x: 0, y: NSScreen.screens[0].frame.maxY, width: 0, height: 0),
+            CGRect(x: -1_000_000, y: 1_000_000, width: 1, height: 18),
+        ]
+        for caret in invalidCarets {
+            let vm = manager.show(nearPoint: anchor, waitForCaret: true)
+            manager.updateCaretAnchor(caret, for: vm)
+            await waitUntil { vm.isVisible }
+            let frame = try XCTUnwrap(manager.window).frame
+            XCTAssertEqual(frame.midX, anchor.x, accuracy: 1)
+            XCTAssertEqual(frame.minY, anchor.y + 20, accuracy: 1)
+        }
+    }
+
     func testStateChangedDuringCaretLookupIsMeasuredBeforeReveal() async throws {
         let vm = manager.show(nearPoint: anchor, waitForCaret: true)
         vm.state = .connecting

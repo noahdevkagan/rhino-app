@@ -1934,3 +1934,16 @@ bundle ID; no automatic migration. Disable Sparkle in Debug to prevent replacing
 it with a release. The single-instance guard recognizes both IDs to prevent two
 Fn listeners. An already-installed old release lacks this guard change: quit Dev
 before opening that old release. First dev launch needs its own permissions.
+
+## 2026-10-07 — Validate caret bounds before replacing the mouse anchor
+
+Rhino 0.1.36 logged repeated bubble frames at (0,20) with cursor placement;
+Noah reports triggering on screens without a clear input box. AX success alone
+is not proof of usable caret geometry. Reject nonfinite/negative-size bounds,
+zero-height rectangles and origins outside all displays, keeping the captured
+mouse anchor. Allow zero width because real insertion carets have it; allow
+negative screen coordinates for secondary monitors. Do not use screenContaining's
+main-screen fallback for validation: it accepts offscreen points and clamps them
+to a screen corner. Keep the existing 100 ms reveal deadline and no-late-move
+behavior. No broad editable-role filter, since custom editors may expose useful
+caret bounds under other accessibility roles.

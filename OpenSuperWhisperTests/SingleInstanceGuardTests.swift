@@ -14,6 +14,14 @@ final class SingleInstanceGuardTests: XCTestCase {
             launchDate: seconds.map { Date(timeIntervalSinceReferenceDate: $0) })
     }
 
+    func testDevAndReleaseCompeteButOtherIdentitiesStayIsolated() {
+        let release = "com.noahkagan.rhino"
+        let dev = "com.noahkagan.rhino.dev"
+        XCTAssertEqual(SingleInstanceGuard.competingBundleIDs(for: release), [release, dev])
+        XCTAssertEqual(SingleInstanceGuard.competingBundleIDs(for: dev), [release, dev])
+        XCTAssertEqual(SingleInstanceGuard.competingBundleIDs(for: "test.preview"), ["test.preview"])
+    }
+
     func testNewerLaunchWins() {
         let old = instance(pid: 100, launchedAt: 1000)
         let new = instance(pid: 50, launchedAt: 2000)  // lower pid, later launch — date decides

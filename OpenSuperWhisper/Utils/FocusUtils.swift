@@ -101,6 +101,20 @@ class FocusUtils {
         return NSPoint(x: axPoint.x, y: cocoaY)
     }
     
+    /// AX can succeed yet return an empty/sentinel rectangle when no text input
+    /// is available. A real insertion caret may have zero width, but has height.
+    /// Do not clamp invalid/offscreen coordinates to a display edge.
+    static func validatedCaretPoint(_ rect: CGRect, primaryScreenMaxY: CGFloat,
+                                    screenFrames: [CGRect]) -> NSPoint? {
+        guard rect.origin.x.isFinite, rect.origin.y.isFinite,
+              rect.size.width.isFinite, rect.size.height.isFinite,
+              rect.size.width >= 0, rect.size.height > 0 else { return nil }
+        let point = NSPoint(x: rect.origin.x, y: primaryScreenMaxY - rect.origin.y)
+        guard point.x.isFinite, point.y.isFinite,
+              screenFrames.contains(where: { $0.contains(point) }) else { return nil }
+        return point
+    }
+
     /// Finds the screen that contains the given point (in Cocoa coordinates)
     static func screenContaining(point: NSPoint) -> NSScreen? {
         for screen in NSScreen.screens {

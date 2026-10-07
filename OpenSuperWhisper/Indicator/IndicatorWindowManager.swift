@@ -239,13 +239,16 @@ class IndicatorWindowManager: IndicatorViewDelegate {
               presentationPending, awaitingCaret,
               recording.state == .recording || recording.state == .connecting,
               let window else { return }
-        if AppPreferences.shared.indicatorPosition == "cursor", let caret {
-            let point = FocusUtils.convertAXPointToCocoa(caret.origin)
-            if let screen = FocusUtils.screenContaining(point: point) {
-                anchorCenterX = point.x
-                anchorBottomY = point.y + 20
-                reposition(window: window, screen: screen)
-            }
+        let screens = NSScreen.screens
+        if AppPreferences.shared.indicatorPosition == "cursor", let caret,
+           let primaryScreen = screens.first,
+           let point = FocusUtils.validatedCaretPoint(
+               caret, primaryScreenMaxY: primaryScreen.frame.maxY,
+               screenFrames: screens.map(\.frame)),
+           let screen = screens.first(where: { $0.frame.contains(point) }) {
+            anchorCenterX = point.x
+            anchorBottomY = point.y + 20
+            reposition(window: window, screen: screen)
         }
         presentationTask?.cancel()
         presentationTask = nil

@@ -7,6 +7,20 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Invalid caret bubble placement (2026-10-07, tunis — implemented)
+
+Cursor placement now rejects zero-height, negative-size, nonfinite and offscreen
+AX bounds before replacing the mouse fallback. Zero-width insertion carets and
+secondary displays remain supported. Installed 0.1.36 logs confirmed repeated
+frames at (0,20); the exact incoming AX rectangle was not captured.
+
+Validation: four standalone XCTest geometry cases pass against FocusUtils.swift
+(only unused KeyboardShortcuts import removed for standalone compilation).
+Added real-panel fallback regression to IndicatorPresentationTests; syntax checks
+pass. Full app build/panel tests not run: this fresh workspace has uninitialized
+native submodules and no build/SwiftPM cache. No install, restart, commit or push.
+Evidence: `.context/caret-check/`.
+
 ### Dictation bubble entrance (2026-10-06, bissau — implemented)
 
 Follow-up: Noah saw the overlay only inside Rhino after permissions were granted.

@@ -1922,3 +1922,15 @@ modifier list mid-text because unfamiliar phrases would lose a word; at a
 sentence end that risk is limited to article-less noun uses ("We studied
 Paleozoic period."), which are rare, while the missed command was constant.
 Mid-sentence bare "period" ("rad period I will") still stays a word.
+
+## 2026-10-07 — Separate development TCC identity
+
+Debug uses com.noahkagan.rhino.dev and displays Rhino Dev; Release remains Rhino.
+Both previously used one bundle ID with incompatible signing requirements, so
+switching builds left Input Monitoring trusting the wrong signature. Keep the
+Rhino.app/executable paths to avoid changing every build/test runner. Existing
+stable dev signing stays in place. Settings and history naturally separate by
+bundle ID; no automatic migration. Disable Sparkle in Debug to prevent replacing
+it with a release. The single-instance guard recognizes both IDs to prevent two
+Fn listeners. An already-installed old release lacks this guard change: quit Dev
+before opening that old release. First dev launch needs its own permissions.

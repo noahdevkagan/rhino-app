@@ -7,6 +7,36 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Separate dev identity (2026-10-07, zagreb — implemented)
+
+PR: changes committed and full push gate passed; creating PR against master.
+
+Minimal change: Debug bundle ID com.noahkagan.rhino.dev, display name Rhino Dev,
+keep existing build paths and stable signing. Preserve one active GUI across both
+IDs, disable release updater for Debug, validate configuration and focused guard
+logic. Release identity stays unchanged. No model/data migration or icon changes.
+Validated: full push gate passed (build, Xcode unit tests, ASR, latency,
+privacy hygiene, release and smoke). Fresh dependency resolution initially
+failed to check out four package revisions; retry succeeded without changing
+pins. Built Debug plist confirms com.noahkagan.rhino.dev and display name
+Rhino Dev. Gate benchmark record committed. Evidence: .context/pr-push.log.
+No new app installed or launched for use. First Rhino Dev launch requires its
+own permissions/setup. Older installed releases still require manually quitting
+Dev before opening them.
+
+### Fn troubleshooting (2026-10-07, zagreb)
+
+Plan: inspect running binary, shortcut and TCC logs; restart the installed app
+with captured startup output; verify global keyboard listener permissions and
+report any user action needed. Running copy is /Applications/Rhino.app (0.1.36),
+Fn configured, microphone allowed, Accessibility toggled on at 12:42.
+Confirmed after clean menu quit/relaunch (PID 48174): TCC rejects ListenEvent
+because its stored code requirement expects Apple Development, while running
+/Applications copy uses distribution signing. Microphone and Accessibility
+both allowed. Evidence: .context/fn-check/tcc.log at 12:43:49.679.
+Needs Input Monitoring entry re-added for /Applications/Rhino.app and relaunch;
+no permission reset or code changes made.
+
 ### Dictation bubble entrance (2026-10-06, bissau — implemented)
 
 Follow-up: Noah saw the overlay only inside Rhino after permissions were granted.

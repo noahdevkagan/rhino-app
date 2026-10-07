@@ -8,8 +8,8 @@ import Foundation
 ///
 /// Pause punctuation is the strongest command cue. Colon and layout commands need it
 /// on both sides; comma/question mark/etc. need it on either side. Period also accepts
-/// a sentence boundary after a clear sentence ending ("see you there period."). Unknown
-/// endings stay conservative: "billing period" and other noun phrases must not lose words.
+/// a sentence boundary or the end of the dictation with no pause before it ("I had salmon
+/// for dinner period"), unless it reads as a noun: "billing period", "the Jurassic period".
 /// Without a pause before a command, nearby determiners protect literal mentions such as
 /// "the Oxford comma". The period-specific check can recognize "thanks for reporting this
 /// period." as a command without treating "during this period." as one.
@@ -109,7 +109,7 @@ enum SpokenPunctuation {
            // it means the speech model heard a question or exclamation, not a full stop.
            !post.contains(where: { "?!".contains($0) }),
            post.contains(".") || rest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           hasUnpausedPeriodEnding(prefix) {
+           hasUnpausedPeriodEnding(prefix) || !endsInPeriodNounPhrase(prefix) {
             return true
         }
         if pre.isEmpty, lastWords(of: prefix, count: 2).contains(where: mentionWords.contains) {
@@ -143,6 +143,30 @@ enum SpokenPunctuation {
         return words.suffix(2).joined(separator: " ") == "i disagree"
             || words.suffix(2).joined(separator: " ") == "i agree"
             || words.suffix(3).joined(separator: " ") == "what you think"
+    }
+
+    /// Words that, right before a sentence-final "period", make it the noun: "billing
+    /// period", "third period", "Jurassic period". Article-less noun uses are rare, so the
+    /// list covers the common ones and a determiner ("the", "our"...) covers the rest.
+    private static let periodModifiers: Set<String> = [
+        "billing", "reporting", "trial", "grace", "waiting", "cooling", "notice", "recovery",
+        "adjustment", "transition", "transitional", "probation", "probationary", "holiday",
+        "summer", "winter", "spring", "autumn", "fall", "peak", "rest", "time", "study",
+        "free", "class", "first", "second", "third", "fourth", "fifth", "sixth", "seventh",
+        "eighth", "last", "next", "same", "short", "long", "brief", "extended", "entire",
+        "whole", "modern", "medieval", "colonial", "historical", "jurassic", "cretaceous",
+        "triassic", "cambrian", "victorian", "edwardian", "renaissance", "baroque",
+        "classical", "romantic", "glacial", "warm", "dry", "rainy", "orbital",
+    ]
+
+    /// Whether "period" closing this clause reads as a noun: a modifier right before it or
+    /// a determiner/possessive close behind. Otherwise a sentence-final "period" is the
+    /// spoken mark (customer report 2026-10-07: "I had salmon for dinner period" → the
+    /// word stayed, and cleanup turned it into "dinner, period.").
+    private static func endsInPeriodNounPhrase(_ prefix: String) -> Bool {
+        let words = lastWords(of: prefix, count: 3)
+        guard let last = words.last else { return true }
+        return periodModifiers.contains(last) || words.contains(where: mentionWords.contains)
     }
 
     /// The last `count` words of the clause `text` ends in, lowercased. Stops at punctuation

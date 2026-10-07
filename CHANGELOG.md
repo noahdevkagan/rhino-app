@@ -8,6 +8,10 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 - The dictation bubble opens at its final size instead of flashing a wide empty
   bar. Cursor placement settles before it appears, so a slow caret lookup no
   longer makes it jump across the screen.
+- Saying "period" at the end of a sentence now ends it, even without a pause:
+  "I had salmon for dinner period" types "I had salmon for dinner." instead
+  of "dinner, period." Phrases like "billing period" or "the Jurassic period"
+  keep the word.
 
 ## 0.1.35 — 2026-10-06
 

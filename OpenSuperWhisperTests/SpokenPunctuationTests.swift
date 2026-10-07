@@ -76,6 +76,31 @@ final class SpokenPunctuationTests: XCTestCase {
         }
     }
 
+    /// Matt's follow-up (2026-10-07): a sentence-final "period" after any ordinary word is
+    /// the spoken mark, not only after a few known endings.
+    func testSentenceFinalPeriodAfterOrdinaryWords() {
+        for (input, expected) in [
+            ("I had salmon for dinner period", "I had salmon for dinner."),
+            ("I had salmon for dinner period.", "I had salmon for dinner."),
+            ("I had salmon for dinner period. Then we went home period.",
+             "I had salmon for dinner. Then we went home."),
+            ("The meeting moved to Friday period", "The meeting moved to Friday."),
+        ] {
+            let output = SpokenPunctuation.apply(input)
+            XCTAssertEqual(output, expected, input)
+            XCTAssertEqual(SpokenPunctuation.apply(output), output, "Must be idempotent: " + input)
+        }
+        for text in [
+            "I have math third period.",
+            "See you next period.",
+            "I'm on my period.",
+            "Payment is due within the billing period",
+            "We are in peak period.",
+        ] {
+            XCTAssertEqual(SpokenPunctuation.apply(text), text, text)
+        }
+    }
+
     func testSpacedAndRepeatedPauseMarksAreConsumedOnce() {
         for input in ["Thanks . period .", "Thanks. . Period . .", "Thanks... Period.",
                       "Thanks . Period . New paragraph. See you there period ."] {

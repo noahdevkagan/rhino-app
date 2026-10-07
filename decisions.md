@@ -1908,3 +1908,17 @@ panel and its screen-saver level/space behavior. Add an inactive-app presentatio
 test and a diagnostic marker for actual reveal state/geometry. Relaunch the dev
 app after the permission grant too; a live Slack hotkey check remains necessary
 to distinguish the old listener's permission state from window ordering.
+
+## 2026-10-07 — Sentence-final "period" is the mark unless it reads as a noun (revises #74)
+Matt (repeat reporter) dictates "I had salmon for dinner period" with no pause;
+the ASR leaves "dinner period", #74's positive-ending list ("there",
+"tomorrow"...) doesn't cover "dinner", the word survives, and cleanup renders it
+as the emphatic "dinner, period." For someone who says punctuation, that misses
+on nearly every sentence. Flipped the default for the unpaused period only when
+it closes a sentence or the dictation: convert unless a modifier list ("billing",
+"third", "Jurassic", "summer"...) sits right before it or a determiner/possessive
+("the", "this", "my", "our"...) is in the three words before. #74 rejected a
+modifier list mid-text because unfamiliar phrases would lose a word; at a
+sentence end that risk is limited to article-less noun uses ("We studied
+Paleozoic period."), which are rare, while the missed command was constant.
+Mid-sentence bare "period" ("rad period I will") still stays a word.

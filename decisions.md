@@ -1947,3 +1947,16 @@ main-screen fallback for validation: it accepts offscreen points and clamps them
 to a screen corner. Keep the existing 100 ms reveal deadline and no-late-move
 behavior. No broad editable-role filter, since custom editors may expose useful
 caret bounds under other accessibility roles.
+
+## 2026-10-08 — Bigger hero button; non-Mac desktops get a Windows waitlist
+
+Since Oct 5 about half of real site visits were not on a Mac (iOS 16%,
+Windows 13%, Android 7%, Linux 2%, unknown 13%). Only about 4–5% of homepage
+hits clicked download. Noah chose: a bigger hero download button (64px tall,
+was 52px) for everyone, plus a waitlist for Windows/Linux/ChromeOS desktops
+("Rhino is Mac-only for now" + email → SendFox form 296020, list 678242
+"Rhino Windows waitlist" on Noah's account). Phones keep the download button
+(Noah declined an email-me-the-link flow for now). The page detects the OS
+after it loads and assumes a Mac until then, so Mac visitors never see the
+form flash. The form redirects back to /?waitlist=windows, which shows a
+"you're on the list" message.

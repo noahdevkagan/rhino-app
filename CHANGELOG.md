@@ -3,7 +3,7 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
-## Unreleased
+## 0.1.37 — 2026-10-08
 
 - The dictation bubble stays near the mouse when an app reports an invalid text
   cursor location, instead of appearing at a screen corner.

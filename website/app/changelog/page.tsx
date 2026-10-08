@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.37",
+    date: "October 8, 2026",
+    changes: [
+      "The dictation bubble stays near the mouse when an app reports an invalid text cursor location, instead of appearing at a screen corner.",
+    ],
+  },
+  {
     version: "0.1.36",
     date: "October 6, 2026",
     changes: [

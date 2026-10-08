@@ -1,5 +1,5 @@
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.36/Rhino-0.1.36.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.37/Rhino-0.1.37.dmg";
 
 /** The app checks this code against a SHA-256 hash in UsageGate.swift. */
 const unlockCode = "RHINO-33MY-Q56S";

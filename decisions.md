@@ -1960,3 +1960,9 @@ was 52px) for everyone, plus a waitlist for Windows/Linux/ChromeOS desktops
 after it loads and assumes a Mac until then, so Mac visitors never see the
 form flash. The form redirects back to /?waitlist=windows, which shows a
 "you're on the list" message.
+
+Update the same day: Noah asked for the email flow on phones after all. Phones
+(iPhone, Android, and iPads, which report themselves as Macs but have a touch
+screen) now see "Email me the link" → SendFox form 296025 → list 678250. The
+active automation 122583 emails the /get?src=send-to-mac download link at
+once. The form redirects back to /?sent=mac, which shows "Check your email".

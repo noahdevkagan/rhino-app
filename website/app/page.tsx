@@ -1,4 +1,5 @@
-import { BuyForm, DownloadButton, RhinoMark, SiteFooter, SiteHeader } from "./_components/site-chrome";
+import { BuyForm, RhinoMark, SiteFooter, SiteHeader } from "./_components/site-chrome";
+import { HeroCta } from "./_components/hero-cta";
 
 const steps = [
   {
@@ -175,7 +176,7 @@ export default function Home() {
             polished text in whatever app you&apos;re using. Transcription and AI
             cleanup run 100% on your Mac, even with Wi-Fi off.
           </p>
-          <DownloadButton />
+          <HeroCta />
           <p className="purchase-note">
             Free: unlimited for your first week, then 2,000 words a week.
             <br />Unlimited forever: <a href="#buy">$20 once</a>. No subscription, no account.

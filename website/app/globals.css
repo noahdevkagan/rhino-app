@@ -119,6 +119,37 @@ footer a:hover { color: var(--ink); }
 
 .button:hover { background: #ff8273; transform: translateY(-2px); }
 
+.button-hero {
+  min-height: 64px;
+  padding: 0 38px;
+  border-radius: 16px;
+  font-size: 19px;
+  box-shadow: 0 16px 38px rgba(235, 82, 65, 0.28);
+}
+
+.waitlist { margin-top: 4px; }
+.waitlist-title { margin: 0 0 12px; font-size: 18px; font-weight: 730; letter-spacing: -0.02em; }
+.waitlist-form { display: flex; gap: 10px; flex-wrap: wrap; }
+.waitlist-form input[type="email"] {
+  min-height: 52px;
+  min-width: 0;
+  flex: 1 1 220px;
+  padding: 0 16px;
+  border: 1px solid #d9d2cc;
+  border-radius: 13px;
+  font: inherit;
+  font-size: 16px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .button-compact {
   min-height: 42px;
   padding: 0 17px;
@@ -844,6 +875,8 @@ footer span { color: var(--ink); font-weight: 700; }
   .local-badge { top: 10px; right: 10px; }
   footer { width: calc(100% - 28px); padding: 20px 0; }
   .purchase-card { padding: 30px; }
+  .button-hero { width: 100%; }
+  .waitlist-form { justify-content: center; }
   .redemption-page { padding-top: 28px; }
   .redemption-card { margin-top: 48px; border-radius: 21px; }
   .release-heading { align-items: flex-start; flex-direction: column; gap: 8px; }

@@ -7,6 +7,56 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Media playback default + browsers (2026-10-12, stuttgart — implemented, uncommitted)
+
+Live-test plan (latest user request): test Chrome YouTube using signed dev app,
+verify native pause/resume and already-paused behavior, record evidence.
+Oct 12 14:32 follow-up: user said try now; live public Chrome YouTube still
+failed to pause (playing 231.79s before, 236.81s/239.74s during recording).
+Cancelled recording with Esc and closed test tab 1464413995 (browser 1).
+Chrome replied error 12 on every execute command even after native menu click.
+Chromium error_applescript.h confirms 12 = kJavaScriptUnsupported (disabled).
+Cannot claim Chrome live verification passed. Safari passed; 47 native and 18
+browser regression tests passed. Dev app remains open, idle. No release/push.
+
+User requested pause while dictating, resume afterward, default on, including
+browser audio. Music/Spotify use addressed Apple Events and fresh track/position
+checks. Chrome/Safari use local JavaScript against exact HTML media elements;
+per-recording UUIDs stay inside tabs, so moves/reordering cannot resume unrelated
+media. Changed source, navigation, seeking or manual playback invalidates restore.
+Existing stored off choices survive. Stop/cancel, capture failure and normal quit
+restore; late starts after quit are rejected. No private MediaRemote or app network.
+
+Requires per-app Automation permission; Chrome/Safari additionally need Allow
+JavaScript from Apple Events. Settings explains setup. Until granted, leave media
+alone. Firefox, cross-origin embeds, Web Audio-only players, closed shadow trees
+and sites refusing play are unsupported. Native code never receives page URLs,
+titles, contents or media metadata. See decisions.md for rationale and limits.
+
+Validation: app build, 46 focused native Xcode tests, 18 real HTML-media tests in
+isolated offline Chrome, static privacy hygiene and plist checks passed. Browser
+suite: tests/browser-media/run.sh (Swift + Node + Chrome; no user's profile).
+Logs: `.context/browser-native-tests.log`, `.context/browser-dom-tests7.log`,
+`.context/browser-build.log`, `.context/browser-hygiene.log`. Embedded WKWebView
+fixtures and Chrome virtual-time tests had media-process hangs; final suite uses
+real-time CDP pipes and fake OS audio output. No test windows or TCP server.
+
+Live verification on Oct 12: signed Rhino Dev GUI recordings exposed native browser
+Apple Event error -1700. Fixed all-elements selector from `enum` to `abso`.
+Safari now verified with local audio fixture: recording pauses playing media,
+normal stop and Esc cancellation resume it, already-paused control never starts.
+Observed four pause/resume cycles (18:15:55–18:22:28 UTC); local fixture closed.
+47 focused native tests now pass, including the Apple Event selector regression.
+Logs: `.context/live-media/native-tests.log`, `.context/live-media/playback.log`.
+Chrome live check remains incomplete: initially JavaScript denied (error 12),
+menu setup attempted, then native Chrome events timed out (-1712) while its menus
+were active/changing. Public YouTube test tab closed. Browser tool rejected local
+file navigation, so no workaround used; public YouTube was the safer alternative.
+User approved microphone, Accessibility, Automation and browser JS settings.
+Safari JS setting verified enabled; Automation settings show Chrome/Safari on.
+Dev mic works; dev Accessibility still stale despite adding this workspace app.
+Dev quit normally after testing. No release, install, commit or push.
+
 ### Invalid caret bubble placement (2026-10-07, tunis — implemented)
 
 Cursor placement now rejects zero-height, negative-size, nonfinite and offscreen

@@ -3,6 +3,14 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- Music, Spotify, and supported audio/video in Chrome and Safari pause while
+  recording and resume afterward. This is on by default; existing off choices
+  are preserved. Allow Automation access once; browsers also require Allow
+  JavaScript from Apple Events (setup is in Settings → Dictation). Rhino leaves
+  already-paused media alone and skips media you changed during recording.
+
 ## 0.1.37 — 2026-10-08
 
 - The dictation bubble stays near the mouse when an app reports an invalid text

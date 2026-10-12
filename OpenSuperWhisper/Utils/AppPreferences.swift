@@ -406,9 +406,9 @@ final class AppPreferences {
         (text, false)
     }
 
-    /// Pause currently-playing media while recording, then resume. Opt-in (default
-    /// off): it uses the private MediaRemote API and changes system playback.
-    @UserDefault(key: "pauseMediaOnRecord", defaultValue: false)
+    /// Pause supported players while recording, then restore the same playback.
+    /// Existing explicit choices (including false) are preserved.
+    @UserDefault(key: "pauseMediaOnRecord", defaultValue: true)
     var pauseMediaOnRecord: Bool
 
     // Retention / storage policy

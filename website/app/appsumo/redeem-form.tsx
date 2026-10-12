@@ -5,6 +5,9 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 const downloadUrl =
   "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.37/Rhino-0.1.37.dmg";
 
+/** SendFox form 296340 → list 678908 "Rhino AppSumo customers". Optional; only posted for a valid code. */
+const emailAction = "https://sendfox.com/form/03zne3/3oywpv";
+
 type Status = "loading" | "ready" | "invalid" | "unavailable" | "success";
 
 function normalizeCode(value: string) {
@@ -23,6 +26,7 @@ async function sha256(value: string) {
 export default function RedeemForm() {
   const [status, setStatus] = useState<Status>("loading");
   const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
   const hashes = useRef<Set<string> | null>(null);
 
   useEffect(() => {
@@ -54,7 +58,28 @@ export default function RedeemForm() {
     if (!normalizedCode || !hashes.current) return;
 
     const digest = await sha256(normalizedCode);
-    setStatus(hashes.current.has(digest) ? "success" : "invalid");
+    const valid = hashes.current.has(digest);
+    setStatus(valid ? "success" : "invalid");
+    if (valid && email.trim()) subscribe(email.trim(), normalizedCode);
+  }
+
+  /** Fire-and-forget: the email is optional, so a SendFox hiccup must never block the unlock.
+   * The list signup keeps the address; /appsumo/email sends the buyer their code. */
+  function subscribe(address: string, redeemedCode: string) {
+    fetch("/appsumo/email", {
+      method: "POST",
+      body: JSON.stringify({ email: address, code: redeemedCode }),
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+    }).catch(() => {});
+    const data = new FormData();
+    data.append("email", address);
+    fetch(emailAction, {
+      method: "POST",
+      body: data,
+      headers: { "X-Requested-With": "XMLHttpRequest", Accept: "application/json" },
+      keepalive: true,
+    }).catch(() => {});
   }
 
   if (status === "success") {
@@ -115,6 +140,16 @@ export default function RedeemForm() {
           maxLength={24}
           aria-describedby={status === "invalid" || isUnavailable ? "redemption-message" : undefined}
           aria-invalid={status === "invalid"}
+        />
+        <label htmlFor="redemption-email">Email (optional)</label>
+        <input
+          id="redemption-email"
+          className="redemption-email"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="Email me my code (optional)"
+          autoComplete="email"
         />
         <button
           className="button button-primary redemption-button"

@@ -1967,6 +1967,15 @@ screen) now see "Email me the link" → SendFox form 296025 → list 678250. The
 active automation 122583 emails the /get?src=send-to-mac download link at
 once. The form redirects back to /?sent=mac, which shows "Check your email".
 
+## 2026-10-12 — Phone "Email me the link" sends via SendFox transactional
+
+Noah: "move the email signup to transactional so we can just capture those emails." In 4 days the
+form → list 678250 → automation 122583 path gave 2 confirmed contacts and 1 sent link email
+(list opt-in held the rest). Now the hero POSTs /send-to-mac, which sends the /get link at once
+from noah@okdork.com (one per address per day via Idempotency-Key, honeypot respected). The form
+post to list 678250 stays so the contact is still captured; automation 122583 is turned off so
+nobody gets two link emails.
+
 ## 2026-10-12 — Bulk dictionary: review the paste flow before implementation
 
 Customer feedback requested CSV import or at least bulk paste. The proposed

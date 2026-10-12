@@ -60,11 +60,18 @@ export default function RedeemForm() {
     const digest = await sha256(normalizedCode);
     const valid = hashes.current.has(digest);
     setStatus(valid ? "success" : "invalid");
-    if (valid && email.trim()) subscribe(email.trim());
+    if (valid && email.trim()) subscribe(email.trim(), normalizedCode);
   }
 
-  /** Fire-and-forget: the email is optional, so a SendFox hiccup must never block the unlock. */
-  function subscribe(address: string) {
+  /** Fire-and-forget: the email is optional, so a SendFox hiccup must never block the unlock.
+   * The list signup keeps the address; /appsumo/email sends the buyer their code. */
+  function subscribe(address: string, redeemedCode: string) {
+    fetch("/appsumo/email", {
+      method: "POST",
+      body: JSON.stringify({ email: address, code: redeemedCode }),
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+    }).catch(() => {});
     const data = new FormData();
     data.append("email", address);
     fetch(emailAction, {
@@ -141,7 +148,7 @@ export default function RedeemForm() {
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          placeholder="Email for updates (optional)"
+          placeholder="Email me my code (optional)"
           autoComplete="email"
         />
         <button

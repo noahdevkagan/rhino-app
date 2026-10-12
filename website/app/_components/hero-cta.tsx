@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 
 /** SendFox form 296020 → list 678242 "Rhino Windows waitlist". Redirects back with ?waitlist=windows. */
 const waitlistAction = "https://sendfox.com/form/03zne3/1dxeg5";
-/** SendFox form 296025 → list 678250; automation 122583 emails the /get link at once. Redirects back with ?sent=mac. */
+/** SendFox form 296025 → list 678250 keeps the contact; /send-to-mac emails the /get link at once
+ * via SendFox transactional (automation 122583 is off). The form redirects back with ?sent=mac. */
 const sendToMacAction = "https://sendfox.com/form/03zne3/1ww6y6";
 
 type Platform = "mac" | "phone" | "desktop-other" | "joined" | "sent";
@@ -25,9 +26,11 @@ function detectPlatform(): Platform {
 /** Posts to SendFox in the background: a SendFox submit takes ~3s server-side, then the
  * redirect reloads the page. Instead we show the done state at once and only fall back
  * to the form if SendFox rejects the address. Without JS the plain form post still works. */
-function EmailForm({ title, action, button, note, done }: {
+function EmailForm({ title, action, sendUrl, button, note, done }: {
   title: string;
   action: string;
+  /** Our own route that emails right away; when set, its answer decides success. */
+  sendUrl?: string;
   button: string;
   note: React.ReactNode;
   done: React.ReactNode;
@@ -40,6 +43,22 @@ function EmailForm({ title, action, button, note, done }: {
     const data = new FormData(event.currentTarget);
     setError(null);
     setSent(true);
+    if (sendUrl) {
+      fetch(sendUrl, {
+        method: "POST",
+        body: JSON.stringify(Object.fromEntries(data)),
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+      })
+        .then(async (response) => {
+          if (response.status === 422) {
+            const body = await response.json().catch(() => null);
+            setSent(false);
+            setError(body?.error ?? "That email didn't work. Try again?");
+          }
+        })
+        .catch(() => {});
+    }
     fetch(action, {
       method: "POST",
       body: data,
@@ -47,7 +66,7 @@ function EmailForm({ title, action, button, note, done }: {
       keepalive: true,
     })
       .then(async (response) => {
-        if (response.status === 422) {
+        if (response.status === 422 && !sendUrl) {
           const body = await response.json().catch(() => null);
           setSent(false);
           setError(body?.errors?.[0] ?? "That email didn't work. Try again?");
@@ -87,7 +106,7 @@ function SentToMac() {
   return (
     <div className="waitlist">
       <p className="waitlist-title">Check your email.</p>
-      <p className="purchase-note">Open it on your Mac and tap the download link. If you don&apos;t see it, check spam or confirm your email first.</p>
+      <p className="purchase-note">Open it on your Mac and tap the download link. If you don&apos;t see it in a minute, check spam.</p>
     </div>
   );
 }
@@ -105,6 +124,7 @@ export function HeroCta() {
       <EmailForm
         title="Rhino runs on your Mac. Get the link there."
         action={sendToMacAction}
+        sendUrl="/send-to-mac"
         button="Email me the link"
         note="We'll email you the download link to open on your Mac."
         done={<SentToMac />}

@@ -504,6 +504,22 @@ footer span { color: var(--ink); font-weight: 700; }
   outline: none;
 }
 
+.redemption-email {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: white;
+  color: var(--ink);
+  font-size: 16px;
+  text-align: center;
+  outline: none;
+}
+.redemption-email::placeholder { color: #aaa29c; }
+.redemption-email:focus { border-color: var(--coral); box-shadow: 0 0 0 4px rgba(255, 112, 95, 0.12); }
+
 .redemption-input::placeholder { color: #aaa29c; }
 .redemption-input:focus { border-color: var(--coral); box-shadow: 0 0 0 4px rgba(255, 112, 95, 0.12); }
 .redemption-input[aria-invalid="true"] { border-color: #c94e43; }

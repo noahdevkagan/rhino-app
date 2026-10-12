@@ -10,6 +10,8 @@ struct DictionaryBadgeEditor: View {
     @Binding var entries: [CustomDictionaryEntry]
 
     @State private var editing: UUID?
+    @State private var importing = false
+    @State private var importSummary: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -18,6 +20,25 @@ struct DictionaryBadgeEditor: View {
                     badge(for: entry)
                 }
                 addBadge
+                Button {
+                    close()
+                    importSummary = nil
+                    importing = true
+                } label: {
+                    Label("Add multiple words", systemImage: "text.badge.plus")
+                        .scaledFont(size: 11, weight: .semibold)
+                        .foregroundColor(STheme.hint)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().strokeBorder(STheme.controlBorder))
+                }
+                .buttonStyle(.plain)
+            }
+
+            if let importSummary {
+                Text(importSummary)
+                    .scaledFont(size: 11)
+                    .foregroundColor(STheme.hint)
             }
 
             // The rule opens inside the card rather than in a popover. A popover anchored to a
@@ -40,6 +61,9 @@ struct DictionaryBadgeEditor: View {
         .background(RoundedRectangle(cornerRadius: 9).fill(STheme.cardBg))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(STheme.border, lineWidth: 1))
         .onDisappear { close() }
+        .sheet(isPresented: $importing) {
+            DictionaryBulkImportView(entries: $entries) { importSummary = $0 }
+        }
     }
 
     private func badge(for value: CustomDictionaryEntry) -> some View {

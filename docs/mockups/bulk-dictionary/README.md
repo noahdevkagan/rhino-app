@@ -1,6 +1,8 @@
 # Bulk dictionary — design proposal
 
-Status: interactive mockup for review; the Rhino app has not been changed.
+Status: shipped. This is the mockup the flow was reviewed from; the app now has
+the native paste/review sheet (`DictionaryBulkImport.swift`,
+`DictionaryBulkImportView.swift`). Kept for the design history.
 
 ![Review words and optional exact corrections](preview.png)
 
@@ -23,18 +25,17 @@ avoids changing recognized English words and requires sound-alike matching
 to be enabled in Settings → Output.
 
 An explicit pair such as `Joe → Jo` tells Rhino exactly what to replace.
-Short words and phrases need this second value. The proposed review screen
-asks for it before saving those entries. This requirement is a design choice
-for review, not a change to the existing app.
+Short words and phrases need this second value, and the review screen asks for
+it before saving those entries.
 
-## Scope and remaining work
+## Scope
 
 The prototype demonstrates newline/tab-separated paste, blank-line handling,
 identical-row deduplication, editable corrections, validation, and a simulated
-save. CSV files, headers, existing-dictionary conflicts, alternate mishearings,
-and real persistence are outside this mockup. Production work still needs to
-integrate with the shared Dictionary/Settings editor and preserve existing
-rules when merging imported entries.
+save. CSV files and headers remain out of scope. The shipped version goes
+further than the mockup: it opens from the shared Dictionary/Settings editor,
+merges into existing rules without losing IDs, spacing or alternates, and
+rejects a mishearing that already points at a different spelling.
 
 The standalone export retains the mockup's own styles and logic, omits the
 visualization renderer's unused remote libraries and host bridge, and blocks
@@ -45,5 +46,5 @@ network requests through its content security policy.
 Checked in Chrome: initial review state, one- and two-column paste, required
 mishearing for a short name, empty-input rejection, and simulated save. The
 360px layout has no horizontal overflow. Desktop screenshot reviewed; no
-JavaScript runtime errors or HTTP requests observed. App builds and native
-tests are not applicable to this design-only change.
+JavaScript runtime errors or HTTP requests observed. The native flow is covered
+by `OpenSuperWhisperTests/DictionaryBulkImportTests.swift`.

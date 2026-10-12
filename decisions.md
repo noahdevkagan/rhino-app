@@ -1966,3 +1966,15 @@ Update the same day: Noah asked for the email flow on phones after all. Phones
 screen) now see "Email me the link" → SendFox form 296025 → list 678250. The
 active automation 122583 emails the /get?src=send-to-mac download link at
 once. The form redirects back to /?sent=mac, which shows "Check your email".
+
+## 2026-10-12 — Bulk dictionary: review the paste flow before implementation
+
+Customer feedback requested CSV import or at least bulk paste. The proposed
+first version accepts one word per line and an optional second spreadsheet
+column for the current mishearing. Correct spelling alone can use the existing
+conservative sound-alike matcher; short words and phrases need an explicit
+replacement. The review screen makes that distinction visible rather than
+promising every pasted term will be corrected automatically. CSV parsing and
+file selection are deferred. Noah requested a PR to review on another computer;
+this commit preserves the latest interactive mockup and screenshot only, not
+a native feature implementation. See docs/mockups/bulk-dictionary/README.md.

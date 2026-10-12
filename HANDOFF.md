@@ -7,6 +7,20 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Bulk dictionary design (2026-10-12, mumbai — review proposal)
+
+Plan: export the latest interactive mockup into `docs/mockups/`, include a
+preview and concise review notes, verify the paste/review flow, and commit/push
+a design-only PR against master so Noah can review on another computer.
+Export and review notes are ready in `docs/mockups/bulk-dictionary/` with a
+standalone offline `index.html`, editable `source.html`, and `preview.png`.
+Browser checks passed for mixed-column paste, short-name validation, empty
+input, simulated save, 360px overflow, and no HTTP requests/runtime errors.
+No Swift changes or app feature implementation are included. The proposal
+supports one-column word lists and an optional second column for exact
+mishearings; short words and phrases need explicit corrections. Plain terms
+use the existing conservative sound-alike matching, not model training.
+
 ### Invalid caret bubble placement (2026-10-07, tunis — implemented)
 
 Cursor placement now rejects zero-height, negative-size, nonfinite and offscreen

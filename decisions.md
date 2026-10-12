@@ -1997,5 +1997,6 @@ all acoustic variants. No models, network calls or saved dictionary changes.
 
 Validation: 42 isolated XCTest cases against the production dictionary sources
 pass; original source fails eight new assertions. Static privacy hygiene passes.
-Full build cannot configure because the workspace's Whisper/llama submodules
-are uninitialized. No audio, customer dictionary export or live ASR test supplied.
+PR follow-up: initialized the pinned submodules and resolved packages; the full
+push gate passes, including app build, unit tests, ASR, latency, static/dynamic
+privacy, release and smoke. No customer audio or dictionary export supplied.

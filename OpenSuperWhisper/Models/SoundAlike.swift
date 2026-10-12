@@ -10,8 +10,9 @@ import Foundation
 /// is left alone; "Clavio" is not a word, so it can only have been a mishearing.
 ///
 /// Two adjacent words are also tried as one, since that is how compound brand names break:
-/// "git hub", "hub spot", "air table". A pair has to spell the word exactly — close was far too
-/// loose over real text ("as an" → "Asana", "you type" → "YouTube").
+/// "git hub", "hub spot", "air table". A fuzzy pair needs a non-word component;
+/// guessing over two real words is too loose ("as an" → "Asana", "you type" → "YouTube").
+/// Explicitly taught aliases also tolerate a split/join without guessing their spelling.
 ///
 /// Links, addresses and paths are left alone: "github.com/me" is not a mishearing.
 enum SoundAlike {
@@ -35,24 +36,68 @@ enum SoundAlike {
             for trigger in entry.triggers { protected.insert(fold(trigger)) }
         }
 
+        // Only names participate, never punctuation/phrase expansion rules. An alias is
+        // evidence for spacing changes, not permission to guess at other real words.
+        var aliases: [String: Set<String>] = [:]
+        for entry in entries {
+            let target = entry.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard terms.contains(target) else { continue }
+            for trigger in entry.triggers where trigger.allSatisfy({
+                $0.isLetter || $0.isNumber || $0 == " " || $0 == "\t"
+            }) {
+                let key = fold(trigger)
+                guard key.count >= minimumTermLength else { continue }
+                aliases[key, default: []].insert(target)
+            }
+        }
+        // A lone word reaches here only if the exact rule passed it by, so it differs from the
+        // trigger by spacing. Joining "ad visor" must not claim every "advisor".
+        func taught(_ candidate: String, isPair: Bool) -> String? {
+            let key = fold(candidate)
+            guard isPair || !isRealWord(key),
+                  let targets = aliases[key], targets.count == 1,
+                  let target = targets.first,
+                  !terms.contains(where: { fold($0) == key && $0 != target }) else { return nil }
+            return target
+        }
+
         let tokens = wordTokens(in: text).filter { !isInsideLinkOrPath($0, of: text) }
+        var singles: [Int: String?] = [:]
+        func single(_ index: Int) -> String? {
+            if let cached = singles[index] { return cached }
+            let word = String(text[tokens[index]])
+            let term = taught(word, isPair: false)
+                ?? match(word, terms: terms, protected: protected, exactOnly: false,
+                         isRealWord: isRealWord)
+            singles[index] = term
+            return term
+        }
+
         var edits: [(range: Range<String.Index>, term: String)] = []
         var index = 0
         while index < tokens.count {
             // Two words first: "git hub" should become one "GitHub", not stay two misses.
             if index + 1 < tokens.count,
-               text[tokens[index].upperBound..<tokens[index + 1].lowerBound] == " " {
+               !text[tokens[index].upperBound..<tokens[index + 1].lowerBound].isEmpty,
+               text[tokens[index].upperBound..<tokens[index + 1].lowerBound].allSatisfy({ $0 == " " || $0 == "\t" }) {
                 let pair = tokens[index].lowerBound..<tokens[index + 1].upperBound
                 let joined = String(text[tokens[index]]) + String(text[tokens[index + 1]])
-                if let term = match(joined, terms: terms, protected: protected, exactOnly: true,
-                                    isRealWord: isRealWord) {
+                let first = fold(String(text[tokens[index]]))
+                let second = fold(String(text[tokens[index + 1]]))
+                // A fuzzy pair is for a name broken in two. If either half is already a near-miss
+                // on its own, the other half is a neighbour: "Clavio a lot" keeps its "a".
+                let exactOnly = isRealWord(first) && isRealWord(second)
+                    || protected.contains(first) || protected.contains(second)
+                    || single(index) != nil || single(index + 1) != nil
+                if let term = taught(joined, isPair: true)
+                    ?? match(joined, terms: terms, protected: protected, exactOnly: exactOnly,
+                             isRealWord: isRealWord) {
                     edits.append((pair, term))
                     index += 2
                     continue
                 }
             }
-            if let term = match(String(text[tokens[index]]), terms: terms, protected: protected,
-                                exactOnly: false, isRealWord: isRealWord) {
+            if let term = single(index) {
                 edits.append((tokens[index], term))
             }
             index += 1

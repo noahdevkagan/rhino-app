@@ -7,6 +7,29 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Dictionary split-name corrections (2026-10-12, tallinn-v1 — PR)
+
+Adzviser screenshot: SoundAlike now permits near-miss pairs when a component
+is not a real word, with the existing phonetic/distance/ambiguity guards.
+Explicit aliases tolerate joining/splitting and horizontal spacing. Real-word
+pairs and distant errors still need teaching; all seven screenshot variants
+work as explicit rules. No model or network change. Not installed or released.
+
+Validation: 42 isolated XCTest cases pass; original source fails eight new
+assertions. Initialized the pinned submodules and resolved Swift packages;
+full push gate passed (app build, unit tests, ASR, latency, static/dynamic
+privacy, release and smoke). Gate benchmark recorded. Evidence:
+`.context/dictionary-check/` (tests.log, baseline.log, push.log).
+Reviewed and pushed on crxnamja/cleanshot-help; opening PR against master.
+No live customer-audio verification; broader real-text evaluation remains
+useful before release.
+
+Review fix (0764c1f, pushed; gate passed): fuzzy pairs no longer swallow a
+following "a"/"I", and a joined taught alias ("ad visor") no longer rewrites
+the real word "advisor". 44 isolated tests pass; the two new tests fail 6
+assertions on the pre-fix source (`.context/dictionary-check/tests-review-fix.log`).
+Merged master (bulk dictionary import, #88) into the branch afterwards.
+
 ### Bulk dictionary (2026-10-12, mumbai — implemented locally, Dev open)
 
 Follow-up: Noah asked to see the actual flow in Rhino Dev. Implementation plan:

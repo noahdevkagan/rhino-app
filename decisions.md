@@ -2003,3 +2003,34 @@ IDs/spacing/alternates survive, and repeated triggers are case-insensitive.
 Reject a mishearing that points to different spellings rather than silently
 creating order-dependent replacements. CSV files and transcription changes are
 outside this feature.
+
+## 2026-10-12 — Conservative split sound-alikes and taught alias spacing
+
+Customer screenshot: Adzviser needs seven different heard-as spellings with
+both Parakeet and Whisper. The shared matcher required split names to join to
+exactly the target spelling. Permit fuzzy pairs only when at least one component
+is absent from the system word list, keeping the existing consonant skeleton,
+distance, joined-real-word, ambiguity and dictionary-word guards. This catches
+"ads viser" without relaxing "as an" / "you type". Spaces and tabs may vary;
+punctuation, newlines, links and paths stay boundaries.
+
+Explicit aliases for eligible single-word names also match after joining or
+splitting into two tokens, including real words the user explicitly taught.
+Conflicting alias targets and other canonical names are protected. This remains
+under Fix sound-alikes; exact replacements keep their existing behavior.
+No phonetic relaxation for missing consonants ("ad viser"), ordinary-word pairs
+("ad visor") or distant errors ("Add sufficer"): these still require teaching.
+This is a bounded improvement, not a promise that adding a brand once resolves
+all acoustic variants. No models, network calls or saved dictionary changes.
+
+Validation: 42 isolated XCTest cases against the production dictionary sources
+pass; original source fails eight new assertions. Static privacy hygiene passes.
+PR follow-up: initialized the pinned submodules and resolved packages; the full
+push gate passes, including app build, unit tests, ASR, latency, static/dynamic
+privacy, release and smoke. No customer audio or dictionary export supplied.
+
+Review follow-up: two guards. A fuzzy pair is skipped when either half already
+matches alone, since the pair otherwise swallowed a following "a"/"I" ("Clavio
+a lot" → "Klaviyo lot"). A lone word whose fold is a real word never takes a
+joined alias: teaching "ad visor" must not rewrite every "advisor". An alias
+that is itself a single real word still works through the exact rule.

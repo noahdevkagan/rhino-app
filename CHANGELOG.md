@@ -5,6 +5,8 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Dictionary sound-alike matching catches more split brand names, such as
+  "ads viser" for "Adzviser". Taught spellings also tolerate spacing changes.
 - Add dictionary words in bulk: paste a list or two spreadsheet columns, review
   the spellings and optional mishearings, and save them together. Existing
   corrections are kept and duplicate entries are skipped.

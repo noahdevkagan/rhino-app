@@ -2000,3 +2000,9 @@ pass; original source fails eight new assertions. Static privacy hygiene passes.
 PR follow-up: initialized the pinned submodules and resolved packages; the full
 push gate passes, including app build, unit tests, ASR, latency, static/dynamic
 privacy, release and smoke. No customer audio or dictionary export supplied.
+
+Review follow-up: two guards. A fuzzy pair is skipped when either half already
+matches alone, since the pair otherwise swallowed a following "a"/"I" ("Clavio
+a lot" → "Klaviyo lot"). A lone word whose fold is a real word never takes a
+joined alias: teaching "ad visor" must not rewrite every "advisor". An alias
+that is itself a single real word still works through the exact rule.

@@ -83,9 +83,33 @@ final class SoundAlikeTests: XCTestCase {
     func testTaughtAliasesSurviveSpacingChanges() {
         let entry = CustomDictionaryEntry(original: "ads visor", replacement: "Adzviser")
         for heard in ["Adsvisor", "ads  visor", "ads\tvisor", "ad svisor"] {
-            XCTAssertEqual(SoundAlike.apply(heard, entries: [entry], isRealWord: { _ in true }), "Adzviser")
+            XCTAssertEqual(fix(heard, [entry]), "Adzviser", heard)
+        }
+        for heard in ["ads  visor", "ad svisor"] {
+            XCTAssertEqual(SoundAlike.apply(heard, entries: [entry], isRealWord: { _ in true }),
+                           "Adzviser", heard)
         }
         XCTAssertEqual(SoundAlike.apply("my advisor", entries: [entry]), "my advisor")
+    }
+
+    /// Joining a taught "ad visor" spells "advisor"; the ordinary word must stay.
+    func testTaughtSplitAliasesDoNotClaimTheRealWordTheyJoinInto() {
+        let entry = CustomDictionaryEntry(original: "ad visor", replacement: "Adzviser",
+                                          alternates: ["ad viser"])
+        for text in ["Talk to my financial advisor today", "my adviser said"] {
+            XCTAssertEqual(CustomDictionary.correct(text, entries: [entry], soundAlikes: true), text)
+        }
+        XCTAssertEqual(CustomDictionary.correct("ad  visor", entries: [entry], soundAlikes: true),
+                       "Adzviser")
+    }
+
+    /// A near-miss followed by a short vowel word ("a", "I") once matched as a pair and ate it.
+    func testFuzzyPairsDoNotSwallowTheNextWord() {
+        XCTAssertEqual(fix("I use Clavio a lot", [klaviyo]), "I use Klaviyo a lot")
+        XCTAssertEqual(fix("Ask Clavio I guess", [klaviyo]), "Ask Klaviyo I guess")
+        let adzviser = CustomDictionaryEntry(replacement: "Adzviser")
+        XCTAssertEqual(fix("Adsviser a lot", [adzviser]), "Adzviser a lot")
+        XCTAssertEqual(fix("I adsviser", [adzviser]), "I Adzviser")
     }
 
     func testSplitMatchingKeepsBoundariesAndOtherDictionaryWords() {

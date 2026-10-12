@@ -24,6 +24,12 @@ Reviewed and pushed on crxnamja/cleanshot-help; opening PR against master.
 No live customer-audio verification; broader real-text evaluation remains
 useful before release.
 
+Review fix (local commit, not yet pushed): fuzzy pairs no longer swallow a
+following "a"/"I", and a joined taught alias ("ad visor") no longer rewrites
+the real word "advisor". 44 isolated tests pass; the two new tests fail 6
+assertions on the pre-fix source (`.context/dictionary-check/tests-review-fix.log`).
+Full push gate not rerun yet.
+
 ### Invalid caret bubble placement (2026-10-07, tunis — implemented)
 
 Cursor placement now rejects zero-height, negative-size, nonfinite and offscreen

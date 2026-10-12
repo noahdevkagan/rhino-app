@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- Dictionary sound-alike matching catches more split brand names, such as
+  "ads viser" for "Adzviser". Taught spellings also tolerate spacing changes.
+
 ## 0.1.37 — 2026-10-08
 
 - The dictation bubble stays near the mouse when an app reports an invalid text

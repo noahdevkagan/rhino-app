@@ -12,7 +12,7 @@ final class SoundAlikeTests: XCTestCase {
     private let klaviyo = CustomDictionaryEntry(replacement: "Klaviyo")
 
     /// Tests use a fixed word list so they don't depend on the machine's /usr/share/dict.
-    private let realWords: Set<String> = ["strip", "notion", "air", "table", "git", "hub", "the"]
+    private let realWords: Set<String> = ["strip", "notion", "air", "table", "git", "hub", "the", "as", "an", "you", "type"]
     private func isRealWord(_ word: String) -> Bool { realWords.contains(word.lowercased()) }
 
     private func fix(_ text: String, _ entries: [CustomDictionaryEntry]) -> String {
@@ -57,12 +57,71 @@ final class SoundAlikeTests: XCTestCase {
     }
 
     /// Close-but-not-exact pairs were the main source of false fixes over real text.
-    func testPairsMustSpellTheWordExactly() {
+    func testRealWordPairsMustSpellTheWordExactly() {
         let asana = CustomDictionaryEntry(replacement: "Asana")
         XCTAssertEqual(fix("as an example", [asana]), "as an example")
 
         let youtube = CustomDictionaryEntry(replacement: "YouTube")
         XCTAssertEqual(fix("you type it", [youtube]), "you type it")
+    }
+
+    func testAdzviserSplitNearMissesWithoutTeaching() {
+        let entry = CustomDictionaryEntry(replacement: "Adzviser")
+        for heard in ["ads viser", "Adsviser", "ads  viser", "ads\tviser"] {
+            XCTAssertEqual(SoundAlike.apply("Open \(heard) today.", entries: [entry]),
+                           "Open Adzviser today.", heard)
+        }
+    }
+
+    func testRealWordPairsAndDistantMishearingsStillNeedTeaching() {
+        let entry = CustomDictionaryEntry(replacement: "Adzviser")
+        for heard in ["ad viser", "ad visor", "ads visor", "Adds visor", "Add sufficer", "advisor"] {
+            XCTAssertEqual(SoundAlike.apply(heard, entries: [entry], isRealWord: { _ in true }), heard)
+        }
+    }
+
+    func testTaughtAliasesSurviveSpacingChanges() {
+        let entry = CustomDictionaryEntry(original: "ads visor", replacement: "Adzviser")
+        for heard in ["Adsvisor", "ads  visor", "ads\tvisor", "ad svisor"] {
+            XCTAssertEqual(SoundAlike.apply(heard, entries: [entry], isRealWord: { _ in true }), "Adzviser")
+        }
+        XCTAssertEqual(SoundAlike.apply("my advisor", entries: [entry]), "my advisor")
+    }
+
+    func testSplitMatchingKeepsBoundariesAndOtherDictionaryWords() {
+        let entry = CustomDictionaryEntry(replacement: "Adzviser")
+        for heard in ["ads, viser", "ads\nviser", "ads /viser", "ads viser.com", "ads viser/path"] {
+            XCTAssertEqual(SoundAlike.apply(heard, entries: [entry]), heard)
+        }
+        let other = CustomDictionaryEntry(replacement: "Viser")
+        XCTAssertEqual(SoundAlike.apply("ads Viser", entries: [entry, other]), "ads Viser")
+    }
+
+    func testAmbiguousAliasesAndSoundAlikesStayUnchanged() {
+        let entries = [CustomDictionaryEntry(original: "ads visor", replacement: "Adzviser"),
+                       CustomDictionaryEntry(original: "adsvisor", replacement: "Adsvisar")]
+        XCTAssertEqual(SoundAlike.apply("adsvisor", entries: entries), "adsvisor")
+        let tied = [CustomDictionaryEntry(replacement: "Klaviyo"),
+                    CustomDictionaryEntry(replacement: "Claviyo")]
+        XCTAssertEqual(SoundAlike.apply("cla vio", entries: tied), "cla vio")
+    }
+
+    func testSoundAlikeToggleAndTrimmedNames() {
+        let entry = CustomDictionaryEntry(original: "ads visor", replacement: " Adzviser ")
+        XCTAssertEqual(CustomDictionary.correct("adsvisor", entries: [entry], soundAlikes: true), "Adzviser")
+        XCTAssertEqual(CustomDictionary.correct("adsvisor", entries: [entry], soundAlikes: false), "adsvisor")
+        XCTAssertEqual(CustomDictionary.correct("ads visor", entries: [entry], soundAlikes: false), "Adzviser")
+    }
+
+    func testAllReportedSpellingsWorkWhenExplicitlyTaught() {
+        let variants = ["ad viser", "ads viser", "ad visor", "Ads visor", "Adds visor", "Add sufficer", "Adsvisor"]
+        let entry = CustomDictionaryEntry(original: variants[0], replacement: "Adzviser",
+                                          alternates: Array(variants.dropFirst()))
+        for heard in variants {
+            let fixed = CustomDictionary.correct("Open \(heard).", entries: [entry], soundAlikes: true)
+            XCTAssertEqual(fixed, "Open Adzviser.")
+            XCTAssertEqual(CustomDictionary.correct(fixed, entries: [entry], soundAlikes: true), fixed)
+        }
     }
 
     func testLinksAndAddressesAreLeftAlone() {

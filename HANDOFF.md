@@ -7,6 +7,25 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Dictionary split-name corrections (2026-10-12, tallinn-v1 — implemented)
+
+PR plan (user requested): review and commit the workspace diff, initialize
+build dependencies, push through the full gate, review origin/master...HEAD,
+and open a PR against master on crxnamja/cleanshot-help.
+
+Adzviser screenshot: SoundAlike now permits near-miss pairs when a component
+is not a real word, with the existing phonetic/distance/ambiguity guards.
+Explicit aliases tolerate joining/splitting and horizontal spacing. Real-word
+pairs and distant errors still need teaching; all seven screenshot variants
+work as explicit rules. No model or network change. Uncommitted, not installed.
+
+Validation: 42 isolated XCTest cases pass against the actual dictionary sources;
+original source fails eight new assertions. Static hygiene passes (dynamic
+skipped). Full build blocked by uninitialized whisper.cpp/llama.cpp submodules.
+Evidence: `.context/dictionary-check/{tests,baseline,build,hygiene}.log`.
+No live ASR/customer-audio verification. Plan completed for focused patch;
+full app build and broader real-text evaluation remain before release.
+
 ### Invalid caret bubble placement (2026-10-07, tunis — implemented)
 
 Cursor placement now rejects zero-height, negative-size, nonfinite and offscreen

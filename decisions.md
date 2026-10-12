@@ -1975,3 +1975,27 @@ form → list 678250 → automation 122583 path gave 2 confirmed contacts and 1 
 from noah@okdork.com (one per address per day via Idempotency-Key, honeypot respected). The form
 post to list 678250 stays so the contact is still captured; automation 122583 is turned off so
 nobody gets two link emails.
+
+## 2026-10-12 — Conservative split sound-alikes and taught alias spacing
+
+Customer screenshot: Adzviser needs seven different heard-as spellings with
+both Parakeet and Whisper. The shared matcher required split names to join to
+exactly the target spelling. Permit fuzzy pairs only when at least one component
+is absent from the system word list, keeping the existing consonant skeleton,
+distance, joined-real-word, ambiguity and dictionary-word guards. This catches
+"ads viser" without relaxing "as an" / "you type". Spaces and tabs may vary;
+punctuation, newlines, links and paths stay boundaries.
+
+Explicit aliases for eligible single-word names also match after joining or
+splitting into two tokens, including real words the user explicitly taught.
+Conflicting alias targets and other canonical names are protected. This remains
+under Fix sound-alikes; exact replacements keep their existing behavior.
+No phonetic relaxation for missing consonants ("ad viser"), ordinary-word pairs
+("ad visor") or distant errors ("Add sufficer"): these still require teaching.
+This is a bounded improvement, not a promise that adding a brand once resolves
+all acoustic variants. No models, network calls or saved dictionary changes.
+
+Validation: 42 isolated XCTest cases against the production dictionary sources
+pass; original source fails eight new assertions. Static privacy hygiene passes.
+Full build cannot configure because the workspace's Whisper/llama submodules
+are uninitialized. No audio, customer dictionary export or live ASR test supplied.

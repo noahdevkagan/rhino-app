@@ -1976,6 +1976,34 @@ from noah@okdork.com (one per address per day via Idempotency-Key, honeypot resp
 post to list 678250 stays so the contact is still captured; automation 122583 is turned off so
 nobody gets two link emails.
 
+## 2026-10-12 — Bulk dictionary: review the paste flow before implementation
+
+Customer feedback requested CSV import or at least bulk paste. The proposed
+first version accepts one word per line and an optional second spreadsheet
+column for the current mishearing. Correct spelling alone can use the existing
+conservative sound-alike matcher; short words and phrases need an explicit
+replacement. The review screen makes that distinction visible rather than
+promising every pasted term will be corrected automatically. CSV parsing and
+file selection are deferred. Noah requested a PR to review on another computer;
+this commit preserves the latest interactive mockup and screenshot only, not
+a native feature implementation. See docs/mockups/bulk-dictionary/README.md.
+
+## 2026-10-12 — Native bulk dictionary import for the Dev walkthrough
+
+Noah asked to try the actual paste UX in Rhino Dev. Use a sheet on the shared
+badge editor so both Dictionary and Settings get the same paste/review flow.
+Keep imported rows as drafts until the final save; Cancel never writes them.
+Accept newline-separated words and optional tab-separated exact mishearings;
+reject extra columns or a missing correct spelling instead of discarding data.
+Require explicit mishearings for ineligible sound-alike terms and when automatic
+matching is off. A word already saved — or carried by another line of the same paste —
+may be re-pasted without re-entering its correction.
+Reuse existing merge semantics: result capitalization is meaningful, existing
+IDs/spacing/alternates survive, and repeated triggers are case-insensitive.
+Reject a mishearing that points to different spellings rather than silently
+creating order-dependent replacements. CSV files and transcription changes are
+outside this feature.
+
 ## 2026-10-12 — Conservative split sound-alikes and taught alias spacing
 
 Customer screenshot: Adzviser needs seven different heard-as spellings with

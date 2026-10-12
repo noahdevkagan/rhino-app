@@ -24,11 +24,40 @@ Reviewed and pushed on crxnamja/cleanshot-help; opening PR against master.
 No live customer-audio verification; broader real-text evaluation remains
 useful before release.
 
-Review fix (local commit, not yet pushed): fuzzy pairs no longer swallow a
+Review fix (0764c1f, pushed; gate passed): fuzzy pairs no longer swallow a
 following "a"/"I", and a joined taught alias ("ad visor") no longer rewrites
 the real word "advisor". 44 isolated tests pass; the two new tests fail 6
 assertions on the pre-fix source (`.context/dictionary-check/tests-review-fix.log`).
-Full push gate not rerun yet.
+Merged master (bulk dictionary import, #88) into the branch afterwards.
+
+### Bulk dictionary (2026-10-12, mumbai — implemented locally, Dev open)
+
+Follow-up: Noah asked to see the actual flow in Rhino Dev. Implementation plan:
+add a bulk-paste sheet to the shared dictionary editor; parse one/two tab-separated
+columns; review correct spellings and optional mishearings with validation;
+merge into existing rules without losing IDs/alternates; add focused import
+tests; build and launch this workspace's Debug app and open the paste flow.
+Keep preview/sample input unsaved so the real dictionary stays under user control.
+
+Implemented in `DictionaryBulkImport.swift` and `DictionaryBulkImportView.swift`,
+opened from the shared badge editor. Build and 25 focused dictionary tests pass;
+static hygiene passes (dynamic egress skipped). Live native paste → review → Back
+verified. Rhino Dev is running from this workspace, with Klaviyo/SendFox/Ilona
+entered in the paste sheet but NOT saved. Screenshots: `.context/bulk-dictionary-dev-paste.png`
+and `.context/bulk-dictionary-dev-review.png`. Native changes are uncommitted;
+PR #88 still contains only the earlier design proposal. No full push gate or release.
+
+Plan: export the latest interactive mockup into `docs/mockups/`, include a
+preview and concise review notes, verify the paste/review flow, and commit/push
+a design-only PR against master so Noah can review on another computer.
+Export and review notes are ready in `docs/mockups/bulk-dictionary/` with a
+standalone offline `index.html`, editable `source.html`, and `preview.png`.
+Browser checks passed for mixed-column paste, short-name validation, empty
+input, simulated save, 360px overflow, and no HTTP requests/runtime errors.
+The original PR contains no Swift changes. The proposal
+supports one-column word lists and an optional second column for exact
+mishearings; short words and phrases need explicit corrections. Plain terms
+use the existing conservative sound-alike matching, not model training.
 
 ### Invalid caret bubble placement (2026-10-07, tunis — implemented)
 

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39;; style-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
+<title>Source</title>
+<style>:root{color-scheme:light dark}body{margin:0;padding:16px;background:light-dark(#ffffff,#181818)}#rhino-corrections{max-width:736px;margin:auto}button{cursor:pointer}</style>
+</head>
+<body>
+<div id="rhino-corrections" aria-label="Rhino bulk dictionary editor">
+  <div class="rc-bar">Rhino · Dictionary</div>
+  <main>
+    <h1>Add multiple words</h1>
+    <div class="rc-steps" aria-label="Import progress"><span data-step="paste">1 &nbsp; Paste</span><span aria-hidden="true">›</span><span data-step="review">2 &nbsp; Review corrections</span></div>
+    <section class="rc-paste" hidden>
+      <label for="rc-source">Paste your list</label>
+      <p>One word per line, or copy two columns from a spreadsheet: <strong>correct spelling</strong>, then <strong>Rhino hears it as</strong>. Leave the second column blank when you don’t know.</p>
+      <textarea id="rc-source" rows="6" spellcheck="false">Klaviyo
+Acme Labs	akme labs
+Jo	Joe</textarea>
+      <div class="rc-error" role="alert" hidden></div>
+      <footer><span>Saved only on this Mac.</span><button class="rc-primary cursor-interaction" data-action="review">Review words</button></footer>
+    </section>
+    <section class="rc-review">
+      <p>Add the spelling Rhino gets wrong if you know it. Otherwise, Rhino can try close sound-alikes for longer, single words.</p>
+      <div class="rc-labels"><span>Correct spelling</span><span>Rhino hears it as <small>optional</small></span></div>
+      <div class="rc-rows"></div>
+      <div class="rc-note"><span aria-hidden="true">ⓘ</span><span>Short names and phrases need a “hears it as” entry. Sound-alike matching must be on in Settings → Output.</span></div>
+      <footer><button class="rc-secondary cursor-interaction" data-action="back">Back to paste</button><div class="rc-save"><span class="rc-count" aria-live="polite"></span><button class="rc-primary cursor-interaction" data-action="save">Add 3 words</button></div></footer>
+    </section>
+    <section class="rc-done" hidden><h2>Added to your dictionary</h2><div class="rc-saved"></div><p>These corrections will apply to future dictations.</p><button class="rc-secondary cursor-interaction" data-action="again">Add more words</button></section>
+  </main>
+</div>
+<style>
+#rhino-corrections { --rc-bg:light-dark(#fafafa,#202124); --rc-surface:light-dark(#fff,#292b2e); --rc-text:light-dark(#282a2e,#f1f1f3); --rc-muted:light-dark(#696d74,#b1b4bc); --rc-line:light-dark(#dedfe3,#44474e); --rc-soft:light-dark(#f0f1f3,#34363c); --rc-action:light-dark(#353a42,#e3e6ec); --rc-on:light-dark(#fff,#202329); --rc-warn:light-dark(#996017,#f4c57e); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--rc-text); background:var(--rc-bg); border:1px solid var(--rc-line); border-radius:13px; overflow:hidden; width:100%; }
+#rhino-corrections * { box-sizing:border-box; }
+#rhino-corrections [hidden] { display:none!important; }
+#rhino-corrections .rc-bar { background:var(--rc-soft); padding:12px 20px; text-align:center; color:var(--rc-muted); font-size:12px; border-bottom:1px solid var(--rc-line); }
+#rhino-corrections main { padding:26px; }
+#rhino-corrections h1 { font-size:25px; line-height:1.2; font-weight:600; margin:0 0 18px; letter-spacing:-.6px; }
+#rhino-corrections h2 { font-size:18px; font-weight:600; }
+#rhino-corrections p { color:var(--rc-muted); font-size:13px; margin:18px 0; }
+#rhino-corrections .rc-steps { display:flex; gap:12px; font-size:12px; color:var(--rc-muted); padding-bottom:18px; border-bottom:1px solid var(--rc-line); flex-wrap:wrap; }
+#rhino-corrections .rc-steps [aria-current="step"] { color:var(--rc-text); font-weight:600; }
+#rhino-corrections .rc-labels, #rhino-corrections .rc-fields { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+#rhino-corrections .rc-labels { font-size:12px; margin-bottom:8px; }
+#rhino-corrections small { font-size:11px; font-weight:400; color:var(--rc-muted); }
+#rhino-corrections .rc-row { background:var(--rc-surface); padding:12px; border:1px solid var(--rc-line); border-radius:9px; margin-bottom:10px; }
+#rhino-corrections input, #rhino-corrections textarea { width:100%; min-width:0; padding:9px 10px; border:1px solid var(--rc-line); background:var(--rc-bg); color:var(--rc-text); border-radius:6px; font:inherit; }
+#rhino-corrections input::placeholder { color:var(--rc-muted); opacity:1; font-size:12px; }
+#rhino-corrections textarea { display:block; resize:vertical; line-height:1.8; }
+#rhino-corrections .rc-status { margin-top:9px; font-size:12px; color:var(--rc-muted); overflow-wrap:anywhere; }
+#rhino-corrections .rc-status[data-warning="true"], #rhino-corrections .rc-error { color:var(--rc-warn); }
+#rhino-corrections .rc-note { display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--rc-muted); margin:18px 0 22px; }
+#rhino-corrections .rc-note svg { width:15px; height:15px; flex:none; margin-top:2px; }
+#rhino-corrections footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; border-top:1px solid var(--rc-line); padding-top:18px; margin-top:20px; }
+#rhino-corrections footer span { font-size:12px; color:var(--rc-muted); }
+#rhino-corrections .rc-save { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-left:auto; }
+#rhino-corrections button { font:500 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:8px 13px; border-radius:7px; border:1px solid var(--rc-line); }
+#rhino-corrections .rc-primary { background:var(--rc-action); color:var(--rc-on); border-color:var(--rc-action); }
+#rhino-corrections .rc-secondary { background:var(--rc-surface); color:var(--rc-text); }
+#rhino-corrections button:disabled { opacity:.4; cursor:default; }
+#rhino-corrections .rc-paste { padding-top:20px; }
+#rhino-corrections .rc-paste p { margin:7px 0 15px; }
+#rhino-corrections .rc-saved { display:flex; gap:7px; flex-wrap:wrap; }
+#rhino-corrections .rc-saved span { background:var(--rc-soft); border:1px solid var(--rc-line); border-radius:30px; padding:5px 11px; font-size:12px; overflow-wrap:anywhere; }
+#rhino-corrections .rc-mobile-label { display:none; }
+@media(max-width:470px) { #rhino-corrections main { padding:20px 14px; } #rhino-corrections .rc-labels { display:none; } #rhino-corrections .rc-fields { grid-template-columns:1fr; gap:9px; } #rhino-corrections .rc-mobile-label { display:block; font-size:12px; margin-bottom:4px; color:var(--rc-muted); } }
+@media(pointer:coarse) { #rhino-corrections button { min-height:44px; } #rhino-corrections input, #rhino-corrections textarea { font-size:16px; } }
+</style>
+<script>
+(() => {
+ const root=document.getElementById('rhino-corrections');
+ const source=root.querySelector('textarea');
+ const rowList=root.querySelector('.rc-rows');
+ const save=root.querySelector('[data-action="save"]');
+ const error=root.querySelector('.rc-error');
+ let rows=[{correct:'Klaviyo',heard:''},{correct:'Acme Labs',heard:'akme labs'},{correct:'Jo',heard:'Joe'}];
+ let step='review';
+ const design={heading:'Add multiple words'};
+ const eligible=word => /^[\p{L}\p{N}]+$/u.test(word) && (word.match(/\p{L}/gu)||[]).length>=5;
+ function status(row) {
+   const correct=row.correct.trim(), heard=row.heard.trim();
+   if(!correct) return {ready:false,text:'Enter the correct spelling.'};
+   if(heard) return {ready:true,text:`Replaces “${heard}” with “${correct}”.`};
+   if(eligible(correct)) return {ready:true,text:'Tries close sound-alikes. Add a mishearing if Rhino still gets it wrong.'};
+   return {ready:false,text:'Add how Rhino spells this now — short names and phrases need an exact match.'};
+ }
+ function update() {
+   let ready=0;
+   rows.forEach((row,i)=>{const result=status(row); if(result.ready)ready++; const el=rowList.children[i]?.querySelector('.rc-status'); if(el){el.textContent=result.text;el.dataset.warning=String(!result.ready);}});
+   root.querySelector('.rc-count').textContent=ready===rows.length ? `${ready} ready` : `${rows.length-ready} ${rows.length-ready===1?'entry needs':'entries need'} a correction`;
+   save.textContent=`Add ${rows.length} ${rows.length===1?'word':'words'}`;
+   save.disabled=!rows.length || ready!==rows.length;
+   root.querySelector('h1').textContent=design.heading;
+ }
+ function buildRows() {
+   rowList.replaceChildren();
+   rows.forEach((row,index)=>{
+     const item=document.createElement('div');item.className='rc-row';
+     const fields=document.createElement('div');fields.className='rc-fields';
+     ['correct','heard'].forEach(key=>{
+       const label=document.createElement('label'); const caption=document.createElement('span');caption.className='rc-mobile-label';caption.textContent=key==='correct'?'Correct spelling':'Rhino hears it as (optional)';
+       const input=document.createElement('input');input.value=row[key];input.spellcheck=false;input.setAttribute('aria-label',`${key==='correct'?'Correct spelling':'Rhino hears it as'}, row ${index+1}`);if(key==='heard')input.placeholder='Leave blank to try sound-alikes';
+       input.addEventListener('input',()=>{row[key]=input.value;update();persist();});
+       label.append(caption,input);fields.append(label);
+     });
+     const description=document.createElement('div');description.className='rc-status';description.setAttribute('aria-live','polite');item.append(fields,description);rowList.append(item);
+   });update();
+ }
+ function showStep(){root.querySelector('.rc-paste').hidden=step!=='paste';root.querySelector('.rc-review').hidden=step!=='review';root.querySelector('.rc-done').hidden=step!=='done';root.querySelector('.rc-steps').hidden=step==='done';root.querySelectorAll('[data-step]').forEach(el=>{if(el.dataset.step===step)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});}
+ function persist(){if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{mockup:'Bulk words with optional exact corrections',heading:design.heading},privateContent:{rows:rows.slice(0,50),source:source.value.slice(0,5000),step}}).catch(()=>{});}
+ function done(){const out=root.querySelector('.rc-saved');out.replaceChildren();rows.forEach(row=>{const badge=document.createElement('span');badge.textContent=row.heard.trim()?`${row.heard.trim()} → ${row.correct.trim()}`:row.correct.trim();out.append(badge);});}
+ function restore(state){const p=state?.privateContent;if(p&&Array.isArray(p.rows)&&p.rows.every(r=>typeof r.correct==='string'&&typeof r.heard==='string'))rows=p.rows;if(typeof p?.source==='string')source.value=p.source;if(['paste','review','done'].includes(p?.step))step=p.step;if(['Add multiple words','Paste a list'].includes(state?.modelContent?.heading))design.heading=state.modelContent.heading;buildRows();done();showStep();}
+ root.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>{
+   const action=button.dataset.action;
+   if(action==='back'){source.value=rows.map(r=>r.correct+(r.heard?'\t'+r.heard:'')).join('\n');step='paste';}
+   if(action==='review'){
+     const lines=source.value.split(/\r\n|\r|\n/).filter(line=>line.trim());
+     if(!lines.length){error.textContent='Paste at least one word.';error.hidden=false;return;}
+     if(lines.some(line=>line.split('\t').length>2)){error.textContent='Paste one or two columns: correct spelling, then Rhino hears it as.';error.hidden=false;return;}
+     error.hidden=true;const seen=new Set();rows=lines.map(line=>{const [correct,heard='']=line.split('\t');return {correct:correct.trim(),heard:heard.trim()};}).filter(row=>{const key=JSON.stringify([row.correct,row.heard.toLowerCase()]);if(seen.has(key))return false;seen.add(key);return true;});step='review';buildRows();
+   }
+   if(action==='save'&&!save.disabled){step='done';done();}
+   if(action==='again'){source.value='';step='paste';}
+   showStep();persist();
+ }));
+ source.addEventListener('input',persist);
+ restore(window.openai?.widgetState);
+ window.addEventListener('openai:set_globals',event=>{if(event.detail?.globals?.widgetState)restore(event.detail.globals.widgetState);});
+ if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:()=>{update();persist();}});tweak.addSelect(design,'heading',{label:'Action wording',options:['Add multiple words','Paste a list']});}
+})();
+</script>
+
+</body>
+</html>

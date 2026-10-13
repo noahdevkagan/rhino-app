@@ -2150,3 +2150,12 @@ and same-origin-frame media are always found. Resume does the full search only
 once a tab holds a requested token. Each browser gets 1.5s to start tab scripts
 (per browser, so slow Chrome can't starve Safari); tab enumeration and the
 Music/Spotify pass are not inside that budget.
+
+## 2026-10-13 — Media pause: Music and Spotify only; browser support dropped
+
+Noah, after a hands-on test: too complicated. Browser support needed a second
+Automation grant per browser plus the hidden "Allow JavaScript from Apple Events"
+developer setting, and most of the edge-case code (DOM tokens, tab rescans, shadow
+DOM, time budgets). Ship the simple version: Music and Spotify, opt-in. The browser
+code (BrowserMediaController/Script, tests/browser-media) is in history at 9885b09
+and the review-fix commit on #93 if we revisit it.

@@ -1716,7 +1716,7 @@ struct SettingsView: View {
                 }
                 .frame(minHeight: 26)
                 SRow(title: "Pause media during recording",
-                     hint: "Pauses Music, Spotify and supported audio/video in Chrome and Safari, then resumes when recording ends. Turning it on asks macOS for access to whichever of these apps are open.") {
+                     hint: "Pauses Music or Spotify while you dictate, then resumes when recording ends. Turning it on asks macOS for access to whichever of them is open.") {
                     SToggle(isOn: $viewModel.pauseMediaOnRecord)
                 }
                 if viewModel.pauseMediaOnRecord {
@@ -1725,17 +1725,13 @@ struct SettingsView: View {
                     }
                     .font(.system(size: 11))
                     .buttonStyle(.link)
-                    .help("Open Music, Spotify, Chrome or Safari first, then click. If you chose Don't Allow before, this opens System Settings › Automation.")
+                    .help("Open Music or Spotify first, then click. If you chose Don't Allow before, this opens System Settings › Automation.")
                     Button("Automation permissions…") {
                         MediaPlaybackController.openAutomationSettings()
                     }
                     .font(.system(size: 11))
                     .buttonStyle(.link)
-                    .help("If you denied access, allow Rhino to control your music player or browser here.")
-                    Text("Browser setup: enable Allow JavaScript from Apple Events. In Chrome: View → Developer. In Safari: Settings → Advanced → Show features for web developers, then Develop → Developer Settings. YouTube and regular audio/video are supported; Firefox, cross-origin embeds and sites that block playback are not.")
-                        .scaledFont(size: 11)
-                        .foregroundColor(STheme.hint)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .help("If you denied access, allow Rhino to control Music or Spotify here.")
                 }
             }
 

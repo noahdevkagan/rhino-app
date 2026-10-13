@@ -2,23 +2,20 @@ import AppKit
 import Carbon
 
 /// Local, addressed playback control. Never send a global Play/Pause: its recipient can
-/// change while dictating. Browser media is tracked separately by exact DOM element.
+/// change while dictating. Music and Spotify only; browser media was dropped for now
+/// (decisions.md 2026-10-13).
 final class MediaPlaybackController {
-    static let shared = MediaPlaybackController(backend: AppleEventMediaBackend(),
-                                                browsers: BrowserMediaController())
+    static let shared = MediaPlaybackController(backend: AppleEventMediaBackend())
 
     private let backend: MediaPlaybackBackend
     private let queue: DispatchQueue
-    private let browsers: BrowserMediaController?
     // Accessed only by callers on main. The worker owns each session's resume tickets.
     private var session: MediaPauseSession?
     private var isTerminating = false
 
     init(backend: MediaPlaybackBackend,
-         browsers: BrowserMediaController? = nil,
          queue: DispatchQueue = DispatchQueue(label: "rhino.media-playback")) {
         self.backend = backend
-        self.browsers = browsers
         self.queue = queue
     }
 
@@ -26,7 +23,7 @@ final class MediaPlaybackController {
         guard !isTerminating, session == nil else { return }
         let session = MediaPauseSession()
         self.session = session
-        queue.async { [backend, browsers] in
+        queue.async { [backend] in
             for player in backend.runningPlayers() {
                 guard session.isActive else { break }
                 // Permission is asked for only from Settings. Until granted, leave
@@ -56,9 +53,6 @@ final class MediaPlaybackController {
                 } catch {
                     // A denied/rejected command did not give Rhino ownership of playback.
                 }
-            }
-            if session.isActive {
-                session.browserTickets = browsers?.pause(isActive: { session.isActive }) ?? []
             }
         }
     }
@@ -127,14 +121,13 @@ final class MediaPlaybackController {
         let ending = session
         session = nil
         ending?.cancel()
-        queue.async { [backend, browsers] in
+        queue.async { [backend] in
             for (player, paused) in ending?.tickets ?? [] {
                 guard let now = try? backend.snapshot(player),
                       now.state == .paused, now.trackID == paused.trackID,
                       abs(now.position - paused.position) < 1 else { continue }
                 try? backend.play(player)
             }
-            browsers?.resume(ending?.browserTickets ?? [])
             // A barrier even without an active session: quit waits for an earlier stop.
             if let completion { DispatchQueue.main.async(execute: completion) }
         }
@@ -145,7 +138,6 @@ private final class MediaPauseSession {
     private let lock = NSLock()
     private var active = true
     var tickets: [(MediaPlayer, MediaPlaybackSnapshot)] = [] // worker queue only
-    var browserTickets: [BrowserMediaTicket] = []
 
     var isActive: Bool {
         lock.lock()
@@ -188,7 +180,7 @@ final class AppleEventMediaBackend: MediaPlaybackBackend {
     private enum Failure: Error { case badReply }
 
     func runningPlayers() -> [MediaPlayer] {
-        events.runningApplications(MediaAppleEventClient.players)
+        events.runningApplications(MediaAppleEventClient.supported)
     }
 
     func hasPermission(for player: MediaPlayer) -> Bool { events.hasPermission(for: player) }

@@ -3,12 +3,10 @@ import Carbon
 import OSLog
 
 /// All traffic is local Apple Events, addressed to an existing process. Never launch
-/// a player/browser, bring it forward, read page contents, or invoke a shell helper.
+/// a player, bring it forward, or invoke a shell helper.
 final class MediaAppleEventClient {
     private let logger = Logger(subsystem: "com.noahkagan.rhino", category: "media-playback")
-    static let players = ["com.apple.Music", "com.spotify.client"]
-    static let browsers = ["com.google.Chrome", "com.apple.Safari"]
-    static let supported = players + browsers
+    static let supported = ["com.apple.Music", "com.spotify.client"]
     enum Failure: Error { case unavailable, badReply }
 
     func runningApplications(_ bundleIDs: [String]) -> [MediaPlayer] {
@@ -67,31 +65,6 @@ final class MediaAppleEventClient {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(error.int32Value))
         }
         return reply
-    }
-
-    func allElements(_ kind: String, of container: NSAppleEventDescriptor = .null(),
-                     player: MediaPlayer) throws -> [NSAppleEventDescriptor] {
-        guard let object = Self.allElementsSpecifier(kind, of: container),
-              let value = try send(eventClass: "core", id: "getd", player: player, object: object)
-                .paramDescriptor(forKeyword: keyDirectObject), value.descriptorType == typeAEList else {
-            logger.error("Unable to enumerate media objects \(kind, privacy: .public) in \(player.bundleID, privacy: .public)")
-            throw Failure.badReply
-        }
-        return (0..<value.numberOfItems).compactMap { value.atIndex($0 + 1) }
-    }
-
-    /// Absolute selectors use `abso`, not `enum`: both Safari and Chrome reject
-    /// an enumerated "all" with errAECoercionFail (-1700).
-    static func allElementsSpecifier(_ kind: String,
-                                     of container: NSAppleEventDescriptor = .null()) -> NSAppleEventDescriptor? {
-        let record = NSAppleEventDescriptor.record()
-        record.setDescriptor(NSAppleEventDescriptor(typeCode: Self.code(kind)), forKeyword: AEKeyword(keyAEDesiredClass))
-        record.setDescriptor(NSAppleEventDescriptor(enumCode: OSType(formAbsolutePosition)), forKeyword: AEKeyword(keyAEKeyForm))
-        record.setDescriptor(NSAppleEventDescriptor(descriptorType: typeAbsoluteOrdinal,
-                                                       data: NSAppleEventDescriptor(enumCode: OSType(kAEAll)).data)!,
-                             forKeyword: AEKeyword(keyAEKeyData))
-        record.setDescriptor(container, forKeyword: AEKeyword(keyAEContainer))
-        return record.coerce(toDescriptorType: typeObjectSpecifier)
     }
 
     static func propertySpecifier(_ name: String,

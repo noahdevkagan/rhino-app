@@ -1639,8 +1639,10 @@ struct SettingsView: View {
     /// Trigger / Recording bar / Input, in the Atelier style.
     private var dictationSettings: some View {
         SPane(title: "Dictation") {
-            // Dictation needs mic + Accessibility; optional player control additionally
-            // requests per-player Automation access on first use.
+            // The complete permission story in one place: Rhino needs exactly these two.
+            // (Input Monitoring rows some users see in System Settings are not needed —
+            // Accessibility covers event listening too. Apple Events / Automation went
+            // away with browser-URL capture.)
             SSection(title: "Permissions") {
                 permissionRow(granted: permissions.isMicrophonePermissionGranted,
                               title: "Microphone",
@@ -1649,7 +1651,7 @@ struct SettingsView: View {
                 }
                 permissionRow(granted: permissions.isAccessibilityPermissionGranted,
                               title: "Accessibility",
-                              hint: "To paste text into other apps and watch the recording shortcut.") {
+                              hint: "To paste text into other apps and watch the recording shortcut. These two are the only permissions Rhino needs.") {
                     permissions.requestAccessibilityPermissionOrOpenSystemPreferences()
                 }
                 if !permissions.isAccessibilityPermissionGranted {
@@ -1714,22 +1716,8 @@ struct SettingsView: View {
                 }
                 .frame(minHeight: 26)
                 SRow(title: "Pause media during recording",
-                     hint: "Pauses Music, Spotify and supported audio/video in Chrome and Safari, then resumes when recording ends. Allow Automation access on first use. Turn off to keep listening while dictating.") {
+                     hint: "Music and Spotify resume when playback is confirmed. Resume browser media manually.") {
                     SToggle(isOn: $viewModel.pauseMediaOnRecord)
-                }
-                if viewModel.pauseMediaOnRecord {
-                    Button("Automation permissions…") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }
-                    .font(.system(size: 11))
-                    .buttonStyle(.link)
-                    .help("If you denied access, allow Rhino to control your music player or browser here.")
-                    Text("Browser setup: enable Allow JavaScript from Apple Events. In Chrome: View → Developer. In Safari: Settings → Advanced → Show features for web developers, then Develop → Developer Settings. YouTube and regular audio/video are supported; Firefox, cross-origin embeds and sites that block playback are not.")
-                        .scaledFont(size: 11)
-                        .foregroundColor(STheme.hint)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 

@@ -7,7 +7,7 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
-### Prefer digits widens (2026-10-13, helsinki — in progress)
+### Prefer digits widens (2026-10-13, helsinki — PR #91 open)
 
 Steve Swindon email: "Prefer digits" still types numbers as words. Formatter
 from #67 ships in 0.1.31+ and works for plain counts; what stays words are
@@ -23,7 +23,8 @@ Prefer digits as the explicit opt-in and widen only that mode, Smart unchanged:
    million", "a hundred times better" stay;
 4. ordinals: compound always ("twenty first" → 21st), lone only beside a
    month name ("October third", "third of October").
-Tests in NumberCompactionTests; CHANGELOG Unreleased; decisions.md entry.
+Done: 22 NumberCompaction tests pass (3 new), full push gate passed, PR #91 against
+master. Not installed or released; reply to Steve pending his version and an example.
 
 ### Dictionary split-name corrections (2026-10-12, tallinn-v1 — PR)
 

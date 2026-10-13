@@ -2136,9 +2136,17 @@ for open players when the toggle is turned on or via "Allow access for open apps
 on its own queue. Default is off for everyone. If we want it on for new installs,
 add an onboarding step that asks for access then, not a silent default.
 
+Apps opened after the toggle was turned on are asked when they launch (2s later,
+once per app per run, skipped while recording): the user is opening an app, not
+dictating. "Allow access" opens System Settings › Automation when an app was
+denied before, since macOS shows no dialog then. Known gap: if several dialogs are
+queued from Settings and the user starts dictating before answering them all, the
+paste can still land in one. Rare (user is in Settings), not worth gating recording.
+
 The pause script ran `querySelectorAll('*')` in every frame of every tab on every
 dictation to find shadow roots. Pause now walks at most 5,000 elements per tab for
-shadow roots (TreeWalker, stops early); light-DOM and same-origin-frame media are
-always found. Resume still searches fully (only tabs Rhino paused). The browser pass
-stops starting new tabs 2s after it begins, so many/slow tabs can't keep media
-playing into a long stretch of the recording.
+shadow roots (TreeWalker, stops early, own document before its frames); light-DOM
+and same-origin-frame media are always found. Resume does the full search only
+once a tab holds a requested token. Each browser gets 1.5s to start tab scripts
+(per browser, so slow Chrome can't starve Safari); tab enumeration and the
+Music/Spotify pass are not inside that budget.

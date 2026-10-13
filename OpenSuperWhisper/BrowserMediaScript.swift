@@ -29,14 +29,15 @@ enum BrowserMediaScript {
             if (!doc || visited.has(doc)) return;
             visited.add(doc);
             for (const media of doc.querySelectorAll('audio,video')) found.add(media);
-            for (const frame of doc.querySelectorAll('iframe,frame')) {
-                try { visit(frame.contentDocument); } catch (_) { /* cross-origin */ }
-            }
-            // TreeWalker stops early; querySelectorAll('*') would build the whole list.
+            // This document's shadow roots before its frames, so a big frame can't spend
+            // the budget first. TreeWalker stops early; querySelectorAll('*') can't.
             const walker = (doc.ownerDocument || doc).createTreeWalker(doc, NodeFilter.SHOW_ELEMENT);
             for (let node = walker.nextNode(); node && budget > 0; node = walker.nextNode()) {
                 budget--;
                 if (node.shadowRoot) visit(node.shadowRoot);
+            }
+            for (const frame of doc.querySelectorAll('iframe,frame')) {
+                try { visit(frame.contentDocument); } catch (_) { /* cross-origin */ }
             }
         }
         visit(document);
@@ -93,14 +94,16 @@ enum BrowserMediaScript {
     }
     if (!window[key]) return '[]';
     const completed = [];
-    // Resume runs only in tabs Rhino paused, so it can afford the full search.
-    const reachable = mediaInPage(Infinity);
+    // Full search, but only once this tab holds one of the requested tokens: the
+    // resume rescan runs in every tab of the browser.
+    let reachable = null;
     for (const token of tokens) {
         const group = window[key]?.get(token);
         if (!group) continue;
         // Consume ownership before play(), including rejections or re-entrant handlers.
         removeGroup(token, group);
         completed.push(token);
+        reachable = reachable || mediaInPage(Infinity);
         for (const record of group.records) {
             const media = record.media;
             try {

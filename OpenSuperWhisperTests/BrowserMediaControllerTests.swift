@@ -98,12 +98,14 @@ final class BrowserMediaControllerTests: XCTestCase {
         XCTAssertEqual(transport.enumerations, 0)
     }
 
-    func testExpiredBudgetStopsStartingNewTabs() {
+    func testSpentBudgetStopsStartingNewTabs() {
         transport.playing.insert("other")
-        let tickets = controller.pause(deadline: .distantPast) { true }
-        XCTAssertTrue(tickets.isEmpty)
-        XCTAssertEqual(transport.executions, 0, "no tab scripts once the budget is spent")
-        XCTAssertEqual(transport.playing, ["other", "video"])
+        var clock = Date(timeIntervalSince1970: 0)
+        transport.onExecute = { clock.addTimeInterval(2) } // first tab is slow
+        let tickets = controller.pause(budget: 1.5, now: { clock }) { true }
+        XCTAssertEqual(transport.executions, 1, "second tab not started after the budget")
+        XCTAssertEqual(tickets.count, 1)
+        XCTAssertEqual(transport.playing, ["other"])
     }
 
     func testMultiplePlayingTabsHaveIndependentTokens() {
@@ -151,6 +153,7 @@ private final class FakeBrowserTransport: BrowserMediaTransport {
     var hungTabs: Set<String> = []
     var errorBeforeExecution: Error?
     var onPause: (() -> Void)?
+    var onExecute: (() -> Void)?
 
     func runningBrowsers() -> [MediaPlayer] { [browser] }
     func hasPermission(for browser: MediaPlayer) -> Bool { permission }
@@ -160,6 +163,7 @@ private final class FakeBrowserTransport: BrowserMediaTransport {
     }
     func execute(_ script: String, in tab: NSAppleEventDescriptor, browser: MediaPlayer) throws -> String {
         executions += 1
+        onExecute?()
         if let errorBeforeExecution { throw errorBeforeExecution }
         if hungTabs.contains(tab.stringValue ?? "") {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(errAETimeout))

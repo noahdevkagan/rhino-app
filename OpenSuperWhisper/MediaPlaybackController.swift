@@ -63,18 +63,58 @@ final class MediaPlaybackController {
         }
     }
 
-    /// Settings action (turning the toggle on, or "Allow access"): ask macOS for Automation
-    /// access to each supported player/browser that is open now. Runs on its own queue
-    /// because each consent dialog blocks until answered; the playback worker stays free.
-    static func requestAutomationAccess() {
+    // MARK: Automation access — asked for only from Settings or when a supported app
+    // launches, never by a recording (a dialog then takes focus and the paste).
+
+    private static let permissionQueue = DispatchQueue(label: "rhino.media-permission")
+    private static var askedAtLaunch: Set<String> = [] // main only
+    private static var launchObserver: NSObjectProtocol?
+
+    /// Settings action (turning the toggle on, or "Allow access"): ask macOS for access to
+    /// each supported app open now. Own queue: each dialog blocks until answered. When an
+    /// app was denied earlier macOS shows nothing, so `openSettingsIfDenied` opens the
+    /// Automation pane instead of leaving the click silent.
+    static func requestAutomationAccess(openSettingsIfDenied: Bool = false) {
         permissionQueue.async {
             let events = MediaAppleEventClient()
+            var denied = false
             for player in events.runningApplications(MediaAppleEventClient.supported) {
-                events.requestPermission(for: player)
+                if events.requestPermission(for: player) == OSStatus(errAEEventNotPermitted) { denied = true }
+            }
+            if denied && openSettingsIfDenied { DispatchQueue.main.async { openAutomationSettings() } }
+        }
+    }
+
+    static func openAutomationSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    /// Apps opened after the toggle was turned on would otherwise never be asked. Ask when
+    /// one launches (user is opening an app, not dictating), once per app per run, after a
+    /// short delay so it can answer Apple Events. Skipped if a recording is in progress.
+    static func startAskingWhenPlayersLaunch() {
+        guard launchObserver == nil else { return }
+        launchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { note in
+            guard AppPreferences.shared.pauseMediaOnRecord,
+                  let id = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier,
+                  MediaAppleEventClient.supported.contains(id),
+                  askedAtLaunch.insert(id).inserted else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                guard AppPreferences.shared.pauseMediaOnRecord,
+                      !AudioRecorder.shared.isRecording, !AudioRecorder.shared.isConnecting else {
+                    askedAtLaunch.remove(id) // try again next launch
+                    return
+                }
+                permissionQueue.async {
+                    let events = MediaAppleEventClient()
+                    for player in events.runningApplications([id]) { events.requestPermission(for: player) }
+                }
             }
         }
     }
-    private static let permissionQueue = DispatchQueue(label: "rhino.media-permission")
 
     func prepareForTermination(completion: @escaping () -> Void) {
         isTerminating = true
@@ -148,7 +188,7 @@ final class AppleEventMediaBackend: MediaPlaybackBackend {
     private enum Failure: Error { case badReply }
 
     func runningPlayers() -> [MediaPlayer] {
-        events.runningApplications(["com.apple.Music", "com.spotify.client"])
+        events.runningApplications(MediaAppleEventClient.players)
     }
 
     func hasPermission(for player: MediaPlayer) -> Bool { events.hasPermission(for: player) }

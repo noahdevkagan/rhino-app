@@ -1721,15 +1721,13 @@ struct SettingsView: View {
                 }
                 if viewModel.pauseMediaOnRecord {
                     Button("Allow access for open apps") {
-                        MediaPlaybackController.requestAutomationAccess()
+                        MediaPlaybackController.requestAutomationAccess(openSettingsIfDenied: true)
                     }
                     .font(.system(size: 11))
                     .buttonStyle(.link)
-                    .help("Open Music, Spotify, Chrome or Safari first, then click to allow Rhino to pause it.")
+                    .help("Open Music, Spotify, Chrome or Safari first, then click. If you chose Don't Allow before, this opens System Settings › Automation.")
                     Button("Automation permissions…") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
-                            NSWorkspace.shared.open(url)
-                        }
+                        MediaPlaybackController.openAutomationSettings()
                     }
                     .font(.system(size: 11))
                     .buttonStyle(.link)

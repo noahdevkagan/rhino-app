@@ -6,7 +6,9 @@ import OSLog
 /// a player/browser, bring it forward, read page contents, or invoke a shell helper.
 final class MediaAppleEventClient {
     private let logger = Logger(subsystem: "com.noahkagan.rhino", category: "media-playback")
-    static let supported = ["com.apple.Music", "com.spotify.client", "com.google.Chrome", "com.apple.Safari"]
+    static let players = ["com.apple.Music", "com.spotify.client"]
+    static let browsers = ["com.google.Chrome", "com.apple.Safari"]
+    static let supported = players + browsers
     enum Failure: Error { case unavailable, badReply }
 
     func runningApplications(_ bundleIDs: [String]) -> [MediaPlayer] {
@@ -36,9 +38,12 @@ final class MediaAppleEventClient {
 
     /// Shows macOS's Automation consent dialog when needed. Blocks until answered, so call
     /// it off the main thread and only from an explicit Settings action, never mid-recording.
-    func requestPermission(for player: MediaPlayer) {
-        guard let target = try? target(player), let address = target.aeDesc else { return }
-        _ = AEDeterminePermissionToAutomateTarget(address, typeWildCard, typeWildCard, true)
+    /// Returns the macOS status: noErr granted, errAEEventNotPermitted denied (no dialog
+    /// is shown for an earlier "Don't Allow"; only System Settings can change it).
+    @discardableResult
+    func requestPermission(for player: MediaPlayer) -> OSStatus {
+        guard let target = try? target(player), let address = target.aeDesc else { return OSStatus(procNotFound) }
+        return AEDeterminePermissionToAutomateTarget(address, typeWildCard, typeWildCard, true)
     }
 
     func send(eventClass: String, id: String, player: MediaPlayer,

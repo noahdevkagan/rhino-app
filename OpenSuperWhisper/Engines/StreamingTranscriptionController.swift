@@ -27,6 +27,12 @@ final class StreamingTranscriptionController: ObservableObject {
         [confirmedText, volatileText].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
+    /// Publish one preview update on the main actor (also usable without a microphone).
+    func updateCaption(confirmed: String, volatile: String) {
+        confirmedText = confirmed
+        volatileText = volatile
+    }
+
     /// Created fresh for every start() and released on stop. A long-lived engine keeps the
     /// device it was first bound to; when AirPods reconnect they come back as a *new*
     /// CoreAudio device, and the stale engine then reads a stale format and its tap install
@@ -93,8 +99,7 @@ final class StreamingTranscriptionController: ObservableObject {
                 let confirmed = await manager.confirmedTranscript
                 let volatile = await manager.volatileTranscript
                 await MainActor.run {
-                    self?.confirmedText = confirmed
-                    self?.volatileText = volatile
+                    self?.updateCaption(confirmed: confirmed, volatile: volatile)
                 }
             }
         }

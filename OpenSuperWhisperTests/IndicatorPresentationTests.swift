@@ -10,6 +10,8 @@ final class IndicatorPresentationTests: XCTestCase {
     private var savedPosition = ""
     private var savedLayout = ""
     private var savedScale = 1.0
+    private var savedEngine = ""
+    private var savedLive = false
 
     override func setUp() {
         super.setUp()
@@ -17,6 +19,11 @@ final class IndicatorPresentationTests: XCTestCase {
         savedPosition = prefs.indicatorPosition
         savedLayout = prefs.indicatorLayout
         savedScale = prefs.textScale
+        savedEngine = prefs.selectedEngine
+        savedLive = prefs.liveTranscriptionEnabled
+        prefs.selectedEngine = "fluidaudio"
+        prefs.liveTranscriptionEnabled = true
+        StreamingTranscriptionController.shared.updateCaption(confirmed: "", volatile: "")
         prefs.indicatorPosition = "cursor"
         prefs.indicatorLayout = IndicatorLayout.default.json
         prefs.textScale = 1
@@ -29,6 +36,9 @@ final class IndicatorPresentationTests: XCTestCase {
         prefs.indicatorPosition = savedPosition
         prefs.indicatorLayout = savedLayout
         prefs.textScale = savedScale
+        prefs.selectedEngine = savedEngine
+        prefs.liveTranscriptionEnabled = savedLive
+        StreamingTranscriptionController.shared.updateCaption(confirmed: "", volatile: "")
         try await super.tearDown()
     }
 
@@ -182,6 +192,63 @@ final class IndicatorPresentationTests: XCTestCase {
         XCTAssertGreaterThan(window.frame.height, 40)
         try? await Task.sleep(for: .milliseconds(250))
         try saveSnapshot(named: "scaled-pill-with-controls")
+    }
+
+    func testLiveCaptionExpandsTheCompactPanelAndGrowsVertically() async throws {
+        let vm = manager.show(nearPoint: anchor)
+        await waitUntil { vm.isVisible }
+        let window = try XCTUnwrap(manager.window)
+        XCTAssertLessThan(window.frame.width, 150)
+        let compactFrame = window.frame
+        let streaming = StreamingTranscriptionController.shared
+        streaming.updateCaption(confirmed: "", volatile: "Takie słowa pojawiają się podczas dyktowania.")
+        try? await Task.sleep(for: .milliseconds(600))
+        XCTAssertEqual(window.frame.width, 380, accuracy: 1)
+        XCTAssertGreaterThanOrEqual(window.frame.height, 30, "A single caption line may be shorter than the waveform")
+        try saveSnapshot(named: "live-caption-first")
+        let firstHeight = window.frame.height
+        streaming.updateCaption(confirmed: String(repeating: "To jest dłuższy tekst podczas dyktowania. ", count: 5),
+                                volatile: "Kolejne słowa pojawiają się na ekranie.")
+        try? await Task.sleep(for: .milliseconds(600))
+        XCTAssertEqual(window.frame.width, 380, accuracy: 1)
+        XCTAssertGreaterThan(window.frame.height, firstHeight)
+        XCTAssertEqual(window.frame.midX, anchor.x, accuracy: 1)
+        XCTAssertEqual(window.frame.minY, anchor.y + 20, accuracy: 1)
+        try saveSnapshot(named: "live-caption-long")
+        streaming.updateCaption(confirmed: "", volatile: "")
+        try? await Task.sleep(for: .milliseconds(600))
+        XCTAssertEqual(window.frame.width, compactFrame.width, accuracy: 1)
+        XCTAssertEqual(window.frame.height, compactFrame.height, accuracy: 1)
+    }
+
+    func testLiveCaptionWithScaledControlsAndNotch() async throws {
+        let prefs = AppPreferences.shared
+        prefs.textScale = 1.6
+        var layout = IndicatorLayout.default
+        layout.setVisible(true, for: .stopButton)
+        layout.setVisible(true, for: .cancelButton)
+        prefs.indicatorLayout = layout.json
+        for position in ["bottom", "notch"] {
+            prefs.indicatorPosition = position
+            StreamingTranscriptionController.shared.updateCaption(confirmed: "", volatile: "")
+            let vm = manager.show(nearPoint: anchor)
+            await waitUntil { vm.isVisible }
+            let window = try XCTUnwrap(manager.window)
+            let initialHeight = window.frame.height
+            StreamingTranscriptionController.shared.updateCaption(
+                confirmed: "Takie słowa pojawiają się podczas dyktowania. To jest dłuższy tekst.",
+                volatile: "Kolejne słowa pojawiają się na ekranie.")
+            try? await Task.sleep(for: .milliseconds(600))
+            XCTAssertGreaterThanOrEqual(window.frame.width, 444)
+            XCTAssertGreaterThan(window.frame.height, initialHeight)
+            XCTAssertFalse(window.ignoresMouseEvents)
+            if position == "notch" {
+                XCTAssertEqual(window.frame.maxY, try XCTUnwrap(window.screen).frame.maxY, accuracy: 1)
+            }
+            try saveSnapshot(named: "live-caption-scaled-\(position)")
+            manager.hide()
+            await waitUntil { self.manager.viewModel == nil }
+        }
     }
 
     private var anchor: NSPoint {

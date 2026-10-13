@@ -5,6 +5,8 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Live dictation captions expand correctly instead of appearing cropped inside
+  a small black box. Larger text also keeps the Stop and Cancel buttons visible.
 - Music, Spotify, and supported audio/video in Chrome and Safari pause while
   recording and resume afterward. This is on by default; existing off choices
   are preserved. Allow Automation access once; browsers also require Allow

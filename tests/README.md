@@ -15,3 +15,9 @@ Conventions (from MeetingCoach, where this layout proved itself):
   run automatically — so nobody mistakes "documented" for "tested".
 
 `smoke/` is a placeholder — replace it with the first real suite.
+
+`browser-media/run.sh` checks the production browser pause/resume script against
+real HTML media in isolated, offline headless Chrome. Requires Swift, Node and
+Google Chrome; reports a skip if Chrome is absent. Native browser coordination
+is covered by XCTest regardless. Signed per-app Automation/YouTube/Safari checks
+remain manual in `media-playback-manual.md`.

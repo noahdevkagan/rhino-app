@@ -1,185 +1,304 @@
 import XCTest
+import Carbon
 @testable import OpenSuperWhisper
 
-/// Commands are injected: these tests never control real media or depend on system playback.
+/// The backend is fake: tests never send commands to the user's players or prompt TCC.
 final class MediaResumeDecisionTests: XCTestCase {
-    private var commands: [UInt32] = []
-    private var pauseSucceeds = true
+    private var backend: FakeMediaBackend!
+    private var queue: DispatchQueue!
     private var controller: MediaPlaybackController!
-    private let music = "com.apple.Music"
-    private let spotify = "com.spotify.client"
+    private let music = MediaPlayer(bundleID: "com.apple.Music", pid: 1, launchDate: .distantPast)
+    private let spotify = MediaPlayer(bundleID: "com.spotify.client", pid: 2, launchDate: .distantPast)
 
     override func setUp() {
         super.setUp()
-        commands = []
-        pauseSucceeds = true
-        controller = MediaPlaybackController(sendCommand: { [unowned self] command in
-            self.commands.append(command)
-            return command != 1 || self.pauseSucceeds
-        })
+        backend = FakeMediaBackend()
+        queue = DispatchQueue(label: "test.media")
+        controller = MediaPlaybackController(backend: backend, queue: queue)
     }
 
-    override func tearDown() {
-        controller = nil
-        super.tearDown()
+    private func drain() { queue.sync {} }
+    private func playing(_ player: MediaPlayer) {
+        backend.players.append(player)
+        backend.states[player.pid] = .init(state: .playing, trackID: "track", position: 42)
+    }
+    private func pause() { controller.pauseMedia(); drain() }
+    private func resume() { controller.resumeMedia(); drain() }
+
+    func testMusicPlayingBeforeFirstDictationResumesWithoutAnnouncements() {
+        playing(music)
+        pause()
+        XCTAssertEqual(backend.commands, ["pause:1"])
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1", "play:1"])
     }
 
-    private func confirmPause(_ bundleID: String = "com.apple.Music") {
-        controller.notePlayerState(bundleID: bundleID, state: "Playing")
-        controller.pauseMedia()
-        controller.notePlayerState(bundleID: bundleID, state: "Paused")
+    func testSpotifyResumesSamePlayer() {
+        playing(spotify)
+        pause()
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:2", "play:2"])
     }
 
-    func testUnknownPlaybackIncludingPausedBrowserNeverResumes() {
-        // Browser IO is deliberately never consulted: paused and playing tabs can report
-        // identical output IO. An unconditional Pause is safe; an unverified Play is not.
-        controller.pauseMedia()
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
+    func testAlreadyPausedMusicNeverStarts() {
+        playing(music)
+        backend.states[1] = .init(state: .paused, trackID: "track", position: 42)
+        pause()
+        resume()
+        XCTAssertEqual(backend.commands, [])
     }
 
-    func testMusicBeforeFirstAnnouncementNeverResumes() {
-        controller.pauseMedia()
-        controller.notePlayerState(bundleID: music, state: "Paused")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
+    func testStoppedPlayerNeverStarts() {
+        playing(music)
+        backend.states[1] = .init(state: .stopped, trackID: "", position: 0)
+        pause()
+        resume()
+        XCTAssertEqual(backend.commands, [])
     }
 
-    func testAlreadyPausedMusicAndSpotifyNeverResume() {
-        controller.notePlayerState(bundleID: music, state: "Paused")
-        controller.notePlayerState(bundleID: spotify, state: "Paused")
-        controller.pauseMedia()
-        controller.notePlayerState(bundleID: music, state: "Paused")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
+    func testNoSupportedPlayerDoesNothingInsteadOfGlobalPause() {
+        pause()
+        resume()
+        XCTAssertEqual(backend.commands, [])
     }
 
-    func testPausedMusicWithUnconfirmedBrowserNeverResumes() {
-        controller.notePlayerState(bundleID: music, state: "Paused")
-        // Browsers have no supported playback announcements; arbitrary input cannot arm Play.
-        controller.notePlayerState(bundleID: "com.google.Chrome", state: "Playing")
-        controller.pauseMedia()
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
+    func testUnknownStateDoesNotPause() {
+        playing(music)
+        backend.failRead = true
+        pause()
+        backend.failRead = false
+        resume()
+        XCTAssertEqual(backend.commands, [])
     }
 
-    func testConfirmedMusicResumesExactlyOnce() {
-        confirmPause()
-        XCTAssertTrue(controller.didPauseMedia)
-        controller.resumeMedia()
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1, 0])
-        XCTAssertFalse(controller.didPauseMedia)
+    func testMissingPermissionLeavesPlaybackAloneThenWorksWhenGranted() {
+        playing(music)
+        backend.authorized = false
+        pause()
+        resume()
+        XCTAssertEqual(backend.commands, [])
+        backend.authorized = true
+        pause()
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1", "play:1"])
     }
 
-    func testConfirmedSpotifyResumesWithoutLocalAudioIO() {
-        confirmPause(spotify)
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1, 0])
+    func testMultiplePlayersAreRestoredIndependently() {
+        playing(music)
+        playing(spotify)
+        pause()
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1", "pause:2", "play:1", "play:2"])
     }
 
-    func testPlayingWithoutPauseConfirmationDoesNotResume() {
-        controller.notePlayerState(bundleID: music, state: "Playing")
-        controller.pauseMedia()
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
+    func testOnePlayerFailureDoesNotPreventAnotherFromResuming() {
+        playing(music)
+        playing(spotify)
+        pause()
+        backend.states.removeValue(forKey: 1)
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1", "pause:2", "play:2"])
     }
 
-    func testFailedPauseDoesNotResumeEvenIfAnnouncementArrives() {
-        pauseSucceeds = false
-        confirmPause()
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
+    func testTerminatedPlayerIsNotRelaunched() {
+        playing(music)
+        pause()
+        backend.states.removeValue(forKey: 1)
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1"])
     }
 
-    func testDuplicatePausePreservesConfirmedCycle() {
-        confirmPause()
-        controller.pauseMedia()
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1, 0])
+    func testChangedTrackDoesNotResume() {
+        playing(music)
+        pause()
+        backend.states[1] = .init(state: .paused, trackID: "different", position: 42)
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1"])
     }
 
-    func testRepeatedPauseAnnouncementPreservesConfirmedCycle() {
-        confirmPause()
-        controller.notePlayerState(bundleID: music, state: "Paused")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1, 0])
+    func testUserSeekDoesNotResume() {
+        playing(music)
+        pause()
+        backend.states[1] = .init(state: .paused, trackID: "track", position: 90)
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1"])
     }
 
-    func testPlaybackRestartDuringRecordingCancelsResume() {
-        confirmPause()
-        controller.notePlayerState(bundleID: music, state: "Playing")
-        controller.notePlayerState(bundleID: music, state: "Paused")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
+    func testUserRestartDoesNotSendAnotherPlay() {
+        playing(music)
+        pause()
+        backend.states[1] = .init(state: .playing, trackID: "track", position: 42)
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1"])
     }
 
-    func testStoppedPlayerCancelsResume() {
-        confirmPause()
-        controller.notePlayerState(bundleID: music, state: "Stopped")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
+    func testDuplicateStartAndStopRestoreExactlyOnce() {
+        playing(music)
+        pause()
+        pause()
+        resume()
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1", "play:1"])
     }
 
-    func testUnknownPlayerStateCancelsResume() {
-        confirmPause()
-        controller.notePlayerState(bundleID: music, state: "Unknown")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
-        XCTAssertNil(controller.knownPlayerStates[music])
+    func testStopWithoutStartDoesNothing() {
+        resume()
+        XCTAssertEqual(backend.commands, [])
     }
 
-    func testAnotherPlayerChangeCancelsResume() {
-        confirmPause()
-        controller.notePlayerState(bundleID: spotify, state: "Paused")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
-    }
-
-    func testMultiplePlayingPlayersDoNotArmGlobalResume() {
-        controller.notePlayerState(bundleID: music, state: "Playing")
-        controller.notePlayerState(bundleID: spotify, state: "Playing")
-        controller.pauseMedia()
-        controller.notePlayerState(bundleID: music, state: "Paused")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
-    }
-
-    func testTerminatedPlayerCannotResumeOrLeaveStaleState() {
-        confirmPause()
-        controller.notePlayerTerminated(bundleID: music)
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
-        XCTAssertNil(controller.knownPlayerStates[music])
-        controller.pauseMedia()
-        controller.notePlayerState(bundleID: music, state: "Paused")
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1, 1])
-    }
-
-    func testLatePauseDoesNotCarryIntoNextRecording() {
-        controller.notePlayerState(bundleID: music, state: "Playing")
+    func testStopBeforeWorkerStartsDoesNotPauseLater() {
+        playing(music)
+        queue.suspend()
         controller.pauseMedia()
         controller.resumeMedia()
-        controller.notePlayerState(bundleID: music, state: "Paused")
+        queue.resume()
+        drain()
+        XCTAssertEqual(backend.commands, [])
+    }
+
+    func testStopDuringPlaybackReadDoesNotPauseLater() {
+        playing(music)
+        let entered = expectation(description: "read started")
+        let release = DispatchSemaphore(value: 0)
+        backend.onRead = {
+            entered.fulfill()
+            release.wait()
+        }
+        controller.pauseMedia()
+        wait(for: [entered], timeout: 2)
+        controller.resumeMedia()
+        release.signal()
+        drain()
+        XCTAssertEqual(backend.commands, [])
+    }
+
+    func testStopDuringPauseStillRestores() {
+        playing(music)
+        let entered = expectation(description: "pause started")
+        let release = DispatchSemaphore(value: 0)
+        backend.onPause = {
+            entered.fulfill()
+            release.wait()
+        }
+        controller.pauseMedia()
+        wait(for: [entered], timeout: 2)
+        controller.resumeMedia()
+        release.signal()
+        drain()
+        XCTAssertEqual(backend.commands, ["pause:1", "play:1"])
+    }
+
+    func testNextRecordingWaitsForPreviousRestore() {
+        playing(music)
+        pause()
         controller.resumeMedia()
         controller.pauseMedia()
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1, 1])
+        drain()
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1", "play:1", "pause:1", "play:1"])
     }
 
-    func testDisablingSettingConsumesResumeAndAllowsNextRecording() {
-        confirmPause()
-        controller.resumeMedia(allowResume: false)
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1])
-        confirmPause()
-        controller.resumeMedia()
-        XCTAssertEqual(commands, [1, 1, 0])
+    func testRejectedPauseDoesNotClaimPlayback() {
+        playing(music)
+        backend.pauseError = NSError(domain: NSOSStatusErrorDomain, code: Int(errAEEventNotPermitted))
+        pause()
+        // Even if someone else pauses it, Rhino must not resume a rejected request.
+        backend.states[1] = .init(state: .paused, trackID: "track", position: 42)
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1"])
     }
 
-    func testStopWithoutRecordingDoesNothing() {
+    func testPauseTimeoutChecksFreshStateBeforeRestoring() {
+        playing(music)
+        backend.pauseError = NSError(domain: NSOSStatusErrorDomain, code: Int(errAETimeout))
+        pause()
+        backend.states[1] = .init(state: .paused, trackID: "track", position: 42)
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1", "play:1"])
+    }
+
+    func testUnconfirmedPauseCanBeRestoredFromFreshState() {
+        playing(music)
+        backend.onPause = { self.backend.failRead = true }
+        pause()
+        backend.failRead = false
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1", "play:1"])
+    }
+
+    func testConfirmedTrackChangeDiscardsTicketEvenIfOriginalTrackReturns() {
+        playing(music)
+        backend.onPause = {
+            self.backend.states[1] = .init(state: .playing, trackID: "new-track", position: 0)
+        }
+        pause()
+        backend.states[1] = .init(state: .paused, trackID: "track", position: 42)
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1"])
+    }
+
+    func testFailedResumeReadNeverSendsPlay() {
+        playing(music)
+        pause()
+        backend.failRead = true
+        resume()
+        XCTAssertEqual(backend.commands, ["pause:1"])
+    }
+
+    func testQuitRejectsLateRecordingStart() {
+        playing(music)
+        pause()
+        let complete = expectation(description: "quit may proceed")
+        controller.prepareForTermination { complete.fulfill() }
+        controller.pauseMedia()
+        wait(for: [complete], timeout: 2)
+        drain()
+        XCTAssertEqual(backend.commands, ["pause:1", "play:1"])
+    }
+
+    func testQuitCompletionWaitsForAlreadyQueuedRestore() {
+        playing(music)
+        pause()
         controller.resumeMedia()
-        XCTAssertEqual(commands, [])
+        let complete = expectation(description: "quit may proceed")
+        controller.resumeMedia {
+            XCTAssertEqual(self.backend.commands, ["pause:1", "play:1"])
+            complete.fulfill()
+        }
+        wait(for: [complete], timeout: 2)
+    }
+}
+
+private final class FakeMediaBackend: MediaPlaybackBackend {
+    var players: [MediaPlayer] = []
+    var states: [pid_t: MediaPlaybackSnapshot] = [:]
+    var commands: [String] = []
+    var authorized = true
+    var failRead = false
+    var pauseError: Error?
+    var onRead: (() -> Void)?
+    var onPause: (() -> Void)?
+    enum Failure: Error { case unavailable }
+
+    func runningPlayers() -> [MediaPlayer] { players }
+    func hasPermission(for player: MediaPlayer) -> Bool { authorized }
+    func snapshot(_ player: MediaPlayer) throws -> MediaPlaybackSnapshot {
+        let hook = onRead
+        onRead = nil
+        hook?()
+        guard !failRead, let state = states[player.pid] else { throw Failure.unavailable }
+        return state
+    }
+    func pause(_ player: MediaPlayer) throws {
+        commands.append("pause:\(player.pid)")
+        onPause?()
+        if let pauseError { throw pauseError }
+        let state = states[player.pid]!
+        states[player.pid] = .init(state: .paused, trackID: state.trackID, position: state.position)
+    }
+    func play(_ player: MediaPlayer) throws {
+        commands.append("play:\(player.pid)")
+        let state = states[player.pid]!
+        states[player.pid] = .init(state: .playing, trackID: state.trackID, position: state.position)
     }
 }

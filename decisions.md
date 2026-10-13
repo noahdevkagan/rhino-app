@@ -1967,6 +1967,94 @@ screen) now see "Email me the link" → SendFox form 296025 → list 678250. The
 active automation 122583 emails the /get?src=send-to-mac download link at
 once. The form redirects back to /?sent=mac, which shows "Check your email".
 
+
+## 2026-10-12 — Address Music/Spotify directly before defaulting pause on
+
+User wants music to pause during dictation and resume afterward, default on.
+Replace global private MediaRemote commands and cached announcements with local
+Apple Events using each player's shipped scripting dictionary. Read playing state
+before pausing; restore only the same live PID/launch date, track, paused state,
+and position (under 1 second tolerance). Never launch a player. Multiple players
+are tracked independently. An already-paused/stopped/unknown player is untouched.
+Browsers are untouched too: leaving them playing is preferable to pausing them
+without a reliable way to resume. This deliberately limits supported players.
+
+Reintroduce per-player Automation permission for this feature. Ask once on first
+use, on a separate queue; the current recording leaves unapproved players alone.
+Declines never block dictation; Settings links to Automation to recover. Playback
+operations have bounded waits on a serial worker, and stop cancels queued starts.
+Restore after stop/cancel, failed capture, or normal app quit, even when the toggle
+was disabled mid-recording. A new session waits for the previous restore. Tests
+inject the backend and app-hosted tests suppress real-player enumeration.
+
+Default true applies when the preference is absent; retain stored false choices.
+Snapshot checks respect track changes, seeking and currently restarted playback;
+a manual play-then-pause back at the same track/position cannot be distinguished
+perfectly, nor can a final user action racing the restore command. Quit/crash of
+a player or denied/revoked permission can prevent restoration. No universal
+browser support or crash-proof resume is claimed. No network calls or new deps.
+
+## 2026-10-12 — Browser resume owns exact HTML media, not the active tab
+
+User asked to add browser playback to the new default-on behavior. Support Chrome
+and Safari through their shipped Apple Event JavaScript interfaces; require the
+user's Automation permission and explicit browser setting Allow JavaScript from
+Apple Events. Do not enable that browser setting silently or install extensions.
+Read only tab/window object references, not titles/URLs/content, on the native
+side. Script results contain only status words and Rhino-generated UUIDs.
+
+Each pause command checks playing HTML audio/video and stores exact element
+references under an opaque recording token inside that page. Skip paused/ended,
+muted, empty, or srcObject (e.g. call) media. On restore, require that the same
+element/document/source/URL/position survives and no play/seek/load event occurred.
+Consume tokens before play; rejected play promises never retry. Page navigation
+clears ownership. Probe saved tab references first, then find unresolved tokens in
+current tabs so Safari reordering or a tab moving windows cannot start the wrong
+media. A timed-out pause retains a token for recovery; expired queued pause
+scripts refuse to run. Native worker ordering and cancellation apply to browsers
+too, including recording failure/cancel/normal quit.
+
+Limit scope to main documents and reachable same-origin frames. Cross-origin
+embeds, Firefox, Web Audio-only players, closed shadow trees, site autoplay blocks,
+revoked permission and browser crashes cannot be transparently restored. Existing
+default-on/explicit-off preference behavior remains. All local; no helper servers,
+network requests, extension installation or browsing-history collection.
+
+References: https://www.chromium.org/developers/applescript/ and
+https://developer.apple.com/documentation/safari-developer-tools/developer-settings
+plus the installed Chrome/Safari scripting dictionaries. Signed live checks are
+listed in tests/media-playback-manual.md and are separate from injected native
+transport tests and offline Chrome HTML media tests.
+
+Browser testing follow-up: a real Chrome regression exposed currentSrc lagging a
+new src assignment. Also compare the declared src and source children so an
+immediate stop cannot resume the replacement resource before load events arrive.
+Use generated data-URL silent WAVs in the browser suite. Embedded WKWebView
+fixtures hit intermittent media-process timeouts; Chrome's virtual-time harness
+also stalled on async playback. The final gate suite drives a separate offline
+Chrome profile with real-time CDP over pipes and fake OS audio output, a hard
+timeout and cleanup. It needs Node + Chrome, never a user's browser profile,
+window, debugging TCP server or real audio output.
+
+### 2026-10-12 — Live browser Apple Event verification
+
+Signed GUI testing found both Chrome and Safari rejecting the all-elements
+selector with -1700: kAEAll must have descriptor type typeAbsoluteOrdinal,
+not typeEnumerated. Fixed the native specifier and added a regression test.
+Safari passed four live pause/restore cycles, including Esc cancellation, with
+an already-paused control untouched. Keep error-code-only OSLog diagnostics
+(no page contents, titles, URLs or script text). Chrome remains unverified
+live due JavaScript setup/menu interference and native command timeouts.
+
+### 2026-10-12 — Timed-out browser pauses: one retry, no rescan
+
+A pause whose Apple Event reply timed out still gets a ticket (the script may
+have run before the reply was lost), but it is marked unconfirmed. Resume tries
+its own tab once and never searches every tab for it. Usually the tab was hung,
+its late script refused the stale request, and nothing was paused; rescanning
+cost one more timeout per hung tab on every dictation and held up the next
+pause and quit on the shared serial queue. Only confirmed tokens can follow a
+moved/reordered tab.
 ## 2026-10-12 — Phone "Email me the link" sends via SendFox transactional
 
 Noah: "move the email signup to transactional so we can just capture those emails." In 4 days the

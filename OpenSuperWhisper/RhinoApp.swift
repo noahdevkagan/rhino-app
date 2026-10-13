@@ -139,6 +139,13 @@ class AppState: ObservableObject {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableObject {
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        MediaPlaybackController.shared.prepareForTermination {
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     private var statusItem: NSStatusItem?
     private var mainWindow: NSWindow?
     private var languageSubmenu: NSMenu?
@@ -210,11 +217,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         RhinoApp.startTranscriptionQueue()
         RhinoApp.startRetentionScheduler()
         observeMicrophoneChanges()
-
-        // Start listening for Spotify/Music "Player State" announcements now, not at the
-        // first dictation: the was-it-playing decision is only as good as the history it
-        // has heard, and a lazily-created controller would know nothing on the first pause.
-        _ = MediaPlaybackController.shared
 
         // Speed: warm the heavy pieces at launch so the FIRST dictation doesn't
         // pay their load time — the ASR engine (~1-3s) and, when cleanup is on,

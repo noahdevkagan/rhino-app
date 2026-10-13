@@ -7,6 +7,22 @@ import XCTest
 /// domain shared between them (#59).
 final class DefaultsStoreTests: XCTestCase {
 
+    func testMediaPauseDefaultsOnButPreservesExplicitOff() {
+        let prefs = AppPreferences.shared
+        let store = DefaultsStore.current
+        let old = store.object(forKey: "pauseMediaOnRecord")
+        defer {
+            if let old { store.set(old, forKey: "pauseMediaOnRecord") }
+            else { store.removeObject(forKey: "pauseMediaOnRecord") }
+        }
+        store.removeObject(forKey: "pauseMediaOnRecord")
+        XCTAssertTrue(prefs.pauseMediaOnRecord)
+        store.set(false, forKey: "pauseMediaOnRecord")
+        XCTAssertFalse(prefs.pauseMediaOnRecord)
+        store.set(true, forKey: "pauseMediaOnRecord")
+        XCTAssertTrue(prefs.pauseMediaOnRecord)
+    }
+
     /// The whole fix rests on this: if the switch didn't happen, every other guarantee here is
     /// void and the suite is back to sharing one domain.
     func testTestsRunAgainstAPrivateSuite() {

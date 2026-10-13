@@ -407,8 +407,9 @@ final class AppPreferences {
     }
 
     /// Pause supported players while recording, then restore the same playback.
-    /// Existing explicit choices (including false) are preserved.
-    @UserDefault(key: "pauseMediaOnRecord", defaultValue: true)
+    /// Off unless the user turns it on: it needs Automation consent, which is only asked
+    /// for from Settings (see decisions.md 2026-10-13). Stored choices are preserved.
+    @UserDefault(key: "pauseMediaOnRecord", defaultValue: false)
     var pauseMediaOnRecord: Bool
 
     // Retention / storage policy

@@ -25,14 +25,17 @@ final class BrowserMediaController {
         self.transport = transport
     }
 
-    func pause(isActive: () -> Bool) -> [BrowserMediaTicket] {
+    /// Tabs are asked one at a time (up to 1s each), so stop starting new tabs once
+    /// `deadline` passes: media that's still playing beats a dictation that waits on it.
+    func pause(deadline: Date = Date().addingTimeInterval(2),
+               isActive: () -> Bool) -> [BrowserMediaTicket] {
         var tickets: [BrowserMediaTicket] = []
         for browser in transport.runningBrowsers() {
-            guard isActive() else { break }
+            guard isActive(), Date() < deadline else { break }
             guard transport.hasPermission(for: browser),
                   let tabs = try? transport.tabs(in: browser) else { continue }
             for tab in tabs {
-                guard isActive() else { break }
+                guard isActive(), Date() < deadline else { break }
                 let token = UUID().uuidString
                 do {
                     let result = try transport.execute(BrowserMediaScript.pause(token: token), in: tab, browser: browser)

@@ -7,7 +7,7 @@ import XCTest
 /// domain shared between them (#59).
 final class DefaultsStoreTests: XCTestCase {
 
-    func testMediaPauseDefaultsOnButPreservesExplicitOff() {
+    func testMediaPauseDefaultsOffButPreservesExplicitChoice() {
         let prefs = AppPreferences.shared
         let store = DefaultsStore.current
         let old = store.object(forKey: "pauseMediaOnRecord")
@@ -16,7 +16,7 @@ final class DefaultsStoreTests: XCTestCase {
             else { store.removeObject(forKey: "pauseMediaOnRecord") }
         }
         store.removeObject(forKey: "pauseMediaOnRecord")
-        XCTAssertTrue(prefs.pauseMediaOnRecord)
+        XCTAssertFalse(prefs.pauseMediaOnRecord, "never on for users who didn't opt in")
         store.set(false, forKey: "pauseMediaOnRecord")
         XCTAssertFalse(prefs.pauseMediaOnRecord)
         store.set(true, forKey: "pauseMediaOnRecord")

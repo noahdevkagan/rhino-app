@@ -29,8 +29,8 @@ final class MediaPlaybackController {
         queue.async { [backend, browsers] in
             for player in backend.runningPlayers() {
                 guard session.isActive else { break }
-                // Permission dialogs run separately. Until permission is granted, leave
-                // playback alone; never hold up the mic or pause AFTER a consent dialog.
+                // Permission is asked for only from Settings. Until granted, leave
+                // playback alone; never hold up the mic or show a dialog mid-recording.
                 guard backend.hasPermission(for: player),
                       let before = try? backend.snapshot(player), before.state == .playing,
                       session.isActive else { continue }
@@ -62,6 +62,19 @@ final class MediaPlaybackController {
             }
         }
     }
+
+    /// Settings action (turning the toggle on, or "Allow access"): ask macOS for Automation
+    /// access to each supported player/browser that is open now. Runs on its own queue
+    /// because each consent dialog blocks until answered; the playback worker stays free.
+    static func requestAutomationAccess() {
+        permissionQueue.async {
+            let events = MediaAppleEventClient()
+            for player in events.runningApplications(MediaAppleEventClient.supported) {
+                events.requestPermission(for: player)
+            }
+        }
+    }
+    private static let permissionQueue = DispatchQueue(label: "rhino.media-permission")
 
     func prepareForTermination(completion: @escaping () -> Void) {
         isTerminating = true

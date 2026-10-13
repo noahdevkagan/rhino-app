@@ -6,9 +6,7 @@ import OSLog
 /// a player/browser, bring it forward, read page contents, or invoke a shell helper.
 final class MediaAppleEventClient {
     private let logger = Logger(subsystem: "com.noahkagan.rhino", category: "media-playback")
-    private let permissionQueue = DispatchQueue(label: "rhino.media-permission")
-    private var requestedPermissions: Set<String> = [] // playback worker only
-    private static let supported = ["com.apple.Music", "com.spotify.client", "com.google.Chrome", "com.apple.Safari"]
+    static let supported = ["com.apple.Music", "com.spotify.client", "com.google.Chrome", "com.apple.Safari"]
     enum Failure: Error { case unavailable, badReply }
 
     func runningApplications(_ bundleIDs: [String]) -> [MediaPlayer] {
@@ -29,18 +27,18 @@ final class MediaAppleEventClient {
         return NSAppleEventDescriptor(processIdentifier: player.pid)
     }
 
+    /// Check only. Never prompts: a consent dialog during a recording takes focus, and the
+    /// dictated text would paste into the dialog. Prompts come from Settings instead.
     func hasPermission(for player: MediaPlayer) -> Bool {
         guard let target = try? target(player), let address = target.aeDesc else { return false }
-        let status = AEDeterminePermissionToAutomateTarget(address, typeWildCard, typeWildCard, false)
-        if status == noErr { return true }
-        if status == errAEEventWouldRequireUserConsent,
-           requestedPermissions.insert(player.bundleID).inserted {
-            permissionQueue.async {
-                guard let target = try? self.target(player), let address = target.aeDesc else { return }
-                _ = AEDeterminePermissionToAutomateTarget(address, typeWildCard, typeWildCard, true)
-            }
-        }
-        return false
+        return AEDeterminePermissionToAutomateTarget(address, typeWildCard, typeWildCard, false) == noErr
+    }
+
+    /// Shows macOS's Automation consent dialog when needed. Blocks until answered, so call
+    /// it off the main thread and only from an explicit Settings action, never mid-recording.
+    func requestPermission(for player: MediaPlayer) {
+        guard let target = try? target(player), let address = target.aeDesc else { return }
+        _ = AEDeterminePermissionToAutomateTarget(address, typeWildCard, typeWildCard, true)
     }
 
     func send(eventClass: String, id: String, player: MediaPlayer,

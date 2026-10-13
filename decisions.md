@@ -2122,3 +2122,23 @@ matches alone, since the pair otherwise swallowed a following "a"/"I" ("Clavio
 a lot" → "Klaviyo lot"). A lone word whose fold is a real word never takes a
 joined alias: teaching "ad visor" must not rewrite every "advisor". An alias
 that is itself a single real word still works through the exact rule.
+
+## 2026-10-13 — Media pause: opt-in, consent only from Settings, bounded browser scan
+
+Reverses "default on" from 2026-10-12. Code review of #90 found two problems before
+release: (1) the Automation consent dialog was requested in the background on first
+use, i.e. while the user was holding the hotkey. Up to four system dialogs (Music,
+Spotify, Chrome, Safari) could take focus mid-dictation, and the paste lands in the
+dialog. (2) The old default was false and nothing is stored for users who never
+touched it, so flipping the default to true opted every existing install in, with
+those dialogs. Now: `hasPermission` only checks; `requestAutomationAccess()` prompts
+for open players when the toggle is turned on or via "Allow access for open apps",
+on its own queue. Default is off for everyone. If we want it on for new installs,
+add an onboarding step that asks for access then, not a silent default.
+
+The pause script ran `querySelectorAll('*')` in every frame of every tab on every
+dictation to find shadow roots. Pause now walks at most 5,000 elements per tab for
+shadow roots (TreeWalker, stops early); light-DOM and same-origin-frame media are
+always found. Resume still searches fully (only tabs Rhino paused). The browser pass
+stops starting new tabs 2s after it begins, so many/slow tabs can't keep media
+playing into a long stretch of the recording.

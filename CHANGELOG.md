@@ -5,10 +5,10 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
-- Music, Spotify, and supported audio/video in Chrome and Safari pause while
-  recording and resume afterward. This is on by default; existing off choices
-  are preserved. Allow Automation access once; browsers also require Allow
-  JavaScript from Apple Events (setup is in Settings → Dictation). Rhino leaves
+- New option: pause Music, Spotify, and supported audio/video in Chrome and
+  Safari while recording, and resume afterward. Turn it on in Settings →
+  Dictation; macOS asks for access right there, never while you dictate.
+  Browsers also require Allow JavaScript from Apple Events. Rhino leaves
   already-paused media alone and skips media you changed during recording.
 - Dictionary sound-alike matching catches more split brand names, such as
   "ads viser" for "Adzviser". Taught spellings also tolerate spacing changes.

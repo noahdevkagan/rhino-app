@@ -98,6 +98,14 @@ final class BrowserMediaControllerTests: XCTestCase {
         XCTAssertEqual(transport.enumerations, 0)
     }
 
+    func testExpiredBudgetStopsStartingNewTabs() {
+        transport.playing.insert("other")
+        let tickets = controller.pause(deadline: .distantPast) { true }
+        XCTAssertTrue(tickets.isEmpty)
+        XCTAssertEqual(transport.executions, 0, "no tab scripts once the budget is spent")
+        XCTAssertEqual(transport.playing, ["other", "video"])
+    }
+
     func testMultiplePlayingTabsHaveIndependentTokens() {
         transport.playing.insert("other")
         let tickets = controller.pause { true }

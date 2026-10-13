@@ -7,6 +7,24 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Prefer digits widens (2026-10-13, helsinki — in progress)
+
+Steve Swindon email: "Prefer digits" still types numbers as words. Formatter
+from #67 ships in 0.1.31+ and works for plain counts; what stays words are
+years ("twenty twenty five"), clock times ("ten thirty"), digit runs (phone
+numbers), "a hundred people", "fifteen hundred", and ordinals. Plan: treat
+Prefer digits as the explicit opt-in and widen only that mode, Smart unchanged:
+1. parser accepts 10–99 before "hundred" (digits only);
+2. fallback when the phrase is not one number: time (first 1–12, rest 10–59
+   → 10:30), year (first 10–29, rest 10–99 → 2025), digit run (all single
+   digits → 5551212);
+3. "a/an + magnitude" converts when followed by a plural noun/of/percent
+   ("a hundred people" → 100 people); "a million dollar idea", "thanks a
+   million", "a hundred times better" stay;
+4. ordinals: compound always ("twenty first" → 21st), lone only beside a
+   month name ("October third", "third of October").
+Tests in NumberCompactionTests; CHANGELOG Unreleased; decisions.md entry.
+
 ### Dictionary split-name corrections (2026-10-12, tallinn-v1 — PR)
 
 Adzviser screenshot: SoundAlike now permits near-miss pairs when a component

@@ -5,6 +5,10 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Numbers → Prefer digits now covers spoken times ("ten thirty" → 10:30),
+  years ("twenty twenty five" → 2025), phone-number digit runs, "a hundred
+  people" → 100 people, "fifteen hundred" → 1500, and date ordinals ("the
+  twenty-first of October" → the 21st of October). Smart is unchanged.
 - Dictionary sound-alike matching catches more split brand names, such as
   "ads viser" for "Adzviser". Taught spellings also tolerate spacing changes.
 - Add dictionary words in bulk: paste a list or two spreadsheet columns, review

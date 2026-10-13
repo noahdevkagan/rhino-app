@@ -93,8 +93,84 @@ final class NumberCompactionTests: XCTestCase {
         for input in ["seven and eight", "twenty and five", "ten thirty", "one two three",
                       "seven  eight", "one hundred hundred", "one thousand million",
                       "zero thousand", "twenty zero", "one hundred zero", "one hundred and two hundred"] {
+            XCTAssertEqual(NumberCompaction.apply(input), input, input)
+        }
+        // Prefer digits reads "ten thirty" and "one two three" as a time and a digit run
+        // (see testPreferDigitsConvertsTimesYearsAndDigitRuns); the malformed ones stay.
+        for input in ["seven and eight", "twenty and five", "seven  eight", "one hundred hundred",
+                      "one thousand million", "zero thousand", "twenty zero", "one hundred zero",
+                      "one hundred and two hundred"] {
             XCTAssertEqual(NumberCompaction.apply(input, style: .digits), input, input)
         }
+    }
+
+    // MARK: - Prefer digits is an explicit opt-in (Steve's email, 2026-10-13)
+
+    func testPreferDigitsConvertsTimesYearsAndDigitRuns() {
+        let cases: [(String, String)] = [
+            ("Meet me at ten thirty", "Meet me at 10:30"),
+            ("Meet me at ten thirty a.m.", "Meet me at 10:30am"),
+            ("around two fifteen tomorrow", "around 2:15 tomorrow"),
+            ("twelve forty five", "12:45"),
+            ("It was in twenty twenty five", "It was in 2025"),
+            ("It was in twenty twenty-five", "It was in 2025"),
+            ("Back in nineteen ninety nine", "Back in 1999"),
+            ("twenty twenty", "2020"),
+            ("Call me at five five five one two one two", "Call me at 5551212"),
+            ("one two three go", "123 go"),
+            ("fifteen hundred people", "1500 people"),
+            ("twenty five hundred", "2500"),
+        ]
+        for (input, expected) in cases {
+            XCTAssertEqual(NumberCompaction.apply(input, style: .digits), expected, input)
+            XCTAssertEqual(NumberCompaction.apply(input), input, "Smart stays conservative: " + input)
+        }
+        // Not a time or a year: a count follows, a pair of digits, a hyphenated idiom, a decade.
+        for input in ["ten thirty people", "four five minutes", "a one-two punch",
+                      "the nineteen nineties", "thirty forty", "ten five"] {
+            XCTAssertEqual(NumberCompaction.apply(input, style: .digits), input, input)
+        }
+    }
+
+    func testPreferDigitsConvertsArticleMagnitudes() {
+        let cases: [(String, String)] = [
+            ("a hundred people showed up", "100 people showed up"),
+            ("a thousand dollars", "1000 dollars"),
+            ("a million views", "1,000,000 views"),
+            ("a hundred and fifty people", "150 people"),
+            ("a hundred percent sure", "100% sure"),
+            ("a hundred of them", "100 of them"),
+        ]
+        for (input, expected) in cases {
+            XCTAssertEqual(NumberCompaction.apply(input, style: .digits), expected, input)
+            XCTAssertEqual(NumberCompaction.apply(input), input, "Smart stays conservative: " + input)
+        }
+    }
+
+    func testPreferDigitsConvertsOrdinals() {
+        let cases: [(String, String)] = [
+            ("the twenty-first of October", "the 21st of October"),
+            ("the twenty first of October", "the 21st of October"),
+            ("thirty third", "33rd"),
+            ("October third", "October 3rd"),
+            ("the third of May", "the 3rd of May"),
+            ("March first", "March 1st"),
+            ("the fourth of July", "the 4th of July"),
+            ("the twelfth of August", "the 12th of August"),
+        ]
+        for (input, expected) in cases {
+            XCTAssertEqual(NumberCompaction.apply(input, style: .digits), expected, input)
+            XCTAssertEqual(NumberCompaction.apply(input), input, "Smart stays conservative: " + input)
+        }
+        // A lone ordinal is prose unless a month sits beside it; durations keep "second".
+        for input in ["first of all, thanks", "my second job", "you may first want to",
+                      "the third time", "give me a second"] {
+            XCTAssertEqual(NumberCompaction.apply(input, style: .digits), input, input)
+        }
+        XCTAssertEqual(NumberCompaction.apply("a twenty second delay", style: .digits), "a 20 second delay")
+        // Smart already reads "twenty second" as a count of seconds; digits reads the date.
+        XCTAssertEqual(NumberCompaction.apply("on the twenty second we leave", style: .digits),
+                       "on the 22nd we leave")
     }
 
     func testRepeatedMagnitudesCannotOverflow() {

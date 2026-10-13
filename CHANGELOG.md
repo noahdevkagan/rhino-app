@@ -9,6 +9,13 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
   years ("twenty twenty five" → 2025), phone-number digit runs, "a hundred
   people" → 100 people, "fifteen hundred" → 1500, and date ordinals ("the
   twenty-first of October" → the 21st of October). Smart is unchanged.
+- Live dictation captions expand correctly instead of appearing cropped inside
+  a small black box. Larger text also keeps the Stop and Cancel buttons visible.
+- Music, Spotify, and supported audio/video in Chrome and Safari pause while
+  recording and resume afterward. This is on by default; existing off choices
+  are preserved. Allow Automation access once; browsers also require Allow
+  JavaScript from Apple Events (setup is in Settings → Dictation). Rhino leaves
+  already-paused media alone and skips media you changed during recording.
 - Dictionary sound-alike matching catches more split brand names, such as
   "ads viser" for "Adzviser". Taught spellings also tolerate spacing changes.
 - Add dictionary words in bulk: paste a list or two spreadsheet columns, review

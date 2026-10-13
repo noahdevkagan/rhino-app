@@ -382,19 +382,10 @@ extension View {
     func pointerCursorOnHover() -> some View { modifier(PointerCursorModifier()) }
 }
 
-/// Reports the indicator bubble's laid-out size (before the entrance render transforms) so the
-/// window manager can size the panel itself — see the note on `.onPreferenceChange` below.
-private struct IndicatorContentSizeKey: PreferenceKey {
-    static let defaultValue: CGSize = .zero
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
-        value = nextValue()
-    }
-}
-
 struct IndicatorWindow: View {
     @ObservedObject var viewModel: IndicatorViewModel
     /// Called whenever the bubble's intrinsic size changes. The manager resizes the hosting
-    /// window to match, *non-animated* (see `.onPreferenceChange` below for why).
+    /// window to match, *non-animated* (the macOS 26 layout-recursion guard).
     var onContentResize: (CGSize) -> Void = { _ in }
     @ObservedObject private var streaming = StreamingTranscriptionController.shared
     @ObservedObject private var notch = NotchTuning.shared
@@ -539,7 +530,11 @@ struct IndicatorWindow: View {
                             + Text(streaming.volatileText).foregroundColor(.secondary))
                             .scaledFont(size: 14)
                             .fixedSize(horizontal: false, vertical: true)
-                            .frame(width: 300, alignment: .leading)
+                            // Use the space left by the icon and controls. A fixed 300pt
+                            // caption pushed the Cancel button out of the scaled bubble.
+                            // Keep the old cap if the bubble hugs its content (live settings
+                            // changed mid-recording), or one unwrapped line grows without limit.
+                            .frame(maxWidth: bubbleWidth == nil ? 300 : .infinity, alignment: .leading)
                         if !layout.trailing.isEmpty {
                             Spacer(minLength: 8)
                             HStack(spacing: 8) {
@@ -625,6 +620,9 @@ struct IndicatorWindow: View {
         // A floor so a single small element still reads as a bubble rather than a chip.
         .frame(minWidth: bubbleWidth == nil ? 64 * scale : nil)
         .frame(width: bubbleWidth, alignment: isNotchMode ? .center : .leading)
+        // This must wrap the flexible minHeight frame too: otherwise it accepts the old
+        // panel height while the multiline caption draws outside it, hiding its real size.
+        .fixedSize(horizontal: false, vertical: true)
         .background {
             if isNotchMode {
                 rect
@@ -651,11 +649,14 @@ struct IndicatorWindow: View {
                    value: streaming.confirmedText.isEmpty && streaming.volatileText.isEmpty)
         // Measure the bubble here, *before* the entrance transforms below, so the reported size is
         // the real layout size (scaleEffect/offset are render-only and don't affect this).
-        .background(
-            GeometryReader { proxy in
-                Color.clear.preference(key: IndicatorContentSizeKey.self, value: proxy.size)
-            }
-        )
+        // A background GeometryReader + PreferenceKey does not reliably deliver changes
+        // from this manually sized host. Observe geometry directly so live captions resize
+        // the panel. Keep AppKit sizing manual/non-animated to avoid the macOS 26 crash.
+        .onGeometryChange(for: CGSize.self) { proxy in
+            proxy.size
+        } action: { size in
+            onContentResize(size)
+        }
         // Black pill in every mode → content always renders in dark-scheme colors.
         .environment(\.colorScheme, .dark)
         // Notch drops in from the top edge; the others rise from below.
@@ -663,16 +664,6 @@ struct IndicatorWindow: View {
         .offset(y: viewModel.isVisible ? 0 : (isNotchMode ? -4 : 4))
         .opacity(viewModel.isVisible ? 1 : 0)
         .animation(.easeOut(duration: 0.12), value: viewModel.isVisible)
-        // The hosting window is sized by the manager from this preference (NOT by SwiftUI's
-        // `.preferredContentSize` auto-resize). That auto-resize runs *animated* whenever any
-        // SwiftUI animation transaction is active during a layout pass (NSHostingView
-        // .updateAnimatedWindowSize), and on macOS 26 the animated resize re-enters layout and
-        // recurses until the main-thread stack overflows — the crash in #11/#15/#19. Driving the
-        // size ourselves, non-animated, makes that recursion impossible, so the entrance spring
-        // and the blinking dot above are free to animate without risk.
-        .onPreferenceChange(IndicatorContentSizeKey.self) { size in
-            onContentResize(size)
-        }
     }
 }
 

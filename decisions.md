@@ -2122,3 +2122,20 @@ matches alone, since the pair otherwise swallowed a following "a"/"I" ("Clavio
 a lot" → "Klaviyo lot"). A lone word whose fold is a real word never takes a
 joined alias: teaching "ad visor" must not rewrite every "advisor". An alias
 that is itself a single real word still works through the exact rule.
+
+## 2026-10-12 — Observe live bubble geometry directly and measure its full height
+
+The customer screenshot was reproduced on macOS 15.7.9 with the real panel:
+new live captions rendered through the old 87×34pt compact window. The background
+GeometryReader/PreferenceKey path did not deliver the resize. Replace it with
+onGeometryChange (the single-value overload supports our macOS 14 minimum),
+keeping the existing manual, non-animated AppKit resize and empty hosting sizing
+options. Automatic hosting sizing remains forbidden by the macOS 26 crash guard.
+
+Width observation alone left multiline captions clipped vertically: the flexible
+minHeight frame accepted the panel's old height. Apply vertical fixedSize outside
+that frame, before background and measurement, so the panel gets the complete
+caption height. Give the caption the remaining horizontal space instead of a
+fixed 300pt, which clipped Cancel with scaled controls. Keep the existing caption
+width, entrance animation and anchors. Tests inject preview updates through the
+same method as the streaming loop, without opening a microphone or loading ASR.

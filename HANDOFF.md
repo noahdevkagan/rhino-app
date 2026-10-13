@@ -7,6 +7,23 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Live caption clipping (2026-10-12, dakar — PR from crxnamja/parakeet-v3-black-box-fix)
+
+Reproduced the customer's rectangular crop on macOS 15.7.9: live captions stayed
+inside the initial 87×34pt panel. Replaced geometry preferences with direct
+onGeometryChange observation; measure ideal height outside the flexible frames;
+let captions share available width so scaled controls remain visible (300pt cap
+when the bubble hugs its content). Preserves manual/non-animated window sizing
+and the macOS 26 recursion guard.
+
+Validation: app builds; all 22 indicator tests pass (layout, lifecycle, recursion,
+new caption expansion/growth/shrink and scaled-controls/notch cases). Original
+source fails the new expansion/growth check. Rendered snapshots checked visually;
+static privacy hygiene passes (dynamic egress skipped). Evidence: `.context/`
+`caption-baseline.xcresult`, `caption-final.xcresult`, `caption-final-images/`.
+No real microphone/model run, macOS 26 live check, install or release. Existing
+Dev app from stuttgart remains running.
+
 ### Media playback default + browsers (2026-10-12, stuttgart — PR from crxnamja/music-playing-fix)
 
 Live-test plan (latest user request): test Chrome YouTube using signed dev app,

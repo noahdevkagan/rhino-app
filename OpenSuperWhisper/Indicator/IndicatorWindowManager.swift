@@ -183,8 +183,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
             // Empty sizingOptions can leave a new host at 0×0 on macOS 15/26.
             // Seed a nonzero canvas, still hidden, so the content can lay out.
             self.window?.setContentSize(NSSize(width: 380, height: 120))
-            // Hidden hosts need not publish geometry preferences (macOS 15). Explicit
-            // measurement sizes the first frame; preferences handle later updates.
+            // Hidden hosts need not publish geometry updates (macOS 15). Explicit
+            // measurement sizes the first frame; geometry observation handles later updates.
             self.resizeToContent(hostingController.sizeThatFits(in: NSSize(width: 380, height: 120)))
             hostingController.view.layoutSubtreeIfNeeded()
         }

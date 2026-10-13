@@ -202,21 +202,21 @@ final class IndicatorPresentationTests: XCTestCase {
         let compactFrame = window.frame
         let streaming = StreamingTranscriptionController.shared
         streaming.updateCaption(confirmed: "", volatile: "Takie słowa pojawiają się podczas dyktowania.")
-        try? await Task.sleep(for: .milliseconds(600))
+        await waitUntil { abs(window.frame.width - 380) <= 1 }
         XCTAssertEqual(window.frame.width, 380, accuracy: 1)
         XCTAssertGreaterThanOrEqual(window.frame.height, 30, "A single caption line may be shorter than the waveform")
         try saveSnapshot(named: "live-caption-first")
         let firstHeight = window.frame.height
         streaming.updateCaption(confirmed: String(repeating: "To jest dłuższy tekst podczas dyktowania. ", count: 5),
                                 volatile: "Kolejne słowa pojawiają się na ekranie.")
-        try? await Task.sleep(for: .milliseconds(600))
+        await waitUntil { window.frame.height > firstHeight }
         XCTAssertEqual(window.frame.width, 380, accuracy: 1)
         XCTAssertGreaterThan(window.frame.height, firstHeight)
         XCTAssertEqual(window.frame.midX, anchor.x, accuracy: 1)
         XCTAssertEqual(window.frame.minY, anchor.y + 20, accuracy: 1)
         try saveSnapshot(named: "live-caption-long")
         streaming.updateCaption(confirmed: "", volatile: "")
-        try? await Task.sleep(for: .milliseconds(600))
+        await waitUntil { abs(window.frame.width - compactFrame.width) <= 1 }
         XCTAssertEqual(window.frame.width, compactFrame.width, accuracy: 1)
         XCTAssertEqual(window.frame.height, compactFrame.height, accuracy: 1)
     }
@@ -238,7 +238,7 @@ final class IndicatorPresentationTests: XCTestCase {
             StreamingTranscriptionController.shared.updateCaption(
                 confirmed: "Takie słowa pojawiają się podczas dyktowania. To jest dłuższy tekst.",
                 volatile: "Kolejne słowa pojawiają się na ekranie.")
-            try? await Task.sleep(for: .milliseconds(600))
+            await waitUntil { window.frame.height > initialHeight }
             XCTAssertGreaterThanOrEqual(window.frame.width, 444)
             XCTAssertGreaterThan(window.frame.height, initialHeight)
             XCTAssertFalse(window.ignoresMouseEvents)

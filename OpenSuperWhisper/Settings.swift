@@ -321,6 +321,8 @@ class SettingsViewModel: ObservableObject {
     @Published var pauseMediaOnRecord: Bool {
         didSet {
             AppPreferences.shared.pauseMediaOnRecord = pauseMediaOnRecord
+            // Ask for Automation access now, while the user is in Settings, never mid-recording.
+            if pauseMediaOnRecord && !oldValue { MediaPlaybackController.requestAutomationAccess() }
         }
     }
 
@@ -1640,7 +1642,7 @@ struct SettingsView: View {
     private var dictationSettings: some View {
         SPane(title: "Dictation") {
             // Dictation needs mic + Accessibility; optional player control additionally
-            // requests per-player Automation access on first use.
+            // needs per-player Automation access, requested from the media toggle below.
             SSection(title: "Permissions") {
                 permissionRow(granted: permissions.isMicrophonePermissionGranted,
                               title: "Microphone",
@@ -1714,14 +1716,18 @@ struct SettingsView: View {
                 }
                 .frame(minHeight: 26)
                 SRow(title: "Pause media during recording",
-                     hint: "Pauses Music, Spotify and supported audio/video in Chrome and Safari, then resumes when recording ends. Allow Automation access on first use. Turn off to keep listening while dictating.") {
+                     hint: "Pauses Music, Spotify and supported audio/video in Chrome and Safari, then resumes when recording ends. Turning it on asks macOS for access to whichever of these apps are open.") {
                     SToggle(isOn: $viewModel.pauseMediaOnRecord)
                 }
                 if viewModel.pauseMediaOnRecord {
+                    Button("Allow access for open apps") {
+                        MediaPlaybackController.requestAutomationAccess(openSettingsIfDenied: true)
+                    }
+                    .font(.system(size: 11))
+                    .buttonStyle(.link)
+                    .help("Open Music, Spotify, Chrome or Safari first, then click. If you chose Don't Allow before, this opens System Settings › Automation.")
                     Button("Automation permissions…") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
-                            NSWorkspace.shared.open(url)
-                        }
+                        MediaPlaybackController.openAutomationSettings()
                     }
                     .font(.system(size: 11))
                     .buttonStyle(.link)

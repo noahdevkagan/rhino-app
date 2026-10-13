@@ -19,14 +19,22 @@ enum BrowserMediaScript {
     private static let body = #"""
     const key = Symbol.for('app.rhinovoice.media-pause.v1');
     const events = ['play', 'seeking', 'emptied', 'ended', 'loadstart'];
-    function mediaInPage() {
+    // Runs in every open tab on every dictation, so cap the shadow-root search: heavy
+    // pages (Gmail, Docs, Figma) have tens of thousands of elements. Media in the light
+    // DOM and same-origin frames is always found; shadow-DOM media only within the cap.
+    function mediaInPage(shadowBudget) {
         const found = new Set(), visited = new Set();
+        let budget = shadowBudget;
         function visit(doc) {
             if (!doc || visited.has(doc)) return;
             visited.add(doc);
             for (const media of doc.querySelectorAll('audio,video')) found.add(media);
-            for (const host of doc.querySelectorAll('*')) {
-                if (host.shadowRoot) visit(host.shadowRoot);
+            // This document's shadow roots before its frames, so a big frame can't spend
+            // the budget first. TreeWalker stops early; querySelectorAll('*') can't.
+            const walker = (doc.ownerDocument || doc).createTreeWalker(doc, NodeFilter.SHOW_ELEMENT);
+            for (let node = walker.nextNode(); node && budget > 0; node = walker.nextNode()) {
+                budget--;
+                if (node.shadowRoot) visit(node.shadowRoot);
             }
             for (const frame of doc.querySelectorAll('iframe,frame')) {
                 try { visit(frame.contentDocument); } catch (_) { /* cross-origin */ }
@@ -56,7 +64,7 @@ enum BrowserMediaScript {
         const token = tokens[0];
         if (window[key]?.has(token)) return 'paused';
         const records = [];
-        for (const media of mediaInPage()) {
+        for (const media of mediaInPage(5000)) {
             // Don't interrupt WebRTC/calls, muted videos, ended or already-paused media.
             if (media.paused || media.ended || media.muted || media.volume === 0 ||
                 media.srcObject || !media.currentSrc || media.readyState === 0 ||
@@ -86,13 +94,16 @@ enum BrowserMediaScript {
     }
     if (!window[key]) return '[]';
     const completed = [];
-    const reachable = mediaInPage();
+    // Full search, but only once this tab holds one of the requested tokens: the
+    // resume rescan runs in every tab of the browser.
+    let reachable = null;
     for (const token of tokens) {
         const group = window[key]?.get(token);
         if (!group) continue;
         // Consume ownership before play(), including rejections or re-entrant handlers.
         removeGroup(token, group);
         completed.push(token);
+        reachable = reachable || mediaInPage(Infinity);
         for (const record of group.records) {
             const media = record.media;
             try {

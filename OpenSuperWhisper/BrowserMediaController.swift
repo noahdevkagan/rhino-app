@@ -25,14 +25,19 @@ final class BrowserMediaController {
         self.transport = transport
     }
 
-    func pause(isActive: () -> Bool) -> [BrowserMediaTicket] {
+    /// Tabs are asked one at a time (up to 1s each), so each browser gets `budget`
+    /// seconds to start tab scripts, then the rest of its tabs keep playing: a dictation
+    /// shouldn't wait on them. Per browser, so slow Chrome tabs can't starve Safari.
+    func pause(budget: TimeInterval = 1.5, now: () -> Date = Date.init,
+               isActive: () -> Bool) -> [BrowserMediaTicket] {
         var tickets: [BrowserMediaTicket] = []
         for browser in transport.runningBrowsers() {
             guard isActive() else { break }
+            let deadline = now().addingTimeInterval(budget)
             guard transport.hasPermission(for: browser),
                   let tabs = try? transport.tabs(in: browser) else { continue }
             for tab in tabs {
-                guard isActive() else { break }
+                guard isActive(), now() < deadline else { break }
                 let token = UUID().uuidString
                 do {
                     let result = try transport.execute(BrowserMediaScript.pause(token: token), in: tab, browser: browser)
@@ -86,7 +91,7 @@ final class AppleEventBrowserTransport: BrowserMediaTransport {
     private let events = MediaAppleEventClient()
 
     func runningBrowsers() -> [MediaPlayer] {
-        events.runningApplications(["com.google.Chrome", "com.apple.Safari"])
+        events.runningApplications(MediaAppleEventClient.browsers)
     }
 
     func hasPermission(for browser: MediaPlayer) -> Bool { events.hasPermission(for: browser) }

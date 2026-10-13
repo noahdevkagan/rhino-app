@@ -112,6 +112,23 @@
         pause(); assert(a.paused, 'shadow media pauses');
         resume(); assert(!a.paused, 'shadow media resumes'); a.pause();
     });
+    await test('heavy page: light-DOM media still pauses past the shadow cap', async () => {
+        const filler = document.createElement('div');
+        for (let i = 0; i < 6000; i++) filler.append(document.createElement('span'));
+        stage.prepend(filler);
+        await a.play(); pause(); assert(a.paused, 'light media pauses on a heavy page');
+        resume(); assert(!a.paused, 'and resumes'); a.pause();
+    });
+    await test('heavy page: shadow media past the cap is left alone', async () => {
+        const filler = document.createElement('div');
+        for (let i = 0; i < 6000; i++) filler.append(document.createElement('span'));
+        stage.prepend(filler);
+        const host = document.createElement('div'); stage.append(host);
+        await a.play();
+        host.attachShadow({mode:'open'}).append(a);
+        a.play().catch(() => {});
+        assert(pause() === 'idle' && !a.paused, 'bounded scan does not reach it'); a.pause();
+    });
     await test('rejected play is not retried', async () => {
         await a.play(); pause(); let attempts = 0;
         a.play = () => { attempts++; return Promise.reject(new Error('blocked')); };

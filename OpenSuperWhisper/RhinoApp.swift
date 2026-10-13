@@ -163,6 +163,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // Two live instances double every dictation's paste (both hear the trigger, both insert)
         // — take over from any older instance before arming anything. (#duplicate-paste)
         SingleInstanceGuard.terminateOtherInstances()
+        MediaPlaybackController.startAskingWhenPlayersLaunch()
 
         // Before onboarding can flip: installs onboarded before the free tier are grandfathered.
         MainActor.assumeIsolated { UnlockRhino.shared.bootstrap() }

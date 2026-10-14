@@ -5,6 +5,10 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Numbers → Prefer digits now covers spoken times ("ten thirty" → 10:30),
+  years ("twenty twenty five" → 2025), phone-number digit runs, "a hundred
+  people" → 100 people, "fifteen hundred" → 1500, and date ordinals ("the
+  twenty-first of October" → the 21st of October). Smart is unchanged.
 - Live dictation captions expand correctly instead of appearing cropped inside
   a small black box. Larger text also keeps the Stop and Cancel buttons visible.
 - Dictionary sound-alike matching catches more split brand names, such as

@@ -2051,3 +2051,26 @@ caption height. Give the caption the remaining horizontal space instead of a
 fixed 300pt, which clipped Cancel with scaled controls. Keep the existing caption
 width, entrance animation and anchors. Tests inject preview updates through the
 same method as the streaming loop, without opening a microphone or loading ASR.
+
+## 2026-10-13 — Prefer digits is an explicit opt-in, so it converts what Smart will not
+
+Customer email (Steve Swindon): "despite me setting it to prefer digits, it still
+types out numbers as words." The #67 formatter ships since 0.1.31 and handles plain
+counts; what it still left as words were the shapes the parser rejects because they
+are not one well-formed number — years ("twenty twenty five"), clock times ("ten
+thirty"), digit runs (phone numbers) — plus "a hundred people", "fifteen hundred"
+and ordinals. Those rejections protect Smart, where a wrong conversion types itself
+into the document unasked. Prefer digits is the user saying they want digits, so
+only that mode widens; Smart's behavior and tests are unchanged.
+
+Rules, digits only: a phrase that fails the parser becomes a time when the first
+word is 1–12 and the rest 10–59 (not when a count noun follows), a year when the
+first word is 10–29 and the rest 10–99, a digit run when three or more single
+digits are spoken (two stay: "four five minutes" is "four, five"). The parser
+accepts 10–99 before "hundred". "a/an + magnitude" converts when a plural noun,
+"of" or "percent" follows; "thanks a million", "a million dollar idea" and "a
+hundred times better" stay. Compound ordinals always convert; a lone ordinal only
+beside a month name, because "first of all" and "my second job" are prose. "twenty
+second" followed by a duration noun stays a count. A number word followed by a
+decade or plural magnitude ("the nineteen nineties") is protected in every mode.
+

@@ -3,7 +3,7 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
-## Unreleased
+## 0.1.38 — 2026-10-13
 
 - Numbers → Prefer digits now covers spoken times ("ten thirty" → 10:30),
   years ("twenty twenty five" → 2025), phone-number digit runs, "a hundred

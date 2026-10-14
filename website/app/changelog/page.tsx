@@ -9,6 +9,16 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.38",
+    date: "October 13, 2026",
+    changes: [
+      "Numbers → Prefer digits now covers spoken times (\"ten thirty\" → 10:30), years (\"twenty twenty five\" → 2025), phone-number digit runs, \"a hundred people\" → 100 people, \"fifteen hundred\" → 1500, and date ordinals (\"the twenty-first of October\" → the 21st of October). Smart is unchanged.",
+      "Live dictation captions expand correctly instead of appearing cropped inside a small black box. Larger text also keeps the Stop and Cancel buttons visible.",
+      "Dictionary sound-alike matching catches more split brand names, such as \"ads viser\" for \"Adzviser\". Taught spellings also tolerate spacing changes.",
+      "Add dictionary words in bulk: paste a list or two spreadsheet columns, review the spellings and optional mishearings, and save them together. Existing corrections are kept and duplicate entries are skipped.",
+    ],
+  },
+  {
     version: "0.1.37",
     date: "October 8, 2026",
     changes: [

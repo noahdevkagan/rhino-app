@@ -36,8 +36,6 @@
 	<string>14.0</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Rhino needs microphone access to record your dictation. Audio never leaves this Mac.</string>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>Rhino pauses music and browser audio/video while you dictate and resumes them when recording ends. Browser media checks stay on this Mac.</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>Rhino needs accessibility access to type your dictated text into other apps.</string>
 	<!-- Rhino's live feed (public releases repo). Private signing key: login

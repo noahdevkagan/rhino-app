@@ -1,181 +1,153 @@
 import AppKit
-import Carbon
+import Foundation
 
-/// Local, addressed playback control. Never send a global Play/Pause: its recipient can
-/// change while dictating. Browser media is tracked separately by exact DOM element.
+/// Pause is unconditional and idempotent. Resume requires explicit playback evidence:
+/// one known playing player must announce its transition to paused during this recording.
+///
+/// CoreAudio output IO is NOT playback state: paused Music/Spotify and silent browser tabs
+/// can keep streams open. MediaRemote reads are entitlement-gated in shipped builds, and a
+/// cached read can be stale. Neither is allowed to arm a global Play command. Consequently
+/// browsers and players without announcements stay paused until the user resumes them.
+/// All mutable state and calls are main-thread confined.
 final class MediaPlaybackController {
-    static let shared = MediaPlaybackController(backend: AppleEventMediaBackend(),
-                                                browsers: BrowserMediaController())
+    static let shared = MediaPlaybackController()
 
-    private let backend: MediaPlaybackBackend
-    private let queue: DispatchQueue
-    private let browsers: BrowserMediaController?
-    // Accessed only by callers on main. The worker owns each session's resume tickets.
-    private var session: MediaPauseSession?
-    private var isTerminating = false
+    static let announcingPlayers: [(notification: Notification.Name, bundleID: String)] = [
+        (Notification.Name("com.spotify.client.PlaybackStateChanged"), "com.spotify.client"),
+        (Notification.Name("com.apple.Music.playerInfo"), "com.apple.Music"),
+    ]
 
-    init(backend: MediaPlaybackBackend,
-         browsers: BrowserMediaController? = nil,
-         queue: DispatchQueue = DispatchQueue(label: "rhino.media-playback")) {
-        self.backend = backend
-        self.browsers = browsers
-        self.queue = queue
+    private(set) var knownPlayerStates: [String: Bool] = [:]
+    private(set) var didPauseMedia = false
+    private var recording = false
+    private var resumeCandidate: String?
+    private let sendCommand: (UInt32) -> Bool
+    private var announcementObserver: PlayerAnnouncementObserver?
+    private var terminationObserver: NSObjectProtocol?
+
+    private static let kMRPlay: UInt32 = 0
+    private static let kMRPause: UInt32 = 1
+
+    private convenience init() {
+        let bundle = CFBundleCreate(
+            kCFAllocatorDefault,
+            NSURL(fileURLWithPath: "/System/Library/PrivateFrameworks/MediaRemote.framework"))
+        typealias Send = @convention(c) (UInt32, UnsafeRawPointer?) -> Bool
+        let send: Send? = bundle.flatMap {
+            CFBundleGetFunctionPointerForName($0, "MRMediaRemoteSendCommand" as CFString)
+        }.map { unsafeBitCast($0, to: Send.self) }
+        self.init(sendCommand: { command in send?(command, nil) ?? false })
+        observePlayerAnnouncements()
+    }
+
+    /// Inject commands for tests without controlling the user's actual media.
+    init(sendCommand: @escaping (UInt32) -> Bool) {
+        self.sendCommand = sendCommand
+    }
+
+    deinit {
+        announcementObserver.map { DistributedNotificationCenter.default().removeObserver($0) }
+        if let terminationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(terminationObserver)
+        }
+    }
+
+    private func observePlayerAnnouncements() {
+        // The Paused announcement must arrive DURING the recording, while Rhino (an accessory
+        // app) is inactive. AppKit suspends distributed delivery for inactive apps and the
+        // block API can't opt out, so it would coalesce until the next activation — after
+        // resumeMedia already declined. `.deliverImmediately` needs the selector API.
+        let observer = PlayerAnnouncementObserver { [weak self] bundleID, state in
+            self?.notePlayerState(bundleID: bundleID, state: state)
+        }
+        for player in Self.announcingPlayers {
+            DistributedNotificationCenter.default().addObserver(
+                observer, selector: #selector(PlayerAnnouncementObserver.playerStateChanged(_:)),
+                name: player.notification, object: nil, suspensionBehavior: .deliverImmediately)
+        }
+        announcementObserver = observer
+        terminationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let bundleID = app.bundleIdentifier else { return }
+            self?.notePlayerTerminated(bundleID: bundleID)
+        }
+    }
+
+    func notePlayerState(bundleID: String, state: String) {
+        guard Self.announcingPlayers.contains(where: { $0.bundleID == bundleID }) else { return }
+        let wasPlaying = knownPlayerStates[bundleID] == true
+        switch state {
+        case "Playing": knownPlayerStates[bundleID] = true
+        case "Paused", "Stopped": knownPlayerStates[bundleID] = false
+        default: knownPlayerStates.removeValue(forKey: bundleID)
+        }
+
+        guard recording, let candidate = resumeCandidate else { return }
+        if bundleID == candidate {
+            if state == "Paused" {
+                // Require the actual Playing → Paused transition, not a silent open stream.
+                if wasPlaying { didPauseMedia = true }
+            } else {
+                // Playback restarted, stopped, or became unknown: respect that new state.
+                clearResume()
+            }
+        } else {
+            // Another player changed state; a system-wide Play could target the wrong app.
+            clearResume()
+        }
+    }
+
+    func notePlayerTerminated(bundleID: String) {
+        knownPlayerStates.removeValue(forKey: bundleID)
+        if resumeCandidate == bundleID { clearResume() }
     }
 
     func pauseMedia() {
-        guard !isTerminating, session == nil else { return }
-        let session = MediaPauseSession()
-        self.session = session
-        queue.async { [backend, browsers] in
-            for player in backend.runningPlayers() {
-                guard session.isActive else { break }
-                // Permission dialogs run separately. Until permission is granted, leave
-                // playback alone; never hold up the mic or pause AFTER a consent dialog.
-                guard backend.hasPermission(for: player),
-                      let before = try? backend.snapshot(player), before.state == .playing,
-                      session.isActive else { continue }
-                do {
-                    try backend.pause(player)
-                    // Keep the original ticket even if the confirmation read fails: at
-                    // stop, a fresh read can still safely restore this exact track.
-                    session.tickets.append((player, before))
-                    if let paused = try? backend.snapshot(player) {
-                        if paused.state == .paused, paused.trackID == before.trackID {
-                            session.tickets[session.tickets.count - 1].1 = paused
-                        } else {
-                            // A successful read proves playback changed instead of pausing
-                            // this track. Do not claim a later manual pause as our own.
-                            session.tickets.removeLast()
-                        }
-                    }
-                } catch where (error as NSError).domain == NSOSStatusErrorDomain
-                    && (error as NSError).code == Int(errAETimeout) {
-                    // A timeout is ambiguous: the player may have executed Pause before
-                    // its reply was lost. Recheck the original track on stop, never toggle.
-                    session.tickets.append((player, before))
-                } catch {
-                    // A denied/rejected command did not give Rhino ownership of playback.
-                }
-            }
-            if session.isActive {
-                session.browserTickets = browsers?.pause(isActive: { session.isActive }) ?? []
-            }
+        guard !recording else { return }
+        recording = true
+        let playing = knownPlayerStates.filter { $0.value }.map { $0.key }
+        // Multiple playing apps cannot be restored safely by one system-wide command.
+        resumeCandidate = playing.count == 1 ? playing.first : nil
+        didPauseMedia = false
+        if !sendCommand(Self.kMRPause) { clearResume() }
+        print("Media pause: awaiting explicit player pause=\(resumeCandidate ?? "none")")
+    }
+
+    /// Also used on cancellation. Consume the recording before sending, so repeated stops
+    /// and late announcements cannot replay a resume from an earlier recording.
+    func resumeMedia(allowResume: Bool = true) {
+        let shouldResume = allowResume && recording && didPauseMedia && resumeCandidate.map {
+            knownPlayerStates[$0] == false
+        } == true
+        recording = false
+        clearResume()
+        if shouldResume { _ = sendCommand(Self.kMRPlay) }
+    }
+
+    private func clearResume() {
+        didPauseMedia = false
+        resumeCandidate = nil
+    }
+}
+
+/// Selector target for distributed player announcements (see `observePlayerAnnouncements`).
+private final class PlayerAnnouncementObserver: NSObject {
+    private let onState: (_ bundleID: String, _ state: String) -> Void
+
+    init(onState: @escaping (_ bundleID: String, _ state: String) -> Void) {
+        self.onState = onState
+    }
+
+    @objc func playerStateChanged(_ note: Notification) {
+        guard let player = MediaPlaybackController.announcingPlayers.first(where: { $0.notification == note.name }),
+              let state = note.userInfo?["Player State"] as? String else { return }
+        // Controller state is main-confined; distributed notifications normally land on main.
+        if Thread.isMainThread {
+            onState(player.bundleID, state)
+        } else {
+            DispatchQueue.main.async { self.onState(player.bundleID, state) }
         }
     }
-
-    func prepareForTermination(completion: @escaping () -> Void) {
-        isTerminating = true
-        resumeMedia(completion: completion)
-    }
-
-    /// Restore what Rhino paused even when the setting was turned off mid-recording.
-    /// Disabling it controls the NEXT recording, not whether we abandon paused playback.
-    func resumeMedia(completion: (() -> Void)? = nil) {
-        let ending = session
-        session = nil
-        ending?.cancel()
-        queue.async { [backend, browsers] in
-            for (player, paused) in ending?.tickets ?? [] {
-                guard let now = try? backend.snapshot(player),
-                      now.state == .paused, now.trackID == paused.trackID,
-                      abs(now.position - paused.position) < 1 else { continue }
-                try? backend.play(player)
-            }
-            browsers?.resume(ending?.browserTickets ?? [])
-            // A barrier even without an active session: quit waits for an earlier stop.
-            if let completion { DispatchQueue.main.async(execute: completion) }
-        }
-    }
-}
-
-private final class MediaPauseSession {
-    private let lock = NSLock()
-    private var active = true
-    var tickets: [(MediaPlayer, MediaPlaybackSnapshot)] = [] // worker queue only
-    var browserTickets: [BrowserMediaTicket] = []
-
-    var isActive: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return active
-    }
-
-    func cancel() {
-        lock.lock()
-        active = false
-        lock.unlock()
-    }
-}
-
-struct MediaPlayer: Equatable {
-    let bundleID: String
-    let pid: pid_t
-    let launchDate: Date
-}
-
-struct MediaPlaybackSnapshot {
-    enum State { case playing, paused, stopped }
-    let state: State
-    let trackID: String
-    let position: Double
-}
-
-protocol MediaPlaybackBackend: AnyObject {
-    func runningPlayers() -> [MediaPlayer]
-    func hasPermission(for player: MediaPlayer) -> Bool
-    func snapshot(_ player: MediaPlayer) throws -> MediaPlaybackSnapshot
-    func pause(_ player: MediaPlayer) throws
-    func play(_ player: MediaPlayer) throws
-}
-
-/// Uses the players' shipping scripting dictionaries, addressed to a live PID rather
-/// than a bundle ID (which can launch an app). No shell, network, or private framework.
-final class AppleEventMediaBackend: MediaPlaybackBackend {
-    private let events = MediaAppleEventClient()
-    private enum Failure: Error { case badReply }
-
-    func runningPlayers() -> [MediaPlayer] {
-        events.runningApplications(["com.apple.Music", "com.spotify.client"])
-    }
-
-    func hasPermission(for player: MediaPlayer) -> Bool { events.hasPermission(for: player) }
-
-    func snapshot(_ player: MediaPlayer) throws -> MediaPlaybackSnapshot {
-        let stateCode = try property("pPlS", player: player).enumCodeValue
-        let state: MediaPlaybackSnapshot.State
-        switch stateCode {
-        case MediaAppleEventClient.code("kPSP"): state = .playing
-        case MediaAppleEventClient.code("kPSp"): state = .paused
-        case MediaAppleEventClient.code("kPSS"): state = .stopped
-        default: throw Failure.badReply
-        }
-        // A stopped/empty player has no current track; no reason to ask for one.
-        if state == .stopped { return .init(state: state, trackID: "", position: 0) }
-        let track = MediaAppleEventClient.propertySpecifier("pTrk")
-        let id = try property(player.bundleID == "com.apple.Music" ? "pPIS" : "ID  ",
-                              player: player, container: track).stringValue
-        let positionValue = try property("pPos", player: player)
-        guard let number = positionValue.coerce(toDescriptorType: typeIEEE64BitFloatingPoint),
-              let id, !id.isEmpty else { throw Failure.badReply }
-        let position = number.doubleValue
-        guard position.isFinite, position >= 0 else { throw Failure.badReply }
-        return .init(state: state, trackID: id, position: position)
-    }
-
-    func pause(_ player: MediaPlayer) throws { try command("Paus", player: player) }
-    func play(_ player: MediaPlayer) throws { try command("Play", player: player) }
-
-    private func command(_ id: String, player: MediaPlayer) throws {
-        _ = try events.send(eventClass: player.bundleID == "com.apple.Music" ? "hook" : "spfy",
-                     id: id, player: player)
-    }
-
-    private func property(_ name: String, player: MediaPlayer,
-                          container: NSAppleEventDescriptor = .null()) throws -> NSAppleEventDescriptor {
-        let reply = try events.send(eventClass: "core", id: "getd", player: player,
-                             object: MediaAppleEventClient.propertySpecifier(name, container: container))
-        guard let value = reply.paramDescriptor(forKeyword: keyDirectObject) else { throw Failure.badReply }
-        return value
-    }
-
 }

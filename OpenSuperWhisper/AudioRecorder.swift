@@ -203,6 +203,10 @@ class AudioRecorder: NSObject, ObservableObject {
             _ = performStopRecording()
         }
 
+        if AppPreferences.shared.pauseMediaOnRecord {
+            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia() }
+        }
+
         if AppPreferences.shared.playSoundOnRecordStart {
             DispatchQueue.main.async { self.playNotificationSound() }
         }
@@ -273,9 +277,6 @@ class AudioRecorder: NSObject, ObservableObject {
                 updateRecordingState(isRecording: false, isConnecting: false)
                 return
             }
-            if AppPreferences.shared.pauseMediaOnRecord {
-                DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia() }
-            }
             Task { @MainActor in SpectrumAnalyzer.shared.start() }
             if monitorConnection {
                 startConnectionMonitoring()
@@ -310,6 +311,10 @@ class AudioRecorder: NSObject, ObservableObject {
             self?.primeAudioHardware()  // re-prime so the next recording starts instantly too
         }
 
+        DispatchQueue.main.async {
+            MediaPlaybackController.shared.resumeMedia(allowResume: AppPreferences.shared.pauseMediaOnRecord)
+        }
+
         if let url = currentRecordingURL,
            Self.shouldDiscardRecording(duration: recordedDuration)
         {
@@ -342,6 +347,10 @@ class AudioRecorder: NSObject, ObservableObject {
         updateRecordingState(isRecording: false, isConnecting: false)
         Task { @MainActor in SpectrumAnalyzer.shared.stop() }
         stopConnectionMonitoring()
+
+        DispatchQueue.main.async {
+            MediaPlaybackController.shared.resumeMedia(allowResume: AppPreferences.shared.pauseMediaOnRecord)
+        }
 
         if let url = currentRecordingURL {
             try? FileManager.default.removeItem(at: url)
@@ -389,9 +398,6 @@ class AudioRecorder: NSObject, ObservableObject {
     
     private func updateRecordingState(isRecording: Bool, isConnecting: Bool) {
         DispatchQueue.main.async {
-            if !isRecording && !isConnecting {
-                MediaPlaybackController.shared.resumeMedia()
-            }
             self.isRecording = isRecording
             self.isConnecting = isConnecting
         }
@@ -510,11 +516,7 @@ extension AudioRecorder: AVAudioRecorderDelegate {
         stateQueue.async { [weak self] in
             guard let self, recorder === self.audioRecorder else { return }
             if !flag {
-                self.audioRecorder = nil
                 self.currentRecordingURL = nil
-                self.stopConnectionMonitoring()
-                self.updateRecordingState(isRecording: false, isConnecting: false)
-                Task { @MainActor in SpectrumAnalyzer.shared.stop() }
             }
         }
     }

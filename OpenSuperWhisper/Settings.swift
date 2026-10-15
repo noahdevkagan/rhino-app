@@ -110,6 +110,10 @@ class SettingsViewModel: ObservableObject {
             ?? supported.first ?? "auto"
     }
 
+    @Published var showFileTimestamps: Bool {
+        didSet { AppPreferences.shared.showTimestamps = showFileTimestamps }
+    }
+
     @Published var suppressBlankAudio: Bool {
         didSet {
             AppPreferences.shared.suppressBlankAudio = suppressBlankAudio
@@ -404,6 +408,7 @@ class SettingsViewModel: ObservableObject {
         self.selectedEngine = prefs.selectedEngine
         self.fluidAudioModelVersion = prefs.fluidAudioModelVersion
         self.selectedLanguage = prefs.whisperLanguage
+        self.showFileTimestamps = prefs.showTimestamps
         self.suppressBlankAudio = prefs.suppressBlankAudio
         self.customDictionaryEnabled = prefs.customDictionaryEnabled
         self.customDictionaryBoostEnabled = prefs.customDictionaryBoostEnabled
@@ -902,14 +907,14 @@ struct Settings {
         customDictionaryBoostEnabled && shouldApplyCustomDictionary
     }
 
-    init() {
+    init(forImportedFile: Bool = false) {
         let prefs = AppPreferences.shared
         self.selectedLanguage = prefs.whisperLanguage
         // Translate-to-English was cut from the UI; the pref survives but the engines
         // always see it off.
         self.translateToEnglish = false
         self.suppressBlankAudio = prefs.suppressBlankAudio
-        self.showTimestamps = prefs.showTimestamps
+        self.showTimestamps = forImportedFile && prefs.showTimestamps
         self.temperature = prefs.temperature
         self.noSpeechThreshold = prefs.noSpeechThreshold
         self.initialPrompt = Settings.promptFileContents()
@@ -1368,6 +1373,12 @@ struct SettingsView: View {
                     .pickerStyle(.menu)
                     .labelsHidden()
                     .fixedSize()
+                }
+            }
+
+            SSection(title: "Imported files") {
+                SRow(title: "Include timestamps", hint: "Approximate time ranges in audio and video transcripts. Applies to the next import or file rerun.") {
+                    SToggle(isOn: $viewModel.showFileTimestamps)
                 }
             }
 

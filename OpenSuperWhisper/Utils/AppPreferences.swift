@@ -159,6 +159,7 @@ final class AppPreferences {
     @UserDefault(key: "suppressBlankAudio", defaultValue: true)
     var suppressBlankAudio: Bool
     
+    // Imported-file transcripts only; Settings() keeps live dictation plain.
     @UserDefault(key: "showTimestamps", defaultValue: false)
     var showTimestamps: Bool
     

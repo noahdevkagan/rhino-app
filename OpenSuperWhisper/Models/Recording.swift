@@ -81,6 +81,13 @@ struct Recording: Identifiable, Codable, FetchableRecord, PersistableRecord, Equ
         status == .pending || status == .converting || status == .transcribing
     }
     
+    /// Dictation reruns use the retained audio as their source. Imports keep the
+    /// original path, even when processing a retained copy after that file moved.
+    var isImportedFile: Bool {
+        guard let sourceFileURL, !sourceFileURL.isEmpty else { return false }
+        return URL(fileURLWithPath: sourceFileURL).standardizedFileURL != url.standardizedFileURL
+    }
+
     var sourceFileName: String? {
         guard let sourceFileURL = sourceFileURL else { return nil }
         return URL(fileURLWithPath: sourceFileURL).lastPathComponent

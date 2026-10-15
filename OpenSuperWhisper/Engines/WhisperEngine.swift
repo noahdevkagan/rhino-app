@@ -186,6 +186,10 @@ class WhisperEngine: TranscriptionEngine {
         // a transcript of pure breath/room noise can be vetoed below.
         var vadHeardNoSpeech = false
         if settings.showTimestamps {
+            if Self.isNearSilence(converted) {
+                onProgressUpdate?(1.0)
+                return TranscriptionResult.noSpeech
+            }
             samples = converted
         } else {
             let segments = detectSpeech(in: converted)
@@ -269,37 +273,30 @@ class WhisperEngine: TranscriptionEngine {
         
         try Task.checkCancellation()
         
-        var text = ""
-        let nSegments = context.fullNSegments
+        var segmentTexts: [String] = []
+        var segmentTimes: [(start: Int64, end: Int64)] = []
+        var noSpeechProbs: [Float] = []
+        for i in 0..<context.fullNSegments {
+            if i % 5 == 0 {
+                try Task.checkCancellation()
+            }
 
+            guard let segmentText = context.fullGetSegmentText(iSegment: i) else { continue }
+            segmentTexts.append(segmentText)
+            segmentTimes.append((context.fullGetSegmentT0(iSegment: i), context.fullGetSegmentT1(iSegment: i)))
+            noSpeechProbs.append(context.fullGetSegmentNoSpeechProb(iSegment: i))
+        }
+        // Timestamp mode skips the VAD, so a file ending in silence or music needs this
+        // trim at least as much as a dictation does.
+        let kept = Self.trimmingTrailingHallucinations(
+            texts: segmentTexts, noSpeechProbs: noSpeechProbs,
+            threshold: Float(settings.noSpeechThreshold))
+
+        let text: String
         if settings.showTimestamps {
-            for i in 0..<nSegments {
-                if i % 5 == 0 {
-                    try Task.checkCancellation()
-                }
-
-                guard let segmentText = context.fullGetSegmentText(iSegment: i) else { continue }
-
-                let t0 = context.fullGetSegmentT0(iSegment: i)
-                let t1 = context.fullGetSegmentT1(iSegment: i)
-                text += String(format: "[%.1f->%.1f] ", Float(t0) / 100.0, Float(t1) / 100.0)
-                text += segmentText + "\n"
-            }
+            text = Self.timestampedText(
+                texts: kept, times: segmentTimes, transform: { settings.applyCustomDictionary($0) })
         } else {
-            var segmentTexts: [String] = []
-            var noSpeechProbs: [Float] = []
-            for i in 0..<nSegments {
-                if i % 5 == 0 {
-                    try Task.checkCancellation()
-                }
-
-                guard let segmentText = context.fullGetSegmentText(iSegment: i) else { continue }
-                segmentTexts.append(segmentText)
-                noSpeechProbs.append(context.fullGetSegmentNoSpeechProb(iSegment: i))
-            }
-            let kept = Self.trimmingTrailingHallucinations(
-                texts: segmentTexts, noSpeechProbs: noSpeechProbs,
-                threshold: Float(settings.noSpeechThreshold))
             text = kept.map { $0 + "\n" }.joined()
         }
 
@@ -316,7 +313,7 @@ class WhisperEngine: TranscriptionEngine {
             return TranscriptionResult.noSpeech
         }
 
-        let processedText = settings.applyCustomDictionary(cleanedText)
+        let processedText = settings.showTimestamps ? cleanedText : settings.applyCustomDictionary(cleanedText)
 
         return processedText.isEmpty ? TranscriptionResult.noSpeech : processedText
     }
@@ -383,6 +380,20 @@ class WhisperEngine: TranscriptionEngine {
             probs.removeLast()
         }
         return kept
+    }
+
+    /// One [start → end] line per kept segment. `texts` may be a trimmed prefix of `times`;
+    /// whisper's times are centiseconds on the original media clock.
+    static func timestampedText(
+        texts: [String], times: [(start: Int64, end: Int64)], transform: (String) -> String
+    ) -> String {
+        zip(texts, times).compactMap { text, time in
+            let cleaned = text
+                .replacingOccurrences(of: "[MUSIC]", with: "")
+                .replacingOccurrences(of: "[BLANK_AUDIO]", with: "")
+            return TimestampedTranscript.line(
+                text: transform(cleaned), start: Double(time.start) / 100, end: Double(time.end) / 100)
+        }.map { $0 + "\n" }.joined()
     }
 
     // MARK: - VAD

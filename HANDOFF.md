@@ -7,6 +7,29 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Imported-file timestamps (2026-10-14, honiara — implemented locally)
+
+Settings → Output → Imported files → Include timestamps (default off) adds
+[HH:MM:SS.mmm → HH:MM:SS.mmm] ranges to imported audio/video transcripts and
+file reruns. Whisper keeps original audio time; Parakeet groups timed tokens
+without splitting words. Dictation and its reruns stay plain. Formatting never
+edits the time range. Imports keep their identity when the original is missing
+and retained audio is used. Existing transcripts need a rerun to add times.
+
+Validation: app build, 13 focused tests (including real Whisper tiny audio and
+Parakeet v2 on a 42-second file with five seconds of leading silence), native
+settings render, static privacy hygiene and diff check passed. Parakeet plain
+and timed text match exactly; later chunks keep absolute times. No full push
+gate, GUI file-drop walkthrough, install, release, commit or push. Evidence:
+.context/timestamps.xcresult, .context/parakeet-timestamps.xcresult,
+.context/timestamp-settings.png, .context/timestamps-hygiene.log.
+
+Review follow-up (2026-10-15): Whisper timestamp mode now runs the same
+trailing-hallucination trim as plain text (it skips VAD, so a file ending in
+silence could gain a timed "Thank you."). 21 focused tests pass
+(.context/timestamps-trim.xcresult). Deferred: timestamp prefixes count as
+~3 words per line in the row word count and Home stats; cosmetic, imports only.
+
 ### Prefer digits widens (2026-10-13, helsinki — PR #91 open)
 
 Steve Swindon email: "Prefer digits" still types numbers as words. Formatter

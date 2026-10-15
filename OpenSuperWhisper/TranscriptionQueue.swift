@@ -218,9 +218,9 @@ class TranscriptionQueue: ObservableObject {
     }
 
     /// Preserve the original filename for the history label, but use retained
-    /// audio for MP4 reruns even if the original video was moved or deleted.
+    /// audio for MP4 reruns and imports whose original file was moved or deleted.
     nonisolated static func transcriptionSource(for recording: Recording, original: URL) -> URL {
-        if VideoAudioExtractor.isVideo(original),
+        if (VideoAudioExtractor.isVideo(original) || !FileManager.default.fileExists(atPath: original.path)),
            FileManager.default.fileExists(atPath: recording.url.path) {
             return recording.url
         }
@@ -304,7 +304,7 @@ class TranscriptionQueue: ObservableObject {
                 }
                 try Task.checkCancellation()
                 let audioURL = extractedURL ?? sourceURL
-                let settings = Settings()
+                let settings = Settings(forImportedFile: recording.isImportedFile)
                 let text = try await transcriptionService.transcribeAudio(url: audioURL, settings: settings, modelOverride: overrideOption)
 
                 if isRecordingCancelled(recording.id) || Task.isCancelled {

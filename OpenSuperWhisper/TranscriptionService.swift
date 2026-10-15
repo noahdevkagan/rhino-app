@@ -227,7 +227,11 @@ class TranscriptionService: ObservableObject {
         // English decimals, quantities, percentages and times follow the number
         // preference without depending on a small model's compliance.
         let raw = try await runOnEngine(engine, url: url, settings: settings)
-        return NumberCompaction.apply(raw, style: AppPreferences.shared.numberFormattingStyle)
+        let style = AppPreferences.shared.numberFormattingStyle
+        if settings.showTimestamps {
+            return TimestampedTranscript.mapText(raw) { NumberCompaction.apply($0, style: style) }
+        }
+        return NumberCompaction.apply(raw, style: style)
     }
 
     /// Run one transcription on a specific engine: wire its progress callback, run it

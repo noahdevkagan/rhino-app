@@ -135,9 +135,9 @@ class FluidAudioEngine: TranscriptionEngine {
         let inferStart = CFAbsoluteTimeGetCurrent()
         // A fresh TDT decoder state per file keeps transcriptions independent.
         var decoderState = TdtDecoderState.make(decoderLayers: await asrManager.decoderLayerCount)
-        let rawText = try await asrManager.transcribe(
+        let result = try await asrManager.transcribe(
             samples, decoderState: &decoderState,
-            language: Self.languageHint(for: settings.selectedLanguage)).text
+            language: Self.languageHint(for: settings.selectedLanguage))
         let inferenceMs = (CFAbsoluteTimeGetCurrent() - inferStart) * 1000
 
         guard !isCancelled else {
@@ -148,9 +148,12 @@ class FluidAudioEngine: TranscriptionEngine {
         onProgressUpdate?(0.95)
 
         let postStart = CFAbsoluteTimeGetCurrent()
-        var processedText = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        processedText = settings.applyCustomDictionary(processedText)
+        let processedText: String
+        if settings.showTimestamps {
+            processedText = try TimestampedTranscript.parakeet(result, transform: { settings.applyCustomDictionary($0) })
+        } else {
+            processedText = settings.applyCustomDictionary(result.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
         let postProcessMs = (CFAbsoluteTimeGetCurrent() - postStart) * 1000
 
         let timings = TranscriptionStageTimings(

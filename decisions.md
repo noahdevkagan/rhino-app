@@ -2074,3 +2074,18 @@ beside a month name, because "first of all" and "my second job" are prose. "twen
 second" followed by a duration noun stays a count. A number word followed by a
 decade or plural magnitude ("the nineteen nineties") is protected in every mode.
 
+
+## 2026-10-14 — Optional original-media timestamps for imported files
+
+Luke's MP3/MP4 feedback asks for timestamps for editing. Expose the existing
+hidden showTimestamps preference under Output → Imported files, default off,
+and only pass it to engines for imported history rows. Dictation (including
+reruns) stays plain. Original source paths distinguish imports from retained
+mic recordings; preserve that path when an import reruns from retained audio.
+Whisper skips VAD trimming in timestamp mode so silence does not shift the
+clock. Parakeet uses the offline decoder's absolute token times and joins
+subword fragments into sentence/roughly ten-second lines. Render both as
+[HH:MM:SS.mmm → HH:MM:SS.mmm] text, so copying a transcript includes the times.
+Dictionary and number formatting touch text only. Missing Parakeet timings
+produce an actionable error instead of invented times. No extra model/network
+calls or LLM pass; changing the setting requires rerunning an existing import.

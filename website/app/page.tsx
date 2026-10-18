@@ -12,34 +12,34 @@ const steps = [
   },
   {
     title: "Release",
-    body: "Cleaned-up text lands at your cursor: punctuated, capitalised, filler words gone. No window to switch to, no paste step.",
+    body: "Your words land at your cursor, punctuated and capitalized. Turn on AI cleanup and the ums and false starts go too. No window to switch to, no paste step.",
   },
 ];
 
 const features = [
   {
-    title: "Nothing is transmitted",
-    body: "Speech recognition and the AI cleanup pass both run on your Mac. There is no cloud model to switch on, no account, and no telemetry. Turn off Wi-Fi and dictation still works.",
+    title: "Nothing goes to the cloud",
+    body: "Your voice is turned into text on your Mac, and the AI cleanup runs there too. There is no cloud model to switch on, no account, and no tracking. Turn off Wi-Fi and dictation still works.",
   },
   {
-    title: "It knows your vocabulary",
-    body: "Teach Rhino the names, products and jargon you say fifty times a day. The custom dictionary both replaces text and boosts recognition, so they stop coming back wrong.",
+    title: "It learns how you spell things",
+    body: "Teach Rhino the names, products and jargon you say fifty times a day. Add them to your dictionary once and they stop coming back misspelled.",
   },
   {
     title: "Verbatim where it matters",
     body: "Dictate into Claude, ChatGPT or a terminal and Rhino skips its cleanup pass automatically, so an instruction meant for the assistant arrives exactly as you said it.",
   },
   {
-    title: "No surprise wall of text",
-    body: "Recordings of five minutes or more are copied to your clipboard with a note instead of pasting themselves into whatever window happened to be focused.",
+    title: "Turn recordings into text",
+    body: "Drop an audio file or an MP4 video into Rhino and get a transcript, made on your Mac. Podcasts, voice memos, interviews, videos you recorded.",
   },
   {
     title: "History you control",
-    body: "Past dictations are searchable on your Mac, and you can re-run a recording through a different local model. Or switch history off entirely and keep nothing.",
+    body: "Everything you've said is saved on your Mac, searchable and ready to copy again. Or switch history off entirely and keep nothing. Your history is never locked, even on the free plan.",
   },
   {
     title: "Free to start",
-    body: "Unlimited for your first week, then 2,000 words a week, free forever. Want unlimited? $20, once: unlimited Macs, lifetime updates, no renewal.",
+    body: "Unlimited for your first week, then 2,000 words a week, free forever. Want unlimited? Invite 2 friends, or pay $20 once: unlimited Macs, lifetime updates, no renewal.",
   },
 ];
 
@@ -100,7 +100,7 @@ const faq = [
   {
     question: "How is this different from Wispr Flow?",
     answer:
-      "Wispr Flow processes your speech in its cloud on a $15/month subscription and runs on Mac, Windows and mobile. Rhino Voice processes everything on your own Mac, works offline, costs $20 once, and is macOS-only.",
+      "Wispr Flow processes your speech in its cloud on a $15/month subscription and runs on Mac, Windows and mobile. Rhino Voice processes everything on your own Mac, works offline, is free to start ($20 once for unlimited), and is Mac-only. If you need dictation on your phone or a Windows PC too, Wispr Flow is the better pick.",
   },
   {
     question: "How is this different from the dictation built into macOS?",
@@ -110,7 +110,12 @@ const faq = [
   {
     question: "Is Rhino free?",
     answer:
-      "Yes. Download it and dictate as much as you like for your first week. After that you get 2,000 words a week free, every week, forever. If you dictate more than that, unlimited is $20 once, with a 30-day money-back guarantee.",
+      "Yes. Download it and dictate as much as you like for your first week. After that you get 2,000 words a week free, every week, forever. If you dictate more than that, you can unlock unlimited by inviting 2 friends, or pay $20 once, with a 30-day money-back guarantee. Your history is never locked either way.",
+  },
+  {
+    question: "Does it work in other languages?",
+    answer:
+      "Yes, with the Whisper speech models, which handle dozens of languages. People use Rhino in Polish, Danish, German and Italian. Parakeet, the fastest model, is English-focused. If you switch between two languages, auto-detect sometimes types the wrong one, so picking your language in Settings works best.",
   },
   {
     question: "Can I delete my dictation history?",
@@ -127,7 +132,7 @@ const jsonLd = [
     operatingSystem: "macOS 14 or later, Apple silicon",
     applicationCategory: "BusinessApplication",
     description:
-      "Rhino Voice is a private dictation app for Mac. Hold Fn, speak, and release to insert cleaned-up text into any app. Speech recognition and AI cleanup run entirely on your Mac, with no account and no cloud service.",
+      "Rhino Voice is a free, private dictation app for Mac. Hold Fn, talk, and release, and your words are typed into any app. It also turns audio and video files into transcripts. Speech recognition and AI cleanup run entirely on your Mac, with no account and nothing sent to the cloud.",
     url: "https://rhinovoice.app/",
     author: { "@type": "Person", name: "Noah Kagan" },
     offers: {
@@ -165,21 +170,22 @@ export default function Home() {
         <div className="hero-copy">
           <p className="eyebrow">
             <span className="status-dot" aria-hidden="true" />
-            Free download · macOS 14+ · Signed &amp; notarized
+            Free download · Apple silicon Macs · macOS 14+
           </p>
           <h1>
-            Talk. Rhino types.
+            Talk instead of typing.
             <span>Free, and nothing leaves your Mac.</span>
           </h1>
           <p className="hero-description">
-            Hold Fn, speak naturally, and release. Rhino turns your voice into
-            polished text in whatever app you&apos;re using. Transcription and AI
-            cleanup run 100% on your Mac, even with Wi-Fi off.
+            Hold one key, say it, let go. Your words show up in any app: email,
+            Slack, docs, ChatGPT. It&apos;s fast, it learns your names, and it
+            saves hours of typing. Nothing goes to the cloud, so it works even
+            with Wi-Fi off.
           </p>
           <HeroCta />
           <p className="purchase-note">
             Free: unlimited for your first week, then 2,000 words a week.
-            <br />Unlimited forever: <a href="#buy">$20 once</a>. No subscription, no account.
+            <br />Unlimited: invite 2 friends or pay <a href="#buy">$20 once</a>. No subscription, no account.
           </p>
         </div>
 
@@ -306,7 +312,7 @@ export default function Home() {
 
         <section className="band closing-cta" id="buy">
           <h2>Stop typing what you could have said.</h2>
-          <p>Free to start. Unlimited is $20 once. No subscription, no account, nothing transmitted.</p>
+          <p>Free to start. Unlimited: invite 2 friends or pay $20 once. No subscription, no account, nothing sent to the cloud.</p>
           <BuyForm />
           <p className="purchase-note">
             30-day money-back guarantee. Or <a href="/download">download free</a> first.

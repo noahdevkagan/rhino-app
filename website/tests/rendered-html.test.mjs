@@ -31,7 +31,8 @@ test("server-renders the concise PayPal purchase page", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>Rhino Voice: Free private dictation for Mac<\/title>/i);
-  assert.match(html, /Talk\. Rhino types\./);
+  assert.match(html, /Talk instead of typing\./);
+  assert.match(html, /invite 2 friends/i);
   assert.match(html, /Free, and nothing leaves your Mac\./);
   assert.match(html, /Buy Rhino for \$20/);
   assert.match(html, /href="\/get"/);

@@ -2089,3 +2089,20 @@ subword fragments into sentence/roughly ten-second lines. Render both as
 Dictionary and number formatting touch text only. Missing Parakeet timings
 produce an actionable error instead of invented times. No extra model/network
 calls or LLM pass; changing the setting requires rerunning an existing import.
+
+
+## 2026-10-18 — Homepage copy led by what AppSumo buyers say
+
+Rewrote the hero/meta/download/llms.txt copy from the 34 AppSumo reviews (deal
+259975). Buyers' strongest benefit is time saved by talking instead of typing
+("saved me hours", "never typing again", "push one button"), then privacy
+("nothing is sent off my computer") and dropping one subscription. So the H1 is
+"Talk instead of typing." over the kept privacy line "Free, and nothing leaves
+your Mac." (matching the MeetMouse hero pattern). Deliberately not claimed,
+because reviews contradict it: filler words always removed (only with AI
+cleanup on), perfect list/number formatting, flawless language auto-detect,
+text streaming in as you speak, any Intel/phone/Windows support. Apple silicon
+moved into the hero eyebrow after a buyer said it was only clear after
+redemption. Added file transcription (audio + MP4) as a feature since several
+buyers call it a highlight, and the invite-2-friends unlock everywhere the
+free-tier terms appear. llms.txt's "no free tier" line was stale and removed.

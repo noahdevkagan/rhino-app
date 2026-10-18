@@ -4,7 +4,7 @@ import { rhinoPrice } from "../_components/site-chrome";
 export const metadata: Metadata = {
   title: "Download Rhino Voice for Mac (Free)",
   description:
-    "Download Rhino Voice free: private, on-device dictation for Mac. Unlimited for your first week, then 2,000 words a week free.",
+    "Download Rhino Voice free: talk instead of typing in any Mac app, and nothing goes to the cloud. Unlimited for your first week, then 2,000 words a week free.",
   alternates: { canonical: "https://rhinovoice.app/download" },
 };
 
@@ -22,8 +22,10 @@ export default function Download() {
         </span>
         <h1>Download Rhino free.</h1>
         <p>
+          Talk instead of typing, in any app. Nothing leaves your Mac.
           Unlimited for your first week, then 2,000 words a week, free forever.
-          Want unlimited? ${rhinoPrice} once, from inside the app.
+          Want unlimited? Invite 2 friends or pay ${rhinoPrice} once, from inside
+          the app.
         </p>
         <a className="button button-primary download-button" href="/get">
           Download Rhino for Mac

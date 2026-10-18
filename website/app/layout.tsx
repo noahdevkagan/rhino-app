@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: baseUrl,
     title: "Rhino Voice: Free private dictation for Mac",
     description:
-      "Free Mac dictation app. Hold a key, talk, and Rhino types in any app. Fast, private dictation with on-device transcription and optional local AI cleanup.",
+      "Talk instead of typing. Hold a key, speak, and your words appear in any Mac app. Free, fast, and private: nothing goes to the cloud.",
     applicationName: "Rhino Voice",
     keywords: [
       "Rhino Voice",
@@ -43,9 +43,9 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       url: baseUrl,
       siteName: "Rhino Voice",
-      title: "Rhino Voice: Talk. Rhino types. Free, and nothing leaves your Mac.",
+      title: "Rhino Voice: Talk instead of typing. Free, and nothing leaves your Mac.",
       description:
-        "Free, private, on-device dictation for Mac. Hold Fn, speak naturally, and release to type in any app.",
+        "Hold one key, talk, and your words show up in any Mac app. Free to use, works with Wi-Fi off, and nothing goes to the cloud.",
       images: [
         {
           url: socialImage,
@@ -58,7 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: "Rhino Voice: Free private dictation for Mac",
-      description: "Talk. Rhino types. Nothing leaves your Mac. Free to download.",
+      description: "Talk instead of typing. Free, and nothing leaves your Mac.",
       images: [socialImage],
     },
   };

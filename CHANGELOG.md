@@ -3,6 +3,13 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.39 — 2026-10-18
+
+- Transcripts of imported audio and video files can now include timestamps.
+  Turn on Settings → Output → Imported files → Include timestamps, and each
+  line starts with its time range in the recording. It's off by default, and
+  dictation is unchanged.
+
 ## 0.1.38 — 2026-10-13
 
 - Numbers → Prefer digits now covers spoken times ("ten thirty" → 10:30),

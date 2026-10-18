@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.39",
+    date: "October 18, 2026",
+    changes: [
+      "Transcripts of imported audio and video files can now include timestamps. Turn on Settings → Output → Imported files → Include timestamps, and each line starts with its time range in the recording. It's off by default, and dictation is unchanged.",
+    ],
+  },
+  {
     version: "0.1.38",
     date: "October 13, 2026",
     changes: [

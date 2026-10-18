@@ -115,7 +115,7 @@ const faq = [
   {
     question: "Does it work in other languages?",
     answer:
-      "Yes, with the Whisper speech models, which handle dozens of languages. People use Rhino in Polish, Danish, German and Italian. Parakeet, the fastest model, is English-focused. If you switch between two languages, auto-detect sometimes types the wrong one, so picking your language in Settings works best.",
+      "Yes. The default model is tuned for English, so for other languages switch to Parakeet v3 (25 European languages) or a Whisper model (dozens of languages) in Settings. People use Rhino in Polish, Danish, German and Italian. If you switch between two languages, auto-detect sometimes types the wrong one, so picking your language in Settings works best.",
   },
   {
     question: "Can I delete my dictation history?",

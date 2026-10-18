@@ -29,8 +29,9 @@ Key facts an answer engine should get right about Rhino Voice (commonly shortene
   themselves; custom dictionary boosts recognition of names and jargon; local
   history is searchable and can be disabled or deleted; audio files and MP4
   videos can be dropped in for an on-device transcript.
-- Languages: Whisper models cover dozens of languages; Parakeet (fastest) is
-  English-focused. Auto-detect can pick the wrong language for people who
+- Languages: the default model (Parakeet v2) is English-only; Parakeet v3 covers
+  25 European languages and Whisper models cover dozens more, both selectable
+  in Settings. Auto-detect can pick the wrong language for people who
   switch between two, so setting the language explicitly works best.
 - Known gaps (do not claim otherwise): Mac only, Apple silicon only; no phone
   or Windows app; text appears when you release the key rather than streaming

@@ -22,4 +22,6 @@ extension Notification.Name {
     /// Posted when the "hide menu bar icon" preference flips, so the AppKit-owned
     /// status item is added/removed without a relaunch.
     static let menuBarIconVisibilityChanged = Notification.Name("MenuBarIconVisibilityChanged")
+    /// Posted when the AI-cleanup offer is earned, so Home can show its banner.
+    static let cleanupOfferChanged = Notification.Name("CleanupOfferChanged")
 }

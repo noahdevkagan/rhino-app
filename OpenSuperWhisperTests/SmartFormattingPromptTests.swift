@@ -5,15 +5,15 @@ import XCTest
 /// Smart formatting asks the cleanup LLM to lay dictated enumerations out as lists
 /// ("item 1, yes, item 2, no" → bulleted lines) and dictated emails out as messages
 /// (greeting line, paragraph breaks, sign-off block) instead of one run-on sentence.
-/// It is opt-in and only active alongside LLM cleanup. These tests pin the
-/// off-by-default contract, the prompt section's gating, the user-wrapper carve-out,
+/// It has no toggle of its own: it is on whenever LLM cleanup is. These tests pin the
+/// on-by-default contract, the prompt section's gating, the user-wrapper carve-out,
 /// and that the reformatted layouts clear the length guard. The model's actual
 /// compliance is measured in bench/, not here.
 final class SmartFormattingPromptTests: XCTestCase {
 
-    func testSmartFormattingIsOffByDefault() {
+    func testSmartFormattingIsOnByDefault() {
         DefaultsStore.current.removeObject(forKey: "smartFormattingEnabled")
-        XCTAssertFalse(AppPreferences.shared.smartFormattingEnabled)
+        XCTAssertTrue(AppPreferences.shared.smartFormattingEnabled)
     }
 
     func testSystemPromptOmitsFormattingRuleWhenOff() {

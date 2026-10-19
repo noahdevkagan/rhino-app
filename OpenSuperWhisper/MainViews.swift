@@ -180,6 +180,7 @@ struct HomeHeaderView: View {
     @StateObject private var stats = DictationStats()
     @Environment(\.colorScheme) private var colorScheme
     @State private var modelMissing = false
+    @State private var cleanupOffer = CleanupOffer.shouldShow
     @State private var shortcutDescription = "—"
     @State private var modelInfo: (name: String, description: String)? = Self.activeModelInfo()
 
@@ -261,6 +262,8 @@ struct HomeHeaderView: View {
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.10)))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.35), lineWidth: 1))
+            } else if cleanupOffer {
+                CleanupOfferCard { cleanupOffer = false }
             }
 
             // One-row stats strip (Willow-style) — label above, value below.
@@ -342,6 +345,9 @@ struct HomeHeaderView: View {
         .onReceive(NotificationCenter.default.publisher(for: .hotkeySettingsChanged)) { _ in
             reloadShortcutDescription()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .cleanupOfferChanged)) { _ in
+            cleanupOffer = CleanupOffer.shouldShow
+        }
         .onReceive(NotificationCenter.default.publisher(
             for: RecordingStore.recordingsDidUpdateNotification)) { _ in stats.reload() }
         .onReceive(NotificationCenter.default.publisher(for: .modelSelectionDidChange)) { _ in
@@ -354,6 +360,7 @@ struct HomeHeaderView: View {
             for: NSWindow.didBecomeKeyNotification)) { _ in
             modelMissing = Self.isModelMissing()
             modelInfo = Self.activeModelInfo()
+            cleanupOffer = CleanupOffer.shouldShow
         }
     }
 
@@ -377,6 +384,72 @@ struct HomeHeaderView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 18)
+    }
+}
+
+// MARK: - AI cleanup offer
+
+/// Home's one-click offer to fetch the AI-cleanup model, shown while `CleanupOffer` says
+/// so. The click is the consent the download needs; "Not now" hides it for good
+/// (Settings → Output keeps the same download).
+struct CleanupOfferCard: View {
+    let close: () -> Void
+    @State private var progress: Double?
+    @State private var error: String?
+    @State private var finished = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: finished ? "checkmark.circle.fill" : "wand.and.stars")
+                .foregroundColor(finished ? STheme.ok : STheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(finished ? "AI cleanup is on" : "Want lists and emails formatted for you?")
+                    .scaledFont(size: 13, weight: .semibold)
+                Text(finished
+                     ? "Lists and emails you dictate will come out laid out."
+                     : error ?? "Rhino can do it on this Mac. One-time 1 GB download; your words never leave.")
+                    .scaledFont(size: 12)
+                    .foregroundColor(error == nil ? .secondary : .red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            if finished {
+                Button("Done", action: close)
+            } else if let progress {
+                ProgressView(value: progress).frame(width: 110).controlSize(.small)
+            } else {
+                Button("Not now") {
+                    AppPreferences.shared.cleanupOfferDismissed = true
+                    close()
+                }
+                .buttonStyle(.borderless)
+                .foregroundColor(.secondary)
+                Button(error == nil ? "Download" : "Try again", action: download)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10).fill(ThemePalette.panelSurface(colorScheme)))
+        .overlay(RoundedRectangle(cornerRadius: 10)
+            .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1))
+    }
+
+    private func download() {
+        error = nil
+        progress = 0
+        Task { @MainActor in
+            do {
+                try await LLMModelManager.shared.downloadDefaultModel { p in
+                    Task { @MainActor in progress = p }
+                }
+                // Load it now so the first formatted dictation doesn't wait for it.
+                BuiltInLlamaBackend.shared.preload()
+                finished = true
+            } catch {
+                self.error = error.localizedDescription
+            }
+            progress = nil
+        }
     }
 }
 

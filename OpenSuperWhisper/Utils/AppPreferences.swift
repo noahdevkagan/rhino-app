@@ -36,6 +36,7 @@ final class AppPreferences {
         migrateRemoteEnginesToWhisper()
         migrateAIProviderToBackend()
         migrateCleanupPromptToDefault()
+        migrateSmartFormattingIntoCleanup()
         migrateRecordingTriggers()
     }
 
@@ -112,6 +113,16 @@ final class AppPreferences {
     /// (not private) so tests can exercise it against a seeded stale value.
     func migrateCleanupPromptToDefault() {
         DefaultsStore.current.removeObject(forKey: "aiPostProcessingPrompt")
+    }
+
+    /// Smart formatting is part of "Clean up with AI" now, with no toggle of its own. A stored
+    /// `false` from an older build would leave someone without layout and with no switch to
+    /// get it back, so it is cleared once and the new default applies.
+    private func migrateSmartFormattingIntoCleanup() {
+        let done = "smartFormattingFoldedIntoCleanup"
+        guard !DefaultsStore.current.bool(forKey: done) else { return }
+        DefaultsStore.current.removeObject(forKey: "smartFormattingEnabled")
+        DefaultsStore.current.set(true, forKey: done)
     }
 
     /// The embedded llama.cpp model is the only cleanup backend. Any stored value from
@@ -327,16 +338,26 @@ final class AppPreferences {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // AI post-processing (clean up the transcription with a local LLM). Opt-in.
-    @UserDefault(key: "aiPostProcessingEnabled", defaultValue: false)
+    /// AI cleanup (a local LLM pass). On by default, but it does nothing until its ~1 GB
+    /// model is downloaded, and that download only starts on a click (`CleanupOffer`).
+    @UserDefault(key: "aiPostProcessingEnabled", defaultValue: true)
     var aiPostProcessingEnabled: Bool
 
+    /// `CleanupOffer` bookkeeping: dictations counted toward the offer, whether the
+    /// offer has been earned, and whether the person waved it away.
+    @UserDefault(key: "cleanupOfferDictations", defaultValue: 0)
+    var cleanupOfferDictations: Int
+    @UserDefault(key: "cleanupOfferEarned", defaultValue: false)
+    var cleanupOfferEarned: Bool
+    @UserDefault(key: "cleanupOfferDismissed", defaultValue: false)
+    var cleanupOfferDismissed: Bool
+
     /// Lay dictated enumerations out as lists ("item 1, yes, item 2, no" → bulleted lines)
-    /// during LLM cleanup. Opt-in: it loosens the transform-only contract by letting the
-    /// model add layout, so it stays off until asked for. Also turns paused spoken
-    /// punctuation ("…, period.") into marks (`SpokenPunctuation`). No effect unless
-    /// `aiPostProcessingEnabled` is also on.
-    @UserDefault(key: "smartFormattingEnabled", defaultValue: false)
+    /// during LLM cleanup, and dictated emails out as emails. Also turns paused spoken
+    /// punctuation ("…, period.") into marks (`SpokenPunctuation`). On by default with no
+    /// UI of its own: turning on "Clean up with AI" is the opt-in. The pref stays so
+    /// bench/parity can compare prompts. No effect unless `aiPostProcessingEnabled` is on.
+    @UserDefault(key: "smartFormattingEnabled", defaultValue: true)
     var smartFormattingEnabled: Bool
 
     /// Apply spoken self-corrections ("wait, scrap that — the demo is Thursday") as edits

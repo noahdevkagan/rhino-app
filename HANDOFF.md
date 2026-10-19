@@ -7,6 +7,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Simpler Cleanup + AI cleanup on by default (2026-10-19, istanbul — PR #98 open)
+
+Cleanup settings cut to three rows (Smart formatting folded into AI cleanup).
+Plan: `aiPostProcessingEnabled` defaults on; onboarding drops the 1 GB add-on
+card; a Home banner offers the one-click model download after 5 dictations or
+the first list/email dictation (`CleanupOffer`). Download stays click-only.
+
 ### Double-tap bubble flicker (2026-10-19, kampala — implemented locally)
 
 Double-tapping the trigger popped the bubble up, hid it, then showed it again.

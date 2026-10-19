@@ -189,6 +189,7 @@ final class DictationPipeline: ObservableObject {
             // app-aware formatting rules are keyed off the app that was frontmost when the clip was
             // RECORDED — the app the user was dictating into — not whatever is frontmost now that
             // the background queue got to it. (parallel-recording)
+            CleanupOffer.noteDictation(text)
             text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID)
             // The cleanup model doesn't know the user's spellings and can undo them, so the
             // dictionary gets the last word. (A no-op pass when cleanup is off.)

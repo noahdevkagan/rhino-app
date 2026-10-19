@@ -235,21 +235,9 @@ class SettingsViewModel: ObservableObject {
         didSet { AppPreferences.shared.numberFormattingStyle = numberFormattingStyle }
     }
 
-    @Published var smartFormattingEnabled: Bool {
-        didSet {
-            AppPreferences.shared.smartFormattingEnabled = smartFormattingEnabled
-        }
-    }
-
     @Published var spokenEditsEnabled: Bool {
         didSet {
             AppPreferences.shared.spokenEditsEnabled = spokenEditsEnabled
-        }
-    }
-
-    @Published var cleanupOnlyWhenNeeded: Bool {
-        didSet {
-            AppPreferences.shared.cleanupOnlyWhenNeeded = cleanupOnlyWhenNeeded
         }
     }
 
@@ -429,9 +417,7 @@ class SettingsViewModel: ObservableObject {
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
         self.numberFormattingStyle = prefs.numberFormattingStyle
-        self.smartFormattingEnabled = prefs.smartFormattingEnabled
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
-        self.cleanupOnlyWhenNeeded = prefs.cleanupOnlyWhenNeeded
         self.verbatimInAIApps = prefs.verbatimInAIApps
         self.reviewLongRecordings = prefs.reviewLongRecordings
         self.removeFillerWords = prefs.removeFillerWords
@@ -1323,30 +1309,25 @@ struct SettingsView: View {
         .background(STheme.windowBg)
     }
 
-    @ViewBuilder private var builtInCleanupFields: some View {
-        HStack(spacing: 8) {
-            if viewModel.builtInModelDownloaded {
-                Text("✓ Model ready — runs on-device")
-                    .scaledFont(size: 11, weight: .semibold)
-                    .foregroundColor(STheme.ok)
-                    .padding(.horizontal, 9).padding(.vertical, 2)
-                    .background(Capsule().fill(STheme.okBg))
-                Text("Loads on first use (a few seconds), then frees its ~1 GB after 5 minutes idle.")
-                    .scaledFont(size: 11).foregroundColor(STheme.hint)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else if let progress = viewModel.builtInModelDownloadProgress {
-                ProgressView(value: progress).frame(width: 160).controlSize(.small)
-                Text("\(Int(progress * 100))%").scaledFont(size: 11).foregroundColor(STheme.hint)
-            } else {
-                Button("Download model (~1 GB)") { viewModel.downloadBuiltInModel() }
-                    .controlSize(.small)
-                Text("Required — cleanup is skipped until it's downloaded. Qwen2.5 1.5B, Apache-2.0. One-time download; no server needed.")
-                    .scaledFont(size: 11).foregroundColor(STheme.hint)
-                    .fixedSize(horizontal: false, vertical: true)
+    /// Shown under "Clean up with AI" only while the model still needs downloading
+    /// (or failed to): once it's on disk there is nothing to say beyond the row's hint.
+    @ViewBuilder private var builtInModelStatus: some View {
+        if !viewModel.builtInModelDownloaded {
+            HStack(spacing: 8) {
+                if let progress = viewModel.builtInModelDownloadProgress {
+                    ProgressView(value: progress).frame(width: 160).controlSize(.small)
+                    Text("\(Int(progress * 100))%").scaledFont(size: 11).foregroundColor(STheme.hint)
+                } else {
+                    Button("Download model (~1 GB)") { viewModel.downloadBuiltInModel() }
+                        .controlSize(.small)
+                    Text("Required — cleanup is skipped until it's downloaded. One-time download.")
+                        .scaledFont(size: 11).foregroundColor(STheme.hint)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
             }
-            Spacer()
+            .padding(.leading, 16)
         }
-        .padding(.leading, 16)
         if let err = viewModel.builtInModelDownloadError {
             Text("✕ \(err)")
                 .scaledFont(size: 11)
@@ -1399,44 +1380,16 @@ struct SettingsView: View {
                 SRow(title: "Remove filler words", hint: "Strip um, uh, er… before inserting") {
                     SToggle(isOn: $viewModel.removeFillerWords)
                 }
-                HStack(spacing: 8) {
-                    Text("Clean up with an LLM")
-                        .scaledFont(size: 13).foregroundColor(STheme.text)
-                    Spacer()
+                SRow(title: "Clean up with AI", hint: "Formats lists and emails, privately on your Mac") {
                     SToggle(isOn: $viewModel.aiPostProcessingEnabled)
                 }
-                .frame(minHeight: 26)
                 if viewModel.aiPostProcessingEnabled {
-                    builtInCleanupFields
-                    HStack(spacing: 8) {
-                        Text("Smart formatting")
-                            .scaledFont(size: 12).foregroundColor(STheme.text)
-                        InfoButton(text: "Lay dictated lists out as lists (“item 1, yes, item 2, no” becomes bulleted lines) and dictated emails out as emails — greeting on its own line, paragraph breaks, sign-off and name on their own lines. You can also say “period”, “comma”, “question mark”, “new line” or “new paragraph” — pause briefly around them — and Rhino types the mark instead of the word. Normal sentences stay prose.")
-                        Spacer()
-                        SToggle(isOn: $viewModel.smartFormattingEnabled)
-                    }
-                    .padding(.leading, 16)
-                    .frame(minHeight: 24)
-                    if viewModel.smartFormattingEnabled {
-                        HStack(spacing: 8) {
-                            Text("Only when there's something to format")
-                                .scaledFont(size: 12).foregroundColor(STheme.text)
-                            InfoButton(text: "Ordinary sentences are inserted as soon as they're recognized, already punctuated. The cleanup model runs only for emails and messages (a greeting or sign-off), lists, and “new line” or “new paragraph” — so most dictations land faster and are never reworded. Turn off to run cleanup on every dictation. English only; other languages always run cleanup.")
-                            Spacer()
-                            SToggle(isOn: $viewModel.cleanupOnlyWhenNeeded)
-                        }
-                        .padding(.leading, 32)
-                        .frame(minHeight: 24)
-                    }
-                    HStack(spacing: 8) {
-                        Text("Spoken edits")
-                            .scaledFont(size: 12).foregroundColor(STheme.text)
-                        InfoButton(text: "Correct yourself out loud and the fix is applied instead of typed out: “the demo is Tuesday — wait, scrap that, it moved to Thursday” inserts only the Thursday version. Works with “scrap that”, “I mean”, “actually, make that…”, and “scrap all of that” to restart.")
-                        Spacer()
+                    builtInModelStatus
+                    SRow(title: "Spoken edits",
+                         hint: "Say “scrap that” to replace what you just said",
+                         indented: true) {
                         SToggle(isOn: $viewModel.spokenEditsEnabled)
                     }
-                    .padding(.leading, 16)
-                    .frame(minHeight: 24)
                 }
             }
 
@@ -1629,7 +1582,7 @@ struct SettingsView: View {
 
             SSection(title: "Safeguards") {
                 SRow(title: "Verbatim in AI & terminal apps",
-                     hint: "Skip LLM cleanup when dictating into Claude, ChatGPT, or a terminal, so instructions meant for that AI arrive word for word. Only applies while “Clean up with an LLM” is on.") {
+                     hint: "Skip AI cleanup when dictating into Claude, ChatGPT, or a terminal, so instructions meant for that AI arrive word for word. Only applies while “Clean up with AI” is on.") {
                     SToggle(isOn: $viewModel.verbatimInAIApps)
                 }
                 SRow(title: "Hold very long recordings",

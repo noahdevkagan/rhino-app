@@ -2108,6 +2108,50 @@ buyers call it a highlight, and the invite-2-friends unlock everywhere the
 free-tier terms appear. llms.txt's "no free tier" line was stale and removed.
 
 
+## 2026-10-19 — Cleanup settings: three rows; Smart formatting folds into AI cleanup
+
+Noah found Settings → Output → Cleanup "just a lot" (six controls at three
+indent levels, a status pill, idle-memory fine print, three info popovers) and
+chose "less is better". Now: Remove filler words; Clean up with AI ("Formats
+lists and emails, privately on your Mac"); and, under it, Spoken edits. Hints
+replace info buttons. "LLM" became "AI".
+
+- Smart formatting has no toggle: AI cleanup includes it. `smartFormattingEnabled`
+  defaults to true and a one-time reset (`smartFormattingFoldedIntoCleanup`)
+  clears stored `false` values, so no one is left without layout and without a
+  switch. Cost: people who wanted prose-only cleanup now get list/email layout
+  and spoken punctuation. Side effect: the cue gate only applies with smart
+  formatting on, so those users also stop paying for a model call on every
+  sentence. The pref stays for bench/parity, which pins the reset flag.
+- "Only when there's something to format" is gone from the UI: it is a speed
+  optimization, not a choice. `cleanupOnlyWhenNeeded` stays (default on;
+  parity pins it off); anyone who turned it off keeps that.
+- The "Model ready" pill and "frees ~1 GB after 5 minutes idle" line are gone;
+  the model row appears only while it needs downloading or failed.
+- Spoken edits stays separate and off by default: it deletes words the speaker
+  said, which is the one behavior worth an explicit opt-in.
+
+## 2026-10-19 — AI cleanup on by default; the model is offered later, not in setup (reverses 2026-08-11)
+
+Noah: turning cleanup on should be a no-brainer, but not "insanely heavy on first
+usage". The privacy rule still holds: the ~1 GB model downloads only on a click.
+
+- `aiPostProcessingEnabled` defaults to true. Without the model the pass is a
+  no-op, so nothing gets slower or heavier until someone downloads it. Users who
+  explicitly turned cleanup off keep it off; users who never touched it are now on.
+- Onboarding drops the "Optional add-on" cleanup card: setup is only about the
+  speech model and permissions.
+- Home shows a one-click card ("Want lists and emails formatted for you?
+  Download") once `CleanupOffer` says it's earned: after 5 dictations, or at the
+  first dictation with a list/email cue (`containsLayoutCue`, the same cues that
+  make cleanup run). "Not now" hides it for good; Settings keeps the download.
+  Not shown to anyone who turned cleanup off.
+- Side effect: Smart formatting's deterministic spoken punctuation ("period",
+  "new line" with pauses) now applies by default even before the model is
+  downloaded, since it runs ahead of the model check.
+- Gate suites and verify-german pin `aiPostProcessingEnabled`, so they are
+  unaffected.
+
 ## 2026-10-19 — Double-tap lock keys off "would this stop discard the take?"
 
 Noah: double-tapping the trigger made the bubble pop up, vanish and pop back.

@@ -297,8 +297,9 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         }
     }
 
-    func stopRecording() {
-        viewModel?.startDecoding()
+    /// `discard` ends the take without transcribing it (see `AudioRecorder.stopRecording`).
+    func stopRecording(discard: Bool = false) {
+        viewModel?.startDecoding(discard: discard)
     }
 
     func stopForce() {

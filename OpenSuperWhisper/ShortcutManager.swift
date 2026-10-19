@@ -32,12 +32,34 @@ class ShortcutManager {
     private var holdMode = false
     private var useModifierOnlyHotkey = false
 
-    /// Hands-free lock: a second trigger press within this window of the first locks the
-    /// recording on — release (and hold-release) no longer stops it; the next press does.
-    /// Shorter than holdThreshold + a beat, so a double-tap can't be mistaken for a hold.
-    private let doubleTapWindow: TimeInterval = 0.35
-    private var lastTriggerDownAt: Date?
+    /// Hands-free lock: once locked, release (and hold-release) no longer stops the recording;
+    /// the next press does. A press locks instead of stopping whenever stopping would throw the
+    /// take away (`shouldLock`), so a double-tap locks however loosely it's timed.
     private var lockedOn = false
+    /// When the trigger press that started the current take landed.
+    private var takeStartedAt: Date?
+    /// How long a too-short hold-release waits for the double-tap's second press before it stops.
+    private let secondTapGrace: TimeInterval = 0.35
+    /// The stop a too-short hold-release deferred (see `handleKeyUp`).
+    private var pendingHoldStop: DispatchWorkItem?
+
+    /// Whether a trigger press on a live take locks it on rather than stopping it. A take
+    /// younger than the recorder's keep threshold would be discarded by a stop, so the only
+    /// thing a press can usefully mean there is the second tap of a double-tap. A press during
+    /// a too-short hold's grace window is that second tap too, whatever the take's age.
+    static func shouldLock(takeAge: TimeInterval, awaitingSecondTap: Bool,
+                           lockedOn: Bool, doubleTapLock: Bool) -> Bool {
+        guard doubleTapLock, !lockedOn else { return false }
+        return awaitingSecondTap || takeAge < AudioRecorder.minimumKeptDuration
+    }
+
+    /// Whether a hold-to-talk release should wait for a second tap instead of stopping now.
+    /// Only a release that would discard the take: a first tap held a little past the hold
+    /// threshold otherwise stopped and hid the bubble, and the second tap then started a new
+    /// take — the bubble popped up, vanished and popped back.
+    static func shouldDeferHoldStop(takeAge: TimeInterval, doubleTapLock: Bool) -> Bool {
+        doubleTapLock && takeAge < AudioRecorder.minimumKeptDuration
+    }
 
     private init() {
         print("ShortcutManager init")
@@ -71,6 +93,9 @@ class ShortcutManager {
         activeVm = nil
         holdMode = false
         lockedOn = false
+        takeStartedAt = nil
+        pendingHoldStop?.cancel()
+        pendingHoldStop = nil
     }
 
     @objc private func hotkeySettingsChanged() {
@@ -158,12 +183,13 @@ class ShortcutManager {
         holdMode = false
 
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord
-        // Second press of a quick double-tap. Timed here (not in the Task) so queue latency
-        // can't stretch the gesture window.
+        let doubleTapLock = AppPreferences.shared.doubleTapLock
+        // Timed and cancelled here (not in the Task) so queue latency can't stretch the
+        // gesture, and a deferred stop can't fire between this press and its handling.
         let now = Date()
-        let isDoubleTap = AppPreferences.shared.doubleTapLock
-            && lastTriggerDownAt.map { now.timeIntervalSince($0) < doubleTapWindow } ?? false
-        lastTriggerDownAt = now
+        let awaitingSecondTap = pendingHoldStop != nil
+        pendingHoldStop?.cancel()
+        pendingHoldStop = nil
 
         Task { @MainActor in
             if self.activeVm == nil {
@@ -182,6 +208,7 @@ class ShortcutManager {
                 Diag.measure("vm.startRecording") { vm.startRecording() }
                 self.activeVm = vm
                 self.lockedOn = false
+                self.takeStartedAt = now
                 // The mic is already starting. Resolve placement in the background;
                 // the manager briefly holds the bubble offscreen, then keeps its anchor.
                 if needsCaret, let processID {
@@ -193,20 +220,23 @@ class ShortcutManager {
                         }
                     }
                 }
-            } else if isDoubleTap && !self.lockedOn {
-                // Hands-free: the double-tap's second press locks the recording on instead of
-                // stopping it. Any later press (outside the window, or while locked) stops.
+            } else if Self.shouldLock(
+                takeAge: self.takeStartedAt.map { now.timeIntervalSince($0) } ?? .infinity,
+                awaitingSecondTap: awaitingSecondTap,
+                lockedOn: self.lockedOn,
+                doubleTapLock: doubleTapLock) {
+                // Hands-free: the double-tap's second press locks the same take on — the bubble
+                // never leaves the screen. Any later press (once locked) stops.
                 self.lockedOn = true
             } else if !self.holdMode || self.lockedOn {
-                IndicatorWindowManager.shared.stopRecording()
-                self.activeVm = nil
                 self.lockedOn = false
+                self.stopActiveTake()
             }
         }
 
-        // A locking press must not also arm push-to-talk: holding the second tap past the
-        // threshold would otherwise flip to holdMode and its release would undo the lock.
-        if holdToRecordEnabled && !isDoubleTap {
+        // A locking press may arm this too: if it's held past the threshold, holdMode flips on,
+        // but handleKeyUp returns before it reads holdMode while locked, so the lock holds.
+        if holdToRecordEnabled {
             let workItem = DispatchWorkItem { [weak self] in
                 self?.holdMode = true
             }
@@ -220,15 +250,40 @@ class ShortcutManager {
         holdWorkItem = nil
         
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord
-        
+        let doubleTapLock = AppPreferences.shared.doubleTapLock
+        let now = Date()
+
         Task { @MainActor in
             // Locked on (hands-free): releases never stop the recording; only a press does.
             if self.lockedOn { return }
-            if holdToRecordEnabled && self.holdMode {
-                IndicatorWindowManager.shared.stopRecording()
-                self.activeVm = nil
-                self.holdMode = false
+            guard holdToRecordEnabled && self.holdMode else { return }
+            self.holdMode = false
+            let takeAge = self.takeStartedAt.map { now.timeIntervalSince($0) } ?? .infinity
+            if Self.shouldDeferHoldStop(takeAge: takeAge, doubleTapLock: doubleTapLock),
+               let vm = self.activeVm {
+                // Too short to keep: likely a slow first tap. Give the second tap a moment to
+                // land (handleKeyDown cancels this and locks); otherwise discard the take. A
+                // plain stop here could find it past the keep threshold after the wait, and
+                // transcribe a hold judged too short plus audio from after the release.
+                let stop = DispatchWorkItem { [weak self, weak vm] in
+                    MainActor.assumeIsolated {
+                        guard let self, let vm, self.activeVm === vm else { return }
+                        self.pendingHoldStop = nil
+                        self.stopActiveTake(discard: true)
+                    }
+                }
+                self.pendingHoldStop = stop
+                DispatchQueue.main.asyncAfter(deadline: .now() + self.secondTapGrace, execute: stop)
+                return
             }
+            self.stopActiveTake()
         }
+    }
+
+    @MainActor private func stopActiveTake(discard: Bool = false) {
+        IndicatorWindowManager.shared.stopRecording(discard: discard)
+        activeVm = nil
+        holdMode = false
+        takeStartedAt = nil
     }
 }

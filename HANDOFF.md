@@ -7,6 +7,17 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Double-tap bubble flicker (2026-10-19, kampala — implemented locally)
+
+Double-tapping the trigger popped the bubble up, hid it, then showed it again.
+Now any press on a take shorter than 1s (too short to keep) locks hands-free
+instead of stopping. A hold released before 1s waits 0.35s for the second tap,
+then discards the take (review fix: a plain stop after the wait could cross 1s
+and transcribe it).
+See decisions.md. Validation: app build plus 16 focused unit tests
+(.context/doubletap.xcresult). Not yet done: trying it by hand in Rhino Dev,
+full push gate, commit, PR.
+
 ### Imported-file timestamps (2026-10-14, honiara — implemented locally)
 
 Settings → Output → Imported files → Include timestamps (default off) adds

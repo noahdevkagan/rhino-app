@@ -206,7 +206,7 @@ class IndicatorViewModel: ObservableObject {
         return value.isFinite ? value : 0
     }
 
-    func startDecoding() {
+    func startDecoding(discard: Bool = false) {
         resetCancelConfirmation()
         stopBlinking()
 
@@ -220,7 +220,7 @@ class IndicatorViewModel: ObservableObject {
             Task { await StreamingTranscriptionController.shared.cancel() }
         }
 
-        guard let tempURL = recorder.stopRecording() else {
+        guard let tempURL = recorder.stopRecording(discard: discard) else {
             print("!!! Not found record url !!!")
             delegate?.didFinishDecoding()
             return

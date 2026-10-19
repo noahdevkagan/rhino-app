@@ -30,6 +30,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     // background AX query a short head start, never delaying the microphone. Once the
     // bubble is visible, a late AX reply must not teleport it away from the mouse.
     static let caretPresentationDelay: Duration = .milliseconds(100)
+    /// Gap between the "bottom" bubble and the Dock (or the screen edge when the Dock hides).
+    static let bottomMargin: CGFloat = 12
     private var presentationTask: Task<Void, Never>?
     private var presentationPending = false
     private var awaitingCaret = false
@@ -128,8 +130,10 @@ class IndicatorWindowManager: IndicatorViewDelegate {
                 anchorCenterX = screenFrame.midX
                 anchorBottomY = screenFrame.midY
             case "bottom":
+                // Hug the bottom edge (just above the Dock when it's showing), like Willow.
+                // 120pt up from the screen edge covered input boxes the user was typing in.
                 anchorCenterX = screenFrame.midX
-                anchorBottomY = screenFrame.minY + 120
+                anchorBottomY = screen.visibleFrame.minY + Self.bottomMargin
             default: // "cursor": sit just above the caret, falling back to a band near the top
                 if let point = point {
                     anchorBottomY = point.y + 20

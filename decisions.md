@@ -2169,3 +2169,12 @@ Cost: a toggle-mode tap-tap within 1s now locks rather than stops (one more
 tap, or Esc); hold-to-talk under 1s lingers 0.35s before closing. Hands-free
 off keeps the old behaviour exactly. Rejected: just widening the window (still
 a cliff, and does nothing for the slow-first-tap case).
+
+## 2026-10-19 — "Bottom" bubble hugs the Dock instead of floating 120pt up
+
+Kieran P. (v0.1.39 feedback, with a Willow side-by-side): Bottom sat 120pt above
+the screen edge, right over chat/input boxes near the bottom of windows. Now it
+sits `bottomMargin` (12pt) above `visibleFrame.minY`, i.e. just above the Dock
+when it shows, near the screen edge when it hides. Bottom is the default
+position, so this moves it for everyone. Rejected: a separate "low/high" option;
+nobody asked for the old height, and the picker already offers Center/Top.

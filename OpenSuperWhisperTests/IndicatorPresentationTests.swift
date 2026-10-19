@@ -190,6 +190,10 @@ final class IndicatorPresentationTests: XCTestCase {
         XCTAssertGreaterThan(window.frame.width, 150)
         XCTAssertLessThan(window.frame.width, 380)
         XCTAssertGreaterThan(window.frame.height, 40)
+        let screen = try XCTUnwrap(window.screen)
+        XCTAssertEqual(window.frame.minY,
+                       screen.visibleFrame.minY + IndicatorWindowManager.bottomMargin, accuracy: 1,
+                       "Bottom hugs the Dock/screen edge instead of floating over input boxes")
         try? await Task.sleep(for: .milliseconds(250))
         try saveSnapshot(named: "scaled-pill-with-controls")
     }

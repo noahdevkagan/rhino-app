@@ -294,11 +294,13 @@ class AudioRecorder: NSObject, ObservableObject {
     
     /// Blocks briefly: runs after any in-flight start on `stateQueue`, so a fast press-release
     /// can never leave the recorder started with nobody to stop it (orphaned hot mic).
-    func stopRecording() -> URL? {
-        stateQueue.sync { performStopRecording() }
+    /// `discard` drops the take whatever its length: for a stop already judged too short
+    /// earlier, so the extra time it waited can't push it over the keep threshold.
+    func stopRecording(discard: Bool = false) -> URL? {
+        stateQueue.sync { performStopRecording(discard: discard) }
     }
 
-    private func performStopRecording() -> URL? {
+    private func performStopRecording(discard: Bool = false) -> URL? {
         // Capture the elapsed time BEFORE stop() (currentTime only reports while recording):
         // it's the clip duration, without re-opening the just-written file to ask.
         let recordedDuration = audioRecorder?.currentTime
@@ -316,7 +318,7 @@ class AudioRecorder: NSObject, ObservableObject {
         }
 
         if let url = currentRecordingURL,
-           Self.shouldDiscardRecording(duration: recordedDuration)
+           discard || Self.shouldDiscardRecording(duration: recordedDuration)
         {
             try? FileManager.default.removeItem(at: url)
             currentRecordingURL = nil
@@ -328,11 +330,15 @@ class AudioRecorder: NSObject, ObservableObject {
         return url
     }
 
+    /// Takes shorter than this are thrown away on stop. The hotkey uses the same number:
+    /// a press that would stop a take this young locks it instead (see ShortcutManager).
+    static let minimumKeptDuration: TimeInterval = 1.0
+
     /// A missing or non-finite recorder duration cannot describe usable audio. Zero is a real
     /// sub-second duration too — do not send an empty header-only WAV through transcription.
     static func shouldDiscardRecording(duration: TimeInterval?) -> Bool {
         guard let duration, duration.isFinite else { return true }
-        return duration < 1.0
+        return duration < minimumKeptDuration
     }
     
     /// Queue-sync like `stopRecording()` for the same reason: a cancel must always land

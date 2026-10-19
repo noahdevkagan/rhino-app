@@ -2151,3 +2151,21 @@ usage". The privacy rule still holds: the ~1 GB model downloads only on a click.
   downloaded, since it runs ahead of the model check.
 - Gate suites and verify-german pin `aiPostProcessingEnabled`, so they are
   unaffected.
+
+## 2026-10-19 — Double-tap lock keys off "would this stop discard the take?"
+
+Noah: double-tapping the trigger made the bubble pop up, vanish and pop back.
+Two timing cliffs caused it: a first tap held past the 0.3s hold threshold
+became push-to-talk, so its release stopped (and discarded) the take and the
+second tap started a new one; and a second tap later than the fixed 0.35s
+press-to-press window was treated as a stop. Replaced the fixed window with
+the recorder's own keep threshold (`AudioRecorder.minimumKeptDuration`, 1s):
+a press on a take younger than that locks it instead of stopping, and a
+hold-release that young waits 0.35s for the second tap, then discards the take
+(a plain stop after the wait could cross the 1s threshold and transcribe a
+judged-too-short hold plus post-release audio). Both stops would have thrown
+the take away, so nothing a user could want is lost.
+Cost: a toggle-mode tap-tap within 1s now locks rather than stops (one more
+tap, or Esc); hold-to-talk under 1s lingers 0.35s before closing. Hands-free
+off keeps the old behaviour exactly. Rejected: just widening the window (still
+a cliff, and does nothing for the slow-first-tap case).

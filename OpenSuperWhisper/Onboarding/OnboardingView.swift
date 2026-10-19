@@ -555,12 +555,6 @@ struct OnboardingView: View {
                     }
                 }
             }
-
-            // Separate section, not another model row: the cleanup pass is an
-            // optional add-on, and in one card the rows read as peers (user feedback).
-            SSection(title: "Optional add-on") {
-                OnboardingCleanupOffer()
-            }
         }
     }
 
@@ -946,79 +940,4 @@ struct OnboardingStepIndicator: View {
 
 #Preview {
     OnboardingView()
-}
-
-
-/// Optional AI-cleanup offer, right under the required model pick. A choice,
-/// never a default: dictation works without it, and the ~1 GB download only
-/// starts on an explicit click (the app's only sanctioned network calls are
-/// updates and user-initiated model downloads).
-struct OnboardingCleanupOffer: View {
-    @State private var downloaded = LLMModelManager.shared.isDefaultModelDownloaded()
-    @State private var progress: Double?
-    @State private var error: String?
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "wand.and.stars")
-                .scaledFont(size: 16)
-                .foregroundColor(STheme.accent)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text("Punctuation & cleanup")
-                        .scaledFont(size: 13, weight: .semibold)
-                        .foregroundColor(STheme.textBright)
-                    STag("Recommended")
-                }
-                Text(downloaded
-                     ? "On: dictations come out tidy — punctuation, casing, numbers as digits. Runs on this Mac."
-                     : "Tidies punctuation, casing, and numbers with an on-device model (~1 GB, one-time download). Your words never leave this Mac.")
-                    .scaledFont(size: 11)
-                    .foregroundColor(STheme.hint)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let error {
-                    Text(error).scaledFont(size: 11).foregroundColor(.red)
-                }
-            }
-            Spacer()
-            if downloaded {
-                // Explicit state, not a bare checkmark — users tried to click the
-                // check expecting something to happen.
-                Label("On", systemImage: "checkmark.circle.fill")
-                    .scaledFont(size: 12, weight: .medium)
-                    .foregroundColor(STheme.ok)
-            } else if let progress {
-                ProgressView(value: progress)
-                    .frame(width: 90)
-            } else {
-                Button("Download") {
-                    error = nil
-                    progress = 0
-                    Task { @MainActor in
-                        do {
-                            try await LLMModelManager.shared.downloadDefaultModel { p in
-                                Task { @MainActor in progress = p }
-                            }
-                            AppPreferences.shared.aiPostProcessingEnabled = true
-                            downloaded = true
-                            BuiltInLlamaBackend.shared.preload()
-                        } catch {
-                            self.error = error.localizedDescription
-                        }
-                        progress = nil
-                    }
-                }
-                .controlSize(.small)
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(STheme.windowBg)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(STheme.border, lineWidth: 1)
-        )
-    }
 }

@@ -87,6 +87,8 @@ print(json.dumps({"input": sys.argv[2], "text": o["text"]}))' "$o" "$line" >> "$
 }
 # Parity compares the model's output, so the model must run on every line.
 defaults write "$SUITE" cleanupOnlyWhenNeeded -bool false
+# Keep the app's one-time reset from clearing the smartFormattingEnabled values below.
+defaults write "$SUITE" smartFormattingFoldedIntoCleanup -bool true
 for config in default smartfmt spokenedits combined; do
     case $config in
         default)     defaults write "$SUITE" smartFormattingEnabled -bool false

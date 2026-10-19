@@ -292,7 +292,8 @@ final class AppPreferences {
     @UserDefault(key: "addSpaceAfterSentence", defaultValue: true)
     var addSpaceAfterSentence: Bool
 
-    /// Where the recording indicator appears: "cursor" (default), "top", "center", "bottom".
+    /// Where the recording indicator appears: "cursor" (default), "top", "center", "bottom",
+    /// "bottomEdge" (just above the Dock).
     /// Multiplier applied on top of the system text size. 1.0 means "exactly what macOS asks
     /// for"; the control exists because following the system alone leaves no room for wanting
     /// this one app bigger than the rest. (#80)

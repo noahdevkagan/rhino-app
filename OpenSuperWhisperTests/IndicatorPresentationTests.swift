@@ -191,11 +191,19 @@ final class IndicatorPresentationTests: XCTestCase {
         XCTAssertLessThan(window.frame.width, 380)
         XCTAssertGreaterThan(window.frame.height, 40)
         let screen = try XCTUnwrap(window.screen)
-        XCTAssertEqual(window.frame.minY,
-                       screen.visibleFrame.minY + IndicatorWindowManager.bottomMargin, accuracy: 1,
-                       "Bottom hugs the Dock/screen edge instead of floating over input boxes")
+        XCTAssertEqual(window.frame.minY, screen.frame.minY + 120, accuracy: 1)
         try? await Task.sleep(for: .milliseconds(250))
         try saveSnapshot(named: "scaled-pill-with-controls")
+        manager.hide()
+        await waitUntil { self.manager.viewModel == nil }
+
+        AppPreferences.shared.indicatorPosition = "bottomEdge"
+        let edge = manager.show(nearPoint: anchor)
+        await waitUntil { edge.isVisible }
+        let edgeWindow = try XCTUnwrap(manager.window)
+        XCTAssertEqual(edgeWindow.frame.minY,
+                       screen.visibleFrame.minY + IndicatorWindowManager.bottomMargin, accuracy: 1,
+                       "Bottom edge hugs the Dock/screen edge")
     }
 
     func testLiveCaptionExpandsTheCompactPanelAndGrowsVertically() async throws {

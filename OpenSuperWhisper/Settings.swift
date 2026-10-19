@@ -1724,6 +1724,7 @@ struct SettingsView: View {
                         Text("Top").tag("top")
                         Text("Center").tag("center")
                         Text("Bottom").tag("bottom")
+                        Text("Bottom edge").tag("bottomEdge")
                     }
                     .pickerStyle(.menu)
                     .labelsHidden()

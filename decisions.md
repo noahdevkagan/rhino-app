@@ -2170,11 +2170,10 @@ tap, or Esc); hold-to-talk under 1s lingers 0.35s before closing. Hands-free
 off keeps the old behaviour exactly. Rejected: just widening the window (still
 a cliff, and does nothing for the slow-first-tap case).
 
-## 2026-10-19 — "Bottom" bubble hugs the Dock instead of floating 120pt up
+## 2026-10-19 — "Bottom edge" indicator position, Bottom unchanged
 
-Kieran P. (v0.1.39 feedback, with a Willow side-by-side): Bottom sat 120pt above
-the screen edge, right over chat/input boxes near the bottom of windows. Now it
-sits `bottomMargin` (12pt) above `visibleFrame.minY`, i.e. just above the Dock
-when it shows, near the screen edge when it hides. Bottom is the default
-position, so this moves it for everyone. Rejected: a separate "low/high" option;
-nobody asked for the old height, and the picker already offers Center/Top.
+Kieran P. (v0.1.39 feedback, with a Willow side-by-side): Bottom sits 120pt
+above the screen edge, over chat/input boxes near the bottom of windows. Noah
+likes Bottom where it is, so instead of moving the default we added a "Bottom
+edge" position (`bottomEdge`): `bottomMargin` (12pt) above `visibleFrame.minY`,
+i.e. just above the Dock when it shows, near the screen edge when it hides.

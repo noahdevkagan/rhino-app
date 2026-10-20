@@ -130,6 +130,8 @@ footer a:hover { color: var(--ink); }
 .waitlist { margin-top: 4px; }
 .waitlist-title { margin: 0 0 12px; font-size: 18px; font-weight: 730; letter-spacing: -0.02em; }
 .waitlist-form { display: flex; gap: 10px; flex-wrap: wrap; }
+.waitlist-optin { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: #6b5f57; }
+.waitlist-optin input { width: 16px; height: 16px; margin: 0; accent-color: #ff705f; }
 .waitlist-form input[type="email"] {
   min-height: 52px;
   min-width: 0;
@@ -892,7 +894,7 @@ footer span { color: var(--ink); font-weight: 700; }
   footer { width: calc(100% - 28px); padding: 20px 0; }
   .purchase-card { padding: 30px; }
   .button-hero { width: 100%; }
-  .waitlist-form { justify-content: center; }
+  .waitlist-form, .waitlist-optin { justify-content: center; }
   .redemption-page { padding-top: 28px; }
   .redemption-card { margin-top: 48px; border-radius: 21px; }
   .release-heading { align-items: flex-start; flex-direction: column; gap: 8px; }

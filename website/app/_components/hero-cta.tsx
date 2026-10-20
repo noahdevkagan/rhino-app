@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 
 /** SendFox form 296020 → list 678242 "Rhino Windows waitlist". Redirects back with ?waitlist=windows. */
 const waitlistAction = "https://sendfox.com/form/03zne3/1dxeg5";
-/** SendFox form 296025 → list 678250 keeps the contact; /send-to-mac emails the /get link at once
- * via SendFox transactional (automation 122583 is off). The form redirects back with ?sent=mac. */
+/** SendFox form 296025 → list 678250 keeps the contact (only when the "updates" box is ticked);
+ * /send-to-mac emails the /get link at once via SendFox transactional (automation 122583 is off).
+ * The form redirects back with ?sent=mac. */
 const sendToMacAction = "https://sendfox.com/form/03zne3/1ww6y6";
 
 type Platform = "mac" | "phone" | "desktop-other" | "joined" | "sent";
@@ -26,13 +27,15 @@ function detectPlatform(): Platform {
 /** Posts to SendFox in the background: a SendFox submit takes ~3s server-side, then the
  * redirect reloads the page. Instead we show the done state at once and only fall back
  * to the form if SendFox rejects the address. Without JS the plain form post still works. */
-function EmailForm({ title, action, sendUrl, button, note, done }: {
+function EmailForm({ title, action, sendUrl, button, note, optIn, done }: {
   title: string;
   action: string;
   /** Our own route that emails right away; when set, its answer decides success. */
   sendUrl?: string;
   button: string;
   note: React.ReactNode;
+  /** Pre-ticked checkbox label; unticked means we only send the email and skip the list. */
+  optIn?: string;
   done: React.ReactNode;
 }) {
   const [sent, setSent] = useState(false);
@@ -41,6 +44,8 @@ function EmailForm({ title, action, sendUrl, button, note, done }: {
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const joinList = !optIn || data.get("updates") === "1";
+    data.delete("updates");
     setError(null);
     setSent(true);
     if (sendUrl) {
@@ -59,6 +64,7 @@ function EmailForm({ title, action, sendUrl, button, note, done }: {
         })
         .catch(() => {});
     }
+    if (!joinList) return;
     fetch(action, {
       method: "POST",
       body: data,
@@ -87,6 +93,11 @@ function EmailForm({ title, action, sendUrl, button, note, done }: {
         <input type="text" name="a_password" tabIndex={-1} autoComplete="off" aria-hidden="true" className="visually-hidden" />
         <button className="button" type="submit">{button}</button>
       </form>
+      {optIn && (
+        <label className="waitlist-optin">
+          <input type="checkbox" name="updates" value="1" defaultChecked /> {optIn}
+        </label>
+      )}
       {error && <p className="purchase-note" role="alert">{error}</p>}
       <p className="purchase-note">{note}</p>
     </div>
@@ -105,8 +116,8 @@ function JoinedWaitlist() {
 function SentToMac() {
   return (
     <div className="waitlist">
-      <p className="waitlist-title">Check your email.</p>
-      <p className="purchase-note">Open it on your Mac and tap the download link. If you don&apos;t see it in a minute, check spam.</p>
+      <p className="waitlist-title">Reminder sent.</p>
+      <p className="purchase-note">Next time you&apos;re at your Mac, open it and tap the download link. Not there in a minute? Check spam.</p>
     </div>
   );
 }
@@ -122,11 +133,12 @@ export function HeroCta() {
   if (platform === "phone") {
     return (
       <EmailForm
-        title="Rhino runs on your Mac. Get the link there."
+        title="On your phone? Rhino runs on your Mac."
         action={sendToMacAction}
         sendUrl="/send-to-mac"
-        button="Email me the link"
-        note="We'll email you the download link to open on your Mac."
+        button="Remind me on my Mac"
+        note="One email with the download link, for when you're back at your Mac."
+        optIn="Also send me Rhino updates (a few a year)"
         done={<SentToMac />}
       />
     );

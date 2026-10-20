@@ -475,3 +475,24 @@ test("pricing and head-to-head pages put a download in the top third and list so
     assert.match(html, /Where these facts come from/, `${path} sources`);
   }
 });
+
+test("renders the Spanish Wispr Flow alternatives page with hreflang both ways", async () => {
+  const response = await render("/es/alternativas-a-wispr-flow");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /<h1>Las 7 mejores alternativas a Wispr Flow en 2026<\/h1>/);
+  assert.match(html, /<div class="doc-page" lang="es">/);
+  assert.match(html, /hreflang="en" href="https:\/\/rhinovoice\.app\/alternatives\/wispr-flow"/i);
+  assert.match(html, /hreflang="x-default" href="https:\/\/rhinovoice\.app\/alternatives\/wispr-flow"/i);
+  assert.match(html, /Descargar Rhino gratis/);
+  assert.match(html, /"@type":"FAQPage","inLanguage":"es"/);
+  assert.doesNotMatch(html, /\u2014/, "no em dashes");
+  const main = html.slice(html.indexOf("<main"), html.indexOf("</main>"));
+  assert.ok(main.indexOf("Descargar Rhino gratis") < main.length / 3, "CTA in the top third");
+
+  const english = await (await render("/alternatives/wispr-flow")).text();
+  assert.match(english, /hreflang="es" href="https:\/\/rhinovoice\.app\/es\/alternativas-a-wispr-flow"/i);
+
+  const sitemap = await readFile(new URL("../public/sitemap.xml", import.meta.url), "utf8");
+  assert.match(sitemap, /\/es\/alternativas-a-wispr-flow/);
+});

@@ -132,11 +132,11 @@ export const tools: Record<string, Tool> = {
     key: "typeless",
     name: "Typeless",
     site: "https://typeless.com/",
-    priceLine: "Free tier of 8,000 words a week. Pro $12/month billed annually",
+    priceLine: "Free plan with a weekly word limit. Pro $12/month billed annually",
     cost: { kind: "monthly", perMonth: 12, billedAnnually: true },
     where: "In their cloud",
     good: [
-      "8,000 free words a week is real daily use",
+      "A free plan on Mac, Windows, iPhone and Android",
       "Mac, Windows, iPhone and Android",
     ],
     bad: ["Your audio is processed on their servers"],

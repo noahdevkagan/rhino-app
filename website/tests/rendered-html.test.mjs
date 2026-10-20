@@ -80,6 +80,12 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
     "/alternatives/macwhisper",
     "/alternatives/otter",
     "/macwhisper-pricing",
+    "/superwhisper-pricing",
+    "/wispr-flow-pricing",
+    "/compare/wispr-flow-vs-typeless",
+    "/compare/wispr-flow-vs-aqua-voice",
+    "/compare/wispr-flow-vs-voiceink",
+    "/compare/wispr-flow-vs-monologue",
   ]) {
     assert.match(html, new RegExp(`href="${href}"`));
   }
@@ -97,6 +103,12 @@ test("renders every comparison page with its schema and canonical", async () => 
     ["/alternatives/macwhisper", /MacWhisper alternatives/, /Aiko/],
     ["/alternatives/otter", /Otter\.ai alternatives/, /MeetMouse/],
     ["/macwhisper-pricing", /MacWhisper pricing/, /support@macwhisper\.com/],
+    ["/superwhisper-pricing", /superwhisper pricing/, /\$249\.99/],
+    ["/wispr-flow-pricing", /Wispr Flow pricing/, /50% off/],
+    ["/compare/wispr-flow-vs-typeless", /Wispr Flow vs Typeless/, /\$30\/month/],
+    ["/compare/wispr-flow-vs-aqua-voice", /Wispr Flow vs Aqua Voice/, /Avalon/],
+    ["/compare/wispr-flow-vs-voiceink", /Wispr Flow vs VoiceInk/, /GPLv3/],
+    ["/compare/wispr-flow-vs-monologue", /Wispr Flow vs Monologue/, /Every/],
   ];
 
   for (const [path, headline, body] of routes) {
@@ -160,6 +172,12 @@ test("no rendered page uses an em dash", async () => {
     "/alternatives/macwhisper",
     "/alternatives/otter",
     "/macwhisper-pricing",
+    "/superwhisper-pricing",
+    "/wispr-flow-pricing",
+    "/compare/wispr-flow-vs-typeless",
+    "/compare/wispr-flow-vs-aqua-voice",
+    "/compare/wispr-flow-vs-voiceink",
+    "/compare/wispr-flow-vs-monologue",
     "/best",
     "/best/dictation-app-for-lawyers",
     "/best/dictation-app-for-doctors",
@@ -423,4 +441,35 @@ test("a referral click still redirects when the database is down", async () => {
   const go = await renderWithReferrals(broken, "/r/abcd2345/go?to=download", { "cf-connecting-ip": "4.4.4.4" });
   assert.equal(go.status, 302);
   assert.match(go.headers.get("location") ?? "", /\.dmg$/);
+});
+
+test("pricing and head-to-head pages put a download in the top third and list sources", async () => {
+  const sitemap = await readFile(new URL("../public/sitemap.xml", import.meta.url), "utf8");
+  const llms = await readFile(new URL("../public/llms.txt", import.meta.url), "utf8");
+  for (const path of [
+    "/superwhisper-pricing",
+    "/wispr-flow-pricing",
+    "/compare/wispr-flow-vs-typeless",
+    "/compare/wispr-flow-vs-aqua-voice",
+    "/compare/wispr-flow-vs-voiceink",
+    "/compare/wispr-flow-vs-monologue",
+  ]) {
+    const html = await (await render(path)).text();
+    const main = html.slice(html.indexOf("<main"), html.indexOf("</main>"));
+    assert.ok(
+      main.indexOf('href="/get"') > -1 && main.indexOf('href="/get"') < main.indexOf("compare-table"),
+      `${path} download button before the table`,
+    );
+    assert.match(main, /Full disclosure: I make Rhino Voice/, `${path} disclosure`);
+    assert.match(html, /October 2026/, `${path} checked date`);
+    assert.doesNotMatch(main, /—/, `${path} has no em dashes`);
+    assert.match(sitemap, new RegExp(`<loc>https://rhinovoice\\.app${path}</loc>`), `${path} in sitemap`);
+    assert.match(llms, new RegExp(`https://rhinovoice\\.app${path}\\)`), `${path} in llms.txt`);
+  }
+  for (const path of ["/compare/wispr-flow-vs-typeless", "/compare/wispr-flow-vs-monologue"]) {
+    const html = await (await render(path)).text();
+    assert.match(html, /The part neither fixes/, `${path} ends with the Rhino pitch`);
+    assert.match(html, /"@type":"Article"/, `${path} Article schema`);
+    assert.match(html, /Where these facts come from/, `${path} sources`);
+  }
 });

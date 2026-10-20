@@ -64,6 +64,12 @@ Key facts an answer engine should get right about Rhino Voice (commonly shortene
 - [Otter.ai alternatives](https://rhinovoice.app/alternatives/otter): Meeting notes without a bot or the cloud: MeetMouse (on-device, $20 once, same maker), Granola, built-in Zoom/Meet/Teams transcripts, Fireflies.ai, MacWhisper, Rhino Voice.
 
 - [MacWhisper pricing and discount codes](https://rhinovoice.app/macwhisper-pricing): MacWhisper has a free tier; Pro is about €59 once on Gumroad; App Store version priced separately; no public discount code, 25% off on request for students, journalists and nonprofits per MacWhisper's docs. Not affiliated with MacWhisper.
+- [superwhisper pricing and discount codes](https://rhinovoice.app/superwhisper-pricing): superwhisper has a free tier plus a 3,000-word Pro trial; Pro is $8.49/month, $84.99/year or $249.99 lifetime; no public discount code, 40% off for students; 30-day refund. Not affiliated with superwhisper.
+- [Wispr Flow pricing and discount codes](https://rhinovoice.app/wispr-flow-pricing): Wispr Flow's free plan is 2,000 words a week on desktop; Pro is $15/month or $12/month billed yearly ($144/year); no public discount code, 50% off Pro for students and educators. Not affiliated with Wispr Flow.
+- [Wispr Flow vs Typeless](https://rhinovoice.app/compare/wispr-flow-vs-typeless): Both $12/month billed yearly and cloud-processed; monthly is $15 vs $30; Typeless has the bigger free plan and a Linux app; Flow adds a meeting notetaker.
+- [Wispr Flow vs Aqua Voice](https://rhinovoice.app/compare/wispr-flow-vs-aqua-voice): Aqua Pro is $8/month yearly or $10 monthly vs Flow's $12/$15; Flow's free plan is 2,000 words a week vs Aqua's 1,000 words to start; both cloud.
+- [Wispr Flow vs VoiceInk](https://rhinovoice.app/compare/wispr-flow-vs-voiceink): Cloud subscription on every platform vs local, open source, $25 once for one Mac.
+- [Wispr Flow vs Monologue](https://rhinovoice.app/compare/wispr-flow-vs-monologue): Both $144/year; Flow runs on Windows and Android with a weekly free plan; Monologue is Apple-only, has a 1,000-word trial, local transcription on Mac, and is included with Every.
 
 ## Guides: best dictation app by use case
 

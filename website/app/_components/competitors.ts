@@ -80,8 +80,8 @@ export const tools: Record<string, Tool> = {
     key: "voiceInk",
     name: "VoiceInk",
     site: "https://tryvoiceink.com/",
-    priceLine: "Lifetime tiers from $29. Free if you build it yourself",
-    cost: { kind: "once", amount: 29 },
+    priceLine: "Lifetime tiers from $25. Free if you build it yourself",
+    cost: { kind: "once", amount: 25 },
     where: "On your Mac",
     good: [
       "Open source under GPLv3, built on whisper.cpp",

@@ -851,6 +851,19 @@ footer span { color: var(--ink); font-weight: 700; }
 
 .doc-cta .buy-form { display: flex; justify-content: center; margin-top: 8px; }
 
+/* Download button in the top third of guide and comparison pages. */
+.top-cta {
+  margin: -18px 0 42px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+}
+.doc .top-cta p { margin: 0; color: var(--muted); line-height: 1.6; flex: 1 1 260px; }
+
+.sources { margin: 18px 0 0; padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+
 .checked-note {
   margin: 34px 0 0;
   color: #8a837e;

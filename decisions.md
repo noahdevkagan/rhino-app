@@ -2169,3 +2169,21 @@ Cost: a toggle-mode tap-tap within 1s now locks rather than stops (one more
 tap, or Esc); hold-to-talk under 1s lingers 0.35s before closing. Hands-free
 off keeps the old behaviour exactly. Rejected: just widening the window (still
 a cliff, and does nothing for the slow-first-tap case).
+
+## 2026-10-20: Pricing pages + third-party "X vs Y" pages from Search Console
+
+Search Console (Jul 21 to Oct 19) showed rhinovoice.app's only non-brand
+queries near page one were "macwhisper discount code" (pos 6-10, via
+/macwhisper-pricing) and competitor-vs-competitor queries ("typeless vs wispr
+flow" pos 6; aqua voice / monologue / voiceink vs wispr flow had impressions
+at 60-76). Our own "X alternative" terms sit at 60-90. So we added
+/superwhisper-pricing and /wispr-flow-pricing (the macwhisper-pricing format)
+and four /compare/wispr-flow-vs-* pages on a new HeadToHeadPage template.
+SITE-PLAYBOOK allows "X vs Y" as traffic plays if they end with "The part
+neither fixes"; the template enforces that heading. These pages carry a
+download button right under the short answer (Noah's top-third CTA rule);
+BestForContent gained an optional `topCta` for the same reason. Prices were
+re-read from each vendor's own pricing page on 2026-10-20; VoiceInk's official
+price is $25 once (third-party pages claiming $29 were wrong), fixed in
+competitors.ts and two alternatives pages. Sources are listed as plain text,
+not deep links (playbook §5: competitor links go to homepages only).

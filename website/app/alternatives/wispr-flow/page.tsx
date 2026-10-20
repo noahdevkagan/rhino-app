@@ -176,7 +176,7 @@ const content: RankedPageContent = {
     },
     {
       question: "Is a one-time purchase actually cheaper?",
-      answer: `For anything you use more than a few months, yes. A year of Wispr Flow at the annual rate is ${wisprYear}. Rhino Voice is $${rhinoPrice} once, VoiceInk starts at $29 once, and MacWhisper Pro is around €59 once. The subscription buys cross-platform support, which is a fair thing to want.`,
+      answer: `For anything you use more than a few months, yes. A year of Wispr Flow at the annual rate is ${wisprYear}. Rhino Voice is $${rhinoPrice} once, VoiceInk starts at $25 once, and MacWhisper Pro is around €59 once. The subscription buys cross-platform support, which is a fair thing to want.`,
     },
   ],
 };

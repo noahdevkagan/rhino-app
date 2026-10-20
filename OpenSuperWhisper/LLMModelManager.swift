@@ -62,7 +62,7 @@ struct LLMModelDescriptor {
     let approxBytes: Int64
 }
 
-class LLMModelManager {
+class LLMModelManager: ObservableObject {
     static let shared = LLMModelManager()
 
     /// Default built-in cleanup model: Qwen2.5-1.5B-Instruct, GGUF Q4_K_M.
@@ -194,11 +194,39 @@ class LLMModelManager {
         }
     }
 
-    /// Convenience to download the bundled default Qwen model.
-    func downloadDefaultModel(progressCallback: @escaping (Double) -> Void) async throws {
-        try await downloadModel(url: Self.defaultModel.downloadURL,
-                                name: Self.defaultModel.fileName,
-                                progressCallback: progressCallback)
+    /// Progress (0...1) of the default model's download while one runs, nil otherwise.
+    /// Home's cleanup offer and Settings both read this instead of keeping their own, so a
+    /// view rebuilt mid-download (a tab switch, Settings reopened) still shows the transfer.
+    /// Main thread only.
+    @Published private(set) var defaultModelProgress: Double?
+    private var defaultModelDownload: Task<Void, Error>?
+    /// The network transfer behind `downloadDefaultModel`. Tests swap in a stub.
+    var defaultModelTransfer: @MainActor (@escaping (Double) -> Void) async throws -> Void = { progress in
+        try await LLMModelManager.shared.downloadModel(url: LLMModelManager.defaultModel.downloadURL,
+                                                       name: LLMModelManager.defaultModel.fileName,
+                                                       progressCallback: progress)
+    }
+
+    /// Downloads the bundled default Qwen model, or joins the download already running:
+    /// a second click (from either view) must not start another ~1 GB transfer of the
+    /// same file, whose move into place would then fail on the first one's copy.
+    @MainActor
+    func downloadDefaultModel() async throws {
+        if let running = defaultModelDownload { return try await running.value }
+        defaultModelProgress = 0
+        let download = Task { @MainActor in
+            defer {
+                self.defaultModelDownload = nil
+                self.defaultModelProgress = nil
+            }
+            try await self.defaultModelTransfer { [weak self] progress in
+                // A callback queued behind the finish must not bring the bar back.
+                guard let self, self.defaultModelDownload != nil else { return }
+                self.defaultModelProgress = progress
+            }
+        }
+        defaultModelDownload = download
+        try await download.value
     }
 
     func cancelDownload(name: String) {

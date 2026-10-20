@@ -256,19 +256,18 @@ class SettingsViewModel: ObservableObject {
     /// Whether the built-in model's GGUF is present on disk.
     @Published var builtInModelDownloaded: Bool = LLMModelManager.shared.isDefaultModelDownloaded()
     /// Download progress in 0...1 while the built-in model is downloading; nil when idle.
-    @Published var builtInModelDownloadProgress: Double?
+    /// Mirrors `LLMModelManager.defaultModelProgress`, so a download started from Home shows here too.
+    @Published private(set) var builtInModelDownloadProgress: Double?
     /// Set when a built-in model download fails, for inline feedback.
     @Published var builtInModelDownloadError: String?
+    private var builtInModelProgressObserver: AnyCancellable?
 
-    /// Downloads the default built-in model (~1 GB), updating progress for the UI.
+    /// Downloads the default built-in model (~1 GB), or joins the download already running.
     func downloadBuiltInModel() {
         builtInModelDownloadError = nil
-        builtInModelDownloadProgress = 0
         Task { @MainActor in
             do {
-                try await LLMModelManager.shared.downloadDefaultModel { progress in
-                    Task { @MainActor in self.builtInModelDownloadProgress = progress }
-                }
+                try await LLMModelManager.shared.downloadDefaultModel()
                 self.builtInModelDownloaded = LLMModelManager.shared.isDefaultModelDownloaded()
                 // Load it straight away: the download already made them wait, and this keeps the
                 // load out of their first dictation.
@@ -276,7 +275,6 @@ class SettingsViewModel: ObservableObject {
             } catch {
                 self.builtInModelDownloadError = error.localizedDescription
             }
-            self.builtInModelDownloadProgress = nil
         }
     }
 
@@ -439,6 +437,17 @@ class SettingsViewModel: ObservableObject {
         loadAvailableModels()
         initializeDownloadableModels()
         initializeFluidAudioModels()
+
+        // Follow the built-in model's download wherever it was started (Home's offer or here).
+        // nil means none is running, or one just ended with the file already in place.
+        builtInModelProgressObserver = LLMModelManager.shared.$defaultModelProgress
+            .sink { [weak self] progress in
+                guard let self else { return }
+                self.builtInModelDownloadProgress = progress
+                if progress == nil {
+                    self.builtInModelDownloaded = LLMModelManager.shared.isDefaultModelDownloaded()
+                }
+            }
 
         // Reflect external model changes (the menu-bar Model picker) while Settings is open.
         modelSyncObserver = NotificationCenter.default.addObserver(

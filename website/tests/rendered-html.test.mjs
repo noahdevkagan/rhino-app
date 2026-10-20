@@ -272,6 +272,8 @@ test("renders the changelog and post-purchase download routes", async () => {
   ]);
 
   assert.match(changelog, /<h1>Changelog<\/h1>/);
+  // /thanks shows the public unlock code; keep it out of search results.
+  assert.match(thanks, /name="robots" content="noindex, nofollow"/i);
   // The changelog has its own title, not a copy of the homepage's.
   assert.match(changelog, /<title>Rhino Voice Changelog/);
   assert.match(changelog, /rel="canonical" href="https:\/\/rhinovoice\.app\/changelog"/);

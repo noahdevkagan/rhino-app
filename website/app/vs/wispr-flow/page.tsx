@@ -4,10 +4,10 @@ import { ComparisonPage, type ComparisonContent } from "../../_components/compar
 const content: ComparisonContent = {
   slug: "/vs/wispr-flow",
   competitor: "Wispr Flow",
-  headline: "Rhino Voice vs Wispr Flow (2026): $20 once, on your Mac, or $15 a month, in their cloud",
+  headline: "Rhino Voice vs Wispr Flow (2026): free on your Mac, or $15 a month in their cloud",
   dek: "Wispr Flow is the best-known dictation app on the Mac, and it is genuinely good. It also sends your audio to a server and bills you every month. Here is the honest comparison, written by the person who built the competitor.",
   shortAnswer:
-    "Wispr Flow and Rhino Voice do the same job (hold a key, talk, get clean text in whatever app you are in), but they make opposite trade-offs. Wispr Flow processes your speech in the cloud on a $15/month subscription and runs on Mac, Windows, iPhone and Android. Rhino processes everything on your own Apple silicon Mac, works with Wi-Fi off, costs $20 once, and is Mac-only.",
+    "Wispr Flow and Rhino Voice do the same job (hold a key, talk, get clean text in whatever app you are in), but they make opposite trade-offs. Wispr Flow processes your speech in the cloud on a $15/month subscription and runs on Mac, Windows, iPhone and Android. Rhino processes everything on your own Apple silicon Mac, works with Wi-Fi off, is free to start and $20 once for unlimited, and is Mac-only.",
   pickThem:
     "you dictate on more than one kind of device, you want the polish and support of a funded team, or a monthly bill is easier to justify than reading a privacy policy.",
   pickRhino:
@@ -94,14 +94,14 @@ const content: ComparisonContent = {
 };
 
 export const metadata: Metadata = {
-  title: "Rhino Voice vs Wispr Flow (2026): On-Device $20 vs Cloud Subscription",
+  title: "Rhino Voice vs Wispr Flow (2026): Free On-Device Dictation vs $15/mo Cloud",
   description:
-    "Wispr Flow processes your voice in the cloud for $15/month. Rhino Voice does the same job entirely on your Mac for $20 once. An honest head-to-head from Rhino's founder.",
+    "Wispr Flow processes your voice in the cloud for $15/month. Rhino Voice does the same job entirely on your Mac, free to start or $20 once for unlimited. An honest head-to-head from Rhino's founder.",
   alternates: { canonical: "https://rhinovoice.app/vs/wispr-flow" },
   openGraph: {
     type: "article",
     url: "https://rhinovoice.app/vs/wispr-flow",
-    title: "Rhino Voice vs Wispr Flow (2026): On-Device $20 vs Cloud Subscription",
+    title: "Rhino Voice vs Wispr Flow (2026): Free On-Device Dictation vs $15/mo Cloud",
     description:
       "Same job, opposite trade-offs: a cloud subscription versus an app that never sends your voice anywhere. Honest comparison from Rhino's founder.",
   },

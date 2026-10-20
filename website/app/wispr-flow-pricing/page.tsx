@@ -30,7 +30,7 @@ const content: BestForContent = {
       paragraphs: [
         "Pro removes the word cap and gives the meeting Notetaker longer limits. It's $15 a month, or $12 a month if you pay for the year up front.",
         "Over one year that's $180 monthly or $144 yearly. Over three years it's $540 or $432. That's the honest cost of a cloud dictation subscription: you pay for as long as you talk.",
-        "Teams have Growth and Enterprise plans with admin controls, SSO and compliance features at higher prices.",
+        "Teams get two more plans. Growth is $23 per user a month, or $18 billed yearly, and adds admin controls and unlimited Notetaker access. Enterprise is custom-priced, billed yearly only, and adds SSO and advanced security.",
       ],
     },
     {

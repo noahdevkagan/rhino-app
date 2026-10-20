@@ -2169,3 +2169,15 @@ Cost: a toggle-mode tap-tap within 1s now locks rather than stops (one more
 tap, or Esc); hold-to-talk under 1s lingers 0.35s before closing. Hands-free
 off keeps the old behaviour exactly. Rejected: just widening the window (still
 a cliff, and does nothing for the slow-first-tap case).
+
+## 2026-10-20 — One cleanup-model download, owned by LLMModelManager
+
+Review of #98: Home's offer card kept download progress in its own view state,
+and Home is rebuilt on every tab switch. Leave Home mid-download and the card
+offered "Download" again; Settings never knew either. A second click started a
+second 1 GB transfer, and the later one failed to move its file into place, so
+the user saw an error after a successful install. Now `LLMModelManager` owns
+the one in-flight default-model download and publishes its progress; a second
+`downloadDefaultModel()` awaits the running one. Both views read that progress.
+A Home card already on screen also stays up once the model lands, so its
+"AI cleanup is on" confirmation isn't pulled when the window regains focus.

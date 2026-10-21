@@ -394,8 +394,8 @@ test("referral links count each friend once and unlock at two", async () => {
   const db = fakeReferralsDb();
   const landing = await (await renderWithReferrals(db, "/r/abcd2345")).text();
   assert.match(landing, /A friend gave you Rhino/);
-  assert.match(landing, /href="\/r\/abcd2345\/go\?to=appsumo"/);
-  assert.match(landing, /rhinofree/);
+  assert.match(landing, /href="\/r\/abcd2345\/go\?to=download"/);
+  assert.doesNotMatch(landing, /to=appsumo|rhinofree/);
   assert.match(landing, /name="robots" content="noindex, nofollow"/i);
 
   const go = await renderWithReferrals(db, "/r/abcd2345/go?to=appsumo", { "cf-connecting-ip": "1.1.1.1" });

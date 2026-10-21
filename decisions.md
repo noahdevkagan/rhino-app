@@ -2187,3 +2187,15 @@ re-read from each vendor's own pricing page on 2026-10-20; VoiceInk's official
 price is $25 once (third-party pages claiming $29 were wrong), fixed in
 competitors.ts and two alternatives pages. Sources are listed as plain text,
 not deep links (playbook §5: competitor links go to homepages only).
+
+## 2026-10-20 — One cleanup-model download, owned by LLMModelManager
+
+Review of #98: Home's offer card kept download progress in its own view state,
+and Home is rebuilt on every tab switch. Leave Home mid-download and the card
+offered "Download" again; Settings never knew either. A second click started a
+second 1 GB transfer, and the later one failed to move its file into place, so
+the user saw an error after a successful install. Now `LLMModelManager` owns
+the one in-flight default-model download and publishes its progress; a second
+`downloadDefaultModel()` awaits the running one. Both views read that progress.
+A Home card already on screen also stays up once the model lands, so its
+"AI cleanup is on" confirmation isn't pulled when the window regains focus.

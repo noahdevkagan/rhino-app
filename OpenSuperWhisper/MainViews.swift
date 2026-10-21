@@ -346,7 +346,7 @@ struct HomeHeaderView: View {
             reloadShortcutDescription()
         }
         .onReceive(NotificationCenter.default.publisher(for: .cleanupOfferChanged)) { _ in
-            cleanupOffer = CleanupOffer.shouldShow
+            refreshCleanupOffer()
         }
         .onReceive(NotificationCenter.default.publisher(
             for: RecordingStore.recordingsDidUpdateNotification)) { _ in stats.reload() }
@@ -360,8 +360,16 @@ struct HomeHeaderView: View {
             for: NSWindow.didBecomeKeyNotification)) { _ in
             modelMissing = Self.isModelMissing()
             modelInfo = Self.activeModelInfo()
-            cleanupOffer = CleanupOffer.shouldShow
+            refreshCleanupOffer()
         }
+    }
+
+    /// A card already on screen stays once the model lands, until its Done is clicked, so
+    /// the "AI cleanup is on" confirmation isn't pulled the moment the window regains focus.
+    private func refreshCleanupOffer() {
+        cleanupOffer = CleanupOffer.shouldShow
+            || (cleanupOffer && AppPreferences.shared.aiPostProcessingEnabled
+                && LLMModelManager.shared.isDefaultModelDownloaded())
     }
 
     private func compact(_ n: Int) -> String {
@@ -391,13 +399,17 @@ struct HomeHeaderView: View {
 
 /// Home's one-click offer to fetch the AI-cleanup model, shown while `CleanupOffer` says
 /// so. The click is the consent the download needs; "Not now" hides it for good
-/// (Settings → Output keeps the same download).
+/// (Settings → Output keeps the same download). Progress comes from `LLMModelManager`,
+/// not this view: Home is rebuilt on every tab switch, mid-download included.
 struct CleanupOfferCard: View {
     let close: () -> Void
-    @State private var progress: Double?
+    @ObservedObject private var models = LLMModelManager.shared
     @State private var error: String?
-    @State private var finished = false
     @Environment(\.colorScheme) private var colorScheme
+
+    private var finished: Bool {
+        models.defaultModelProgress == nil && models.isDefaultModelDownloaded()
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -416,7 +428,7 @@ struct CleanupOfferCard: View {
             Spacer()
             if finished {
                 Button("Done", action: close)
-            } else if let progress {
+            } else if let progress = models.defaultModelProgress {
                 ProgressView(value: progress).frame(width: 110).controlSize(.small)
             } else {
                 Button("Not now") {
@@ -436,19 +448,14 @@ struct CleanupOfferCard: View {
 
     private func download() {
         error = nil
-        progress = 0
         Task { @MainActor in
             do {
-                try await LLMModelManager.shared.downloadDefaultModel { p in
-                    Task { @MainActor in progress = p }
-                }
+                try await LLMModelManager.shared.downloadDefaultModel()
                 // Load it now so the first formatted dictation doesn't wait for it.
                 BuiltInLlamaBackend.shared.preload()
-                finished = true
             } catch {
                 self.error = error.localizedDescription
             }
-            progress = nil
         }
     }
 }

@@ -5,9 +5,8 @@ import SwiftUI
 final class ShareRhino {
     static let shared = ShareRhino()
 
-    /// The invite goes to rhinovoice.app/r/<code>, which offers friends Rhino free on
-    /// AppSumo (coupon rhinofree) or the free download, and counts them toward this
-    /// user's 3-friend unlock. Copying never opens a connection.
+    /// The invite goes to rhinovoice.app/r/<code>, which gives friends the free download
+    /// and counts them toward this user's 2-friend unlock. Copying never opens a connection.
     static var link: ReferralLink { ReferralLink(defaults: DefaultsStore.current) }
     static func invitation(_ url: URL) -> String {
         """
@@ -86,7 +85,7 @@ struct ShareRhinoView: View {
                         copied = false
                     }
                 }
-                Text("Friends get Rhino free on AppSumo, or the free download.")
+                Text("Friends get Rhino free, straight from the download link.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding(12)

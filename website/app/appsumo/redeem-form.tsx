@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.39/Rhino-0.1.39.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.40/Rhino-0.1.40.dmg";
 
 /** SendFox form 296340 → list 678908 "Rhino AppSumo customers". Optional; only posted for a valid code. */
 const emailAction = "https://sendfox.com/form/03zne3/3oywpv";

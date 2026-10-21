@@ -9,6 +9,16 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.40",
+    date: "October 21, 2026",
+    changes: [
+      "AI cleanup is now on by default, and Settings → Output → Cleanup is down to three simple controls. After a few dictations, or the first time you dictate a list or an email, Home offers a one-click download of the cleanup model.",
+      "Double-tapping the dictation key no longer makes the bubble pop up, vanish and reappear. A quick double-tap now locks hands-free dictation on the same take.",
+      "Clicking Download on the cleanup model twice, or leaving Home mid-download, no longer starts a second 1 GB download or shows a false error after a good install.",
+      "Invite links now send friends straight to the free download.",
+    ],
+  },
+  {
     version: "0.1.39",
     date: "October 18, 2026",
     changes: [

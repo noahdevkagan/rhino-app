@@ -290,6 +290,12 @@ export default function Home() {
             <li><a href="/alternatives/macwhisper">MacWhisper alternatives</a></li>
             <li><a href="/alternatives/otter">Otter.ai alternatives</a></li>
             <li><a href="/macwhisper-pricing">MacWhisper pricing</a></li>
+            <li><a href="/superwhisper-pricing">superwhisper pricing</a></li>
+            <li><a href="/wispr-flow-pricing">Wispr Flow pricing</a></li>
+            <li><a href="/compare/wispr-flow-vs-typeless">Wispr Flow vs Typeless</a></li>
+            <li><a href="/compare/wispr-flow-vs-aqua-voice">Wispr Flow vs Aqua Voice</a></li>
+            <li><a href="/compare/wispr-flow-vs-voiceink">Wispr Flow vs VoiceInk</a></li>
+            <li><a href="/compare/wispr-flow-vs-monologue">Wispr Flow vs Monologue</a></li>
           </ul>
           <p className="band-intro">
             Not sure which kind of app you need?{" "}

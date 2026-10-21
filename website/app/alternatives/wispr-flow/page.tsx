@@ -13,7 +13,7 @@ const content: RankedPageContent = {
   quickAnswer: (
     <p>
       Rhino Voice is the best Wispr Flow alternative if you want dictation that never
-      leaves your Mac and never bills you again: ${rhinoPrice} once, against Wispr
+      leaves your Mac and never bills you again: free to start, ${rhinoPrice} once for unlimited, against Wispr
       Flow&apos;s {wisprYear} a year. Pick Typeless if accuracy matters most: it beat
       Rhino on my voice test, 10 of 10 against 8 of 10, for {typelessYear} a year against
       Rhino&apos;s ${rhinoPrice} once. Pick superwhisper to start free, Aqua Voice for a
@@ -41,7 +41,7 @@ const content: RankedPageContent = {
       bestFor: "local dictation you pay for once",
       review: [
         "I built Rhino to keep Wispr Flow's hold a key, talk, release workflow without the cloud or the subscription. Speech recognition and the AI cleanup pass both run on your Mac, it works with Wi-Fi off, and there is no account and no cloud model to switch on.",
-        "It is small on purpose: no modes, no per-app profiles, no free tier. It passes text through verbatim when you dictate into Claude, ChatGPT or a terminal, and keeps a dictionary for the names you repeat. Pick it if you are on Apple silicon and want local dictation you pay for once.",
+        "It is small on purpose: no modes, no per-app profiles. The free plan gives you your first week unlimited, then 2,000 words a week. It passes text through verbatim when you dictate into Claude, ChatGPT or a terminal, and keeps a dictionary for the names you repeat. Pick it if you are on Apple silicon and want local dictation you pay for once.",
       ],
       shot: {
         src: "/img/rhino-home.jpg",
@@ -76,14 +76,14 @@ const content: RankedPageContent = {
       tool: tools.aquaVoice,
       bestFor: "staying in the cloud for less",
       review: [
-        "If the price bothered you and the cloud did not, this is the obvious swap: roughly half the cost of Wispr Flow with similar polish. Be honest with yourself about which of the two problems you actually have.",
+        "If the price bothered you and the cloud did not, this is the obvious swap: about a third less than Wispr Flow with similar polish. Be honest with yourself about which of the two problems you actually have.",
       ],
     },
     {
       tool: tools.typeless,
-      bestFor: "a big free tier on every device",
+      bestFor: "the highest accuracy, on every device",
       review: [
-        `The most accurate app I tested. On my own voice it got 10 of 10 clips right with no fixing, against Rhino's 8 of 10. It also costs more: ${typelessYear} a year on Pro billed annually, against Rhino's $${rhinoPrice} once. The free tier of 8,000 words a week, on Mac, Windows, iPhone and Android, is real daily use. Pick it if accuracy matters most and you are fine with the cloud.`,
+        `The most accurate app I tested. On my own voice it got 10 of 10 clips right with no fixing, against Rhino's 8 of 10. It also costs more: ${typelessYear} a year on Pro billed annually, against Rhino's $${rhinoPrice} once. It has apps for Mac, Windows, iPhone and Android, and a free plan with a weekly word limit. Pick it if accuracy matters most and you are fine with the cloud.`,
       ],
     },
     {
@@ -145,7 +145,7 @@ const content: RankedPageContent = {
     </>
   ),
   howToSwitch: [
-    `Buy Rhino for $${rhinoPrice} and download it for your Mac.`,
+    "Download Rhino free for your Mac. Unlimited is $" + rhinoPrice + " once, whenever you need it.",
     "Pick your trigger key. Fn works, and Rhino turns off the emoji popup it usually opens.",
     "Add the names and jargon you say every day to the dictionary.",
     "Quit Wispr Flow and cancel the subscription once you are happy.",
@@ -176,7 +176,7 @@ const content: RankedPageContent = {
     },
     {
       question: "Is a one-time purchase actually cheaper?",
-      answer: `For anything you use more than a few months, yes. A year of Wispr Flow at the annual rate is ${wisprYear}. Rhino Voice is $${rhinoPrice} once, VoiceInk starts at $29 once, and MacWhisper Pro is around €59 once. The subscription buys cross-platform support, which is a fair thing to want.`,
+      answer: `For anything you use more than a few months, yes. A year of Wispr Flow at the annual rate is ${wisprYear}. Rhino Voice is $${rhinoPrice} once, VoiceInk starts at $25 once, and MacWhisper Pro is around €59 once. The subscription buys cross-platform support, which is a fair thing to want.`,
     },
   ],
 };
@@ -185,7 +185,14 @@ export const metadata: Metadata = {
   title: "The 7 Best Wispr Flow Alternatives in 2026 (Ranked, With Prices)",
   description:
     "The 7 best Wispr Flow alternatives in 2026, ranked by a competitor: local apps that keep your voice on your Mac, cheaper cloud apps, and what each costs over three years.",
-  alternates: { canonical: "https://rhinovoice.app/alternatives/wispr-flow" },
+  alternates: {
+    canonical: "https://rhinovoice.app/alternatives/wispr-flow",
+    languages: {
+      en: "https://rhinovoice.app/alternatives/wispr-flow",
+      es: "https://rhinovoice.app/es/alternativas-a-wispr-flow",
+      "x-default": "https://rhinovoice.app/alternatives/wispr-flow",
+    },
+  },
   openGraph: {
     type: "article",
     url: "https://rhinovoice.app/alternatives/wispr-flow",

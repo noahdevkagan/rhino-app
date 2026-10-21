@@ -88,11 +88,11 @@ const content: BestForContent = {
       name: "Rhino Voice",
       mine: true,
       bestFor: "if you bought MacWhisper for dictation, not files",
-      price: "$20 once, 30-day money-back guarantee",
+      price: "Free (2,000 words a week after a free first week), or $20 once for unlimited",
       where: "On your Mac, always",
       local: "Yes, always",
       body: [
-        "Mine. Lots of people look at MacWhisper when what they actually want is to talk and have text show up in their email or Slack. That's dictation. Rhino does exactly that: hold Fn, talk, let go, cleaned-up text lands in any app. It's $20, about a third of MacWhisper Pro, and runs on your Mac.",
+        "Mine. Lots of people look at MacWhisper when what they actually want is to talk and have text show up in their email or Slack. That's dictation. Rhino does exactly that: hold Fn, talk, let go, cleaned-up text lands in any app. It's free to start, $20 once for unlimited (about a third of MacWhisper Pro), and runs on your Mac.",
         "It's not built for transcribing files: no speaker labels or subtitles. If files are your job, buy MacWhisper Pro. Apple silicon and macOS 14 or newer.",
       ],
       url: "/",
@@ -101,7 +101,7 @@ const content: BestForContent = {
   verdict: [
     "Try MacWhisper's free tier first. Seriously. It's free and it might be enough.",
     "If you transcribe files for work, MacWhisper Pro at about €59 once is a good deal. If you qualify, email for the 25% discount instead of hunting for codes.",
-    "If you realize you wanted dictation, not transcription, skip Pro and try Rhino for $20.",
+    "If you realize you wanted dictation, not transcription, skip Pro and try Rhino. It's free to start.",
   ],
   today: [
     "Download MacWhisper's free version from its official site or Gumroad store, not a coupon site.",
@@ -137,7 +137,7 @@ const content: BestForContent = {
     },
   ],
   ctaBody:
-    "If what you wanted was dictation, not file transcription: $20 once, no subscription, and nothing leaves your Mac. If it doesn't save you time, email me within 30 days and I'll refund you.",
+    "If what you wanted was dictation, not file transcription: Rhino is free to start, $20 once for unlimited, no subscription, and nothing leaves your Mac. If the $20 doesn't save you time, email me within 30 days and I'll refund you.",
   checked: "September 2026",
 };
 

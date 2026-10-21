@@ -100,7 +100,7 @@ const content: BestForContent = {
   ],
   verdict: [
     "If superwhisper's settings are the problem, get something simpler. That's literally why Rhino exists: one key, good defaults, done.",
-    "If the subscription is the problem, check superwhisper's lifetime option first. Then compare it with Rhino ($20) and VoiceInk (from $29).",
+    "If the subscription is the problem, check superwhisper's lifetime option first. Then compare it with Rhino ($20) and VoiceInk (from $25).",
     "If you need Windows or your phone, stay on superwhisper or go to Wispr Flow. Rhino can't help you there.",
   ],
   today: [

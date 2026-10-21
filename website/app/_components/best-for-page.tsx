@@ -49,6 +49,8 @@ export type BestForContent = {
   today: string[];
   faq: BestForFaq[];
   ctaBody: string;
+  /** One line shown with a download button right under the TL;DR (top-third CTA). */
+  topCta?: string;
   /** Replaces the Rhino buy form, e.g. to send Otter shoppers to MeetMouse. */
   cta?: { heading: string; href: string; label: string };
   /**
@@ -87,6 +89,12 @@ export const COMPARISON_LINKS: { href: string; label: string }[] = [
   { href: "/alternatives/macwhisper", label: "MacWhisper alternatives" },
   { href: "/alternatives/otter", label: "Otter.ai alternatives" },
   { href: "/macwhisper-pricing", label: "MacWhisper pricing and discount codes" },
+  { href: "/superwhisper-pricing", label: "superwhisper pricing and discount codes" },
+  { href: "/wispr-flow-pricing", label: "Wispr Flow pricing and discount codes" },
+  { href: "/compare/wispr-flow-vs-typeless", label: "Wispr Flow vs Typeless" },
+  { href: "/compare/wispr-flow-vs-aqua-voice", label: "Wispr Flow vs Aqua Voice" },
+  { href: "/compare/wispr-flow-vs-voiceink", label: "Wispr Flow vs VoiceInk" },
+  { href: "/compare/wispr-flow-vs-monologue", label: "Wispr Flow vs Monologue" },
 ];
 
 function crumbParent(content: BestForContent) {
@@ -187,6 +195,13 @@ export function BestForPage({ content }: { content: BestForContent }) {
             ))}
           </ul>
         </aside>
+
+        {content.topCta ? (
+          <div className="top-cta">
+            <p>{content.topCta}</p>
+            <DownloadButton />
+          </div>
+        ) : null}
 
         <div className="table-wrap">
           <table className="compare-table">

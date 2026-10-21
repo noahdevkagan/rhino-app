@@ -78,7 +78,7 @@ const content: BestForContent = {
     {
       name: "Typeless",
       bestFor: "a big free cloud tier across devices",
-      price: "Free tier of 8,000 words/week; Pro $12/month billed yearly",
+      price: "Free plan with a weekly word limit; Pro $12/month billed yearly",
       where: "In their cloud",
       local: "No",
       body: [

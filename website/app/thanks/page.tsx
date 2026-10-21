@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Thanks for buying Rhino",
+  robots: { index: false, follow: false },
+};
+
 const downloadUrl =
   "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.39/Rhino-0.1.39.dmg";
 

@@ -215,6 +215,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var britishSpellingEnabled: Bool {
+        didSet {
+            AppPreferences.shared.britishSpellingEnabled = britishSpellingEnabled
+        }
+    }
+
     @Published var sentenceCaseEnabled: Bool {
         didSet {
             AppPreferences.shared.sentenceCaseEnabled = sentenceCaseEnabled
@@ -425,6 +431,7 @@ class SettingsViewModel: ObservableObject {
         self.holdToRecord = prefs.holdToRecord
         self.doubleTapLock = prefs.doubleTapLock
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
+        self.britishSpellingEnabled = prefs.britishSpellingEnabled
         self.sentenceCaseEnabled = prefs.sentenceCaseEnabled
         self.greetingCommaEnabled = prefs.greetingCommaEnabled
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
@@ -1377,6 +1384,11 @@ struct SettingsView: View {
                     .pickerStyle(.menu)
                     .labelsHidden()
                     .fixedSize()
+                }
+                if viewModel.selectedLanguage == "en" || viewModel.selectedLanguage == "auto" {
+                    SRow(title: "British spelling", hint: "Colour, organise, centre, travelled", indented: true) {
+                        SToggle(isOn: $viewModel.britishSpellingEnabled)
+                    }
                 }
             }
 

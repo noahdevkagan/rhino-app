@@ -6,6 +6,7 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 ## Unreleased
 
 - New: Settings → Output → Capitals & commas → Sentence case. Turn it off and dictations go in lowercase without a closing period, ready to drop into the middle of a sentence, including in Gmail, Google Docs and other web apps where Rhino can't see the text around your cursor. Names, "I" and questions keep their capitals and question marks, and saying "period" still adds one.
+- British spelling: turn on Settings → Output → Language → British spelling and English dictations come out as colour, organise, centre and travelled instead of color, organize, center and traveled. Names like Pearl Harbor stay as they are, and so do your dictionary words. It's on already if your Mac's region is the UK, Ireland, Australia, New Zealand or South Africa.
 - "Hi, Steve" and "Thanks, Steve" now come out as "Hi Steve" and "Thanks Steve". To keep the comma, turn on Settings → Output → Capitals & commas → Comma after greetings.
 
 ## 0.1.41 — 2026-10-27

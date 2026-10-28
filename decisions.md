@@ -2327,3 +2327,19 @@ prompt's own examples already write "Hi Sarah,". Deterministic, runs after clean
 dictionary. Only a greeting/thanks that opens a sentence or line, followed by a capitalized
 word that isn't a common clause opener ("Thanks, I'll check" keeps it) or a group word
 ("everyone"). A name that is also a stoplisted word ("Will") keeps the comma.
+
+## 2026-10-28 — British spelling is a deterministic word list behind a toggle
+
+Steve asked to force UK spelling: engines and the cleanup model lean American, so "colour"
+and "capitalize" turned up side by side. `BritishSpelling` swaps whole words from a fixed
+table (listed -ize/-yze verbs with every inflection, -or→-our stems with only the suffixes
+that keep the "u", -er→-re, doubled L, -ense, -og, ae/oe, grey/mould/cosy…). Not suffix
+rules: "-ize" by rule breaks size/prize/seize, "-or" breaks doctor and humorous. Left
+alone on purpose: meaning-dependent splits (program/programme, license/licence,
+practice/practise, check/cheque, tire/tyre, meter/metre) and vocabulary (mom, airplane).
+A capitalized word mid-sentence or an all-caps word is treated as a name (Pearl Harbor,
+World Health Organization); dictionary replacements are kept. Runs after the engine
+(with number formatting, so imports get it) and again after AI cleanup, before the
+dictionary's last word. Only when the language is English or auto. Not a prompt rule: the
+1.5B model is unreliable at it and cleanup is often off. Default on for Macs whose region
+is GB, IE, AU, NZ or ZA; explicit choices win.

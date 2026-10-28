@@ -350,6 +350,25 @@ final class AppPreferences {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// British spelling for English transcripts (`BritishSpelling`): colour, organise, centre.
+    /// Defaults on where the Mac's region writes British English.
+    @UserDefault(key: "britishSpellingEnabled", defaultValue: BritishSpelling.defaultEnabled)
+    var britishSpellingEnabled: Bool
+
+    /// `text` in British spelling when that's on and the transcription language is English
+    /// (or auto-detect). The user's dictionary spellings are kept as they are.
+    func applyBritishSpelling(_ text: String) -> String {
+        guard britishSpellingEnabled, whisperLanguage == "en" || whisperLanguage == "auto" else {
+            return text
+        }
+        let keep: Set<String> = customDictionaryEnabled
+            ? Set(customDictionaryEntries.flatMap {
+                $0.replacement.split(whereSeparator: { !$0.isLetter }).map(String.init)
+            })
+            : []
+        return BritishSpelling.apply(text, keep: keep)
+    }
+
     /// AI cleanup (a local LLM pass). On by default, but it does nothing until its ~1 GB
     /// model is downloaded, and that download only starts on a click (`CleanupOffer`).
     @UserDefault(key: "aiPostProcessingEnabled", defaultValue: true)

@@ -200,6 +200,7 @@ extension RecordingTriggerSet {
         var list = try container.nestedUnkeyedContainer(forKey: .triggers)
         var decoded: [RecordingTrigger] = []
         while !list.isAtEnd {
+            if try list.decodeNil() { continue }
             if let trigger = try? list.decode(RecordingTrigger.self) {
                 decoded.append(trigger)
             } else {
@@ -217,6 +218,49 @@ extension RecordingTriggerSet {
     /// Consumes one element of any shape so the unkeyed container advances past it.
     private struct SkippedElement: Decodable {
         init(from decoder: Decoder) throws {}
+    }
+}
+
+// MARK: - Stored form
+
+/// Mouse buttons are stored under their own preference key (`recordingMouseButtons`), not in
+/// the `recordingTriggers` JSON. Builds up to v0.1.40 decode that JSON strictly, so a
+/// mouse-button entry there would make an older build drop every trigger after a downgrade.
+/// Old builds ignore the separate key; this build merges the two on load.
+extension RecordingTriggerSet {
+    private static func isMouseButton(_ trigger: RecordingTrigger) -> Bool {
+        if case .mouseButton = trigger { return true }
+        return false
+    }
+
+    /// What goes in `recordingTriggers`: everything except mouse buttons.
+    var storedTriggersJSON: String {
+        RecordingTriggerSet(triggers: triggers.filter { !Self.isMouseButton($0) }).json
+    }
+
+    /// What goes in `recordingMouseButtons`: comma-separated button numbers, e.g. "2,3".
+    var storedMouseButtons: String {
+        mouseButtons.map(String.init).joined(separator: ",")
+    }
+
+    static func load(triggersJSON: String, mouseButtons raw: String) -> RecordingTriggerSet {
+        var set = load(from: triggersJSON)
+        let numbers = raw.split(separator: ",")
+            .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+        for number in numbers { set.add(.mouseButton(number)) }
+        return set
+    }
+
+    /// The trigger list as the app has it stored. Use this, not `load(from:)` on one key.
+    static var stored: RecordingTriggerSet {
+        load(triggersJSON: AppPreferences.shared.recordingTriggers,
+             mouseButtons: AppPreferences.shared.recordingMouseButtons)
+    }
+
+    /// Writes both keys. Use this, not `recordingTriggers = json`.
+    func store() {
+        AppPreferences.shared.recordingTriggers = storedTriggersJSON
+        AppPreferences.shared.recordingMouseButtons = storedMouseButtons
     }
 }
 
@@ -250,26 +294,55 @@ enum MouseButtonTrigger {
 /// Hold-to-talk bookkeeping for the mouse tap, mirroring ModifierKeyMonitor: the first
 /// watched button down owns the take, a second watched button mid-take is ignored, and only
 /// the owner's release ends it.
+///
+/// It also decides what the tap swallows: a watched button's press, and then only the drags
+/// and release of a press that was swallowed. A release whose press went through (the
+/// button was already held when the trigger was armed) goes through too, so the target app
+/// never sees half a click.
 struct MouseButtonPressTracker {
     private(set) var pressed: Int?
+    private(set) var swallowedPresses: Set<Int> = []
 
     enum Transition: Equatable { case down(Int), up(Int) }
+    enum Phase { case down, up, drag }
 
-    mutating func handle(buttonNumber: Int, isDown: Bool, watched: Set<Int>) -> Transition? {
-        guard MouseButtonTrigger.shouldConsume(buttonNumber: buttonNumber, watched: watched) else {
-            return nil
-        }
-        if isDown {
-            guard pressed == nil else { return nil }
-            pressed = buttonNumber
-            return .down(buttonNumber)
-        }
-        guard pressed == buttonNumber else { return nil }
-        pressed = nil
-        return .up(buttonNumber)
+    struct Outcome: Equatable {
+        var transition: Transition?
+        var swallow: Bool
     }
 
-    mutating func reset() { pressed = nil }
+    mutating func handle(buttonNumber: Int, phase: Phase, watched: Set<Int>) -> Outcome {
+        switch phase {
+        case .down:
+            guard MouseButtonTrigger.shouldConsume(buttonNumber: buttonNumber, watched: watched) else {
+                return Outcome(transition: nil, swallow: false)
+            }
+            swallowedPresses.insert(buttonNumber)
+            guard pressed == nil else { return Outcome(transition: nil, swallow: true) }
+            pressed = buttonNumber
+            return Outcome(transition: .down(buttonNumber), swallow: true)
+        case .up:
+            let swallow = swallowedPresses.remove(buttonNumber) != nil
+            guard pressed == buttonNumber else { return Outcome(transition: nil, swallow: swallow) }
+            pressed = nil
+            return Outcome(transition: .up(buttonNumber), swallow: swallow)
+        case .drag:
+            return Outcome(transition: nil, swallow: swallowedPresses.contains(buttonNumber))
+        }
+    }
+
+    /// Down/up only, for callers that don't care about swallowing.
+    mutating func handle(buttonNumber: Int, isDown: Bool, watched: Set<Int>) -> Transition? {
+        handle(buttonNumber: buttonNumber, phase: isDown ? .down : .up, watched: watched).transition
+    }
+
+    /// Forgets everything and returns the button that owned a take, if one was held, so the
+    /// caller can deliver its release (a hold-to-talk take must not stick on).
+    @discardableResult
+    mutating func reset() -> Int? {
+        defer { pressed = nil; swallowedPresses = [] }
+        return pressed
+    }
 }
 
 /// A single modifier press, recognised only when the modifier goes down and comes back up

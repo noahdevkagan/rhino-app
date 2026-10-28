@@ -50,12 +50,12 @@ struct TriggerRecorderField: View {
     private func loadShortcut() {
         shortcut = KeyboardShortcuts.getShortcut(for: name)
         if allowsMultiple {
-            set = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+            set = RecordingTriggerSet.stored
         }
     }
 
     private func persistSet() {
-        AppPreferences.shared.recordingTriggers = set.json
+        set.store()
         NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
     }
 
@@ -341,10 +341,10 @@ struct TriggerRecorderField: View {
     /// Newest assignment wins: a single-binding field claiming something the trigger list holds
     /// takes it off the list, so a key is never bound twice with the loser failing silently.
     private func takeOverFromRecordingTriggers(_ trigger: RecordingTrigger) {
-        var triggerSet = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+        var triggerSet = RecordingTriggerSet.stored
         guard triggerSet.triggers.contains(trigger) else { return }
         triggerSet.remove(trigger)
-        AppPreferences.shared.recordingTriggers = triggerSet.json
+        triggerSet.store()
     }
 
     private func clear() {

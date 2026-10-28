@@ -2221,6 +2221,14 @@ ordinary middle-clicks are untouched when middle isn't the trigger. Swallowing
 needs an active tap, which Accessibility (already required for insertion)
 allows; with only an Input Monitoring grant it falls back to listen-only and
 the button's normal action also fires. Left/right click (0/1) can never be
-stored or watched. `RecordingTriggerSet` decoding became lossy per element so a
-trigger kind an older build doesn't know is skipped instead of wiping the list.
-The cancel field does not accept mouse buttons.
+stored or watched. Downgrades: builds up to v0.1.40 decode the
+`recordingTriggers` JSON strictly, so one unknown entry there makes them drop the
+whole list. Mouse buttons are therefore stored under a separate key,
+`recordingMouseButtons` ("2,3"), which old builds ignore; `RecordingTriggerSet.stored`
+/ `store()` merge and split the two. `RecordingTriggerSet` decoding is also lossy
+per element (unknown kinds and nulls are skipped), which protects downgrades from
+future builds to this one, not to v0.1.40. The tap runs on its own thread and run
+loop, because an active tap holds every middle/side click system-wide until its
+callback returns and must not wait on a busy main thread; stopping it delivers the
+release of a held trigger so a hold-to-talk take can't stick. The cancel field
+does not accept mouse buttons.

@@ -327,8 +327,40 @@ final class MouseButtonTriggerTests: XCTestCase {
     /// A list written by this version (or a newer one) must still load the triggers an older
     /// shape understands, instead of collapsing to "no trigger at all".
     func testUnknownTriggerIsSkippedNotFatal() {
-        let json = #"{"triggers":[{"modifier":{"_0":"fn"}},{"futureKind":{"_0":7}}]}"#
+        let json = #"{"triggers":[{"modifier":{"_0":"fn"}},{"futureKind":{"_0":7}},{"modifier":{"_0":"rightOption"}}]}"#
+        XCTAssertEqual(RecordingTriggerSet.load(from: json).triggers,
+                       [.modifier(.fn), .modifier(.rightOption)],
+                       "entries after an unknown one must still load")
+    }
+
+    func testNullEntriesAreSkipped() {
+        let json = #"{"triggers":[null,{"modifier":{"_0":"fn"}},null]}"#
         XCTAssertEqual(RecordingTriggerSet.load(from: json).triggers, [.modifier(.fn)])
+    }
+
+    /// Builds up to v0.1.40 decode `recordingTriggers` strictly, so mouse buttons must never be
+    /// written there or a downgrade loses every trigger.
+    func testMouseButtonsAreStoredOutsideTheTriggerJSON() {
+        let set = RecordingTriggerSet(triggers: [.modifier(.fn), .mouseButton(2), .mouseButton(4)])
+        XCTAssertFalse(set.storedTriggersJSON.contains("mouseButton"))
+        XCTAssertEqual(RecordingTriggerSet.load(from: set.storedTriggersJSON).triggers, [.modifier(.fn)])
+        XCTAssertEqual(set.storedMouseButtons, "2,4")
+    }
+
+    func testStoredFormMergesBackOnLoad() {
+        let set = RecordingTriggerSet(triggers: [.modifier(.fn), .mouseButton(3)])
+        let loaded = RecordingTriggerSet.load(triggersJSON: set.storedTriggersJSON,
+                                              mouseButtons: set.storedMouseButtons)
+        XCTAssertEqual(loaded.triggers, [.modifier(.fn), .mouseButton(3)])
+    }
+
+    func testStoredMouseButtonsIgnoreGarbageAndInvalidButtons() {
+        let loaded = RecordingTriggerSet.load(triggersJSON: "", mouseButtons: "0, 2,x,,1,4,2")
+        XCTAssertEqual(loaded.mouseButtons, [2, 4])
+    }
+
+    func testNoMouseButtonsStoresEmptyString() {
+        XCTAssertEqual(RecordingTriggerSet(triggers: [.modifier(.fn)]).storedMouseButtons, "")
     }
 
     /// The encoded shape must stay what earlier builds wrote and read.
@@ -369,10 +401,49 @@ final class MouseButtonPressTrackerTests: XCTestCase {
         XCTAssertNil(tracker.handle(buttonNumber: 2, isDown: false, watched: [2]))
     }
 
-    func testResetForgetsAHeldButton() {
+    func testResetForgetsAHeldButtonAndReportsIt() {
         var tracker = MouseButtonPressTracker()
         _ = tracker.handle(buttonNumber: 2, isDown: true, watched: [2])
-        tracker.reset()
+        XCTAssertEqual(tracker.reset(), 2, "stop needs the held button to deliver its release")
+        XCTAssertNil(tracker.reset())
         XCTAssertEqual(tracker.handle(buttonNumber: 2, isDown: true, watched: [2]), .down(2))
+    }
+
+    func testWatchedPressDragAndReleaseAreSwallowed() {
+        var tracker = MouseButtonPressTracker()
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, phase: .down, watched: [2]),
+                       MouseButtonPressTracker.Outcome(transition: .down(2), swallow: true))
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, phase: .drag, watched: [2]),
+                       MouseButtonPressTracker.Outcome(transition: nil, swallow: true))
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, phase: .up, watched: [2]),
+                       MouseButtonPressTracker.Outcome(transition: .up(2), swallow: true))
+    }
+
+    func testUnwatchedMiddleClickPassesThrough() {
+        var tracker = MouseButtonPressTracker()
+        for phase in [MouseButtonPressTracker.Phase.down, .drag, .up] {
+            XCTAssertEqual(tracker.handle(buttonNumber: 2, phase: phase, watched: [3]),
+                           MouseButtonPressTracker.Outcome(transition: nil, swallow: false))
+        }
+    }
+
+    /// The button was already down when the trigger was armed: its press reached the app, so
+    /// its release must too, or the app sees half a click.
+    func testReleaseWhosePressWasNotSwallowedPassesThrough() {
+        var tracker = MouseButtonPressTracker()
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, phase: .drag, watched: [2]),
+                       MouseButtonPressTracker.Outcome(transition: nil, swallow: false))
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, phase: .up, watched: [2]),
+                       MouseButtonPressTracker.Outcome(transition: nil, swallow: false))
+    }
+
+    func testSecondWatchedButtonMidTakeIsSwallowedButDoesNotEndTheTake() {
+        var tracker = MouseButtonPressTracker()
+        _ = tracker.handle(buttonNumber: 2, phase: .down, watched: [2, 3])
+        XCTAssertEqual(tracker.handle(buttonNumber: 3, phase: .down, watched: [2, 3]),
+                       MouseButtonPressTracker.Outcome(transition: nil, swallow: true))
+        XCTAssertEqual(tracker.handle(buttonNumber: 3, phase: .up, watched: [2, 3]),
+                       MouseButtonPressTracker.Outcome(transition: nil, swallow: true))
+        XCTAssertEqual(tracker.pressed, 2)
     }
 }

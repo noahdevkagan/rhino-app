@@ -141,7 +141,7 @@ class ShortcutManager {
     }
     
     private func setupRecordingTrigger() {
-        let set = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+        let set = RecordingTriggerSet.stored
 
         ModifierKeyMonitor.shared.stop()
         let modifiers = set.modifiers

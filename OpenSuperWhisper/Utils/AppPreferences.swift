@@ -264,10 +264,17 @@ final class AppPreferences {
     var modifierOnlyHotkey: String
 
     /// Recording triggers as JSON (`RecordingTriggerSet`): any number of key combinations,
-    /// single modifiers and mouse buttons, all live at once. Empty until
+    /// and single modifiers, all live at once (mouse buttons live in `recordingMouseButtons`). Empty until
     /// `migrateRecordingTriggers()` builds it from the three single-slot preferences. (#48)
     @UserDefault(key: "recordingTriggers", defaultValue: "")
     var recordingTriggers: String
+
+    /// Mouse-button triggers, comma-separated button numbers ("2,3"). Kept out of
+    /// `recordingTriggers` so builds up to v0.1.40, which decode that JSON strictly, still
+    /// load the rest of the list after a downgrade. Read and write through
+    /// `RecordingTriggerSet.stored` / `store()`, which merge the two.
+    @UserDefault(key: "recordingMouseButtons", defaultValue: "")
+    var recordingMouseButtons: String
 
     // When false (default), pressing Esc to cancel a recording longer than
     // ~10s first asks for confirmation (press Esc again) instead of discarding

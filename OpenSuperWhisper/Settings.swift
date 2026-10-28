@@ -1748,7 +1748,7 @@ struct SettingsView: View {
     /// the full story lives here for the few who go looking.
     private var fnEmojiFootnote: String? {
         _ = triggerRevision   // redraw dependency; see the state's note
-        let triggers = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+        let triggers = RecordingTriggerSet.stored
         guard triggers.modifiers.contains(.fn) else { return nil }
         if FnGlobeKeySetting.conflictsWithFnTrigger {
             return "Your Mac also opens the emoji picker when Fn is pressed on its own, so it will pop up when you dictate. Stop it in System Settings → Keyboard → “Press 🌐 key to” → Do Nothing."

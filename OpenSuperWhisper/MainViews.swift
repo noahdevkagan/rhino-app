@@ -222,8 +222,7 @@ struct HomeHeaderView: View {
     }
 
     private func reloadShortcutDescription() {
-        shortcutDescription = RecordingTriggerSet
-            .load(from: AppPreferences.shared.recordingTriggers)
+        shortcutDescription = RecordingTriggerSet.stored
             .primaryDescription
     }
 

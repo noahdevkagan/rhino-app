@@ -37,10 +37,10 @@ class OnboardingViewModel: ObservableObject {
     /// hold-Fn default, whatever the user chose.)
     @Published var selectedShortcut: OnboardingShortcutOption {
         didSet {
-            var set = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+            var set = RecordingTriggerSet.stored
             set.triggers.removeAll { if case .modifier = $0 { return true } else { return false } }
             set.add(.modifier(selectedShortcut.modifierKey))
-            AppPreferences.shared.recordingTriggers = set.json
+            set.store()
             NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
         }
     }
@@ -67,7 +67,7 @@ class OnboardingViewModel: ObservableObject {
         // Reflect what's actually armed: a fresh install's trigger set is seeded to
         // hold-Fn (AppPreferences.migrateRecordingTriggers), so the Fn card starts
         // selected and the UI agrees with the key that really starts a recording.
-        let armed = RecordingTriggerSet.load(from: AppPreferences.shared.recordingTriggers)
+        let armed = RecordingTriggerSet.stored
         self.selectedShortcut = armed.modifiers.contains(.rightCommand) ? .rightCommand : .fn
 
         initializeUnifiedModels()

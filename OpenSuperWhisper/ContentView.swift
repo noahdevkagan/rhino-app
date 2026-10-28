@@ -421,8 +421,7 @@ struct ContentView: View {
     @State private var mainTab: MainTab = .home
 
     private var currentShortcutDescription: String {
-        RecordingTriggerSet
-            .load(from: AppPreferences.shared.recordingTriggers)
+        RecordingTriggerSet.stored
             .primaryDescription
     }
     

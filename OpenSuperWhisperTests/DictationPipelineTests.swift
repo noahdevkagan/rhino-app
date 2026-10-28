@@ -7,6 +7,7 @@
 //  drains clips in recording-start order while tracking how many are still pending.
 //
 
+import AppKit
 import XCTest
 @testable import OpenSuperWhisper
 
@@ -89,7 +90,13 @@ final class DictationPipelineTests: XCTestCase {
         prefs.autoPasteTranscription = false
         prefs.autoCopyToClipboard = false
         prefs.aiPostProcessingEnabled = false
+        // Auto-paste off now always stashes the text on the clipboard: keep that off the real one.
+        let testBoard = NSPasteboard(name: NSPasteboard.Name("OpenSuperWhisperTests." + UUID().uuidString))
+        let savedBoard = TranscriptInserter.pasteboard
+        TranscriptInserter.pasteboard = testBoard
         defer {
+            TranscriptInserter.pasteboard = savedBoard
+            testBoard.releaseGlobally()
             prefs.saveTranscriptionHistory = savedHistory
             prefs.autoPasteTranscription = savedPaste
             prefs.autoCopyToClipboard = savedCopy

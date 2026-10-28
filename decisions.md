@@ -2218,3 +2218,11 @@ recovery paths (no Accessibility permission, no text field, long-clip hold)
 still put the text on the clipboard as a normal entry, because there the
 clipboard is how the user gets the text. Rejected: a one-time migration that
 also flips stored true values off (would override people who chose it).
+
+Review follow-up (same PR): with "Auto-paste transcription" off, the old ON
+default of "Copy to clipboard" was how those users received their text, so the
+auto-paste-off branch now always puts the text on the clipboard as a normal
+copy, like the other fallbacks. The restore after a borrow is also marked
+`TransientType`, so clipboard managers don't log the user's own earlier copy a
+second time after every dictation; it can't hide a new copy, because any write
+during the borrow skips the restore.

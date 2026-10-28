@@ -396,7 +396,12 @@ final class AppPreferences {
     var aiPostProcessingPrompt: String
 
     // Clipboard settings
-    @UserDefault(key: "autoCopyToClipboard", defaultValue: true)
+    /// Keep each transcription on the clipboard after inserting it. Default OFF: in paste mode the
+    /// clipboard is only borrowed for the ⌘V, then the user's previous contents come back and the
+    /// borrowed write is marked so clipboard managers skip it (users reported losing what they had
+    /// copied, Oct 2026). Only the default changed: a stored value is an explicit choice from the
+    /// Settings toggle and is kept, so anyone who never touched it moves to OFF.
+    @UserDefault(key: "autoCopyToClipboard", defaultValue: false)
     var autoCopyToClipboard: Bool
 
     @UserDefault(key: "autoPasteTranscription", defaultValue: true)

@@ -252,3 +252,127 @@ final class GlobalEventListeningAccessTests: XCTestCase {
                                                             inputMonitoring: false))
     }
 }
+
+/// Mouse-button triggers (middle, side 4/5). Two users asked for a middle-button trigger; the
+/// rules that matter are that left/right click can never become one, and that a button which
+/// is not a trigger is never swallowed.
+final class MouseButtonTriggerTests: XCTestCase {
+
+    func testOnlyOtherMouseButtonsAreValid() {
+        XCTAssertFalse(MouseButtonTrigger.isValid(0), "left click must never be a trigger")
+        XCTAssertFalse(MouseButtonTrigger.isValid(1), "right click must never be a trigger")
+        XCTAssertTrue(MouseButtonTrigger.isValid(2))
+        XCTAssertTrue(MouseButtonTrigger.isValid(3))
+        XCTAssertTrue(MouseButtonTrigger.isValid(4))
+        XCTAssertFalse(MouseButtonTrigger.isValid(-1))
+    }
+
+    func testUnwatchedMiddleClickIsNeverConsumed() {
+        XCTAssertFalse(MouseButtonTrigger.shouldConsume(buttonNumber: 2, watched: []))
+        XCTAssertFalse(MouseButtonTrigger.shouldConsume(buttonNumber: 2, watched: [3]))
+        XCTAssertTrue(MouseButtonTrigger.shouldConsume(buttonNumber: 2, watched: [2]))
+    }
+
+    func testLeftAndRightClickAreNeverConsumedEvenIfStored() {
+        XCTAssertFalse(MouseButtonTrigger.shouldConsume(buttonNumber: 0, watched: [0, 1, 2]))
+        XCTAssertFalse(MouseButtonTrigger.shouldConsume(buttonNumber: 1, watched: [0, 1, 2]))
+    }
+
+    func testDisplayNamesMatchMouseLabels() {
+        XCTAssertEqual(MouseButtonTrigger.displayName(for: 2), "Middle Mouse Button")
+        XCTAssertEqual(MouseButtonTrigger.displayName(for: 3), "Mouse Button 4")
+        XCTAssertEqual(MouseButtonTrigger.displayName(for: 4), "Mouse Button 5")
+    }
+
+    @MainActor
+    func testCompactDescriptionAndCaps() {
+        XCTAssertEqual(RecordingTrigger.mouseButton(2).compactDescription, "Middle click")
+        XCTAssertEqual(RecordingTrigger.mouseButton(3).caps, ["Mouse Button 4"])
+    }
+
+    func testInvalidButtonIsNeverStored() {
+        var set = RecordingTriggerSet.empty
+        set.add(.mouseButton(0))
+        set.add(.mouseButton(1))
+        XCTAssertTrue(set.triggers.isEmpty)
+    }
+
+    func testMouseButtonsCoexistWithOtherKinds() {
+        var set = RecordingTriggerSet.empty
+        set.add(.modifier(.fn))
+        set.add(.mouseButton(2))
+        set.add(.mouseButton(4))
+        set.add(.mouseButton(2))
+        XCTAssertEqual(set.mouseButtons, [2, 4])
+        XCTAssertEqual(set.modifiers, [.fn])
+        XCTAssertNotEqual(RecordingTrigger.mouseButton(2).kind, RecordingTrigger.modifier(.fn).kind)
+    }
+
+    func testHandEditedLeftClickIsFilteredFromWatchedButtons() {
+        let set = RecordingTriggerSet(triggers: [.mouseButton(0), .mouseButton(3)])
+        XCTAssertEqual(set.mouseButtons, [3])
+    }
+
+    func testMouseTriggerRequiresGlobalEventListening() {
+        XCTAssertTrue(RecordingTriggerSet(triggers: [.mouseButton(2)]).requiresGlobalEventListening)
+    }
+
+    func testRoundTripsThroughJSON() {
+        var set = RecordingTriggerSet.empty
+        set.add(.modifier(.rightOption))
+        set.add(.mouseButton(3))
+        XCTAssertEqual(RecordingTriggerSet.load(from: set.json), set)
+    }
+
+    /// A list written by this version (or a newer one) must still load the triggers an older
+    /// shape understands, instead of collapsing to "no trigger at all".
+    func testUnknownTriggerIsSkippedNotFatal() {
+        let json = #"{"triggers":[{"modifier":{"_0":"fn"}},{"futureKind":{"_0":7}}]}"#
+        XCTAssertEqual(RecordingTriggerSet.load(from: json).triggers, [.modifier(.fn)])
+    }
+
+    /// The encoded shape must stay what earlier builds wrote and read.
+    func testExistingStoredShapeStillDecodes() {
+        let json = RecordingTriggerSet(triggers: [.modifier(.fn)]).json
+        XCTAssertTrue(json.contains(#""triggers""#))
+        XCTAssertEqual(RecordingTriggerSet.load(from: json).triggers, [.modifier(.fn)])
+    }
+}
+
+/// Hold-to-talk bookkeeping for the mouse tap: same rules as the modifier monitor.
+final class MouseButtonPressTrackerTests: XCTestCase {
+
+    func testPressAndReleaseOfWatchedButton() {
+        var tracker = MouseButtonPressTracker()
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, isDown: true, watched: [2]), .down(2))
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, isDown: false, watched: [2]), .up(2))
+        XCTAssertNil(tracker.pressed)
+    }
+
+    func testUnwatchedButtonIsIgnored() {
+        var tracker = MouseButtonPressTracker()
+        XCTAssertNil(tracker.handle(buttonNumber: 2, isDown: true, watched: [3]))
+        XCTAssertNil(tracker.handle(buttonNumber: 2, isDown: false, watched: [3]))
+    }
+
+    func testSecondButtonMidTakeIsIgnored() {
+        var tracker = MouseButtonPressTracker()
+        _ = tracker.handle(buttonNumber: 2, isDown: true, watched: [2, 3])
+        XCTAssertNil(tracker.handle(buttonNumber: 3, isDown: true, watched: [2, 3]))
+        XCTAssertNil(tracker.handle(buttonNumber: 3, isDown: false, watched: [2, 3]),
+                     "only the owning button's release ends the take")
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, isDown: false, watched: [2, 3]), .up(2))
+    }
+
+    func testStrayReleaseIsIgnored() {
+        var tracker = MouseButtonPressTracker()
+        XCTAssertNil(tracker.handle(buttonNumber: 2, isDown: false, watched: [2]))
+    }
+
+    func testResetForgetsAHeldButton() {
+        var tracker = MouseButtonPressTracker()
+        _ = tracker.handle(buttonNumber: 2, isDown: true, watched: [2])
+        tracker.reset()
+        XCTAssertEqual(tracker.handle(buttonNumber: 2, isDown: true, watched: [2]), .down(2))
+    }
+}

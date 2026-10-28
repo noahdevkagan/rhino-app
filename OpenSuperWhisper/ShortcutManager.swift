@@ -151,6 +151,16 @@ class ShortcutManager {
             ModifierKeyMonitor.shared.start(modifierKeys: modifiers)
         }
 
+        // Mouse buttons share the key handlers, so hold-to-talk, tap-to-toggle and the
+        // double-tap lock behave exactly as they do for a key. No tap at all without one.
+        MouseButtonMonitor.shared.stop()
+        let mouseButtons = set.mouseButtons
+        if !mouseButtons.isEmpty {
+            MouseButtonMonitor.shared.onButtonDown = { [weak self] _ in self?.handleKeyDown() }
+            MouseButtonMonitor.shared.onButtonUp = { [weak self] _ in self?.handleKeyUp() }
+            MouseButtonMonitor.shared.start(buttons: mouseButtons)
+        }
+
         bindKeyComboSlots(set.keyCombos)
 
         useModifierOnlyHotkey = !set.modifiers.isEmpty

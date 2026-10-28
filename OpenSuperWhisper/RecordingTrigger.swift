@@ -18,8 +18,9 @@ enum RecorderCombo {
     }
 }
 
-/// What starts a recording: a key combination or a single modifier held on its own.
-/// (Mouse-button triggers were cut in the 80/20 simplification.)
+/// What starts a recording: a key combination, a single modifier held on its own, or an extra
+/// mouse button (middle, or the side buttons 4/5). Mouse buttons were cut in the 80/20
+/// simplification and came back on user demand; see decisions.md (2026-10-27).
 ///
 /// The old shape asked the user to pick a mode first and only then record something, which meant
 /// the mode could disagree with what was stored, leaving a configured key stranded behind a
@@ -29,6 +30,10 @@ enum RecordingTrigger: Equatable, Codable {
     case none
     case keyCombo(KeyboardShortcuts.Shortcut)
     case modifier(ModifierKey)
+    /// An "other" mouse button, by `NSEvent.buttonNumber` / `kCGMouseEventButtonNumber`:
+    /// 2 is the middle button, 3 and 4 the side buttons usually labelled 4 and 5. Left (0) and
+    /// right (1) are never valid triggers; `MouseButtonTrigger.isValid` guards every entry.
+    case mouseButton(Int)
 
     /// Key caps for the settings field, one per key.
     @MainActor var caps: [String] {
@@ -43,6 +48,8 @@ enum RecordingTrigger: Equatable, Codable {
             return symbols + (key.isEmpty ? [] : [key])
         case .modifier(let key):
             return [key.displayName]
+        case .mouseButton(let number):
+            return [MouseButtonTrigger.displayName(for: number)]
         }
     }
 
@@ -56,6 +63,8 @@ enum RecordingTrigger: Equatable, Codable {
             return shortcut.description
         case .modifier(let key):
             return key.shortSymbol
+        case .mouseButton(let number):
+            return MouseButtonTrigger.shortName(for: number)
         }
     }
 
@@ -94,10 +103,11 @@ enum RecordingTrigger: Equatable, Codable {
         case .none: return .keyCombo
         case .keyCombo: return .keyCombo
         case .modifier: return .modifier
+        case .mouseButton: return .mouseButton
         }
     }
 
-    enum Kind { case keyCombo, modifier }
+    enum Kind { case keyCombo, modifier, mouseButton }
 }
 
 /// The recording triggers, in the order they were added. Any number of each kind: the old shape
@@ -116,11 +126,20 @@ struct RecordingTriggerSet: Equatable, Codable {
         triggers.compactMap { if case .keyCombo(let combo) = $0 { return combo } else { return nil } }
     }
 
-    /// A lone modifier (including the default Fn trigger) is observed with a listen-only
-    /// CGEvent tap. That requires global event-listening authorization (provided by Rhino's
+    /// Mouse buttons to watch. Invalid numbers (left/right click) are dropped here as well as
+    /// in `add`, so a hand-edited preference can never hijack an ordinary click.
+    var mouseButtons: [Int] {
+        triggers.compactMap {
+            if case .mouseButton(let number) = $0, MouseButtonTrigger.isValid(number) { return number }
+            return nil
+        }
+    }
+
+    /// A lone modifier (including the default Fn trigger) and a mouse button are observed with
+    /// a CGEvent tap. That requires global event-listening authorization (provided by Rhino's
     /// existing Accessibility grant or by Input Monitoring); registered combos do not.
     var requiresGlobalEventListening: Bool {
-        !modifiers.isEmpty
+        !modifiers.isEmpty || !mouseButtons.isEmpty
     }
 
     /// The first configured trigger is the primary one presented in compact UI hints. Settings
@@ -133,6 +152,7 @@ struct RecordingTriggerSet: Equatable, Codable {
     /// should be a no-op, not a duplicate row that fires once.
     mutating func add(_ trigger: RecordingTrigger) {
         guard trigger != .none, !triggers.contains(trigger) else { return }
+        if case .mouseButton(let number) = trigger, !MouseButtonTrigger.isValid(number) { return }
         triggers.append(trigger)
     }
 
@@ -167,6 +187,89 @@ struct RecordingTriggerSet: Equatable, Codable {
         }
         return set
     }
+}
+
+extension RecordingTriggerSet {
+    private enum CodingKeys: String, CodingKey { case triggers }
+
+    /// Lossy on purpose: a trigger this build can't decode (one added by a newer version) is
+    /// skipped instead of failing the whole list, which would leave the user with no trigger
+    /// at all after a downgrade.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        var list = try container.nestedUnkeyedContainer(forKey: .triggers)
+        var decoded: [RecordingTrigger] = []
+        while !list.isAtEnd {
+            if let trigger = try? list.decode(RecordingTrigger.self) {
+                decoded.append(trigger)
+            } else {
+                _ = try list.decode(SkippedElement.self)
+            }
+        }
+        self.init(triggers: decoded)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(triggers, forKey: .triggers)
+    }
+
+    /// Consumes one element of any shape so the unkeyed container advances past it.
+    private struct SkippedElement: Decodable {
+        init(from decoder: Decoder) throws {}
+    }
+}
+
+/// The rules for mouse-button triggers, kept pure so they're unit-testable.
+enum MouseButtonTrigger {
+    /// The middle button. Anything below is left (0) or right (1) click, which are never
+    /// triggers: taking them over would break ordinary clicking.
+    static let lowestValidButton = 2
+
+    static func isValid(_ buttonNumber: Int) -> Bool {
+        buttonNumber >= lowestValidButton && buttonNumber < 32
+    }
+
+    /// Whether the tap should swallow this event: only a button that is a configured trigger.
+    /// Every other button (including the middle button when it isn't a trigger) passes
+    /// through untouched, so normal middle-clicks keep working.
+    static func shouldConsume(buttonNumber: Int, watched: Set<Int>) -> Bool {
+        isValid(buttonNumber) && watched.contains(buttonNumber)
+    }
+
+    /// Button numbers are zero-based; mice label the side buttons 4 and 5.
+    static func displayName(for buttonNumber: Int) -> String {
+        buttonNumber == lowestValidButton ? "Middle Mouse Button" : "Mouse Button \(buttonNumber + 1)"
+    }
+
+    static func shortName(for buttonNumber: Int) -> String {
+        buttonNumber == lowestValidButton ? "Middle click" : "Mouse \(buttonNumber + 1)"
+    }
+}
+
+/// Hold-to-talk bookkeeping for the mouse tap, mirroring ModifierKeyMonitor: the first
+/// watched button down owns the take, a second watched button mid-take is ignored, and only
+/// the owner's release ends it.
+struct MouseButtonPressTracker {
+    private(set) var pressed: Int?
+
+    enum Transition: Equatable { case down(Int), up(Int) }
+
+    mutating func handle(buttonNumber: Int, isDown: Bool, watched: Set<Int>) -> Transition? {
+        guard MouseButtonTrigger.shouldConsume(buttonNumber: buttonNumber, watched: watched) else {
+            return nil
+        }
+        if isDown {
+            guard pressed == nil else { return nil }
+            pressed = buttonNumber
+            return .down(buttonNumber)
+        }
+        guard pressed == buttonNumber else { return nil }
+        pressed = nil
+        return .up(buttonNumber)
+    }
+
+    mutating func reset() { pressed = nil }
 }
 
 /// A single modifier press, recognised only when the modifier goes down and comes back up

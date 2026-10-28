@@ -2199,3 +2199,28 @@ the one in-flight default-model download and publishes its progress; a second
 `downloadDefaultModel()` awaits the running one. Both views read that progress.
 A Home card already on screen also stays up once the model lands, so its
 "AI cleanup is on" confirmation isn't pulled when the window regains focus.
+
+**2026-10-27: Mouse-button triggers come back (partial reversal of the 08-10
+80/20 cut); double-tap-to-start does not ship.** Two users asked for more ways
+to start dictation: Ben wants the middle mouse button, Christian wants a
+double-tap of a key because a single press interferes with his work. We built
+the mouse button (middle plus side buttons 4/5, `NSEvent` button numbers 2+)
+as a new `RecordingTrigger.mouseButton` in the existing trigger list. It feeds
+the same `handleKeyDown`/`handleKeyUp` as keys, so hold-to-talk, tap-to-toggle
+and the v0.1.40 double-tap lock behave identically with no new state.
+Double-tap-to-start was not smaller or safer: a double-tap already means
+"lock hands-free on the same take" (first tap starts, second locks), so a
+double-tap start mode would have to delay every start until the second tap
+could be ruled out, add a per-trigger mode and settings UI, and redefine what
+the lock gesture means for that trigger. Christian's need is better met by
+picking a trigger he doesn't otherwise press (a combo, a rarely used modifier
+such as Right ⌥, or now a mouse button). Mouse-button details: the
+`MouseButtonMonitor` tap exists only while a mouse trigger is configured and
+only swallows the configured buttons (`MouseButtonTrigger.shouldConsume`), so
+ordinary middle-clicks are untouched when middle isn't the trigger. Swallowing
+needs an active tap, which Accessibility (already required for insertion)
+allows; with only an Input Monitoring grant it falls back to listen-only and
+the button's normal action also fires. Left/right click (0/1) can never be
+stored or watched. `RecordingTriggerSet` decoding became lossy per element so a
+trigger kind an older build doesn't know is skipped instead of wiping the list.
+The cancel field does not accept mouse buttons.

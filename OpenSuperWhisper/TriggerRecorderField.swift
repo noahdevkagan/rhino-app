@@ -3,11 +3,12 @@ import Carbon.HIToolbox
 import KeyboardShortcuts
 import SwiftUI
 
-/// Records the recording trigger: a key combination or a single modifier, whichever the user
-/// performs. One field instead of a mode picker plus per-mode controls.
+/// Records the recording trigger: a key combination, a single modifier or (record trigger only)
+/// an extra mouse button, whichever the user performs. One field instead of a mode picker plus
+/// per-mode controls.
 ///
-/// Click to arm, then do the thing you want as your trigger: press ⌃⌥D, or tap Right ⌥ on its
-/// own. Esc cancels, ⌫ clears.
+/// Click to arm, then do the thing you want as your trigger: press ⌃⌥D, tap Right ⌥ on its
+/// own, or click the middle / side mouse button over the field. Esc cancels, ⌫ clears.
 struct TriggerRecorderField: View {
     /// Where this field stores what it records. Two actions use the same widget: start a
     /// recording, and cancel.
@@ -222,7 +223,8 @@ struct TriggerRecorderField: View {
     }
 
     private var placeholder: String {
-        allowsModifier ? "key or modifier…" : "key combination…"
+        if allowsMultiple && allowsModifier { return "key, modifier or mouse button…" }
+        return allowsModifier ? "key or modifier…" : "key combination…"
     }
 
     // MARK: - Capture
@@ -235,6 +237,7 @@ struct TriggerRecorderField: View {
         // Pause live hotkeys so re-recording the current trigger doesn't start a dictation.
         KeyboardShortcuts.isEnabled = false
         ModifierKeyMonitor.shared.stop()
+        MouseButtonMonitor.shared.stop()
 
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
             heldModifiers = event.modifierFlags.intersection([.control, .option, .shift, .command])
@@ -282,6 +285,15 @@ struct TriggerRecorderField: View {
             return nil
         }!)
 
+        // Middle / side mouse buttons, record-trigger list only: a mouse button is a fine way to
+        // start a recording but not a cancel binding. Left and right clicks never record.
+        monitors.append(NSEvent.addLocalMonitorForEvents(matching: .otherMouseDown) { event in
+            guard allowsMultiple, MouseButtonTrigger.isValid(event.buttonNumber) else { return event }
+            detector.contaminate()
+            save(.mouseButton(event.buttonNumber))
+            return nil
+        }!)
+
         // A click outside the field disarms; a click on it is handled by the tap gesture.
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
             if !isHovering { disarm() }
@@ -320,6 +332,8 @@ struct TriggerRecorderField: View {
             KeyboardShortcuts.setShortcut(nil, for: name)
             self.shortcut = nil
             modifierKey = key
+        case .mouseButton:
+            break // never offered to single-binding fields (see the otherMouseDown monitor)
         }
         disarm()
     }

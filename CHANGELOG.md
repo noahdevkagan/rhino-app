@@ -3,6 +3,10 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- You can now start dictation with your middle mouse button or a side button (4 or 5). In Settings, click Add another under Recording trigger and click the button. It works like the key: hold to talk, or tap to start and stop, and a quick double-click locks hands-free. Only the button you pick is taken over; normal middle-clicks keep working when it isn't your trigger.
+
 ## 0.1.40 — 2026-10-21
 
 - AI cleanup is now on by default, and Settings → Output → Cleanup is down to three simple controls. After a few dictations, or the first time you dictate a list or an email, Home offers a one-click download of the cleanup model.

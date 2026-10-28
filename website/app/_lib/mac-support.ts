@@ -23,11 +23,13 @@ export type MacSupport =
 export type MacSignals = {
   userAgent: string;
   maxTouchPoints?: number;
-  /** navigator.userAgentData.getHighEntropyValues(): "arm" or "x86" (Chromium only). */
+  /** navigator.userAgentData.getHighEntropyValues(): "arm" or "x86" (Chromium only).
+   * Chromium reports the hardware here ("arm" even under Rosetta), so it is the primary signal. */
   architecture?: string;
   /** Same source. On macOS this is the real version, e.g. "13.6.1" or "14.5.0". */
   platformVersion?: string;
-  /** WebGL UNMASKED_RENDERER_WEBGL (or RENDERER). Safari says "Apple GPU" on every Mac. */
+  /** WebGL UNMASKED_RENDERER_WEBGL (or RENDERER). Only read when there is no architecture
+   * hint. Safari says "Apple GPU" on every Mac; Firefox may say "Mozilla" or "Generic Renderer". */
   webglRenderer?: string | null;
 };
 
@@ -72,6 +74,10 @@ export function macosMajorFrom(platformVersion?: string, userAgent = ""): number
   const fromHints = platformVersion?.match(/^(\d+)(?:[._](\d+))?/);
   if (fromHints) {
     const major = Number(fromHints[1]);
+    const minor = Number(fromHints[2] ?? 0);
+    // "10.16" is the compatibility version macOS 11+ reports to apps built on an
+    // old SDK; it hides the real version, so treat it as unknown.
+    if (major === 10 && minor >= 16) return undefined;
     if (major > 0) return major;
   }
   // Safari and Firefox freeze the UA at "10_15_7" / "10.15", which says nothing.
@@ -90,11 +96,17 @@ export function classifyMac(signals: MacSignals): MacVerdict {
   const { userAgent, maxTouchPoints = 0 } = signals;
   if (!isMacDesktop(userAgent, maxTouchPoints)) return { support: "not-mac" };
 
-  // The GPU is hardware: an Intel Mac can't report an Apple M GPU and vice versa.
-  // It wins over architecture, which can say "x86" for an Intel build of Chrome
-  // running under Rosetta on an Apple Silicon Mac.
-  const chip = chipFromRenderer(signals.webglRenderer) ?? chipFromArchitecture(signals.architecture);
-  const macosMajor = macosMajorFrom(signals.platformVersion, userAgent);
+  // Architecture first: Chromium reports the hardware ("arm" even for a browser
+  // running under Rosetta). The WebGL renderer only fills in when there is no
+  // architecture hint. If both are present and disagree (say "arm" plus a spoofed
+  // "Intel" renderer), we can't trust either, so we don't block: "unknown".
+  const archChip = chipFromArchitecture(signals.architecture);
+  const rendererChip = chipFromRenderer(signals.webglRenderer);
+  if (archChip && rendererChip && archChip !== rendererChip) return { support: "unknown" };
+  const chip = archChip ?? rendererChip;
+  let macosMajor = macosMajorFrom(signals.platformVersion, userAgent);
+  // Apple Silicon shipped with macOS 11, so a 10.x report on arm is an old-SDK quirk.
+  if (chip === "apple" && macosMajor === 10) macosMajor = undefined;
   const appleSilicon = chip === "apple";
 
   if (chip === "intel") return { support: "intel", macosMajor };

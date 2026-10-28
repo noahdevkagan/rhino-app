@@ -38,9 +38,40 @@ test("WebGL renderer alone catches Intel and AMD GPUs", () => {
   assert.equal(classifyMac({ userAgent: MAC_FIREFOX, webglRenderer: "Intel(R) HD Graphics, or similar" }).support, "intel");
 });
 
-test("an Apple M GPU wins over x86 (Intel Chrome under Rosetta)", () => {
-  const verdict = classifyMac({ userAgent: MAC_CHROME, architecture: "x86", platformVersion: "15.1.0", webglRenderer: M1_RENDERER });
-  assert.equal(verdict.support, "supported");
+test("architecture comes first; a disagreeing renderer never blocks", () => {
+  // Chromium reports "arm" even under Rosetta, so arm + a spoofed Intel renderer is not Intel.
+  const spoofed = classifyMac({ userAgent: MAC_CHROME, architecture: "arm", platformVersion: "14.5.0", webglRenderer: INTEL_RENDERER });
+  assert.equal(spoofed.support, "unknown");
+  assert.equal(classifyMac({ userAgent: MAC_CHROME, architecture: "x86", platformVersion: "14.5.0", webglRenderer: M1_RENDERER }).support, "unknown");
+});
+
+test("arm with a software renderer (SwiftShader) still counts as Apple Silicon", () => {
+  const swiftShader = "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)";
+  assert.equal(classifyMac({ userAgent: MAC_CHROME, architecture: "arm", platformVersion: "15.1.0", webglRenderer: swiftShader }).support, "supported");
+  assert.equal(classifyMac({ userAgent: MAC_CHROME, webglRenderer: swiftShader }).support, "unknown");
+});
+
+test("Firefox's masked renderer strings say nothing", () => {
+  assert.equal(classifyMac({ userAgent: MAC_FIREFOX, webglRenderer: "Mozilla" }).support, "unknown");
+  assert.equal(classifyMac({ userAgent: MAC_FIREFOX, webglRenderer: "Generic Renderer" }).support, "unknown");
+});
+
+test("hints timed out: an M1 renderer alone knows the chip, not macOS", () => {
+  const verdict = classifyMac({ userAgent: MAC_CHROME, webglRenderer: M1_RENDERER });
+  assert.equal(verdict.support, "unknown");
+  assert.equal(verdict.appleSilicon, true);
+});
+
+test("platformVersion 10.16 (old-SDK compatibility version) is not a real version", () => {
+  assert.equal(macosMajorFrom("10.16.0"), undefined);
+  assert.equal(classifyMac({ userAgent: MAC_CHROME, platformVersion: "10.16.0" }).support, "unknown");
+  assert.equal(classifyMac({ userAgent: MAC_CHROME, architecture: "arm", platformVersion: "10.16.0" }).support, "unknown");
+});
+
+test("arm with a 10.x macOS report is an old-SDK quirk, not an old Mac", () => {
+  const verdict = classifyMac({ userAgent: MAC_CHROME, architecture: "arm", platformVersion: "10.15.7" });
+  assert.equal(verdict.support, "unknown");
+  assert.equal(verdict.macosMajor, undefined);
 });
 
 test("macOS 12 and 13 are too old; Apple Silicon is told to update", () => {

@@ -17,11 +17,16 @@ type UADataLike = {
 async function highEntropyHints(): Promise<{ architecture?: string; platformVersion?: string }> {
   const uaData = (navigator as Navigator & { userAgentData?: UADataLike }).userAgentData;
   if (!uaData?.getHighEntropyValues) return {};
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const timeout = new Promise<Record<string, never>>((resolve) => setTimeout(() => resolve({}), 800));
+    const timeout = new Promise<Record<string, never>>((resolve) => {
+      timer = setTimeout(() => resolve({}), 800);
+    });
     return await Promise.race([uaData.getHighEntropyValues(["architecture", "platformVersion"]), timeout]);
   } catch {
     return {};
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -54,7 +59,9 @@ export function checkMac(): Promise<MacVerdict> {
         maxTouchPoints: navigator.maxTouchPoints,
         architecture: hints.architecture,
         platformVersion: hints.platformVersion,
-        webglRenderer: webglRenderer(),
+        // The GPU is only a fallback, so skip creating a WebGL context when Chromium
+        // already told us the architecture.
+        webglRenderer: hints.architecture ? null : webglRenderer(),
       });
     })().catch((): MacVerdict => ({ support: "unknown" }));
   }
@@ -124,7 +131,8 @@ export function UnsupportedMacNotice({
       {appsumo ? (
         <p>
           Bought Rhino on AppSumo and your Mac can&apos;t run it? Get a refund in your AppSumo
-          account: Products {">"} Rhino Voice {">"} Refund.
+          account: Products {">"} Rhino Voice {">"} Refund. Or{" "}
+          <a href="mailto:noahkagan@gmail.com">email me</a>.
         </p>
       ) : null}
       {downloadHref ? (

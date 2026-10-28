@@ -2214,10 +2214,14 @@ can't show its own message on Intel, so the fix lives on the site.
 - Signals: Chromium's `userAgentData.getHighEntropyValues(['architecture',
   'platformVersion'])` ("x86" = Intel; platformVersion is the real macOS
   version), plus the WebGL renderer ("Apple M…" = Apple Silicon; Intel, AMD,
-  ATI, Radeon, NVIDIA = Intel-era Mac). When both are conclusive the GPU wins:
-  an Intel build of Chrome under Rosetta reports "x86" on an M-series Mac, but
-  the GPU is hardware. A UA older than 10.15 is trusted as "too old"; the frozen
-  10_15_7 says nothing.
+  ATI, Radeon, NVIDIA = Intel-era Mac). Architecture comes first: Chromium
+  reports the hardware ("arm" even under Rosetta). The renderer is read only
+  when there is no architecture hint (so no WebGL context is created otherwise);
+  if both exist and disagree (e.g. "arm" plus a spoofed "Intel" renderer) the
+  verdict is "unknown", which never blocks. A UA older than 10.15 is trusted as
+  "too old"; the frozen 10_15_7 says nothing. platformVersion "10.16" (the
+  compatibility version old-SDK builds see) and any 10.x on arm are treated as
+  an unknown version.
 - Intel always beats old macOS (updating won't help). Old macOS on a confirmed
   Apple Silicon Mac says "update macOS", since every M1 runs macOS 14.
 - Server render is "unknown", so the requirement line ("Needs a Mac with Apple
@@ -2227,7 +2231,9 @@ can't show its own message on Intel, so the fix lives on the site.
 - Where it applies: the homepage hero (non-Mac flows unchanged), /download,
   and /appsumo (a notice with the AppSumo refund path above the code form, and
   the gate on the post-redeem download). Intel/old Macs get the message plus a
-  small "Download anyway" link, because detection can be wrong.
+  small "Download anyway" link, because detection can be wrong. Only the
+  AppSumo message carries a refund line (AppSumo refund path, or email Noah);
+  Noah asked for no refund line on the homepage and /download.
 - The small "Download free" buttons (header, guides, comparisons) keep their
   look and position; on an Intel/old Mac they point to /download, which
   explains, instead of /get. Swapping them for a message box inside flex rows

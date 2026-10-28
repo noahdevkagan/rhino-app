@@ -3,6 +3,10 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- Dictating no longer replaces what you copied. Rhino pastes your words, then puts your previous clipboard back, and clipboard managers like Maccy, Paste and Raycast skip the dictation so it stays out of your history. To keep each dictation on the clipboard instead, turn on Settings > Output > Delivery > Copy to clipboard. If you turned it on yourself before, it stays on.
+
 ## 0.1.40 — 2026-10-21
 
 - AI cleanup is now on by default, and Settings → Output → Cleanup is down to three simple controls. After a few dictations, or the first time you dictate a list or an email, Home offers a one-click download of the cleanup model.

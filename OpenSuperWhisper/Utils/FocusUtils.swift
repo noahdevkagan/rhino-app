@@ -234,6 +234,87 @@ class FocusUtils {
                                    role: role)
     }
 
+    // MARK: - Text around the caret
+
+    /// Per-call ceiling for the caret-context read, which sits on the insertion path right
+    /// before the paste. A healthy AX reply takes a few milliseconds; a wedged app should cost
+    /// the user at most a blink before we give up and insert unchanged.
+    static let caretContextTimeout: Float = min(axMessagingTimeout, 0.15)
+
+    /// The few characters around the caret in the focused text element, for `ContextCasing`.
+    /// `before` is the text just before the caret (or the selection), `after` the text just
+    /// after it (`nil` if that half couldn't be read). Returns `nil` whenever the app doesn't
+    /// expose its text (many web and Electron fields), so callers insert unchanged.
+    /// Nothing read here is stored or leaves the process.
+    static func caretContext(beforeCount: Int = ContextCasing.beforeWindow,
+                             afterCount: Int = ContextCasing.afterWindow) -> (before: String, after: String?)? {
+        guard AXIsProcessTrusted() else { return nil }
+
+        let systemElement = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemElement, caretContextTimeout)
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(systemElement, kAXFocusedUIElementAttribute as CFString,
+                                            &focused) == .success,
+              let focusedCF = focused,
+              CFGetTypeID(focusedCF) == AXUIElementGetTypeID() else { return nil }
+        let element = focusedCF as! AXUIElement
+        AXUIElementSetMessagingTimeout(element, caretContextTimeout)
+
+        var rangeRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString,
+                                            &rangeRef) == .success,
+              let rangeCF = rangeRef,
+              CFGetTypeID(rangeCF) == AXValueGetTypeID() else { return nil }
+        var selection = CFRange()
+        guard AXValueGetValue(rangeCF as! AXValue, .cfRange, &selection),
+              selection.location >= 0, selection.length >= 0 else { return nil }
+        let start = selection.location
+        let end = start + selection.length
+
+        // Preferred: ask for just the characters we need, never the whole document.
+        let parameterizedBefore: String? = start == 0
+            ? ""
+            : stringForRange(element, location: max(0, start - beforeCount),
+                             length: min(start, beforeCount))
+        if let before = parameterizedBefore {
+            var after: String?
+            var countRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element, kAXNumberOfCharactersAttribute as CFString,
+                                             &countRef) == .success,
+               let count = countRef as? Int {
+                let length = max(0, min(afterCount, count - end))
+                after = length == 0 ? "" : stringForRange(element, location: end, length: length)
+            } else {
+                after = stringForRange(element, location: end, length: afterCount)
+            }
+            return (before, after)
+        }
+
+        // Fallback: the full value, sliced locally (apps without the parameterized attribute).
+        var valueRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString,
+                                            &valueRef) == .success,
+              let value = valueRef as? String else { return nil }
+        let ns = value as NSString
+        guard end <= ns.length else { return nil }
+        let beforeStart = max(0, start - beforeCount)
+        let beforeRange = ns.rangeOfComposedCharacterSequences(
+            for: NSRange(location: beforeStart, length: start - beforeStart))
+        let afterRange = ns.rangeOfComposedCharacterSequences(
+            for: NSRange(location: end, length: min(afterCount, ns.length - end)))
+        return (ns.substring(with: beforeRange), ns.substring(with: afterRange))
+    }
+
+    private static func stringForRange(_ element: AXUIElement, location: Int, length: Int) -> String? {
+        var range = CFRange(location: location, length: length)
+        guard let rangeValue = AXValueCreate(.cfRange, &range) else { return nil }
+        var result: CFTypeRef?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element, kAXStringForRangeParameterizedAttribute as CFString, rangeValue, &result) == .success
+        else { return nil }
+        return result as? String
+    }
+
 }
 
 private extension AXValue {

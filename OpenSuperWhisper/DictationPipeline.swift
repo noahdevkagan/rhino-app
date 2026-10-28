@@ -190,6 +190,12 @@ final class DictationPipeline: ObservableObject {
             // RECORDED — the app the user was dictating into — not whatever is frontmost now that
             // the background queue got to it. (parallel-recording)
             CleanupOffer.noteDictation(text)
+            // Did the user say the closing "period"/"comma"? Spoken punctuation turns it into the
+            // mark inside cleanup; insertion must then keep it even where it would drop an
+            // engine-added one (ContextCasing).
+            let prefs = AppPreferences.shared
+            let spokenTrailingMark = prefs.aiPostProcessingEnabled && prefs.smartFormattingEnabled
+                && ContextCasing.endsWithSpokenMark(text)
             text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID)
             // The cleanup model doesn't know the user's spellings and can undo them, so the
             // dictionary gets the last word. (A no-op pass when cleanup is off.)
@@ -219,7 +225,7 @@ final class DictationPipeline: ObservableObject {
                 ClipboardUtil.copyToClipboard(text)
                 outcome = .skipped
             } else {
-                outcome = hasText ? insertText(text) : .skipped
+                outcome = hasText ? insertText(text, spokenTrailingMark: spokenTrailingMark) : .skipped
             }
 
             // Submit only when auto-paste actually inserted text somewhere. A short settle delay lets
@@ -408,8 +414,9 @@ final class DictationPipeline: ObservableObject {
     /// and reports what happened, so the caller can flash the right notice when the text ended up
     /// on the clipboard instead of in the focused app.
     @discardableResult
-    private func insertText(_ text: String) -> TranscriptInserter.Outcome {
+    private func insertText(_ text: String, spokenTrailingMark: Bool) -> TranscriptInserter.Outcome {
         TranscriptInserter.insert(IndicatorViewModel.applyPostProcessing(text),
-                                  honorAutoPastePreference: true)
+                                  honorAutoPastePreference: true,
+                                  spokenTrailingMark: spokenTrailingMark)
     }
 }

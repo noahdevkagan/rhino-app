@@ -4,7 +4,7 @@ import Foundation
 /// "Hi Steve", "Thanks, Steve." → "Thanks Steve.". Parakeet and Whisper punctuate the
 /// vocative by the book; people writing messages mostly don't, and the cleanup model's own
 /// examples already lay greetings out as "Hi Sarah," (Steve, 2026-10-28: "drives me mad").
-/// Runs on every dictation unless `greetingCommaEnabled` is on.
+/// Part of Brit mode (`britModeEnabled`).
 ///
 /// Only a greeting that opens a sentence or line counts, and only a comma followed by a name
 /// (a capitalized word that isn't a common sentence opener) or a group word ("everyone").

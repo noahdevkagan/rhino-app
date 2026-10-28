@@ -215,21 +215,15 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
-    @Published var britishSpellingEnabled: Bool {
+    @Published var britModeEnabled: Bool {
         didSet {
-            AppPreferences.shared.britishSpellingEnabled = britishSpellingEnabled
+            AppPreferences.shared.britModeEnabled = britModeEnabled
         }
     }
 
     @Published var sentenceCaseEnabled: Bool {
         didSet {
             AppPreferences.shared.sentenceCaseEnabled = sentenceCaseEnabled
-        }
-    }
-
-    @Published var greetingCommaEnabled: Bool {
-        didSet {
-            AppPreferences.shared.greetingCommaEnabled = greetingCommaEnabled
         }
     }
 
@@ -431,9 +425,8 @@ class SettingsViewModel: ObservableObject {
         self.holdToRecord = prefs.holdToRecord
         self.doubleTapLock = prefs.doubleTapLock
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
-        self.britishSpellingEnabled = prefs.britishSpellingEnabled
+        self.britModeEnabled = prefs.britModeEnabled
         self.sentenceCaseEnabled = prefs.sentenceCaseEnabled
-        self.greetingCommaEnabled = prefs.greetingCommaEnabled
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
         self.numberFormattingStyle = prefs.numberFormattingStyle
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
@@ -1386,8 +1379,8 @@ struct SettingsView: View {
                     .fixedSize()
                 }
                 if viewModel.selectedLanguage == "en" || viewModel.selectedLanguage == "auto" {
-                    SRow(title: "British spelling", hint: "Colour, organise, centre, travelled", indented: true) {
-                        SToggle(isOn: $viewModel.britishSpellingEnabled)
+                    SRow(title: "Brit mode", hint: "Colour, organise, centre, and “Hi Steve” without the comma", indented: true) {
+                        SToggle(isOn: $viewModel.britModeEnabled)
                     }
                 }
             }
@@ -1428,13 +1421,10 @@ struct SettingsView: View {
                 }
             }
 
-            SSection(title: "Capitals & commas") {
+            SSection(title: "Capitals") {
                 SRow(title: "Sentence case",
                      hint: "Start with a capital, end with a period. Off: lowercase, no period, for slotting phrases into a sentence. Where Rhino can read the text around your cursor, it matches the sentence either way") {
                     SToggle(isOn: $viewModel.sentenceCaseEnabled)
-                }
-                SRow(title: "Comma after greetings", hint: "“Hi, Steve” instead of “Hi Steve”") {
-                    SToggle(isOn: $viewModel.greetingCommaEnabled)
                 }
             }
 

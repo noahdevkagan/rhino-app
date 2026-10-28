@@ -2343,3 +2343,12 @@ World Health Organization); dictionary replacements are kept. Runs after the eng
 dictionary's last word. Only when the language is English or auto. Not a prompt rule: the
 1.5B model is unreliable at it and cleanup is often off. Default on for Macs whose region
 is GB, IE, AU, NZ or ZA; explicit choices win.
+
+## 2026-10-28 — Brit mode: one switch for British spelling and the greeting comma
+
+Noah: one toggle, "Brit mode", covering both. `britModeEnabled` (default on for GB/IE/AU/NZ/
+ZA regions) turns on `BritishSpelling` and `GreetingComma` together; the separate
+`britishSpellingEnabled` and `greetingCommaEnabled` (both unreleased) are gone. Revises the
+earlier entry today: "Hi Steve" is no longer everyone's default, so outside Brit mode the
+engines' "Hi, Steve" comes through as before. Sentence case stays its own switch (Settings →
+Output → Capitals): it is about slotting phrases mid-sentence, not British style.

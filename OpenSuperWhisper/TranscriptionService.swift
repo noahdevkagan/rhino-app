@@ -227,7 +227,7 @@ class TranscriptionService: ObservableObject {
         // English decimals, quantities, percentages and times follow the number
         // preference without depending on a small model's compliance.
         let raw = try await runOnEngine(engine, url: url, settings: settings)
-        // British spelling here too, so imports and reruns get it without cleanup.
+        // Brit mode spelling here too, so imports and reruns get it without cleanup.
         let prefs = AppPreferences.shared
         let style = prefs.numberFormattingStyle
         if settings.showTimestamps {

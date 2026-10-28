@@ -3,7 +3,7 @@ import Foundation
 /// US → British spelling for English transcripts: colour, organise, centre, travelled,
 /// defence, grey. Parakeet, Whisper and the cleanup model all lean American, so a UK user got
 /// "capitalize" next to "colour" seemingly at random (Steve, 2026-10-21). Runs when
-/// `britishSpellingEnabled` is on.
+/// Brit mode (`britModeEnabled`) is on.
 ///
 /// A fixed word list, not suffix rules: "-ize" → "-ise" by rule would also turn "size",
 /// "prize" and "seize" into nonsense, and "-or" → "-our" would hit "doctor" and "humorous"

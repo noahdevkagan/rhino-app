@@ -10,12 +10,11 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 ### Steve: Sentence case switch + "Hi Steve" comma (2026-10-28, branch claude/nice-ptolemy-ggiqsu)
 
 0.1.41's caret-context fix never runs in Gmail-in-a-browser (AX hides the text), so Steve saw
-no change. Added Settings → Output → Capitals & commas: Sentence case (default on; off =
-lowercase phrase, no closing period when context is unknown) and Comma after greetings
-(default off → "Hi Steve"). See decisions.md 2026-10-28. Unit tests written, not run locally
+no change. Added Settings → Output → Capitals → Sentence case (default on; off =
+lowercase phrase, no closing period when context is unknown). See decisions.md 2026-10-28. Unit tests written, not run locally
 (Linux session): CI Build Check is the gate. Not done: try it in Rhino Dev in Gmail/Chrome,
-release, reply to Steve. UK spelling: Settings → Output → Language → British spelling
-(`BritishSpelling` word list; default on for GB/IE/AU/NZ/ZA regions).
+release, reply to Steve. Brit mode: Settings → Output → Language → Brit mode = British spelling
+(`BritishSpelling`) + "Hi Steve" no comma (`GreetingComma`); default on for GB/IE/AU/NZ/ZA.
 
 ### Simpler Cleanup + AI cleanup on by default (2026-10-19, istanbul — PR #98 open)
 

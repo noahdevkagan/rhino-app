@@ -298,12 +298,6 @@ final class AppPreferences {
     @UserDefault(key: "sentenceCaseEnabled", defaultValue: true)
     var sentenceCaseEnabled: Bool
 
-    /// Keep the comma engines put between a greeting and a name ("Hi, Steve"). Off by default:
-    /// "Hi Steve" / "Thanks Steve" is how people write messages, and it is the cleanup
-    /// model's own house style (`GreetingComma`).
-    @UserDefault(key: "greetingCommaEnabled", defaultValue: false)
-    var greetingCommaEnabled: Bool
-
     /// Where the recording indicator appears: "cursor" (default), "top", "center", "bottom".
     /// Multiplier applied on top of the system text size. 1.0 means "exactly what macOS asks
     /// for"; the control exists because following the system alone leaves no room for wanting
@@ -350,15 +344,22 @@ final class AppPreferences {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// British spelling for English transcripts (`BritishSpelling`): colour, organise, centre.
-    /// Defaults on where the Mac's region writes British English.
-    @UserDefault(key: "britishSpellingEnabled", defaultValue: BritishSpelling.defaultEnabled)
-    var britishSpellingEnabled: Bool
+    /// Brit mode: British spelling for English transcripts (`BritishSpelling`: colour,
+    /// organise, centre) and no comma between a greeting and a name ("Hi Steve",
+    /// `GreetingComma`). One switch for both (Noah, 2026-10-28). Defaults on where the Mac's
+    /// region writes British English.
+    @UserDefault(key: "britModeEnabled", defaultValue: BritishSpelling.defaultEnabled)
+    var britModeEnabled: Bool
 
-    /// `text` in British spelling when that's on and the transcription language is English
-    /// (or auto-detect). The user's dictionary spellings are kept as they are.
+    /// Brit mode's greeting style: "Hi, Steve" → "Hi Steve". A no-op when Brit mode is off.
+    func applyBritGreetings(_ text: String) -> String {
+        britModeEnabled ? GreetingComma.apply(text) : text
+    }
+
+    /// `text` in British spelling when Brit mode is on and the transcription language is
+    /// English (or auto-detect). The user's dictionary spellings are kept as they are.
     func applyBritishSpelling(_ text: String) -> String {
-        guard britishSpellingEnabled, whisperLanguage == "en" || whisperLanguage == "auto" else {
+        guard britModeEnabled, whisperLanguage == "en" || whisperLanguage == "auto" else {
             return text
         }
         let keep: Set<String> = customDictionaryEnabled

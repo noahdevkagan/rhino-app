@@ -2271,3 +2271,37 @@ can't show its own message on Intel, so the fix lives on the site.
   universal binary. Site-only change, so no CHANGELOG.md entry.
 - `npm test` now runs node with `--experimental-strip-types` so the test can
   import the .ts helper directly on Node 22.13+ (default-on from 22.18).
+
+**2026-10-27: Casing and the closing period follow the text around the caret, with no
+setting.** Parakeet and Whisper format every clip as a sentence (capital first letter,
+closing period), so a phrase dictated into the middle of a sentence came out as
+"the Quick brown fox. jumps", and single values typed into spreadsheet cells each got a
+period (Steve, Kray; 2026-10-21 to 10-27). For a fresh dictation (not a re-insert from
+history, where the user picked exact text), `TranscriptInserter` reads up to 32 characters
+before the caret (or selection) and 2 after it via Accessibility (`FocusUtils.caretContext`:
+`kAXStringForRangeParameterizedAttribute`, falling back to a local slice of
+`kAXValueAttribute` only for texts under 20k characters). All AX calls share one 0.15 s
+budget on the main thread. A caret at 0 only counts as "start of field" when the app also
+reports a length, since some web fields answer {0, 0} for text they hide.
+`ContextCasing.apply` then:
+- Mid-sentence (last real character before the caret is not `.` `!` `?` `…`, ignoring
+  closing quotes/brackets; not a new line, empty field, list marker or symbol-only prompt
+  like "$ "): lowercase the first letter only for an ordinary capitalized word. "I"/"I'm",
+  acronyms, mixed case ("iPhone", "McDonald"), titles ("Dr."), weekdays and months,
+  custom-dictionary words, names the on-device NLTagger finds in context ("and Mark said"),
+  and words whose lowercase form the spell checker rejects in the dictation language
+  ("steve") keep their capital. Some names that are also words will still be lowercased
+  when the tagger misses them; that is the accepted cost of fixing the common case.
+- Drop a single trailing `.` (or a stray `,`) when the sentence continues right after the
+  caret or the existing text already has punctuation there, and a `.` on a 1 to 3 word
+  dictation at the start of a field or line (not mid-sentence, where it may finish the
+  sentence, and not between two sentences). `?`, `!`, `...`, abbreviations ("U.S.", "Dr.",
+  initials) and a spoken "period"/"comma" (detected on the pre-cleanup text, only when
+  spoken punctuation actually runs) stay.
+- One space at each seam, never two; none next to brackets/quotes or in scripts written
+  without spaces (CJK, Thai).
+Why no setting: the fix is what users expect by default, and a toggle would be one more
+row for a behavior nobody wants the other way. Why AX and not a heuristic on the text
+alone: only the surrounding text says whether this is a sentence start. If the app doesn't
+expose its text (many web/Electron fields), nothing changes, including the short-dictation
+rule, so a failed read can never make output worse than before.

@@ -5,6 +5,7 @@ without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
 ## Unreleased
 
+- Dictating into the middle of a sentence now fits in: Rhino lowercases the first word (names, "I" and acronyms keep their capitals), skips the period the speech engine adds, and fixes the spacing at the join. Short dictations of one to three words at the start of a field or line, like a number or a name in a spreadsheet cell, no longer get a period either. Say "period" if you want one. This works in apps that let Rhino read the text around the cursor; elsewhere nothing changes.
 - Dictating no longer replaces what you copied. Rhino pastes your words, then puts your previous clipboard back, and clipboard managers like Maccy, Paste and Raycast skip the dictation so it stays out of your history. To keep each dictation on the clipboard instead, turn on Settings > Output > Delivery > Copy to clipboard. If you turned it on yourself before, it stays on.
 
 ## 0.1.40 — 2026-10-21

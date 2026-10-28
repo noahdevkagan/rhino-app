@@ -2352,3 +2352,6 @@ ZA regions) turns on `BritishSpelling` and `GreetingComma` together; the separat
 earlier entry today: "Hi Steve" is no longer everyone's default, so outside Brit mode the
 engines' "Hi, Steve" comes through as before. Sentence case stays its own switch (Settings →
 Output → Capitals): it is about slotting phrases mid-sentence, not British style.
+Sentence case off never touches a multi-line dictation when the context is unknown: a laid-out
+email ("Hi Steve,\n\n…") is composed text, not a phrase, and would otherwise start "hi Steve,"
+(found reviewing before 0.1.42).

@@ -45,6 +45,9 @@ enum ContextCasing {
 
         var body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return text }
+        // Unknown context, several lines: a laid-out email or list, not a phrase dropped into
+        // a sentence ("Hi Steve,\n\n…" must keep its capital).
+        if before == nil, body.contains(where: \.isNewline) { return text }
         let leadingWS = String(text.prefix { $0.isWhitespace })
         let trailingWS = String(String(text.reversed()).prefix { $0.isWhitespace }.reversed())
 

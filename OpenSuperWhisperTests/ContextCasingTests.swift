@@ -196,6 +196,11 @@ final class ContextCasingTests: XCTestCase {
                        "approved.")
     }
 
+    func testSentenceCaseOffLeavesALaidOutMessageAlone() {
+        let email = "Hi Steve,\n\nThe deck is ready.\n\nBest wishes,\nNoah"
+        XCTAssertEqual(fit(email, before: nil, after: nil, sentenceCase: false), email)
+    }
+
     func testSentenceCaseOffMidSentenceDropsPeriodAtEndOfText() {
         XCTAssertEqual(fit("Went to the store today.", before: "Yesterday I ", after: "",
                            sentenceCase: false),

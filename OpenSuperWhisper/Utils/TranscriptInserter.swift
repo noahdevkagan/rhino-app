@@ -1,4 +1,5 @@
 import AppKit
+import NaturalLanguage
 import ApplicationServices
 import Foundation
 
@@ -35,11 +36,15 @@ enum TranscriptInserter {
     ///     "Auto-paste transcription" preference decides whether anything is inserted at all.
     ///     `false` when the user explicitly asked for this insertion — the request itself is the
     ///     intent, so a clipboard-only workflow still gets text where the cursor is.
+    ///   - fitToContext: Adjust casing, the closing period and spacing to the text around the
+    ///     caret (`ContextCasing`). On for a fresh dictation; off for an explicit re-insert of a
+    ///     stored transcript, where the user picked that exact text.
     ///   - spokenTrailingMark: The user said the closing "period"/"comma" out loud, so
     ///     `ContextCasing` must keep it.
     @MainActor
     @discardableResult
     static func insert(_ text: String, honorAutoPastePreference: Bool,
+                       fitToContext: Bool = false,
                        spokenTrailingMark: Bool = false) -> Outcome {
         let prefs = AppPreferences.shared
         let pasteboard = Self.pasteboard
@@ -72,15 +77,16 @@ enum TranscriptInserter {
         }
 
         if prefs.pasteInsteadOfTyping {
-            let fitted = fitToCaret(text, spokenTrailingMark: spokenTrailingMark)
+            let fitted = fitToContext ? fitToCaret(text, spokenTrailingMark: spokenTrailingMark) : text
             // Paste is universal: ⌘V lands in any text field, including apps the accessibility check
             // can't read (Messages, Electron), and is a harmless no-op otherwise. So no editable-
             // target gate — it only ever produces false negatives (#paste-messages).
-            if prefs.autoCopyToClipboard {
-                // The stash above holds the transcript as dictated; paste what fits the caret.
-                if fitted != text { ClipboardUtil.copyToClipboard(fitted, to: pasteboard) }
+            if prefs.autoCopyToClipboard && fitted == text {
                 Diag.measure("TextInserter.paste") { TextInserter.paste() }
             } else {
+                // Also taken when the text was fitted to the caret: the "Copy to clipboard" stash
+                // above keeps the transcript as dictated, so borrow the clipboard for the fitted
+                // text and put the stash back after the paste.
                 // The clipboard is only the paste vehicle here — the user opted out of keeping the
                 // text on it (#44) — so put the previous contents back after the ⌘V lands.
                 ClipboardUtil.borrowForPaste(fitted, on: pasteboard) {
@@ -100,7 +106,7 @@ enum TranscriptInserter {
             }
             return .noTarget
         }
-        let fitted = fitToCaret(text, spokenTrailingMark: spokenTrailingMark)
+        let fitted = fitToContext ? fitToCaret(text, spokenTrailingMark: spokenTrailingMark) : text
         Diag.measure("TextInserter.type") { TextInserter.type(fitted) }
         return .inserted
     }
@@ -113,25 +119,57 @@ enum TranscriptInserter {
         guard let context = Diag.measure("FocusUtils.caretContext", { FocusUtils.caretContext() }) else {
             return text
         }
-        return ContextCasing.apply(text: text, before: context.before, after: context.after,
-                                   spokenTrailingMark: spokenTrailingMark,
-                                   isProperNoun: isProperNoun)
+        let prefs = AppPreferences.shared
+        let dictionaryWords: Set<Substring> = prefs.customDictionaryEnabled
+            ? Set(prefs.customDictionaryEntries.flatMap {
+                $0.replacement.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            })
+            : []
+        let language = prefs.whisperLanguage
+        return ContextCasing.apply(
+            text: text, before: context.before, after: context.after,
+            spokenTrailingMark: spokenTrailingMark,
+            isProperNoun: { word in
+                isProperNoun(word, in: context.before + text, dictionaryWords: dictionaryWords,
+                             language: language)
+            })
     }
 
-    /// Words that keep their capital mid-sentence: anything in the user's custom dictionary,
-    /// and words whose lowercase form the system spell checker doesn't know (names, places:
-    /// "steve" is not a word, "the" is). On-device; NSSpellChecker makes no network calls.
+    /// Whether the dictation's first word is a name that keeps its capital mid-sentence. Only
+    /// asked about ordinary-looking capitalized words (ContextCasing already protects "I",
+    /// acronyms, mixed case, weekdays and months). All on-device; none of these make network
+    /// calls.
+    /// - A word in the user's custom dictionary.
+    /// - A name the on-device tagger finds in context ("and Mark said it works": Mark is a
+    ///   person), which catches names that are also dictionary words.
+    /// - A word whose lowercase form the spell checker rejects ("steve"), in the dictation
+    ///   language when one is set.
     @MainActor
-    static func isProperNoun(_ word: String) -> Bool {
-        let prefs = AppPreferences.shared
-        if prefs.customDictionaryEnabled {
-            for entry in prefs.customDictionaryEntries {
-                let words = entry.replacement.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-                if words.contains(where: { $0 == word }) { return true }
+    static func isProperNoun(_ word: String, in sentence: String,
+                             dictionaryWords: Set<Substring>, language: String) -> Bool {
+        if dictionaryWords.contains(Substring(word)) { return true }
+
+        let tagger = NLTagger(tagSchemes: [.nameType])
+        tagger.string = sentence
+        let nameTags: Set<NLTag> = [.personalName, .placeName, .organizationName]
+        var tagged = false
+        tagger.enumerateTags(in: sentence.startIndex..<sentence.endIndex, unit: .word,
+                             scheme: .nameType,
+                             options: [.omitWhitespace, .omitPunctuation, .joinNames]) { tag, range in
+            if let tag, nameTags.contains(tag),
+               sentence[range].split(separator: " ").contains(Substring(word)) {
+                tagged = true
+                return false
             }
+            return true
         }
-        let lower = word.lowercased()
-        let miss = NSSpellChecker.shared.checkSpelling(of: lower, startingAt: 0)
+        if tagged { return true }
+
+        let checker = NSSpellChecker.shared
+        let spellLanguage = language == "auto" || !checker.availableLanguages.contains(language)
+            ? nil : language
+        let miss = checker.checkSpelling(of: word.lowercased(), startingAt: 0, language: spellLanguage,
+                                         wrap: false, inSpellDocumentWithTag: 0, wordCount: nil)
         return miss.location != NSNotFound
     }
 }

@@ -236,30 +236,43 @@ class FocusUtils {
 
     // MARK: - Text around the caret
 
-    /// Per-call ceiling for the caret-context read, which sits on the insertion path right
-    /// before the paste. A healthy AX reply takes a few milliseconds; a wedged app should cost
-    /// the user at most a blink before we give up and insert unchanged.
-    static let caretContextTimeout: Float = min(axMessagingTimeout, 0.15)
+    /// Total budget for the caret-context read, which sits on the main thread right before the
+    /// paste. A healthy app answers all of its AX calls in a few milliseconds; a wedged one costs
+    /// the user at most this long before we give up and insert unchanged. Each call's messaging
+    /// timeout is set to whatever is left of the budget, so the calls together never exceed it.
+    static let caretContextBudget: TimeInterval = 0.15
+
+    /// Above this many characters the value fallback (which copies the whole text over IPC)
+    /// is skipped: a long document would cost more than the casing fix is worth.
+    static let caretContextValueFallbackLimit = 20_000
 
     /// The few characters around the caret in the focused text element, for `ContextCasing`.
     /// `before` is the text just before the caret (or the selection), `after` the text just
     /// after it (`nil` if that half couldn't be read). Returns `nil` whenever the app doesn't
-    /// expose its text (many web and Electron fields), so callers insert unchanged.
-    /// Nothing read here is stored or leaves the process.
+    /// expose its text (many web and Electron fields) or doesn't answer within the budget, so
+    /// callers insert unchanged. Nothing read here is stored or leaves the process.
     static func caretContext(beforeCount: Int = ContextCasing.beforeWindow,
                              afterCount: Int = ContextCasing.afterWindow) -> (before: String, after: String?)? {
         guard AXIsProcessTrusted() else { return nil }
+        let deadline = Date().addingTimeInterval(caretContextBudget)
+        /// Arms `element` with the remaining budget; false once it is spent.
+        func arm(_ element: AXUIElement) -> Bool {
+            let left = deadline.timeIntervalSinceNow
+            guard left > 0.005 else { return false }
+            AXUIElementSetMessagingTimeout(element, Float(left))
+            return true
+        }
 
         let systemElement = AXUIElementCreateSystemWide()
-        AXUIElementSetMessagingTimeout(systemElement, caretContextTimeout)
+        guard arm(systemElement) else { return nil }
         var focused: CFTypeRef?
         guard AXUIElementCopyAttributeValue(systemElement, kAXFocusedUIElementAttribute as CFString,
                                             &focused) == .success,
               let focusedCF = focused,
               CFGetTypeID(focusedCF) == AXUIElementGetTypeID() else { return nil }
         let element = focusedCF as! AXUIElement
-        AXUIElementSetMessagingTimeout(element, caretContextTimeout)
 
+        guard arm(element) else { return nil }
         var rangeRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString,
                                             &rangeRef) == .success,
@@ -271,26 +284,38 @@ class FocusUtils {
         let start = selection.location
         let end = start + selection.length
 
+        // Total length: clamps the "after" read, gates the value fallback, and backs up a caret
+        // at 0 (some web/Electron fields answer {0, 0} for text they don't expose; a caret at 0
+        // only counts as "start of field" when the app also reports a real length).
+        guard arm(element) else { return nil }
+        var countRef: CFTypeRef?
+        let count: Int? = AXUIElementCopyAttributeValue(
+            element, kAXNumberOfCharactersAttribute as CFString, &countRef) == .success
+            ? countRef as? Int : nil
+        if start == 0 && count == nil { return nil }
+
         // Preferred: ask for just the characters we need, never the whole document.
-        let parameterizedBefore: String? = start == 0
-            ? ""
-            : stringForRange(element, location: max(0, start - beforeCount),
-                             length: min(start, beforeCount))
+        let parameterizedBefore: String?
+        if start == 0 {
+            parameterizedBefore = ""
+        } else {
+            guard arm(element) else { return nil }
+            parameterizedBefore = stringForRange(element, location: max(0, start - beforeCount),
+                                                 length: min(start, beforeCount))
+        }
         if let before = parameterizedBefore {
             var after: String?
-            var countRef: CFTypeRef?
-            if AXUIElementCopyAttributeValue(element, kAXNumberOfCharactersAttribute as CFString,
-                                             &countRef) == .success,
-               let count = countRef as? Int {
-                let length = max(0, min(afterCount, count - end))
-                after = length == 0 ? "" : stringForRange(element, location: end, length: length)
-            } else {
-                after = stringForRange(element, location: end, length: afterCount)
+            if let count, count - end <= 0 {
+                after = ""
+            } else if arm(element) {
+                let length = count.map { min(afterCount, $0 - end) } ?? afterCount
+                after = stringForRange(element, location: end, length: length)
             }
             return (before, after)
         }
 
         // Fallback: the full value, sliced locally (apps without the parameterized attribute).
+        guard let count, count <= caretContextValueFallbackLimit, arm(element) else { return nil }
         var valueRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString,
                                             &valueRef) == .success,

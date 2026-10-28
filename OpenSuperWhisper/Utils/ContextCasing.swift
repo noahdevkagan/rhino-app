@@ -46,19 +46,24 @@ enum ContextCasing {
             body = lowercasingFirstWord(body, isProperNoun: isProperNoun)
         }
 
-        // Closing mark. Only a lone "." (or a "," mid-sentence) is ever dropped; "?", "!", "..."
+        // Closing mark. Only a lone "." (or a stray ",") is ever dropped; "?", "!", "..."
         // and abbreviations ("U.S.") stay, and so does anything the user said out loud.
         var dropped = false
         if !spokenTrailingMark {
+            // The existing text goes on (a word follows), or already has its own mark after the
+            // caret (replacing "store" in "the store." must not end in "..").
             let continuesIntoText = midSentence && nextIsWord(after)
-            if continuesIntoText, body.hasSuffix(","), body.count > 1 {
+            let markFollows = nextIsClosingMark(after)
+            if continuesIntoText || markFollows, body.hasSuffix(","), body.count > 1 {
                 body.removeLast()
                 dropped = true
             } else if hasDroppablePeriod(body),
-                      continuesIntoText
-                        || (wordCount(body) <= shortDictationMaxWords
-                            // "Done. | More": a short sentence between sentences keeps its period.
-                            && (midSentence || !nextIsWord(after))) {
+                      continuesIntoText || markFollows
+                        // A field value at the start of a field or line ("42", "Approved"). Not
+                        // mid-sentence (it may finish the sentence) and not between sentences
+                        // ("Done. | More").
+                        || (!midSentence && wordCount(body) <= shortDictationMaxWords
+                            && !nextIsWord(after)) {
                 body.removeLast()
                 dropped = true
             }
@@ -115,6 +120,8 @@ enum ContextCasing {
             return false
         }
         if isListMarker(trimmed) { return false }
+        // Only symbols on the line: a shell or chat prompt ("$ ", "> ", "❯ "), "#", "//".
+        if !trimmed.contains(where: isWordChar) { return false }
         for ch in trimmed.reversed() {
             if closers.contains(ch) { continue }
             return !sentenceEnders.contains(ch)
@@ -128,6 +135,12 @@ enum ContextCasing {
         guard let last = s.last, last == "." || last == ")" else { return false }
         let digits = s.dropLast()
         return !digits.isEmpty && digits.count <= 3 && digits.allSatisfy(\.isNumber)
+    }
+
+    /// Punctuation right after the caret: the dictation's own closing mark would double it.
+    private static func nextIsClosingMark(_ after: String?) -> Bool {
+        guard let first = after?.first else { return false }
+        return [".", ",", ";", ":", "!", "?", ")", "]", "}"].contains(first)
     }
 
     /// The text after the caret continues the sentence: a word right there, or after one space.
@@ -159,6 +172,8 @@ enum ContextCasing {
         // The word without trailing punctuation: "Fox." → "Fox".
         let core = String(word.reversed().drop { !$0.isLetter && !$0.isNumber }.reversed())
         guard !core.isEmpty else { return text }
+        // Titles: "Dr. Smith", "Mr. Jones".
+        if word.hasSuffix("."), abbreviations.contains(core.lowercased()) { return text }
 
         if core.count == 1 {
             // "I" stays; "A" is the article.
@@ -200,7 +215,7 @@ enum ContextCasing {
     /// Words with at least one letter or digit ("$42" counts, a lone "-" doesn't).
     static func wordCount(_ text: String) -> Int {
         text.split(whereSeparator: { $0.isWhitespace })
-            .filter { $0.contains(where: { $0.isLetter || $0.isNumber }) }
+            .filter { token in token.contains(where: { $0.isLetter || $0.isNumber }) }
             .count
     }
 

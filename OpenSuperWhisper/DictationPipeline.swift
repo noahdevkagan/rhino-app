@@ -417,6 +417,7 @@ final class DictationPipeline: ObservableObject {
     private func insertText(_ text: String, spokenTrailingMark: Bool) -> TranscriptInserter.Outcome {
         TranscriptInserter.insert(IndicatorViewModel.applyPostProcessing(text),
                                   honorAutoPastePreference: true,
+                                  fitToContext: true,
                                   spokenTrailingMark: spokenTrailingMark)
     }
 }

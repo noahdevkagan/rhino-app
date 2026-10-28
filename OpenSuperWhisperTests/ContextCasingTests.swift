@@ -62,6 +62,25 @@ final class ContextCasingTests: XCTestCase {
         XCTAssertEqual(fit("A big dog", before: "there was ", after: ""), "a big dog")
     }
 
+    func testTitleAbbreviationUntouched() {
+        XCTAssertEqual(fit("Dr. Smith said so", before: "and ", after: ""), "Dr. Smith said so")
+    }
+
+    func testShortDictationFinishingASentenceKeepsPeriod() {
+        XCTAssertEqual(fit("Went home.", before: "Yesterday I ", after: ""), "went home.")
+    }
+
+    func testPeriodDroppedBeforeExistingPunctuation() {
+        // Replacing "store" in "I went to the store." with a longer phrase.
+        XCTAssertEqual(fit("Central Park in Boston.", before: "I went to the ", after: "."),
+                       "central Park in Boston")
+        XCTAssertEqual(fit("Brown fox,", before: "The quick ", after: ","), "brown fox")
+    }
+
+    func testSpokenCommaKept() {
+        XCTAssertEqual(fit("Brown fox,", before: "The quick ", after: " j", spoken: true), "brown fox,")
+    }
+
     // MARK: - Sentence starts stay capitalized
 
     func testStartOfFieldUntouched() {
@@ -82,6 +101,11 @@ final class ContextCasingTests: XCTestCase {
     func testAfterQuotedSentenceEndUntouched() {
         XCTAssertEqual(fit("Then she left early.", before: "He said \"Bye.\" ", after: ""),
                        "Then she left early.")
+    }
+
+    func testPromptOnlyLineUntouched() {
+        XCTAssertEqual(fit("Fix the failing test", before: "$ ", after: ""), "Fix the failing test")
+        XCTAssertEqual(fit("Fix the failing test", before: "> ", after: ""), "Fix the failing test")
     }
 
     func testNewLineAndListMarkerUntouched() {

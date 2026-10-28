@@ -215,6 +215,18 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var sentenceCaseEnabled: Bool {
+        didSet {
+            AppPreferences.shared.sentenceCaseEnabled = sentenceCaseEnabled
+        }
+    }
+
+    @Published var greetingCommaEnabled: Bool {
+        didSet {
+            AppPreferences.shared.greetingCommaEnabled = greetingCommaEnabled
+        }
+    }
+
     @Published var aiPostProcessingEnabled: Bool {
         didSet {
             AppPreferences.shared.aiPostProcessingEnabled = aiPostProcessingEnabled
@@ -413,6 +425,8 @@ class SettingsViewModel: ObservableObject {
         self.holdToRecord = prefs.holdToRecord
         self.doubleTapLock = prefs.doubleTapLock
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
+        self.sentenceCaseEnabled = prefs.sentenceCaseEnabled
+        self.greetingCommaEnabled = prefs.greetingCommaEnabled
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
         self.numberFormattingStyle = prefs.numberFormattingStyle
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
@@ -1399,6 +1413,16 @@ struct SettingsView: View {
                          indented: true) {
                         SToggle(isOn: $viewModel.spokenEditsEnabled)
                     }
+                }
+            }
+
+            SSection(title: "Capitals & commas") {
+                SRow(title: "Sentence case",
+                     hint: "Start with a capital, end with a period. Off: lowercase, no period, for slotting phrases into a sentence. Where Rhino can read the text around your cursor, it matches the sentence either way") {
+                    SToggle(isOn: $viewModel.sentenceCaseEnabled)
+                }
+                SRow(title: "Comma after greetings", hint: "“Hi, Steve” instead of “Hi Steve”") {
+                    SToggle(isOn: $viewModel.greetingCommaEnabled)
                 }
             }
 

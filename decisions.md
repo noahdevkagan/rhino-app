@@ -2305,3 +2305,25 @@ row for a behavior nobody wants the other way. Why AX and not a heuristic on the
 alone: only the surrounding text says whether this is a sentence start. If the app doesn't
 expose its text (many web/Electron fields), nothing changes, including the short-dictation
 rule, so a failed read can never make output worse than before.
+
+## 2026-10-28 — A Sentence case switch after all; no greeting comma by default
+
+Reverses half of the 2026-10-27 "with no setting" call. Steve installed 0.1.41 and saw no
+change: he writes in Gmail in a browser, which (like most web and Electron fields) doesn't
+expose its text over Accessibility, so `caretContext` returns nil and nothing is fitted. He
+asked for an off switch twice. Settings → Output → Capitals & commas → Sentence case
+(`sentenceCaseEnabled`, default on). Off: unreadable context counts as mid-sentence
+(lowercase the first word with the usual name/"I"/acronym protection, drop a lone closing
+period or stray comma, keep "?", "!" and a spoken "period"), and a readable mid-sentence
+caret drops the period even at the end of the text. A readable sentence start still gets its
+capital: the context is better evidence than the switch. Default stays on so nobody else's
+output changes. Not done: forcing Chrome/Electron to expose their AX tree
+(AXEnhancedUserInterface / AXManualAccessibility) — it would reach more apps automatically,
+but it has known side effects on window management and needs testing on a Mac first.
+
+"Hi, Steve" → "Hi Steve" by default (`GreetingComma`, toggle `greetingCommaEnabled`, default
+off). The engines punctuate the vocative by the book; messages rarely do, and the cleanup
+prompt's own examples already write "Hi Sarah,". Deterministic, runs after cleanup and the
+dictionary. Only a greeting/thanks that opens a sentence or line, followed by a capitalized
+word that isn't a common clause opener ("Thanks, I'll check" keeps it) or a group word
+("everyone"). A name that is also a stoplisted word ("Will") keeps the comma.

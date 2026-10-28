@@ -292,6 +292,18 @@ final class AppPreferences {
     @UserDefault(key: "addSpaceAfterSentence", defaultValue: true)
     var addSpaceAfterSentence: Bool
 
+    /// Start each dictation with a capital and end it with a period. Where Rhino can read the
+    /// text around the caret it fits the sentence either way (`ContextCasing`); off makes the
+    /// unreadable case (Gmail and most web fields) a lowercase phrase with no closing period.
+    @UserDefault(key: "sentenceCaseEnabled", defaultValue: true)
+    var sentenceCaseEnabled: Bool
+
+    /// Keep the comma engines put between a greeting and a name ("Hi, Steve"). Off by default:
+    /// "Hi Steve" / "Thanks Steve" is how people write messages, and it is the cleanup
+    /// model's own house style (`GreetingComma`).
+    @UserDefault(key: "greetingCommaEnabled", defaultValue: false)
+    var greetingCommaEnabled: Bool
+
     /// Where the recording indicator appears: "cursor" (default), "top", "center", "bottom".
     /// Multiplier applied on top of the system text size. 1.0 means "exactly what macOS asks
     /// for"; the control exists because following the system alone leaves no room for wanting

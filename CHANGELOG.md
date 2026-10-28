@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- New: Settings → Output → Capitals & commas → Sentence case. Turn it off and dictations go in lowercase without a closing period, ready to drop into the middle of a sentence, including in Gmail, Google Docs and other web apps where Rhino can't see the text around your cursor. Names, "I" and questions keep their capitals and question marks, and saying "period" still adds one.
+- "Hi, Steve" and "Thanks, Steve" now come out as "Hi Steve" and "Thanks Steve". To keep the comma, turn on Settings → Output → Capitals & commas → Comma after greetings.
+
 ## 0.1.41 — 2026-10-27
 
 - Dictating into the middle of a sentence now fits in: Rhino lowercases the first word (names, "I" and acronyms keep their capitals), skips the period the speech engine adds, and fixes the spacing at the join. Short dictations of one to three words at the start of a field or line, like a number or a name in a spreadsheet cell, no longer get a period either. Say "period" if you want one. This works in apps that let Rhino read the text around the cursor; elsewhere nothing changes.

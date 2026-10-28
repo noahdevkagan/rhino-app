@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 };
 
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.40/Rhino-0.1.40.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.41/Rhino-0.1.41.dmg";
 
 /** The app checks this code against a SHA-256 hash in UsageGate.swift. */
 const unlockCode = "RHINO-33MY-Q56S";

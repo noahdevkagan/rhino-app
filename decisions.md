@@ -2226,3 +2226,48 @@ copy, like the other fallbacks. The restore after a borrow is also marked
 `TransientType`, so clipboard managers don't log the user's own earlier copy a
 second time after every dictation; it can't hide a new copy, because any write
 during the borrow skips the restore.
+
+## 2026-10-27: Catch Intel and old-macOS Macs on the website, before the download
+
+7+ buyers in two weeks (Mark, Alina, Liz, Laura, Jeff, Nathan, Tyler) got Rhino
+on an Intel Mac or macOS 12/13. Intel users only see macOS's generic "not
+supported on this Mac" and email support or ask for refunds. The arm64-only app
+can't show its own message on Intel, so the fix lives on the site.
+
+- One pure helper, `website/app/_lib/mac-support.ts` (`classifyMac`), tested in
+  `tests/mac-support.test.mjs` with sample userAgentData/WebGL inputs. The
+  browser half is `app/_components/mac-check.tsx`: one check per page load,
+  no network, no storage, no analytics.
+- Signals: Chromium's `userAgentData.getHighEntropyValues(['architecture',
+  'platformVersion'])` ("x86" = Intel; platformVersion is the real macOS
+  version), plus the WebGL renderer ("Apple M…" = Apple Silicon; Intel, AMD,
+  ATI, Radeon, NVIDIA = Intel-era Mac). Architecture comes first: Chromium
+  reports the hardware ("arm" even under Rosetta). The renderer is read only
+  when there is no architecture hint (so no WebGL context is created otherwise);
+  if both exist and disagree (e.g. "arm" plus a spoofed "Intel" renderer) the
+  verdict is "unknown", which never blocks. A UA older than 10.15 is trusted as
+  "too old"; the frozen 10_15_7 says nothing. platformVersion "10.16" (the
+  compatibility version old-SDK builds see) and any 10.x on arm are treated as
+  an unknown version.
+- Intel always beats old macOS (updating won't help). Old macOS on a confirmed
+  Apple Silicon Mac says "update macOS", since every M1 runs macOS 14.
+- Server render is "unknown", so the requirement line ("Needs a Mac with Apple
+  Silicon (M1 or newer) and macOS 14+. Check: Apple menu > About This Mac >
+  Chip.") is in the HTML for Safari, Firefox and no-JS visitors, and only
+  disappears once Apple Silicon and macOS 14+ are both confirmed (Chromium).
+- Where it applies: the homepage hero (non-Mac flows unchanged), /download,
+  and /appsumo (a notice with the AppSumo refund path above the code form, and
+  the gate on the post-redeem download). Intel/old Macs get the message plus a
+  small "Download anyway" link, because detection can be wrong. Only the
+  AppSumo message carries a refund line (AppSumo refund path, or email Noah);
+  Noah asked for no refund line on the homepage and /download.
+- The small "Download free" buttons (header, guides, comparisons) keep their
+  look and position; on an Intel/old Mac they point to /download, which
+  explains, instead of /get. Swapping them for a message box inside flex rows
+  and tool cards would have broken those layouts on every content page.
+- App side unchanged: `LSMinimumSystemVersion` is already 14.0 in
+  OpenSuperWhisper-Info.plist (target MACOSX_DEPLOYMENT_TARGET 14.0), so macOS
+  12/13 already get the system "requires a newer version of macOS" message. No
+  universal binary. Site-only change, so no CHANGELOG.md entry.
+- `npm test` now runs node with `--experimental-strip-types` so the test can
+  import the .ts helper directly on Node 22.13+ (default-on from 22.18).

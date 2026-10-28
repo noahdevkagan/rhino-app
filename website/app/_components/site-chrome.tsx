@@ -1,3 +1,5 @@
+import { DownloadLink } from "./mac-check";
+
 const paypalAction = "https://www.paypal.com/cgi-bin/webscr";
 
 /** The one Rhino price. The PayPal form and every comparison page read it. */
@@ -44,9 +46,10 @@ export function DownloadButton({ compact = false }: { compact?: boolean }) {
   return (
     // /get redirects to the DMG: the download starts in place, and Cloudflare counts
     // website downloads separately from Sparkle updates (which fetch the DMG directly).
-    <a className={compact ? "button button-compact" : "button button-primary"} href="/get">
+    // On a Mac that can't run Rhino it points at /download instead (see mac-check.tsx).
+    <DownloadLink className={compact ? "button button-compact" : "button button-primary"}>
       {compact ? "Download free" : "Download Rhino free"}
-    </a>
+    </DownloadLink>
   );
 }
 

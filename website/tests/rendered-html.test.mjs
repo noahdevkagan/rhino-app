@@ -35,6 +35,7 @@ test("server-renders the concise PayPal purchase page", async () => {
   assert.match(html, /invite 2 friends/i);
   assert.match(html, /Free, and nothing leaves your Mac\./);
   assert.match(html, /Buy Rhino for \$20/);
+  assert.match(html, /Needs a Mac with Apple Silicon \(M1 or newer\) and macOS 14\+/);
   assert.match(html, /href="\/get"/);
   assert.match(html, /action="https:\/\/www\.paypal\.com\/cgi-bin\/webscr"/);
   assert.match(html, /name="business" value="paypal@okdork\.com"/);
@@ -292,6 +293,8 @@ test("renders the changelog and post-purchase download routes", async () => {
   const download = await (await render("/download")).text();
   assert.match(download, /Download Rhino free/);
   assert.match(download, /href="\/get"/);
+  // Safari can't tell Intel from Apple Silicon, so the requirement line ships in the HTML.
+  assert.match(download, /Needs a Mac with Apple Silicon \(M1 or newer\) and macOS 14\+\. Check: Apple menu &gt; About This Mac &gt; Chip\./);
   const get = await render("/get");
   assert.equal(get.status, 302);
   assert.match(get.headers.get("location") ?? "", /\/v0\.1\.40\/Rhino-0\.1\.40\.dmg$/);
@@ -339,6 +342,7 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /AppSumo purchase/);
   assert.match(html, /RH-XXXX-XXXX-XXXX/);
   assert.match(html, /Getting ready…/);
+  assert.match(html, /Needs a Mac with Apple Silicon \(M1 or newer\) and macOS 14\+/);
   assert.match(html, /noahkagan@gmail\.com/);
   assert.match(
     await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8"),

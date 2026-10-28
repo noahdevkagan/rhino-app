@@ -197,9 +197,13 @@ final class DictationPipeline: ObservableObject {
             let spokenTrailingMark = prefs.aiPostProcessingEnabled && prefs.smartFormattingEnabled
                 && ContextCasing.endsWithSpokenMark(text)
             text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID)
+            // Again after cleanup, which tends to American spellings. (A no-op when off.)
+            text = prefs.applyBritishSpelling(text)
             // The cleanup model doesn't know the user's spellings and can undo them, so the
             // dictionary gets the last word. (A no-op pass when cleanup is off.)
             text = settings.applyCustomDictionary(text, afterCleanup: true)
+            // Brit mode: "Hi, Steve" → "Hi Steve". After cleanup, which can add the comma back.
+            text = prefs.applyBritGreetings(text)
 
             // Trailing "press enter" voice command (opt-in): strip it and remember to press Return
             // after insertion, submitting the message/prompt.

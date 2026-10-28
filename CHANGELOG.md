@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- New: Settings → Output → Capitals → Sentence case. Turn it off and dictations go in lowercase without a closing period, ready to drop into the middle of a sentence, including in Gmail, Google Docs and other web apps where Rhino can't see the text around your cursor. Names, "I" and questions keep their capitals and question marks, and saying "period" still adds one.
+- Brit mode: turn on Settings → Output → Language → Brit mode and English dictations come out as colour, organise, centre and travelled instead of color, organize, center and traveled, and "Hi, Steve" or "Thanks, Steve" become "Hi Steve" and "Thanks Steve". Names like Pearl Harbor stay as they are, and so do your dictionary words. It's on already if your Mac's region is the UK, Ireland, Australia, New Zealand or South Africa.
+
 ## 0.1.41 — 2026-10-27
 
 - Dictating into the middle of a sentence now fits in: Rhino lowercases the first word (names, "I" and acronyms keep their capitals), skips the period the speech engine adds, and fixes the spacing at the join. Short dictations of one to three words at the start of a field or line, like a number or a name in a spreadsheet cell, no longer get a period either. Say "period" if you want one. This works in apps that let Rhino read the text around the cursor; elsewhere nothing changes.

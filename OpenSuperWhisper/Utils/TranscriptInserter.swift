@@ -113,13 +113,15 @@ enum TranscriptInserter {
 
     /// Adjusts the dictation to the text around the caret (`ContextCasing`): lowercase and no
     /// closing period mid-sentence, no period on a one-to-three-word field value, one space at
-    /// each seam. Unchanged whenever the focused app doesn't expose its text.
+    /// each seam. Where the focused app doesn't expose its text, unchanged unless "Sentence
+    /// case" is off, which then treats the dictation as a phrase inside a sentence.
     @MainActor
     static func fitToCaret(_ text: String, spokenTrailingMark: Bool) -> String {
-        guard let context = Diag.measure("FocusUtils.caretContext", { FocusUtils.caretContext() }) else {
-            return text
-        }
         let prefs = AppPreferences.shared
+        let sentenceCase = prefs.sentenceCaseEnabled
+        let context = Diag.measure("FocusUtils.caretContext", { FocusUtils.caretContext() })
+        guard context != nil || !sentenceCase else { return text }
+        let before = context?.before ?? ""
         let dictionaryWords: Set<Substring> = prefs.customDictionaryEnabled
             ? Set(prefs.customDictionaryEntries.flatMap {
                 $0.replacement.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
@@ -127,10 +129,11 @@ enum TranscriptInserter {
             : []
         let language = prefs.whisperLanguage
         return ContextCasing.apply(
-            text: text, before: context.before, after: context.after,
+            text: text, before: context?.before, after: context?.after,
             spokenTrailingMark: spokenTrailingMark,
+            sentenceCase: sentenceCase,
             isProperNoun: { word in
-                isProperNoun(word, in: context.before + text, dictionaryWords: dictionaryWords,
+                isProperNoun(word, in: before + text, dictionaryWords: dictionaryWords,
                              language: language)
             })
     }

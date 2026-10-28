@@ -292,6 +292,12 @@ final class AppPreferences {
     @UserDefault(key: "addSpaceAfterSentence", defaultValue: true)
     var addSpaceAfterSentence: Bool
 
+    /// Start each dictation with a capital and end it with a period. Where Rhino can read the
+    /// text around the caret it fits the sentence either way (`ContextCasing`); off makes the
+    /// unreadable case (Gmail and most web fields) a lowercase phrase with no closing period.
+    @UserDefault(key: "sentenceCaseEnabled", defaultValue: true)
+    var sentenceCaseEnabled: Bool
+
     /// Where the recording indicator appears: "cursor" (default), "top", "center", "bottom".
     /// Multiplier applied on top of the system text size. 1.0 means "exactly what macOS asks
     /// for"; the control exists because following the system alone leaves no room for wanting
@@ -336,6 +342,32 @@ final class AppPreferences {
         return stripped
             .replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Brit mode: British spelling for English transcripts (`BritishSpelling`: colour,
+    /// organise, centre) and no comma between a greeting and a name ("Hi Steve",
+    /// `GreetingComma`). One switch for both (Noah, 2026-10-28). Defaults on where the Mac's
+    /// region writes British English.
+    @UserDefault(key: "britModeEnabled", defaultValue: BritishSpelling.defaultEnabled)
+    var britModeEnabled: Bool
+
+    /// Brit mode's greeting style: "Hi, Steve" → "Hi Steve". A no-op when Brit mode is off.
+    func applyBritGreetings(_ text: String) -> String {
+        britModeEnabled ? GreetingComma.apply(text) : text
+    }
+
+    /// `text` in British spelling when Brit mode is on and the transcription language is
+    /// English (or auto-detect). The user's dictionary spellings are kept as they are.
+    func applyBritishSpelling(_ text: String) -> String {
+        guard britModeEnabled, whisperLanguage == "en" || whisperLanguage == "auto" else {
+            return text
+        }
+        let keep: Set<String> = customDictionaryEnabled
+            ? Set(customDictionaryEntries.flatMap {
+                $0.replacement.split(whereSeparator: { !$0.isLetter }).map(String.init)
+            })
+            : []
+        return BritishSpelling.apply(text, keep: keep)
     }
 
     /// AI cleanup (a local LLM pass). On by default, but it does nothing until its ~1 GB

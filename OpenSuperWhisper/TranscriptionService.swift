@@ -227,11 +227,15 @@ class TranscriptionService: ObservableObject {
         // English decimals, quantities, percentages and times follow the number
         // preference without depending on a small model's compliance.
         let raw = try await runOnEngine(engine, url: url, settings: settings)
-        let style = AppPreferences.shared.numberFormattingStyle
+        // Brit mode spelling here too, so imports and reruns get it without cleanup.
+        let prefs = AppPreferences.shared
+        let style = prefs.numberFormattingStyle
         if settings.showTimestamps {
-            return TimestampedTranscript.mapText(raw) { NumberCompaction.apply($0, style: style) }
+            return TimestampedTranscript.mapText(raw) {
+                prefs.applyBritishSpelling(NumberCompaction.apply($0, style: style))
+            }
         }
-        return NumberCompaction.apply(raw, style: style)
+        return prefs.applyBritishSpelling(NumberCompaction.apply(raw, style: style))
     }
 
     /// Run one transcription on a specific engine: wire its progress callback, run it

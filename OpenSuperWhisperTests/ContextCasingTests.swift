@@ -8,10 +8,10 @@ import XCTest
 final class ContextCasingTests: XCTestCase {
 
     private func fit(_ text: String, before: String?, after: String? = "",
-                     spoken: Bool = false,
+                     spoken: Bool = false, sentenceCase: Bool = true,
                      properNouns: Set<String> = []) -> String {
         ContextCasing.apply(text: text, before: before, after: after,
-                            spokenTrailingMark: spoken,
+                            spokenTrailingMark: spoken, sentenceCase: sentenceCase,
                             isProperNoun: { properNouns.contains($0) })
     }
 
@@ -175,6 +175,43 @@ final class ContextCasingTests: XCTestCase {
     func testNoSpaceAfterOpeningParenOrForCJK() {
         XCTAssertEqual(fit("Brown fox", before: "the (", after: ")"), "brown fox")
         XCTAssertEqual(fit("你好", before: "我说", after: ""), "你好")
+    }
+
+    // MARK: - Sentence case off (Steve, 2026-10-28: Gmail hides its text, so the context fix
+    // never ran there)
+
+    func testSentenceCaseOffUnknownContextIsAPhrase() {
+        XCTAssertEqual(fit("Brown fox. ", before: nil, after: nil, sentenceCase: false), "brown fox")
+        XCTAssertEqual(fit("Went to the store today.", before: nil, after: nil, sentenceCase: false),
+                       "went to the store today")
+        XCTAssertEqual(fit("Brown fox,", before: nil, after: nil, sentenceCase: false), "brown fox")
+    }
+
+    func testSentenceCaseOffKeepsQuestionsNamesAndSpokenPeriod() {
+        XCTAssertEqual(fit("Is it ready?", before: nil, after: nil, sentenceCase: false), "is it ready?")
+        XCTAssertEqual(fit("I think so.", before: nil, after: nil, sentenceCase: false), "I think so")
+        XCTAssertEqual(fit("Steve agreed.", before: nil, after: nil, sentenceCase: false,
+                           properNouns: ["Steve"]), "Steve agreed")
+        XCTAssertEqual(fit("Approved.", before: nil, after: nil, spoken: true, sentenceCase: false),
+                       "approved.")
+    }
+
+    func testSentenceCaseOffLeavesALaidOutMessageAlone() {
+        let email = "Hi Steve,\n\nThe deck is ready.\n\nBest wishes,\nNoah"
+        XCTAssertEqual(fit(email, before: nil, after: nil, sentenceCase: false), email)
+    }
+
+    func testSentenceCaseOffMidSentenceDropsPeriodAtEndOfText() {
+        XCTAssertEqual(fit("Went to the store today.", before: "Yesterday I ", after: "",
+                           sentenceCase: false),
+                       "went to the store today")
+    }
+
+    func testSentenceCaseOffStillCapitalizesAKnownSentenceStart() {
+        XCTAssertEqual(fit("Next one. ", before: "Done. ", after: " More", sentenceCase: false),
+                       "Next one.")
+        XCTAssertEqual(fit("Hello there, how are you.", before: "", after: "", sentenceCase: false),
+                       "Hello there, how are you.")
     }
 
     // MARK: - Spoken mark detection

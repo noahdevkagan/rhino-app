@@ -10,7 +10,9 @@ import Foundation
 /// got a period each.
 ///
 /// Pure text logic; `TranscriptInserter` reads the context via Accessibility
-/// (`FocusUtils.caretContext()`) and passes `nil` when it can't, which changes nothing.
+/// (`FocusUtils.caretContext()`) and passes `nil` when it can't, which changes nothing unless
+/// the user turned "Sentence case" off (Gmail and most web fields hide their text, so the
+/// context fix alone never reached them; Steve, 2026-10-28).
 enum ContextCasing {
 
     /// How much text to read on each side of the caret. Enough to see past a few spaces or a
@@ -30,18 +32,26 @@ enum ContextCasing {
     ///   - after: Up to `afterWindow` characters after the caret (after the selection). `""` is
     ///     the end of the field, `nil` unknown.
     ///   - spokenTrailingMark: The user said the closing mark ("period", "comma"), so it stays.
+    ///   - sentenceCase: The "Sentence case" setting. Off means the user slots phrases into
+    ///     existing text: where the context is unknown (`before == nil`) the dictation is
+    ///     treated as mid-sentence, and mid-sentence the closing period goes even at the end
+    ///     of the text. A known sentence start still gets its capital.
     ///   - isProperNoun: Extra protection for the first word (names, the user's dictionary).
     static func apply(text: String, before: String?, after: String?,
                       spokenTrailingMark: Bool = false,
+                      sentenceCase: Bool = true,
                       isProperNoun: (String) -> Bool = { _ in false }) -> String {
-        guard let before else { return text }
+        guard before != nil || !sentenceCase else { return text }
 
         var body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return text }
+        // Unknown context, several lines: a laid-out email or list, not a phrase dropped into
+        // a sentence ("Hi Steve,\n\n…" must keep its capital).
+        if before == nil, body.contains(where: \.isNewline) { return text }
         let leadingWS = String(text.prefix { $0.isWhitespace })
         let trailingWS = String(String(text.reversed()).prefix { $0.isWhitespace }.reversed())
 
-        let midSentence = isMidSentence(before: before)
+        let midSentence = before.map(isMidSentence(before:)) ?? true
         if midSentence {
             body = lowercasingFirstWord(body, isProperNoun: isProperNoun)
         }
@@ -52,7 +62,8 @@ enum ContextCasing {
         if !spokenTrailingMark {
             // The existing text goes on (a word follows), or already has its own mark after the
             // caret (replacing "store" in "the store." must not end in "..").
-            let continuesIntoText = midSentence && nextIsWord(after)
+            // With sentence case off, a mid-sentence phrase never closes the sentence itself.
+            let continuesIntoText = midSentence && (nextIsWord(after) || !sentenceCase)
             let markFollows = nextIsClosingMark(after)
             if continuesIntoText || markFollows, body.hasSuffix(","), body.count > 1 {
                 body.removeLast()
@@ -70,13 +81,16 @@ enum ContextCasing {
         }
 
         // Spacing on the left: one space between the existing text and the dictation, never two.
+        // Unknown context (sentence case off) keeps the dictation's own spacing.
         var leading = leadingWS
-        if let last = before.last, last.isWhitespace {
-            leading = ""
-        } else if before.isEmpty {
-            leading = ""
-        } else if leading.isEmpty, needsSpaceBetween(before.last, body.first) {
-            leading = " "
+        if let before {
+            if let last = before.last, last.isWhitespace {
+                leading = ""
+            } else if before.isEmpty {
+                leading = ""
+            } else if leading.isEmpty, needsSpaceBetween(before.last, body.first) {
+                leading = " "
+            }
         }
 
         // Spacing on the right.

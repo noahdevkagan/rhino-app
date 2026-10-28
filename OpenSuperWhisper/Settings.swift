@@ -215,6 +215,18 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var britModeEnabled: Bool {
+        didSet {
+            AppPreferences.shared.britModeEnabled = britModeEnabled
+        }
+    }
+
+    @Published var sentenceCaseEnabled: Bool {
+        didSet {
+            AppPreferences.shared.sentenceCaseEnabled = sentenceCaseEnabled
+        }
+    }
+
     @Published var aiPostProcessingEnabled: Bool {
         didSet {
             AppPreferences.shared.aiPostProcessingEnabled = aiPostProcessingEnabled
@@ -413,6 +425,8 @@ class SettingsViewModel: ObservableObject {
         self.holdToRecord = prefs.holdToRecord
         self.doubleTapLock = prefs.doubleTapLock
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
+        self.britModeEnabled = prefs.britModeEnabled
+        self.sentenceCaseEnabled = prefs.sentenceCaseEnabled
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
         self.numberFormattingStyle = prefs.numberFormattingStyle
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
@@ -1364,6 +1378,11 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
+                if viewModel.selectedLanguage == "en" || viewModel.selectedLanguage == "auto" {
+                    SRow(title: "Brit mode", hint: "Colour, organise, centre, and “Hi Steve” without the comma", indented: true) {
+                        SToggle(isOn: $viewModel.britModeEnabled)
+                    }
+                }
             }
 
             SSection(title: "Imported files") {
@@ -1399,6 +1418,13 @@ struct SettingsView: View {
                          indented: true) {
                         SToggle(isOn: $viewModel.spokenEditsEnabled)
                     }
+                }
+            }
+
+            SSection(title: "Capitals") {
+                SRow(title: "Sentence case",
+                     hint: "Start with a capital, end with a period. Off: lowercase, no period, for slotting phrases into a sentence. Where Rhino can read the text around your cursor, it matches the sentence either way") {
+                    SToggle(isOn: $viewModel.sentenceCaseEnabled)
                 }
             }
 

@@ -126,12 +126,7 @@ export function UnsupportedMacNotice({
           Bought Rhino on AppSumo and your Mac can&apos;t run it? Get a refund in your AppSumo
           account: Products {">"} Rhino Voice {">"} Refund.
         </p>
-      ) : (
-        <p>
-          Already paid for Rhino? <a href="mailto:noahkagan@gmail.com">Email me</a> and I&apos;ll
-          refund you.
-        </p>
-      )}
+      ) : null}
       {downloadHref ? (
         <p className="mac-download-anyway">
           <a href={downloadHref}>Download anyway</a> (if we got your Mac wrong)

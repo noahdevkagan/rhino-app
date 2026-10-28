@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { MacDownloadGate } from "../_components/mac-check";
 import { rhinoPrice } from "../_components/site-chrome";
 
 export const metadata: Metadata = {
@@ -27,12 +28,14 @@ export default function Download() {
           Want unlimited? Invite 2 friends or pay ${rhinoPrice} once, from inside
           the app.
         </p>
-        <a className="button button-primary download-button" href="/get">
-          Download Rhino for Mac
-        </a>
+        <MacDownloadGate href="/get">
+          <a className="button button-primary download-button" href="/get">
+            Download Rhino for Mac
+          </a>
+        </MacDownloadGate>
         <p className="install-note">
-          Requires macOS 14 or later on Apple silicon. Open the DMG, drag Rhino
-          to Applications, then follow the short setup. No account, no email.
+          Open the DMG, drag Rhino to Applications, then follow the short
+          setup. No account, no email.
         </p>
       </div>
     </main>

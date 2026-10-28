@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MacDownloadGate } from "./mac-check";
 
 /** SendFox form 296020 → list 678242 "Rhino Windows waitlist". Redirects back with ?waitlist=windows. */
 const waitlistAction = "https://sendfox.com/form/03zne3/1dxeg5";
@@ -145,9 +146,12 @@ export function HeroCta() {
   }
 
   return (
-    // /get redirects to the DMG; see DownloadButton.
-    <a className="button button-primary button-hero" href="/get">
-      Download Rhino free
-    </a>
+    // /get redirects to the DMG; see DownloadButton. The gate swaps the button for a
+    // "this Mac can't run Rhino" message on Intel or macOS 13 and older.
+    <MacDownloadGate href="/get">
+      <a className="button button-primary button-hero" href="/get">
+        Download Rhino free
+      </a>
+    </MacDownloadGate>
   );
 }

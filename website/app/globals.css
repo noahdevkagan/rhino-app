@@ -408,6 +408,26 @@ footer span { color: var(--ink); font-weight: 700; }
 .download-button::before { content: "↓"; margin-right: 9px; font-family: var(--font-geist-mono), monospace; }
 .install-note { margin-top: 22px; font-size: 13px; }
 
+/* Can this Mac run Rhino? (app/_components/mac-check.tsx) */
+.mac-requirement { margin: 12px 0 0; color: #7a736e; font-size: 13px; line-height: 1.55; max-width: 460px; }
+.redemption-card .mac-requirement { margin: 14px auto 0; }
+.mac-unsupported {
+  max-width: 520px;
+  margin-top: 18px;
+  padding: 20px 22px;
+  border: 1px solid #f3c9c2;
+  border-radius: 16px;
+  background: #fff4f1;
+  text-align: left;
+}
+.mac-unsupported p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.mac-unsupported p + p { margin-top: 10px; }
+.mac-unsupported .mac-unsupported-title { color: var(--ink); font-size: 18px; font-weight: 730; letter-spacing: -0.02em; }
+.mac-unsupported a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.mac-unsupported .mac-download-anyway { font-size: 12px; color: #8a837e; }
+.redemption-card .mac-unsupported { margin: 20px auto 0; }
+.unlock-step-body { display: grid; justify-items: start; }
+
 .redemption-page {
   min-height: 100svh;
   padding: 42px 20px 80px;

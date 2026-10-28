@@ -1,6 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  MacDownloadGate,
+  MacRequirement,
+  NotMacNote,
+  UnsupportedMacNotice,
+  useMacVerdict,
+} from "../_components/mac-check";
+import { isUnsupported } from "../_lib/mac-support";
 
 const downloadUrl =
   "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.40/Rhino-0.1.40.dmg";
@@ -28,6 +36,7 @@ export default function RedeemForm() {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const hashes = useRef<Set<string> | null>(null);
+  const mac = useMacVerdict();
 
   useEffect(() => {
     let active = true;
@@ -90,9 +99,17 @@ export default function RedeemForm() {
         <h1>You&apos;re in.</h1>
         <ol className="unlock-steps">
           <li>
-            <a className="button button-primary download-button" href={downloadUrl}>
-              Download Rhino for Mac
-            </a>
+            <div className="unlock-step-body">
+              <MacDownloadGate
+                href={downloadUrl}
+                appsumo
+                notMac="Rhino is Mac only. Open this page on your Mac to download it, or use the code we emailed you."
+              >
+                <a className="button button-primary download-button" href={downloadUrl}>
+                  Download Rhino for Mac
+                </a>
+              </MacDownloadGate>
+            </div>
             <span>Open the DMG and drag Rhino to Applications.</span>
           </li>
           <li>
@@ -106,7 +123,7 @@ export default function RedeemForm() {
           </li>
         </ol>
         <p className="redemption-help">
-          Requires macOS 14 or later on Apple silicon. Need help?{" "}
+          Need help?{" "}
           <a href="mailto:noahkagan@gmail.com">Email Noah</a>.
         </p>
       </section>
@@ -123,6 +140,16 @@ export default function RedeemForm() {
       <p className="redemption-copy">
         Enter the code from your AppSumo purchase to download Rhino for Mac.
       </p>
+      {isUnsupported(mac) ? (
+        <UnsupportedMacNotice verdict={mac} appsumo />
+      ) : mac.support === "not-mac" ? (
+        <NotMacNote>
+          Rhino is Mac only. You can redeem here, add your email to get your code, then
+          download on your Mac.
+        </NotMacNote>
+      ) : mac.support === "unknown" ? (
+        <MacRequirement />
+      ) : null}
       <form className="redemption-form" onSubmit={redeem}>
         <label htmlFor="redemption-code">AppSumo redemption code</label>
         <input

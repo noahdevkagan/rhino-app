@@ -3,6 +3,10 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.43 — 2026-10-29
+
+- Dictating into Chrome works every time again. Since 0.1.41, a busy page such as claude.ai could take the paste after Rhino had already put your previous clipboard back, so your old clipboard got pasted instead of your words. Rhino now waits until the app has taken your words before it puts the clipboard back.
+
 ## 0.1.42 — 2026-10-28
 
 - New: Settings → Output → Capitals → Sentence case. Turn it off and dictations go in lowercase without a closing period, ready to drop into the middle of a sentence, including in Gmail, Google Docs and other web apps where Rhino can't see the text around your cursor. Names, "I" and questions keep their capitals and question marks, and saying "period" still adds one.

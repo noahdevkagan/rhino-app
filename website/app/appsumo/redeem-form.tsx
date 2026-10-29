@@ -11,7 +11,7 @@ import {
 import { isUnsupported } from "../_lib/mac-support";
 
 const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.42/Rhino-0.1.42.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.43/Rhino-0.1.43.dmg";
 
 /** SendFox form 296340 → list 678908 "Rhino AppSumo customers". Optional; only posted for a valid code. */
 const emailAction = "https://sendfox.com/form/03zne3/3oywpv";

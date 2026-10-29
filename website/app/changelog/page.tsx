@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.43",
+    date: "October 29, 2026",
+    changes: [
+      "Dictating into Chrome works every time again. Since 0.1.41, a busy page such as claude.ai could take the paste after Rhino had already put your previous clipboard back, so your old clipboard got pasted instead of your words. Rhino now waits until the app has taken your words before it puts the clipboard back.",
+    ],
+  },
+  {
     version: "0.1.42",
     date: "October 28, 2026",
     changes: [

@@ -7,7 +7,7 @@ export const rhinoPrice = 20;
 
 /** The current DMG. Release scripts check this file links the version being shipped. */
 export const downloadUrl =
-  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.42/Rhino-0.1.42.dmg";
+  "https://github.com/noahdevkagan/rhino-releases/releases/download/v0.1.43/Rhino-0.1.43.dmg";
 
 export const releasesUrl =
   "https://github.com/noahdevkagan/rhino-releases/releases";

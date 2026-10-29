@@ -2355,3 +2355,19 @@ Output → Capitals): it is about slotting phrases mid-sentence, not British sty
 Sentence case off never touches a multi-line dictation when the context is unknown: a laid-out
 email ("Hi Steve,\n\n…") is composed text, not a phrase, and would otherwise start "hi Steve,"
 (found reviewing before 0.1.42).
+
+## 2026-10-29: Restore the borrowed clipboard after the paste reads it, not on a timer
+
+Deepak (0.1.41/0.1.42): dictating into claude.ai in Chrome worked once, then pasted his
+previous clipboard while history had the dictation; turning on "Copy to clipboard" fixed it.
+0.1.41 made the borrow-and-restore path the default (2026-10-27), and its fixed 1.0 s restore
+fires before a busy Chrome page services the synthetic ⌘V. Not the nspasteboard markers:
+Chromium's Mac clipboard reads never check ConcealedType. Fix: the borrowed text is a lazy
+`NSPasteboardItemDataProvider`, so the first read of the string tells Rhino the paste
+happened. Restore 0.25 s after that read, never before the old 1.0 s (a clipboard manager
+that ignores the markers may read first, so such setups are no worse than before), and at
+5 s if nothing reads it. Rejected: a longer fixed delay (every user waits it out, and a ⌘V
+of their own in that window pastes the dictation); dropping the restore (the Oct 19-22
+reports wanted their clipboard kept). Not changed: the caret-context AX read before the
+paste, which may wake Chrome's accessibility tree and slow the page; revisit if Chrome
+pastes are still slow.

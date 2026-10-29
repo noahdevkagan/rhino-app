@@ -7,6 +7,16 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Deepak: dictation into claude.ai pastes the old clipboard (2026-10-29, branch claude/gallant-knuth-rz292w)
+
+Since 0.1.41 "Copy to clipboard" defaults off, so every paste borrows the clipboard and the
+fixed 1.0 s restore beat Chrome's late ⌘V on claude.ai: the old clipboard got pasted, history
+had the text. Deepak confirmed both: ⌘V after a failure gives his old clip, and Copy to
+clipboard on works. Fix: `ClipboardUtil.borrowForPaste` serves the text lazily and restores
+0.25 s after the first read (never before 1.0 s), 5 s if nothing reads. Unit tests written,
+not run (Linux session): CI Build Check is the gate. Not done: try it in Rhino Dev on
+claude.ai in Chrome, release, tell Deepak he can turn Copy to clipboard back off.
+
 ### Steve: Sentence case switch + "Hi Steve" comma (2026-10-28, branch claude/nice-ptolemy-ggiqsu)
 
 0.1.41's caret-context fix never runs in Gmail-in-a-browser (AX hides the text), so Steve saw

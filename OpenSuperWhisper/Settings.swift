@@ -409,6 +409,18 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var shareCorrections: Bool {
+        didSet {
+            AppPreferences.shared.shareCorrections = shareCorrections
+            let enabled = shareCorrections
+            Task { @MainActor in CorrectionReporter.shared.setEnabled(enabled) }
+        }
+    }
+
+    @Published var commonCorrectionsEnabled: Bool {
+        didSet { AppPreferences.shared.commonCorrectionsEnabled = commonCorrectionsEnabled }
+    }
+
     init() {
         let prefs = AppPreferences.shared
         self.selectedEngine = prefs.selectedEngine
@@ -453,6 +465,8 @@ class SettingsViewModel: ObservableObject {
         self.retentionMaxAgeUnit = RetentionUnit(rawValue: prefs.retentionMaxAgeUnit) ?? .days
         self.saveTranscriptionHistory = prefs.saveTranscriptionHistory
         self.shareUsageStats = prefs.shareUsageStats
+        self.shareCorrections = prefs.shareCorrections
+        self.commonCorrectionsEnabled = prefs.commonCorrectionsEnabled
 
         if let savedPath = prefs.selectedWhisperModelPath ?? prefs.selectedModelPath {
             self.selectedModelURL = URL(fileURLWithPath: savedPath)
@@ -914,6 +928,7 @@ struct Settings {
     var customDictionaryBoostEnabled: Bool
     var customDictionarySoundAlikesEnabled: Bool
     var customDictionaryEntries: [CustomDictionaryEntry]
+    var commonCorrectionsEnabled: Bool
 
     var shouldApplyCustomDictionary: Bool {
         customDictionaryEnabled && !customDictionaryEntries.isEmpty
@@ -944,12 +959,17 @@ struct Settings {
         self.customDictionaryBoostEnabled = prefs.customDictionaryBoostEnabled
         self.customDictionarySoundAlikesEnabled = prefs.customDictionarySoundAlikesEnabled
         self.customDictionaryEntries = prefs.customDictionaryEntries
+        self.commonCorrectionsEnabled = prefs.commonCorrectionsEnabled
     }
 
     /// The dictionary's full pass over finished text: exact phrasings, then sound-alikes.
     /// `afterCleanup` is the second pass over LLM output, which skips rules that aren't safe to
     /// run twice (`CustomDictionary.reapplicable`).
     func applyCustomDictionary(_ text: String, afterCleanup: Bool = false) -> String {
+        // Fixes many people taught Rhino (bundled, local). Before the user's rules, which win.
+        let text = commonCorrectionsEnabled
+            ? CommonCorrections.apply(text, userEntries: customDictionaryEntries)
+            : text
         guard shouldApplyCustomDictionary else { return text }
         let entries = afterCleanup
             ? CustomDictionary.reapplicable(customDictionaryEntries)
@@ -1519,6 +1539,17 @@ struct SettingsView: View {
                 SRow(title: "Share anonymous usage stats",
                      hint: "Off by default. On = once a day Rhino sends counts only: words, dictations and seconds dictated per day, app version, macOS version, and a random ID you reset by turning this off. Never your words, audio, or app names. Helps us improve Rhino and show real totals on rhinovoice.app") {
                     SToggle(isOn: $viewModel.shareUsageStats)
+                }
+                SRow(title: "Help improve accuracy",
+                     hint: "Off by default. Shares the word Rhino heard and what you changed it to — short snippets only, never audio, never full dictations or app names. Only fixes you make with \"Fix a word\" are queued; anything that looks like an email, link, long number or key is dropped. Sent weekly; turning this off deletes the queue and asks rhinovoice.app to delete what you shared") {
+                    SToggle(isOn: $viewModel.shareCorrections)
+                }
+                if viewModel.shareCorrections {
+                    CorrectionQueueList()
+                }
+                SRow(title: "Use shared corrections",
+                     hint: "Fixes many Rhino users taught it, bundled with the app (no network). Your own dictionary always wins") {
+                    SToggle(isOn: $viewModel.commonCorrectionsEnabled)
                 }
                 SRow(title: "Transcriptions directory",
                      hint: LocalizedStringKey(Recording.recordingsDirectory.path)) {

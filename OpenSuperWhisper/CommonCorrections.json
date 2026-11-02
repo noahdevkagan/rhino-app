@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "about": "Exact-phrase fixes learned from people who opted in to 'Help improve accuracy'. Maintained by Scripts/improve/merge_corrections.py (weekly PR); only pairs taught on 3+ different Macs land here. The user's own dictionary always overrides these.",
+  "entries": []
+}

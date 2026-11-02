@@ -7,6 +7,26 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Opt-in correction sharing + weekly improvement loop (2026-11-02, branch claude/tender-feynman-ydh2s4)
+
+Plan (phase 2 of the opt-in work; Noah approved a separate opt-in that lets Rhino keep improving without him):
+1. Signal = the "Fix a word" sheet (FixSpellingSheet: user picks the word Rhino wrote and types what it
+   should be). Strongest existing, explicit, short. No keystroke monitoring, no history diffing.
+2. App: `shareCorrections` pref (OFF by default, separate from usage stats). `Utils/CorrectionReporter.swift`
+   queues heard→corrected pairs (≤5 words a side, PII-scrubbed: emails, URLs, 4+ digit numbers, key-like
+   tokens → dropped), with engine/model and language. Settings → History & Privacy lists the queue with
+   per-item delete + Delete all. Weekly POST to rhinovoice.app/api/corrections. Opt-out wipes queue + its own
+   install ID (separate from the usage-stats ID). Debug never sends without RHINO_CORRECTIONS_DEV=1.
+3. Bundled `OpenSuperWhisper/CommonCorrections.json` + `Models/CommonCorrections.swift`: exact-phrase fixes
+   learned from many users, applied before the user's own dictionary (user rules win, and override any
+   bundled rule with the same trigger). Unit test replays every bundled pair.
+4. Website: POST /api/corrections (validate, cap, re-scrub, 180-day purge), DELETE /api/corrections?installId=,
+   GET /api/admin/corrections-summary (Bearer ADMIN_TOKEN; pairs seen from ≥3 distinct installs only).
+5. Loop: .github/workflows/improve-weekly.yml (weekly + manual) → Scripts/improve/merge_corrections.py merges
+   frequent pairs into CommonCorrections.json → PR on claude/improve-<date>. Exits cleanly without secret or
+   new pairs. Never auto-merges.
+6. Hygiene: allow exactly this file+endpoint, fail if default-on or the payload gains text/audio/app fields.
+
 ### Opt-in anonymous usage stats + homepage stat strip (2026-11-02, branch claude/tender-feynman-ydh2s4)
 
 Plan (done in this branch): Settings → History & Privacy → "Share anonymous usage stats"

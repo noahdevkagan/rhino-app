@@ -3,6 +3,12 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- New, off by default: Settings → History & Privacy → Share anonymous usage stats. When it's on, Rhino sends daily counts (words, dictations, seconds dictated) so we can improve it and show real totals on rhinovoice.app. Never your words, audio or app names.
+- New, off by default: Settings → History & Privacy → Help improve accuracy. When it's on, the fixes you make with "Fix a word" (just the word Rhino heard and what you changed it to) are shared once a week so Rhino can learn words many people correct. You can see and delete each one before it's sent, and turning it off deletes what you shared. Never audio, never your full dictations, never app names.
+- Rhino can now learn from the fixes many people make: once the same fix is shared from several Macs, it comes built in to a later update, so common brand names and jargon come out right without adding them yourself. Your own dictionary always wins; turn it off with Settings → History & Privacy → Use shared corrections.
+
 ## 0.1.43 — 2026-10-29
 
 - Dictating into Chrome works every time again. Since 0.1.41, a busy page such as claude.ai could take the paste after Rhino had already put your previous clipboard back, so your old clipboard got pasted instead of your words. Rhino now waits until the app has taken your words before it puts the clipboard back.

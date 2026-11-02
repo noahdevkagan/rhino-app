@@ -25,9 +25,13 @@ OpenSuperWhisper (MIT), being rebranded and hardened. **HARD CONSTRAINT:
 all-local, zero cloud.** On-device ASR (whisper.cpp / Parakeet /
 SenseVoice) and embedded-only LLM cleanup (llama.cpp/Qwen in-process — no
 Ollama, no remote). The only acceptable network calls: Sparkle update
-checks to our own appcast, explicit user-initiated model downloads, and
+checks to our own appcast, explicit user-initiated model downloads,
 the opt-in anonymous usage counts (`Utils/UsageReporter.swift`, OFF by
-default, counts only, one endpoint; decisions.md 2026-11-02).
+default, counts only, one endpoint; decisions.md 2026-11-02), and the
+separate opt-in "Help improve accuracy" (`Utils/CorrectionReporter.swift`,
+OFF by default, scrubbed "Fix a word" pairs only → `/api/corrections`).
+Shared fixes come back via the weekly PR from `improve-weekly.yml` into
+`OpenSuperWhisper/CommonCorrections.json` — review before merging.
 Anything else that touches the network is a bug — tests/hygiene enforces
 this. The build plan lives in the sibling repo `~/rhino` (PLAN.md).
 

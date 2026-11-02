@@ -71,6 +71,13 @@ struct FixSpellingSheet: View {
 
             Toggle("Also fix it in this transcript", isOn: $fixThisTranscript)
 
+            if AppPreferences.shared.shareCorrections {
+                Text("\"Help improve accuracy\" is on: this fix (just these two words) waits in Settings → History & Privacy, where you can remove it before the weekly send.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             if !AppPreferences.shared.customDictionaryEnabled {
                 Text("Your dictionary is off — saving turns it back on.")
                     .font(.caption)
@@ -96,6 +103,9 @@ struct FixSpellingSheet: View {
             heard: heard, correct: correct, to: prefs.customDictionaryEntries)
         prefs.customDictionaryEnabled = true
         NotificationCenter.default.post(name: .customDictionaryDidChange, object: nil)
+        // Opt-in "Help improve accuracy": queue the pair (scrubbed, local until the weekly send).
+        // A no-op while the toggle is off.
+        CorrectionReporter.shared.record(heard: heard, corrected: correct, model: recording.modelUsed)
 
         if fixThisTranscript {
             let rule = CustomDictionaryEntry(original: heard, replacement: correct)

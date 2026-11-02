@@ -65,6 +65,7 @@ echo "hygiene: [2/3] networking call sites classified"
 # configured by SUFeedURL) and Parakeet model downloads (inside FluidAudio).
 ALLOWED_NET_FILES="OpenSuperWhisper/Engines/SenseVoiceModelManager.swift
 OpenSuperWhisper/LLMModelManager.swift
+OpenSuperWhisper/Utils/CorrectionReporter.swift
 OpenSuperWhisper/Utils/UsageReporter.swift
 OpenSuperWhisper/WhisperModelManager.swift"
 
@@ -73,11 +74,11 @@ actual=$(grep -rln "URLSession\|URLRequest\|NWConnection\|CFStream\|NSURLConnect
 unexpected=$(comm -23 <(echo "$actual") <(echo "$ALLOWED_NET_FILES" | sort))
 if [ -n "$unexpected" ]; then
     echo "  FAIL: unclassified networking call sites (the known ones are user-initiated"
-    echo "  model downloads and the opt-in usage counts — what is this?):"
+    echo "  model downloads and the two opt-ins — what is this?):"
     echo "$unexpected" | sed 's/^/    /'
     fail=1
 else
-    echo "  every networking call site is a model download or the opt-in usage counts"
+    echo "  every networking call site is a model download or one of the two opt-ins"
 fi
 
 # The opt-in usage counts (decisions.md 2026-11-02) stay narrow: OFF by default, one
@@ -102,6 +103,39 @@ payload=$(awk '/struct Payload/,/^    }$/' "$REPORTER")
 if echo "$payload" | grep -qiE 'text|transcript|bundle|appName|audio|String\]'; then
     echo "  FAIL: UsageReporter payload grew a content field:"
     echo "$payload" | sed 's/^/    /'
+    fail=1
+fi
+
+# The opt-in correction sharing (decisions.md 2026-11-02, "Help improve accuracy") stays
+# narrow too: OFF by default, one endpoint, scrubbed "Fix a word" pairs only, and nothing but
+# the named fields. Widening any of this needs a new decision entry, not a gate edit.
+CREPORTER="$ROOT/OpenSuperWhisper/Utils/CorrectionReporter.swift"
+if ! grep -q '@UserDefault(key: "shareCorrections", defaultValue: false)' "$ROOT/OpenSuperWhisper/Utils/AppPreferences.swift"; then
+    echo "  FAIL: shareCorrections must default to false (opt-in only)"
+    fail=1
+fi
+curls=$(grep -oE 'https?://[^"]+' "$CREPORTER" | sort -u)
+if [ "$curls" != "https://rhinovoice.app/api/corrections" ]; then
+    echo "  FAIL: CorrectionReporter may only talk to https://rhinovoice.app/api/corrections, found:"
+    echo "$curls" | sed 's/^/    /'
+    fail=1
+fi
+if ! grep -q 'guard isEnabled, Self.sendingAllowed' "$CREPORTER" \
+   || ! grep -q 'guard isEnabled,$' "$CREPORTER" \
+   || ! grep -q 'let pair = CorrectionScrub.scrubbed' "$CREPORTER"; then
+    echo "  FAIL: CorrectionReporter must check the opt-in before queueing/sending and scrub every pair"
+    fail=1
+fi
+# Exactly these payload fields — a new one (text, app, audio, window…) fails here.
+cfields=$(awk '/struct Payload/,/^    }$/' "$CREPORTER" | grep -oE '^ +let [a-zA-Z]+' | awk '{print $2}' | sort | tr '\n' ' ')
+if [ "$cfields" != "appVersion corrected engine heard installId items language model " ]; then
+    echo "  FAIL: CorrectionReporter payload fields changed: $cfields"
+    fail=1
+fi
+# The only thing that feeds it is the "Fix a word" sheet.
+callers=$(grep -rln "CorrectionReporter.shared.record" "$ROOT/OpenSuperWhisper" --include='*.swift' | sed "s|$ROOT/||")
+if [ "$callers" != "OpenSuperWhisper/FixSpellingSheet.swift" ]; then
+    echo "  FAIL: corrections may only be queued from FixSpellingSheet, found: $callers"
     fail=1
 fi
 

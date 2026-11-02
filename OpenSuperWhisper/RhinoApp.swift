@@ -163,7 +163,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // Opt-in anonymous usage counts: no-op unless the user turned it on. Delayed so it
         // never competes with launch; at most one send a day.
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
-            MainActor.assumeIsolated { UsageReporter.shared.sendIfDue() }
+            MainActor.assumeIsolated {
+                UsageReporter.shared.sendIfDue()
+                // Opt-in correction sharing: no-op unless turned on; at most one send a week.
+                CorrectionReporter.shared.sendIfDue()
+            }
         }
 
         // Load the word list the sound-alike pass needs now, not on the first dictation.

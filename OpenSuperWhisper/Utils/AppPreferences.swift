@@ -500,4 +500,14 @@ final class AppPreferences {
     /// Rhino makes beyond updates and model downloads, and only once the user turns it on.
     @UserDefault(key: "shareUsageStats", defaultValue: false)
     var shareUsageStats: Bool
+
+    /// Opt-in correction sharing (CorrectionReporter): "Help improve accuracy". OFF by default and
+    /// separate from usage stats — this one carries short word pairs, so it gets its own consent.
+    @UserDefault(key: "shareCorrections", defaultValue: false)
+    var shareCorrections: Bool
+
+    /// Apply the bundled CommonCorrections.json (fixes many people taught Rhino). Local data that
+    /// ships with the app — no network. The user's own dictionary always wins over it.
+    @UserDefault(key: "commonCorrectionsEnabled", defaultValue: true)
+    var commonCorrectionsEnabled: Bool
 }

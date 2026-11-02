@@ -2387,3 +2387,36 @@ Bounds, each enforced by tests/hygiene (static) so it can't grow quietly:
 - The site shows each total only above a floor (100k words, 100 Macs, …): a tiny number costs trust.
 Not included: transcript/audio "donation" for training. That is content, not counts, and needs
 its own per-item consent design; this toggle must never be widened into it.
+
+## 2026-11-02 — Opt-in correction sharing ("Help improve accuracy") + the weekly improvement loop
+
+Noah wants Rhino to keep getting more accurate without him in the loop. Counts can't teach the
+recognizer anything, so this is a **second, separate opt-in** that carries words — kept apart
+from usage stats so turning on counts never implies sharing content, and each has its own
+install ID (the two can't be joined).
+- **Signal: the "Fix a word" sheet only** (FixSpellingSheet). The user picks the word Rhino
+  wrote and types the fix: explicit, short, already labelled. Rejected: diffing history edits
+  (no ground truth on why text changed), watching keystrokes in other apps (surveillance),
+  audio donation (biometric, impossible to scrub).
+- **What's sent**: heard → corrected (≤5 words, ≤60 chars a side), engine, model file name,
+  language code, app version, random install UUID. Pairs that look like an email, URL/domain,
+  4+ digit number or key/token are dropped whole, in the app AND again on the server (same
+  patterns, tests/improve checks the copies match). Never audio, the rest of the dictation,
+  app names, window titles or IPs.
+- **Consent UX**: OFF by default; Settings lists the queue with per-item delete and Delete
+  all; the Fix sheet says when a fix will be shared. Weekly send, no retry loop; Debug never
+  sends without `RHINO_CORRECTIONS_DEV=1`. Opt-out deletes the queue, sends one DELETE so the
+  server forgets that install's pairs, and forgets the ID.
+- **Retention**: server rows are deleted after 180 days (purged on every write and every
+  weekly summary read). The admin summary only ever returns pairs from ≥3 distinct installs
+  and never install IDs — one person's name or jargon can't reach the bundle.
+- **Loop**: improve-weekly.yml (Mondays) → Scripts/improve/merge_corrections.py →
+  `OpenSuperWhisper/CommonCorrections.json` → PR on claude/improve-<date>, Build Check
+  dispatched, **human merges** (a wrong rule rewrites everyone's dictation, so no auto-merge).
+  The script re-checks the floor and scrub, takes English/auto only (the bundle applies to
+  every language), refuses common words (their→there), needs a 2× winner on conflicts,
+  refuses rules that grow on a second pass, never edits existing entries, ≤50 adds a run.
+- **In the app** the bundled list runs before the user's dictionary and steps aside for any
+  phrasing the user has their own rule for ("Use shared corrections", on by default — it's
+  local data, no network). CommonCorrectionsTests replays every bundled pair as a regression
+  case; the audio ASR suite can't generate cases on CI's Linux side, so text replay it is.

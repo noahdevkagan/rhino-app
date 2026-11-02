@@ -21,7 +21,7 @@ const steps = [
 const features = [
   {
     title: "Nothing goes to the cloud",
-    body: "Your voice is turned into text on your Mac, and the AI cleanup runs there too. There is no cloud model to switch on, no account, and no tracking unless you opt in to anonymous counts. Turn off Wi-Fi and dictation still works.",
+    body: "Your voice is turned into text on your Mac, and the AI cleanup runs there too. There is no cloud model to switch on, no account, and no tracking unless you opt in to anonymous counts or to sharing your word fixes. Turn off Wi-Fi and dictation still works.",
   },
   {
     title: "It learns how you spell things",
@@ -82,7 +82,7 @@ const faq = [
   {
     question: "Does my voice or my text leave my Mac?",
     answer:
-      "No. Audio, transcripts, history and the AI cleanup pass all stay on your Mac. Rhino only reaches the network to check for signed app updates, to download speech models you explicitly ask for, and, only if you turn on \"Share anonymous usage stats\" (off by default), to send daily counts: how many words and dictations, never the words themselves.",
+      "No. Audio, transcripts, history and the AI cleanup pass all stay on your Mac. Rhino only reaches the network to check for signed app updates, to download speech models you explicitly ask for, and, only if you turn on \"Share anonymous usage stats\" (off by default), to send daily counts: how many words and dictations, never the words themselves. A second, separate switch, \"Help improve accuracy\" (also off by default), shares the short fixes you make with \"Fix a word\" (the word Rhino heard and what you changed it to). Never audio, never full dictations, never app names; anything that looks like an email, link, long number or key is dropped, and turning it off deletes what you shared. Fixes taught on several Macs are reviewed and built into the next release for everyone.",
   },
   {
     question: "Does Rhino work offline?",

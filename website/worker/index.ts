@@ -6,6 +6,8 @@ interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   REFERRALS: D1Database;
+  // Bearer secret for /api/admin/* (wrangler secret put ADMIN_TOKEN). Unset = admin routes refuse.
+  ADMIN_TOKEN?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {

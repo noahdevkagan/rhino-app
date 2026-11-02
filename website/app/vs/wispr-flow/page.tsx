@@ -19,7 +19,7 @@ const content: ComparisonContent = {
     { label: "Free tier", rhino: "Yes, 2,000 words/week, unlimited your first week", them: "Yes, capped at 2,000 words/week on desktop" },
     { label: "Where your speech is processed", rhino: "On your Mac, always", them: "On their servers" },
     { label: "Works offline", rhino: "Yes, once your model is downloaded", them: "No, dictation needs a connection" },
-    { label: "Account required", rhino: "No account, no sign-in, no telemetry", them: "Yes" },
+    { label: "Account required", rhino: "No account, no sign-in, no telemetry by default", them: "Yes" },
     { label: "Platforms", rhino: "macOS 14+ on Apple silicon only", them: "Mac, Windows, iPhone, Android" },
     { label: "AI cleanup of your text", rhino: "Yes, from a model running on your Mac", them: "Yes, in the cloud" },
     { label: "Custom vocabulary", rhino: "Yes, stored locally", them: "Yes" },

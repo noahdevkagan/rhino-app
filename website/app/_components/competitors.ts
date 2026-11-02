@@ -35,7 +35,7 @@ export const tools: Record<string, Tool> = {
     where: "On your Mac, always. There is no cloud option in the app.",
     good: [
       "Speech recognition and cleanup both run on your Mac, even with Wi-Fi off",
-      "No account, no telemetry, no subscription",
+      "No account, no telemetry by default, no subscription",
       "A custom dictionary that fixes and boosts the names you say all day",
     ],
     bad: [

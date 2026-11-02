@@ -40,7 +40,7 @@ const content: BestForContent = {
       local: "Yes, always",
       body: [
         "Mine. Speech recognition and AI cleanup both run on your Mac. So the full thing (punctuation, filler removal, optional spoken edits and smart formatting) works on a plane exactly like it does at your desk. Hold Fn, talk, let go.",
-        "When it's online, Rhino connects for two things only: checking for signed app updates and downloading models you ask for. No account. No tracking. No cloud model to accidentally turn on. Every code change has to pass an automated test that runs a real transcription and fails if the app opens any network connection. Apple silicon and macOS 14 or newer only.",
+        "When it's online, Rhino connects for two things only: checking for signed app updates and downloading models you ask for (plus anonymous daily counts, only if you opt in). No account. No tracking by default. No cloud model to accidentally turn on. Every code change has to pass an automated test that runs a real transcription and fails if the app opens any network connection. Apple silicon and macOS 14 or newer only.",
       ],
       url: "/",
     },

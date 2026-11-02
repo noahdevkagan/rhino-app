@@ -1052,3 +1052,40 @@ footer span { color: var(--ink); font-weight: 700; }
   .button-compact { padding: 0 12px; font-size: 13px; }
 }
 
+
+/* Opt-in usage totals (app/_components/stat-strip.tsx). */
+.stat-strip {
+  padding: 40px 0 34px;
+  border-top: 1px solid var(--line);
+}
+
+.stat-strip dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 24px;
+  margin: 0;
+}
+
+.stat-strip dl > div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.stat-strip dd {
+  margin: 0;
+  font-size: clamp(32px, 5vw, 44px);
+  font-weight: 780;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+.stat-strip dt {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.stat-strip p {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}

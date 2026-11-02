@@ -1,5 +1,7 @@
 import { BuyForm, RhinoMark, SiteFooter, SiteHeader } from "./_components/site-chrome";
 import { HeroCta } from "./_components/hero-cta";
+import { StatStrip } from "./_components/stat-strip";
+import { usageTotalsOrNull } from "./_lib/usage-stats";
 
 const steps = [
   {
@@ -19,7 +21,7 @@ const steps = [
 const features = [
   {
     title: "Nothing goes to the cloud",
-    body: "Your voice is turned into text on your Mac, and the AI cleanup runs there too. There is no cloud model to switch on, no account, and no tracking. Turn off Wi-Fi and dictation still works.",
+    body: "Your voice is turned into text on your Mac, and the AI cleanup runs there too. There is no cloud model to switch on, no account, and no tracking unless you opt in to anonymous counts. Turn off Wi-Fi and dictation still works.",
   },
   {
     title: "It learns how you spell things",
@@ -80,7 +82,7 @@ const faq = [
   {
     question: "Does my voice or my text leave my Mac?",
     answer:
-      "No. Audio, transcripts, history and the AI cleanup pass all stay on your Mac. Rhino only reaches the network to check for signed app updates and to download speech models you explicitly ask for.",
+      "No. Audio, transcripts, history and the AI cleanup pass all stay on your Mac. Rhino only reaches the network to check for signed app updates, to download speech models you explicitly ask for, and, only if you turn on \"Share anonymous usage stats\" (off by default), to send daily counts: how many words and dictations, never the words themselves.",
   },
   {
     question: "Does Rhino work offline?",
@@ -153,7 +155,10 @@ const jsonLd = [
   },
 ];
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const usage = await usageTotalsOrNull();
   return (
     <div className="home-page">
       <script
@@ -225,6 +230,8 @@ export default function Home() {
       </main>
 
       <div className="below-fold">
+        <StatStrip totals={usage} />
+
         <section className="band">
           <h2>Three keys, one sentence</h2>
           <ol className="steps">

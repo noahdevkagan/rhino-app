@@ -57,6 +57,10 @@ test("carries the below-the-fold SEO sections without disturbing the hero", asyn
   assert.match(html, /class="below-fold"/);
   assert.ok(html.indexOf('class="below-fold"') > html.indexOf('<main class="hero"'));
 
+  // No D1 binding in this render: the opt-in usage strip must hide, not error or show zeros.
+  assert.doesNotMatch(html, /class="stat-strip"/);
+  assert.match(html, /Share anonymous usage stats/);
+
   assert.match(html, /Three keys, one sentence/);
   assert.match(html, /What you get/);
   assert.match(html, /How Rhino Voice compares/);

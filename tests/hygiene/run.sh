@@ -65,18 +65,44 @@ echo "hygiene: [2/3] networking call sites classified"
 # configured by SUFeedURL) and Parakeet model downloads (inside FluidAudio).
 ALLOWED_NET_FILES="OpenSuperWhisper/Engines/SenseVoiceModelManager.swift
 OpenSuperWhisper/LLMModelManager.swift
+OpenSuperWhisper/Utils/UsageReporter.swift
 OpenSuperWhisper/WhisperModelManager.swift"
 
 actual=$(grep -rln "URLSession\|URLRequest\|NWConnection\|CFStream\|NSURLConnection" \
     "$ROOT/OpenSuperWhisper" --include='*.swift' | sed "s|$ROOT/||" | sort)
 unexpected=$(comm -23 <(echo "$actual") <(echo "$ALLOWED_NET_FILES" | sort))
 if [ -n "$unexpected" ]; then
-    echo "  FAIL: unclassified networking call sites (all three known ones are"
-    echo "  user-initiated model downloads — what is this?):"
+    echo "  FAIL: unclassified networking call sites (the known ones are user-initiated"
+    echo "  model downloads and the opt-in usage counts — what is this?):"
     echo "$unexpected" | sed 's/^/    /'
     fail=1
 else
-    echo "  every networking call site is a user-initiated model download"
+    echo "  every networking call site is a model download or the opt-in usage counts"
+fi
+
+# The opt-in usage counts (decisions.md 2026-11-02) stay narrow: OFF by default, one
+# endpoint, counts only. Each check is a tripwire for the reporter growing beyond that.
+REPORTER="$ROOT/OpenSuperWhisper/Utils/UsageReporter.swift"
+if ! grep -q '@UserDefault(key: "shareUsageStats", defaultValue: false)' "$ROOT/OpenSuperWhisper/Utils/AppPreferences.swift"; then
+    echo "  FAIL: shareUsageStats must default to false (opt-in only)"
+    fail=1
+fi
+urls=$(grep -oE 'https?://[^"]+' "$REPORTER" | sort -u)
+if [ "$urls" != "https://rhinovoice.app/api/usage" ]; then
+    echo "  FAIL: UsageReporter may only talk to https://rhinovoice.app/api/usage, found:"
+    echo "$urls" | sed 's/^/    /'
+    fail=1
+fi
+if ! grep -q 'guard isEnabled, Self.sendingAllowed' "$REPORTER"; then
+    echo "  FAIL: UsageReporter.sendIfDue must check the opt-in before sending"
+    fail=1
+fi
+# The payload carries counts only: no transcript text, app names or audio.
+payload=$(awk '/struct Payload/,/^    }$/' "$REPORTER")
+if echo "$payload" | grep -qiE 'text|transcript|bundle|appName|audio|String\]'; then
+    echo "  FAIL: UsageReporter payload grew a content field:"
+    echo "$payload" | sed 's/^/    /'
+    fail=1
 fi
 
 echo "hygiene: [3/3] dynamic egress check"

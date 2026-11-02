@@ -2371,3 +2371,19 @@ of their own in that window pastes the dictation); dropping the restore (the Oct
 reports wanted their clipboard kept). Not changed: the caret-context AX read before the
 paste, which may wake Chrome's accessibility tree and slow the page; revisit if Chrome
 pastes are still slow.
+
+## 2026-11-02 — Opt-in anonymous usage counts: the one network call that isn't a download or an update
+
+Noah wants real trust numbers on rhinovoice.app (words dictated, hours saved, active Macs) and
+data to improve Rhino. Rhino has no telemetry, so those totals can't exist without a send.
+Noah chose an **opt-in**, relaxing the "only updates + model downloads" rule for this one call.
+Bounds, each enforced by tests/hygiene (static) so it can't grow quietly:
+- **OFF by default** (`shareUsageStats` default false). While off, nothing is counted locally and nothing is sent.
+- **Counts only**: per-day words, dictations, seconds dictated, plus app version, macOS major,
+  and a random install UUID minted on opt-in and deleted on opt-out (opt-out also drops unsent days).
+  No text, audio, app names. The server never reads the request IP.
+- **One endpoint** (`https://rhinovoice.app/api/usage`), at most one attempt per 24 h, finished days
+  only, no retry loop. Debug builds never send unless `RHINO_USAGE_STATS_DEV=1`.
+- The site shows each total only above a floor (100k words, 100 Macs, …): a tiny number costs trust.
+Not included: transcript/audio "donation" for training. That is content, not counts, and needs
+its own per-item consent design; this toggle must never be widened into it.

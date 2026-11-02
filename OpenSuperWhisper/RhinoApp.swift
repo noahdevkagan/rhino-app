@@ -160,6 +160,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // Before onboarding can flip: installs onboarded before the free tier are grandfathered.
         MainActor.assumeIsolated { UnlockRhino.shared.bootstrap() }
 
+        // Opt-in anonymous usage counts: no-op unless the user turned it on. Delayed so it
+        // never competes with launch; at most one send a day.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
+            MainActor.assumeIsolated { UsageReporter.shared.sendIfDue() }
+        }
+
         // Load the word list the sound-alike pass needs now, not on the first dictation.
         let prefs = AppPreferences.shared
         if prefs.customDictionaryEnabled, prefs.customDictionarySoundAlikesEnabled,

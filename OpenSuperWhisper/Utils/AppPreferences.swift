@@ -495,4 +495,9 @@ final class AppPreferences {
     /// and the privacy promise is "never leaves your Mac", not "never exists".
     @UserDefault(key: "saveTranscriptionHistory", defaultValue: true)
     var saveTranscriptionHistory: Bool
+
+    /// Opt-in anonymous usage counts (UsageReporter). OFF by default: the only network call
+    /// Rhino makes beyond updates and model downloads, and only once the user turns it on.
+    @UserDefault(key: "shareUsageStats", defaultValue: false)
+    var shareUsageStats: Bool
 }

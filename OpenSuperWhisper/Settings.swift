@@ -401,6 +401,14 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var shareUsageStats: Bool {
+        didSet {
+            AppPreferences.shared.shareUsageStats = shareUsageStats
+            let enabled = shareUsageStats
+            Task { @MainActor in UsageReporter.shared.setEnabled(enabled) }
+        }
+    }
+
     init() {
         let prefs = AppPreferences.shared
         self.selectedEngine = prefs.selectedEngine
@@ -444,6 +452,7 @@ class SettingsViewModel: ObservableObject {
         self.retentionMaxAgeValue = prefs.retentionMaxAgeValue
         self.retentionMaxAgeUnit = RetentionUnit(rawValue: prefs.retentionMaxAgeUnit) ?? .days
         self.saveTranscriptionHistory = prefs.saveTranscriptionHistory
+        self.shareUsageStats = prefs.shareUsageStats
 
         if let savedPath = prefs.selectedWhisperModelPath ?? prefs.selectedModelPath {
             self.selectedModelURL = URL(fileURLWithPath: savedPath)
@@ -1506,6 +1515,10 @@ struct SettingsView: View {
                 SRow(title: "Save transcription history",
                      hint: "Off = nothing is ever written to disk — only the current transcription is kept in memory for pasting") {
                     SToggle(isOn: $viewModel.saveTranscriptionHistory)
+                }
+                SRow(title: "Share anonymous usage stats",
+                     hint: "Off by default. On = once a day Rhino sends counts only: words, dictations and seconds dictated per day, app version, macOS version, and a random ID you reset by turning this off. Never your words, audio, or app names. Helps us improve Rhino and show real totals on rhinovoice.app") {
+                    SToggle(isOn: $viewModel.shareUsageStats)
                 }
                 SRow(title: "Transcriptions directory",
                      hint: LocalizedStringKey(Recording.recordingsDirectory.path)) {

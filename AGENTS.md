@@ -25,7 +25,9 @@ OpenSuperWhisper (MIT), being rebranded and hardened. **HARD CONSTRAINT:
 all-local, zero cloud.** On-device ASR (whisper.cpp / Parakeet /
 SenseVoice) and embedded-only LLM cleanup (llama.cpp/Qwen in-process — no
 Ollama, no remote). The only acceptable network calls: Sparkle update
-checks to our own appcast and explicit user-initiated model downloads.
+checks to our own appcast, explicit user-initiated model downloads, and
+the opt-in anonymous usage counts (`Utils/UsageReporter.swift`, OFF by
+default, counts only, one endpoint; decisions.md 2026-11-02).
 Anything else that touches the network is a bug — tests/hygiene enforces
 this. The build plan lives in the sibling repo `~/rhino` (PLAN.md).
 

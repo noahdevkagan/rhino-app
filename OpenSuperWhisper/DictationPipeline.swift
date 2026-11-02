@@ -257,6 +257,9 @@ final class DictationPipeline: ObservableObject {
 
             if hasText {
                 UnlockRhino.shared.record(text: text)
+                UsageReporter.shared.record(
+                    words: UsageGate.wordCount(text),
+                    seconds: item.stoppedAt.timeIntervalSince(item.startedAt))
             }
 
             if hasText && AppPreferences.shared.saveTranscriptionHistory {

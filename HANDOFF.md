@@ -7,6 +7,18 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Opt-in anonymous usage stats + homepage stat strip (2026-11-02, branch claude/tender-feynman-ydh2s4)
+
+Plan (done in this branch): Settings → History & Privacy → "Share anonymous usage stats"
+(default off). `Utils/UsageReporter.swift` keeps per-day words/dictations/seconds while on and
+posts finished days once a day to rhinovoice.app/api/usage (random install id; opt-out wipes
+it). Site: `/api/usage` (strict validation, upsert per install+day into `usage_days` in the
+rhino-referrals D1, table auto-created like referral_clicks), `/api/stats`, and a stat strip at
+the top of the below-fold that hides each number under its floor. Hygiene pins default-off,
+the single URL and a counts-only payload. Not done: Swift build/tests (Linux session, CI is the
+gate), trying the toggle in Rhino Dev, deploy the site, release. Training-data donation is
+explicitly out of scope (decisions.md 2026-11-02).
+
 ### Deepak: dictation into claude.ai pastes the old clipboard (2026-10-29, branch claude/gallant-knuth-rz292w)
 
 Since 0.1.41 "Copy to clipboard" defaults off, so every paste borrows the clipboard and the

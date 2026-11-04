@@ -2371,3 +2371,18 @@ of their own in that window pastes the dictation); dropping the restore (the Oct
 reports wanted their clipboard kept). Not changed: the caret-context AX read before the
 paste, which may wake Chrome's accessibility tree and slow the page; revisit if Chrome
 pastes are still slow.
+
+## 2026-11-04 — Chrome resumes after dictation, from its tab's "Audio playing" label
+
+Noah: YouTube stayed paused after a cancelled dictation (any stop, in fact; browsers
+never resumed, see 2026-09-24). Chrome's Accessibility tab label ends in "- Audio
+playing", confirmed live on 156: it appears on play and clears on pause. Unlike an open
+audio stream, it separates playing from paused, and it needs no new permission.
+
+Play is sent only when exactly one tab was audible at the pause, no Music/Spotify was
+known playing, no player announced a change meanwhile, and that same tab is later present
+and quiet. The quiet check proves the Pause reached the tab, so a tab that ignores Pause
+can't lead to Play starting a paused Spotify. Chrome holds the label about 2 s, so a short
+dictation resumes up to that late; after 5 s of checks it gives up and stays paused. A title
+change also leaves it paused. English Chrome only (the label is translated); other browsers unchanged.
+Rejected: only pausing Music/Spotify (YouTube audio bleeds into the mic on speakers).

@@ -178,6 +178,140 @@ final class MediaResumeDecisionTests: XCTestCase {
         XCTAssertEqual(commands, [1, 1, 0])
     }
 
+    // MARK: Chrome tab labels
+
+    private var tabs: [String] = []
+    private let playingTab = "Video - YouTube - Audio playing"
+    private let quietTab = "Video - YouTube"
+
+    private func makeBrowserController() {
+        controller = MediaPlaybackController(
+            sendCommand: { [unowned self] command in
+                self.commands.append(command)
+                return command != 1 || self.pauseSucceeds
+            },
+            scanTabs: { [unowned self] done in done(self.tabs) })
+    }
+
+    func testAudibleTabThatGoesQuietResumes() {
+        makeBrowserController()
+        tabs = [playingTab, "Inbox"]
+        controller.pauseMedia()
+        tabs = [quietTab, "Inbox"]
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1, 0])
+    }
+
+    func testPausedTabNeverResumes() {
+        makeBrowserController()
+        tabs = [quietTab]
+        controller.pauseMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testTabThatStaysAudibleNeverResumes() {
+        // It never took the Pause, so Play could only reach some other player.
+        makeBrowserController()
+        tabs = [playingTab]
+        controller.pauseMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testClosedTabNeverResumes() {
+        makeBrowserController()
+        tabs = [playingTab]
+        controller.pauseMedia()
+        tabs = ["Inbox"]
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testTwoAudibleTabsNeverResume() {
+        makeBrowserController()
+        tabs = [playingTab, "Radio - Audio playing"]
+        controller.pauseMedia()
+        tabs = [quietTab, "Radio"]
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testPlayingMusicTakesPriorityOverAudibleTab() {
+        makeBrowserController()
+        tabs = [playingTab]
+        controller.notePlayerState(bundleID: music, state: "Playing")
+        controller.pauseMedia()
+        tabs = [quietTab]
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testPlayerChangeDuringRecordingCancelsTabResume() {
+        makeBrowserController()
+        tabs = [playingTab]
+        controller.pauseMedia()
+        controller.notePlayerState(bundleID: spotify, state: "Paused")
+        tabs = [quietTab]
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testFailedPauseNeverResumesTab() {
+        makeBrowserController()
+        pauseSucceeds = false
+        tabs = [playingTab]
+        controller.pauseMedia()
+        tabs = [quietTab]
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testDisablingSettingCancelsTabResume() {
+        makeBrowserController()
+        tabs = [playingTab]
+        controller.pauseMedia()
+        tabs = [quietTab]
+        controller.resumeMedia(allowResume: false)
+        XCTAssertEqual(commands, [1])
+    }
+
+    func testTabResumesOnceChromeClearsItsLabel() {
+        var pending: [() -> Void] = []
+        controller = MediaPlaybackController(
+            sendCommand: { [unowned self] command in
+                self.commands.append(command)
+                return true
+            },
+            scanTabs: { [unowned self] done in done(self.tabs) },
+            delay: { pending.append($1) })
+        tabs = [playingTab]
+        controller.pauseMedia()
+        controller.resumeMedia()
+        XCTAssertEqual(commands, [1])
+        tabs = [quietTab]
+        pending.removeFirst()()
+        XCTAssertEqual(commands, [1, 0])
+    }
+
+    func testNewRecordingAbandonsPendingTabResume() {
+        var pending: [() -> Void] = []
+        controller = MediaPlaybackController(
+            sendCommand: { [unowned self] command in
+                self.commands.append(command)
+                return true
+            },
+            scanTabs: { [unowned self] done in done(self.tabs) },
+            delay: { pending.append($1) })
+        tabs = [playingTab]
+        controller.pauseMedia()
+        controller.resumeMedia()
+        tabs = [quietTab]
+        controller.pauseMedia()
+        pending.removeFirst()()
+        XCTAssertEqual(commands, [1, 1])
+    }
+
     func testStopWithoutRecordingDoesNothing() {
         controller.resumeMedia()
         XCTAssertEqual(commands, [])

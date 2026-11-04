@@ -2386,3 +2386,22 @@ can't lead to Play starting a paused Spotify. Chrome holds the label about 2 s, 
 dictation resumes up to that late; after 5 s of checks it gives up and stays paused. A title
 change also leaves it paused. English Chrome only (the label is translated); other browsers unchanged.
 Rejected: only pausing Music/Spotify (YouTube audio bleeds into the mic on speakers).
+
+## 2026-11-04 — Whisper leaves memory after 5 idle minutes; cleanup no longer loads at launch
+
+Jacek: "Is it expected for Rhino to use 2gb of memory when its active?" Yes: Whisper stayed loaded
+forever and the cleanup model loaded at every launch. Now Whisper is released after 5 idle minutes
+and reloaded at recording start, and cleanup waits for the first recording.
+
+Measured on an M4, large-v3-turbo-q5_0 + cleanup model, real launches (Real Mem / footprint):
+launch 1.77 GB / 829 MB -> 617 MB / 676 MB; after 5 idle minutes 612 MB / 662 MB -> ~20 MB / ~35-70 MB.
+Peak while dictating is unchanged by design (not measured). The cost: Whisper reloads in ~2.7 s
+(steady over 3 in-process rounds), which only a dictation shorter than that waits for.
+
+- Parakeet is not released: footprint moved ~85-90 MB -> ~85 MB, so there's nothing to show for it.
+  CoreML/ANE memory sits outside these numbers, so its true cost is unmeasured. Reload was ~260 ms.
+- Rejected: a Settings toggle (Noah's "less is better", see 2026-10-19). The old
+  `unloadWhisperModelWhenIdle` pref still works for anyone who set it; it has had no UI since a95a5d4.
+- Loads are now shared (`engineLoad`), because a warm-up at recording start followed by a quick stop
+  would otherwise build two Whisper models at once. `engineGeneration` drops a load that finishes
+  after the selection changed, a race that already existed.

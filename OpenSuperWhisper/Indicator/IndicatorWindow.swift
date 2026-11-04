@@ -145,6 +145,8 @@ class IndicatorViewModel: ObservableObject {
         // stop only the transcript tokens remain to evaluate. Fire-and-forget on the backend's
         // serial inference queue; no-op when cleanup is off. (#latency)
         LLMPostProcessor.prewarm()
+        // Same for the speech engine, which also has an idle release.
+        TranscriptionService.shared.prewarmEngine()
 
         // Live transcription (Parakeet only): stream in parallel with the WAV recorder so the
         // indicator can show the text as the user speaks. Falls back to the file pass on stop.

@@ -277,7 +277,8 @@ final class AppPreferences {
 
     // When true, the Whisper model is freed from RAM (~1GB) between dictations and
     // reloaded on demand for each one — trades a bit of start latency for memory.
-    // Off by default (the model stays resident for the fastest first word).
+    // Off by default (the model stays resident between dictations, until
+    // `TranscriptionService.idleReleaseDelay` frees it).
     @UserDefault(key: "unloadWhisperModelWhenIdle", defaultValue: false)
     var unloadWhisperModelWhenIdle: Bool
     

@@ -7,6 +7,15 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Jacek: 2 GB while idle (2026-11-04, branch crxnamja/screenshot-fix-status)
+
+Whisper now leaves memory after 5 idle minutes and reloads at recording start; the cleanup model no
+longer loads at launch; engine loads are deduped. Parakeet stays loaded (no measurable gain). See
+decisions.md for numbers. Push gate passed; PR open from this branch. Not done: real hotkey
+dictations in Rhino Dev (feel the ~2.7 s reload after idle), merge, release, correct Noah's reply on
+AppSumo (https://appsumo.com/products/rhino/questions/high-memory-usage-1562602/; it said "defaults
+to not on", which was wrong; ask whether Jacek still sees 2 GB after 5 idle minutes).
+
 ### Deepak: dictation into claude.ai pastes the old clipboard (2026-10-29, branch claude/gallant-knuth-rz292w)
 
 Since 0.1.41 "Copy to clipboard" defaults off, so every paste borrows the clipboard and the

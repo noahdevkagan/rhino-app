@@ -103,8 +103,9 @@ class WhisperEngine: TranscriptionEngine {
     
     func initialize() async throws {
         try loadModel()
-        // Opt-in RAM saver (#171): the model just validated, so free it (~1GB) until a
-        // dictation actually needs it. Off by default — the model normally stays hot.
+        // Legacy opt-in RAM saver (#171): the model just validated, so free it (~1GB) until a
+        // dictation actually needs it. Off by default — `TranscriptionService` releases the
+        // whole engine after an idle spell instead.
         if AppPreferences.shared.unloadWhisperModelWhenIdle {
             unloadModel()
         }

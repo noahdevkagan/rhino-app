@@ -67,6 +67,15 @@ enum ModelCatalog {
         }
     }
 
+    /// Whether the active model is on disk, so loading it can't start a download.
+    static func activeModelIsInstalled() -> Bool {
+        guard let active = activeOption() else { return false }
+        if active.engine == "whisper" {
+            return FileManager.default.fileExists(atPath: active.identifier)
+        }
+        return parakeetModels().contains { $0.identifier == active.identifier }
+    }
+
     /// Switch the active engine + model, then invalidate the engine so the next
     /// recording re-initializes with the new choice. Mirrors the Settings UI.
     static func activate(_ option: DictationModelOption) {

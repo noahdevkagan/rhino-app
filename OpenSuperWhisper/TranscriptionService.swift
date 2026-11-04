@@ -21,8 +21,21 @@ class TranscriptionService: ObservableObject {
         currentEngine != nil && !isLoading
     }
 
+    /// Release a Whisper engine (690 MB measured on large-v3-turbo-q5_0, 2.7 s to reload) after
+    /// this long with no dictation. Same window as the cleanup model's idle release: Rhino sits
+    /// idle most of the day, and a burst of dictations still shares one load. Parakeet stays
+    /// loaded: its footprint barely moved when released. `var` so tests can shorten it.
+    static var idleReleaseDelay: TimeInterval = 5 * 60
+
     private var currentEngine: TranscriptionEngine?
     private var loadedEngineKind: String?
+    /// The load in flight, shared so a recording-start warm-up and the transcription that
+    /// follows it can't each build a model. `engineGeneration` bumps on invalidation, so a load
+    /// that finishes after the selection changed is dropped rather than installed.
+    private var engineLoad: (kind: String, task: Task<Void, Never>)?
+    private var engineGeneration = 0
+    private(set) var engineLoadsStarted = 0
+    private var idleReleaseTask: Task<Void, Never>?
 
     /// The model that actually produced the most recent transcription. Read by the
     /// recording-save paths so history shows the real model. Set on the main actor per
@@ -63,9 +76,25 @@ class TranscriptionService: ObservableObject {
         let selectedEngine = AppPreferences.shared.selectedEngine
         if currentEngine != nil, loadedEngineKind == selectedEngine { return }
 
+        let generation = engineGeneration
+        let load: Task<Void, Never>
+        if let inFlight = engineLoad, inFlight.kind == selectedEngine {
+            load = inFlight.task
+        } else {
+            load = Task { await loadEngine(selectedEngine, generation: generation) }
+            engineLoad = (selectedEngine, load)
+        }
+        await load.value
+        // Invalidated while waiting (model switch, one-off model): load what's selected now.
+        if generation != engineGeneration { await ensureEngineLoaded() }
+    }
+
+    private func loadEngine(_ selectedEngine: String, generation: Int) async {
+        engineLoadsStarted += 1
         isLoading = true
         engineError = nil
         print("Loading engine: \(selectedEngine)")
+        let loadStart = CFAbsoluteTimeGetCurrent()
 
         let result = await Task.detached(priority: .userInitiated) { () -> Result<TranscriptionEngine?, Error> in
             let engine: TranscriptionEngine?
@@ -84,6 +113,10 @@ class TranscriptionService: ObservableObject {
             }
         }.value
 
+        // Invalidated mid-load: drop this engine. Whoever invalidated owns the state now,
+        // including `isLoading` and `engineLoad` for any newer load.
+        guard generation == engineGeneration else { return }
+
         switch result {
         case .success(let engine):
             currentEngine = engine
@@ -94,14 +127,44 @@ class TranscriptionService: ObservableObject {
             if selectedEngine != "fluidaudio" {
                 await ParakeetModelCache.shared.evictAll()
             }
-            print("Engine loaded: \(selectedEngine)")
+            print(String(format: "Engine loaded: \(selectedEngine) in %.0fms",
+                         (CFAbsoluteTimeGetCurrent() - loadStart) * 1000))
+            scheduleIdleRelease()
         case .failure(let error):
             currentEngine = nil
             loadedEngineKind = nil
             engineError = "Failed to load engine: \(error.localizedDescription)"
             print("Failed to load engine: \(error)")
         }
+        engineLoad = nil
         isLoading = false
+    }
+
+    /// (Re)arms the idle release.
+    private func scheduleIdleRelease() {
+        idleReleaseTask?.cancel()
+        idleReleaseTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.idleReleaseDelay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await self?.releaseEngineIfIdle()
+        }
+    }
+
+    /// Frees the engine unless work arrived meanwhile. Holds the transcription gate, so it can
+    /// never land mid-transcription: starting one cancels this task, and finishing one re-arms
+    /// (cancelling a release still queued on the gate) before giving the gate up.
+    private func releaseEngineIfIdle() async {
+        await Self.engineGate.wait()
+        defer { Task { await Self.engineGate.signal() } }
+        guard !Task.isCancelled else { return }
+        // A recording longer than the window is about to need the engine.
+        if AudioRecorder.shared.isRecording {
+            scheduleIdleRelease()
+            return
+        }
+        guard currentEngine != nil, loadedEngineKind == "whisper" else { return }
+        reloadEngine()
+        print("Engine released after idle")
     }
 
     /// Load the selected engine now instead of on the first dictation, so the first
@@ -110,6 +173,17 @@ class TranscriptionService: ObservableObject {
     /// a surprise download for a configured install). No-op if already loaded.
     func preloadEngine() {
         guard AppPreferences.shared.hasCompletedOnboarding else { return }
+        Task { await ensureEngineLoaded() }
+    }
+
+    /// Warms the engine while the user is still dictating: reloads it if the idle release
+    /// dropped it, so at stop the model is ready or nearly so. Fire-and-forget, and joined by
+    /// the transcription if it's still loading. Skipped when the selected model isn't installed:
+    /// a recording that may yet be cancelled must not start a download.
+    func prewarmEngine() {
+        scheduleIdleRelease()
+        guard currentEngine == nil, AppPreferences.shared.hasCompletedOnboarding,
+              ModelCatalog.activeModelIsInstalled() else { return }
         Task { await ensureEngineLoaded() }
     }
 
@@ -129,6 +203,9 @@ class TranscriptionService: ObservableObject {
     /// load or download anything — that's deferred to next use. Clears any stale
     /// load error, since the invalidated engine gets a fresh attempt next time.
     func reloadEngine() {
+        engineGeneration &+= 1
+        engineLoad = nil
+        isLoading = false
         currentEngine = nil
         loadedEngineKind = nil
         engineError = nil
@@ -173,6 +250,7 @@ class TranscriptionService: ObservableObject {
     }
     
     func transcribeAudio(url: URL, settings: Settings, modelOverride: DictationModelOption? = nil) async throws -> String {
+        idleReleaseTask?.cancel()
         // Serialize every transcription across the app (dictation pipeline, file-drop queue,
         // reruns, CLI): the engines share one non-thread-safe context (e.g. whisper.cpp) and this
         // object's per-run state (isTranscribing/progress/lastUsedModel). Two overlapping calls
@@ -184,6 +262,7 @@ class TranscriptionService: ObservableObject {
         let restoreModel = applyOneOffModel(modelOverride)
         defer {
             restoreModel()
+            scheduleIdleRelease()
             Task { await Self.engineGate.signal() }
         }
 

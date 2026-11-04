@@ -216,14 +216,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         // has heard, and a lazily-created controller would know nothing on the first pause.
         _ = MediaPlaybackController.shared
 
-        // Speed: warm the heavy pieces at launch so the FIRST dictation doesn't
-        // pay their load time — the ASR engine (~1-3s) and, when cleanup is on,
-        // the LLM context. Both no-op when nothing is configured yet.
+        // Speed: warm the ASR engine (~1-3s) at launch so the FIRST dictation doesn't pay
+        // its load time. No-op when nothing is configured yet. The LLM context stays out of
+        // this (~1.2 GB at every login): recording start warms it (`LLMPostProcessor.prewarm`).
         Task { @MainActor in
             TranscriptionService.shared.preloadEngine()
-            if AppPreferences.shared.aiPostProcessingEnabled {
-                BuiltInLlamaBackend.shared.preload()
-            }
         }
     }
 

@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.44 — 2026-11-04
+
+- Rhino uses much less memory when you're not dictating. Whisper models now leave memory after 5 idle minutes and reload when you start recording, and the AI cleanup model waits for your first recording instead of loading at launch.
+- With "Pause media during recording" on, YouTube in Chrome now picks back up after you dictate instead of staying paused. It stays paused, as before, if two tabs were playing, if Music or Spotify was also playing, or if Chrome isn't in English.
+
 ## 0.1.43 — 2026-10-29
 
 - Dictating into Chrome works every time again. Since 0.1.41, a busy page such as claude.ai could take the paste after Rhino had already put your previous clipboard back, so your old clipboard got pasted instead of your words. Rhino now waits until the app has taken your words before it puts the clipboard back.

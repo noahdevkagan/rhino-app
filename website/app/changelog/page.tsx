@@ -9,6 +9,14 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.44",
+    date: "November 4, 2026",
+    changes: [
+      "Rhino uses much less memory when you're not dictating. Whisper models now leave memory after 5 idle minutes and reload when you start recording, and the AI cleanup model waits for your first recording instead of loading at launch.",
+      "With \"Pause media during recording\" on, YouTube in Chrome now picks back up after you dictate instead of staying paused. It stays paused, as before, if two tabs were playing, if Music or Spotify was also playing, or if Chrome isn't in English.",
+    ],
+  },
+  {
     version: "0.1.43",
     date: "October 29, 2026",
     changes: [

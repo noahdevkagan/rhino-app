@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.45",
+    date: "November 5, 2026",
+    changes: [
+      "Dictating into text boxes in Chrome, like a GitHub comment box, no longer stops working after the first dictation. Rhino now writes your words to the clipboard right away and puts your previous clipboard back 5 seconds later, so a ⌘V of your own in those 5 seconds pastes the dictation.",
+    ],
+  },
+  {
     version: "0.1.44",
     date: "November 4, 2026",
     changes: [

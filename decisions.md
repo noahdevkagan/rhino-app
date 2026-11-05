@@ -2409,3 +2409,7 @@ Peak while dictating is unchanged by design (not measured). The cost: Whisper re
 ## 2026-11-05 — AppSumo success screen keeps the code on screen and says to open Rhino first
 
 Russell, Rob, Andrea: "Unlock Rhino" did nothing, because the rhinovoice:// link does nothing until Rhino has been opened once, and the code was never shown again. The success screen now shows the code with a Copy button, tells buyers to open Rhino once, and gives the menu-bar fallback. Site-only change, so no CHANGELOG.md entry.
+
+## 2026-11-05 — Borrowed clipboard is written up front and restored on a fixed 5 s timer
+
+Reverses the lazy provider and read-triggered restore from 2026-10-29. Robert, Steve, Benjamin, Deepak: dictation stops landing in Chrome text boxes after the first one. Benjamin's Loom shows the first landing in a GitHub comment box and the next two not; "Copy to clipboard" on, which pastes without the lazy path, is reliable. The cost is the one rejected on 2026-10-29: a ⌘V of the user's own within 5 s pastes the dictation. A second borrow now saves anything copied since the first, because the longer window makes copy-then-dictate common. Each borrow restarts the 5 s, so steady dictation keeps the old clipboard away until 5 s after the last one. The evidence is not airtight: with Copy on, a dictation whose text was fitted to the caret still used the lazy path, and the fix was not tried with real dictation in Chrome before merge.

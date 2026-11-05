@@ -67,7 +67,7 @@ final class ClipboardRestoreTests: XCTestCase {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
         var textDuringPaste: String?
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05) {
             textDuringPaste = pasteboard.string(forType: .string)
             // The nspasteboard.org markers clipboard managers skip on: they must accompany the
             // text when paste runs, on the same item.
@@ -118,7 +118,7 @@ final class ClipboardRestoreTests: XCTestCase {
     func testBorrowForPasteRestoresPreviousContentsAfterDelay() {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05) {}
 
         let restoreWindowElapsed = expectation(description: "restore window elapsed")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { restoreWindowElapsed.fulfill() }
@@ -171,7 +171,7 @@ final class ClipboardRestoreTests: XCTestCase {
     func testBorrowForPasteSkipsRestoreWhenSomethingElseWroteMeanwhile() {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05) {}
         ClipboardUtil.copyToClipboard("user copy in between", to: pasteboard)
 
         let restoreWindowElapsed = expectation(description: "restore window elapsed")
@@ -180,79 +180,73 @@ final class ClipboardRestoreTests: XCTestCase {
         XCTAssertEqual(pasteboard.string(forType: .string), "user copy in between")
     }
 
-    // MARK: - Restore waits for the paste target to read (Deepak, 0.1.41)
+    // MARK: - Fixed restore timer (Robert, Steve, Benjamin, Deepak)
 
-    /// Waits on the main run loop, so restore timers and read callbacks can fire.
+    /// Waits on the main run loop, so restore timers can fire.
     private func spin(_ seconds: TimeInterval) {
         let elapsed = expectation(description: "waited \(seconds)s")
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { elapsed.fulfill() }
         wait(for: [elapsed], timeout: seconds + 2)
     }
 
-    func testLateReadStillGetsTheDictationThenRestores() {
-        // Chrome on a busy page services the ⌘V long after the minimum delay. Under the old fixed
-        // timer it then pasted the user's previous clipboard; now the text waits for that read.
-        ClipboardUtil.copyToClipboard("original", to: pasteboard)
-
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05,
-                                     readGrace: 0.05, unreadFallback: 5) {}
-
-        spin(0.3)
-        XCTAssertEqual(pasteboard.string(forType: .string), "transcription",
-                       "a paste serviced after the minimum delay must still get the dictation")
-        spin(0.3)
-        XCTAssertEqual(pasteboard.string(forType: .string), "original",
-                       "the read, not the five-second fallback, brings the clipboard back")
+    func testDefaultRestoreDelayCoversSlowPastes() {
+        XCTAssertEqual(ClipboardUtil.borrowRestoreDelay, 5.0)
     }
 
-    func testUnreadBorrowIsNotRestoredAtTheMinimumDelay() {
+    func testLatePasteStillGetsTheDictationThenRestores() {
+        // Chrome on a busy page services the ⌘V well after the borrow. Every read until the timer
+        // gets the dictation, however many there are.
+        ClipboardUtil.copyToClipboard("original", to: pasteboard)
+
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.5) {}
+
+        spin(0.2)
+        XCTAssertEqual(pasteboard.string(forType: .string), "transcription")
+        spin(0.1)
+        XCTAssertEqual(pasteboard.string(forType: .string), "transcription")
+        spin(0.5)
+        XCTAssertEqual(pasteboard.string(forType: .string), "original")
+    }
+
+    func testReadingTheTextDoesNotBringTheRestoreForward() {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
         var borrowedCount = 0
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05,
-                                     unreadFallback: 0.6) {
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.5) {
             borrowedCount = pasteboard.changeCount
+            _ = pasteboard.string(forType: .string)
         }
 
-        spin(0.3)
-        // changeCount (not a string read, which would count as the paste) shows nothing restored.
+        spin(0.2)
         XCTAssertEqual(pasteboard.changeCount, borrowedCount)
         spin(0.6)
         XCTAssertEqual(pasteboard.string(forType: .string), "original")
     }
 
-    func testEarlyReadStillWaitsForTheMinimumDelay() {
-        // A clipboard manager that ignores the markers may read first; the restore never comes
-        // sooner than the old fixed delay.
+    func testOverlappingBorrowRestartsTheTimer() {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
-        var borrowedCount = 0
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.4,
-                                     readGrace: 0.01, unreadFallback: 5) {
-            borrowedCount = pasteboard.changeCount
-            _ = pasteboard.string(forType: .string)
-        }
-
-        spin(0.15)
-        XCTAssertEqual(pasteboard.changeCount, borrowedCount)
+        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.5) {}
+        spin(0.3)
+        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.5) {}
+        spin(0.3)
+        XCTAssertEqual(pasteboard.string(forType: .string), "transcription B",
+                       "the first borrow's timer must not take away the second dictation")
         spin(0.5)
         XCTAssertEqual(pasteboard.string(forType: .string), "original")
     }
 
-    func testOverlappingBorrowAfterAReadStillRestoresTheOriginal() {
+    func testUserCopyBetweenOverlappingBorrowsIsWhatComesBack() {
+        // Copy something, then dictate again inside the restore window: the second borrow must
+        // save that copy, not bring back the older snapshot over it.
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
-        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05,
-                                     readGrace: 0.05, unreadFallback: 5) {
-            _ = pasteboard.string(forType: .string)
-        }
-        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05,
-                                     readGrace: 0.05, unreadFallback: 5) {
-            _ = pasteboard.string(forType: .string)
-        }
+        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05) {}
+        ClipboardUtil.copyToClipboard("user copy in between", to: pasteboard)
+        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05) {}
 
-        spin(0.4)
-        XCTAssertEqual(pasteboard.string(forType: .string), "original")
+        spin(0.3)
+        XCTAssertEqual(pasteboard.string(forType: .string), "user copy in between")
     }
 
     // MARK: - Overlapping borrows (#69 review)
@@ -264,8 +258,8 @@ final class ClipboardRestoreTests: XCTestCase {
         // brings back the user's contents.
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
-        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
-        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05) {}
 
         let restoreWindowElapsed = expectation(description: "restore window elapsed")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { restoreWindowElapsed.fulfill() }
@@ -278,7 +272,7 @@ final class ClipboardRestoreTests: XCTestCase {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
         for n in 1...4 {
-            ClipboardUtil.borrowForPaste("transcription \(n)", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
+            ClipboardUtil.borrowForPaste("transcription \(n)", on: pasteboard, restoreAfter: 0.05) {}
         }
 
         let restoreWindowElapsed = expectation(description: "restore window elapsed")
@@ -291,8 +285,8 @@ final class ClipboardRestoreTests: XCTestCase {
         // Newer content beats our restore even when borrows have coalesced.
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
-        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
-        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05) {}
         ClipboardUtil.copyToClipboard("user copy in between", to: pasteboard)
 
         let restoreWindowElapsed = expectation(description: "restore window elapsed")
@@ -305,7 +299,7 @@ final class ClipboardRestoreTests: XCTestCase {
         // Once a borrow's restore has fired, the next borrow is a fresh cycle: it must snapshot
         // whatever is on the pasteboard NOW, not resurrect the coalescing state of the last one.
         ClipboardUtil.copyToClipboard("first original", to: pasteboard)
-        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05) {}
 
         let firstRestoreDone = expectation(description: "first restore done")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { firstRestoreDone.fulfill() }
@@ -313,7 +307,7 @@ final class ClipboardRestoreTests: XCTestCase {
         XCTAssertEqual(pasteboard.string(forType: .string), "first original")
 
         ClipboardUtil.copyToClipboard("second original", to: pasteboard)
-        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05) {}
 
         let secondRestoreDone = expectation(description: "second restore done")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { secondRestoreDone.fulfill() }
@@ -329,8 +323,8 @@ final class ClipboardRestoreTests: XCTestCase {
         ClipboardUtil.copyToClipboard("original A", to: pasteboard)
         ClipboardUtil.copyToClipboard("original B", to: other)
 
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05, unreadFallback: 0.05) {}
-        ClipboardUtil.borrowForPaste("transcription", on: other, restoreAfter: 0.05, unreadFallback: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.05) {}
+        ClipboardUtil.borrowForPaste("transcription", on: other, restoreAfter: 0.05) {}
 
         let restoreWindowElapsed = expectation(description: "restore window elapsed")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { restoreWindowElapsed.fulfill() }

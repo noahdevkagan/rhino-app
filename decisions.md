@@ -2405,3 +2405,7 @@ Peak while dictating is unchanged by design (not measured). The cost: Whisper re
 - Loads are now shared (`engineLoad`), because a warm-up at recording start followed by a quick stop
   would otherwise build two Whisper models at once. `engineGeneration` drops a load that finishes
   after the selection changed, a race that already existed.
+
+## 2026-11-05 — Borrowed clipboard is written up front and restored on a fixed 5 s timer
+
+Reverses the lazy provider and read-triggered restore from 2026-10-29. Robert, Steve, Benjamin, Deepak: dictation stops landing in Chrome text boxes after the first one. Benjamin's Loom shows the first landing in a GitHub comment box and the next two not; "Copy to clipboard" on, which pastes without the lazy path, is reliable. The cost is the one rejected on 2026-10-29: a ⌘V of the user's own within 5 s pastes the dictation. A second borrow now saves anything copied since the first, because the longer window makes copy-then-dictate common.

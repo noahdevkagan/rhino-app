@@ -2405,3 +2405,7 @@ Peak while dictating is unchanged by design (not measured). The cost: Whisper re
 - Loads are now shared (`engineLoad`), because a warm-up at recording start followed by a quick stop
   would otherwise build two Whisper models at once. `engineGeneration` drops a load that finishes
   after the selection changed, a race that already existed.
+
+## 2026-11-05 — AppSumo success screen keeps the code on screen and says to open Rhino first
+
+Russell, Rob, Andrea: "Unlock Rhino" did nothing, because the rhinovoice:// link does nothing until Rhino has been opened once, and the code was never shown again. The success screen now shows the code with a Copy button, tells buyers to open Rhino once, and gives the menu-bar fallback. Site-only change, so no CHANGELOG.md entry.

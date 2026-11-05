@@ -62,6 +62,12 @@ export default function RedeemForm() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!copyResult) return;
+    const reset = setTimeout(() => setCopyResult(null), 4000);
+    return () => clearTimeout(reset);
+  }, [copyResult]);
+
   async function redeem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedCode = normalizeCode(code);
@@ -93,7 +99,7 @@ export default function RedeemForm() {
     }).catch(() => {});
   }
 
-  /** The clipboard can be refused or missing, so fall back to selecting the code for a manual ⌘C. */
+  /** The clipboard can be refused or missing, so fall back to selecting the code for a manual copy. */
   async function copyRedeemedCode() {
     try {
       await navigator.clipboard.writeText(normalizeCode(code));
@@ -123,7 +129,11 @@ export default function RedeemForm() {
               spellCheck={false}
             />
             <button className="button redeemed-code-copy" type="button" onClick={copyRedeemedCode}>
-              {copyResult === "copied" ? "Copied" : copyResult === "refused" ? "Press ⌘C" : "Copy"}
+              {copyResult === "copied"
+                ? "Copied"
+                : copyResult === "refused"
+                  ? mac.support === "not-mac" ? "Selected" : "Press ⌘C"
+                  : "Copy"}
             </button>
           </div>
         </div>

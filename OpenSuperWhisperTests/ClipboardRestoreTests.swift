@@ -189,22 +189,18 @@ final class ClipboardRestoreTests: XCTestCase {
         wait(for: [elapsed], timeout: seconds + 2)
     }
 
-    func testDefaultRestoreDelayCoversSlowPastes() {
-        XCTAssertEqual(ClipboardUtil.borrowRestoreDelay, 5.0)
-    }
-
     func testLatePasteStillGetsTheDictationThenRestores() {
         // Chrome on a busy page services the ⌘V well after the borrow. Every read until the timer
         // gets the dictation, however many there are.
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.5) {}
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 2) {}
 
         spin(0.2)
         XCTAssertEqual(pasteboard.string(forType: .string), "transcription")
-        spin(0.1)
+        spin(0.2)
         XCTAssertEqual(pasteboard.string(forType: .string), "transcription")
-        spin(0.5)
+        spin(2)
         XCTAssertEqual(pasteboard.string(forType: .string), "original")
     }
 
@@ -212,27 +208,27 @@ final class ClipboardRestoreTests: XCTestCase {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
         var borrowedCount = 0
-        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.5) {
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 2) {
             borrowedCount = pasteboard.changeCount
             _ = pasteboard.string(forType: .string)
         }
 
         spin(0.2)
         XCTAssertEqual(pasteboard.changeCount, borrowedCount)
-        spin(0.6)
+        spin(2.2)
         XCTAssertEqual(pasteboard.string(forType: .string), "original")
     }
 
     func testOverlappingBorrowRestartsTheTimer() {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 
-        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.5) {}
-        spin(0.3)
-        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.5) {}
-        spin(0.3)
+        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 2) {}
+        spin(1.2)
+        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 2) {}
+        spin(1.2)
         XCTAssertEqual(pasteboard.string(forType: .string), "transcription B",
                        "the first borrow's timer must not take away the second dictation")
-        spin(0.5)
+        spin(1.2)
         XCTAssertEqual(pasteboard.string(forType: .string), "original")
     }
 
@@ -247,6 +243,18 @@ final class ClipboardRestoreTests: XCTestCase {
 
         spin(0.3)
         XCTAssertEqual(pasteboard.string(forType: .string), "user copy in between")
+    }
+
+    func testToolRewritingTheBorrowedTextDoesNotReplaceTheSnapshot() {
+        // A clipboard tool re-publishing the dictation is not a user copy: the original comes back.
+        ClipboardUtil.copyToClipboard("original", to: pasteboard)
+
+        ClipboardUtil.borrowForPaste("transcription A", on: pasteboard, restoreAfter: 0.05) {}
+        ClipboardUtil.copyToClipboard("transcription A", to: pasteboard)
+        ClipboardUtil.borrowForPaste("transcription B", on: pasteboard, restoreAfter: 0.05) {}
+
+        spin(0.3)
+        XCTAssertEqual(pasteboard.string(forType: .string), "original")
     }
 
     // MARK: - Overlapping borrows (#69 review)

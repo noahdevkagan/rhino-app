@@ -61,6 +61,7 @@ enum ClipboardUtil {
     /// A borrow whose restore hasn't fired yet.
     private struct PendingBorrow {
         let saved: Snapshot
+        let text: String
         let changeCount: Int
         let restore: DispatchWorkItem
     }
@@ -71,8 +72,8 @@ enum ClipboardUtil {
     /// dictated text, the very thing "Copy to clipboard" off exists to prevent. Instead it inherits
     /// the pending borrow's snapshot and cancels its restore, so any number of overlapping borrows
     /// collapse into a single restore of the original contents. The exception is a pasteboard
-    /// something else has written to since the pending borrow: that content is newer than the
-    /// snapshot, so it is what gets saved. Main-thread only, like every caller (the restore timers
+    /// holding something other than the borrowed text: that is a newer copy, so it is what gets
+    /// saved. A tool re-writing the borrowed text doesn't count. Main-thread only, like every caller (the restore timers
     /// are on the main queue too, so there is no interleaving).
     private static var pendingBorrows: [NSPasteboard.Name: PendingBorrow] = [:]
 
@@ -81,8 +82,8 @@ enum ClipboardUtil {
     /// transcriptions on the clipboard and it's only borrowed as the paste vehicle (#44). The
     /// restore is skipped if anything else writes to the pasteboard meanwhile (a user copy, a
     /// clipboard manager): newer content wins over our restore. Overlapping borrows — a dictation
-    /// insert followed by the paste-last shortcut — coalesce onto the first borrow's snapshot, so
-    /// the user's clipboard comes back no matter how many borrows stacked up.
+    /// insert followed by the paste-last shortcut — coalesce onto one snapshot and one restore,
+    /// timed from the latest borrow.
     static func borrowForPaste(_ text: String,
                                on pasteboard: NSPasteboard = .general,
                                restoreAfter delay: TimeInterval = borrowRestoreDelay,
@@ -91,7 +92,9 @@ enum ClipboardUtil {
         let saved: Snapshot
         if let pending = pendingBorrows[name] {
             pending.restore.cancel()
-            saved = pasteboard.changeCount == pending.changeCount ? pending.saved : snapshot(of: pasteboard)
+            let copiedSince = pasteboard.changeCount != pending.changeCount
+                && pasteboard.string(forType: .string) != pending.text
+            saved = copiedSince ? snapshot(of: pasteboard) : pending.saved
         } else {
             saved = snapshot(of: pasteboard)
         }
@@ -114,7 +117,8 @@ enum ClipboardUtil {
             // written during the borrow changes changeCount and the restore is skipped above.
             Self.restore(saved, to: pasteboard, markTransient: true)
         }
-        pendingBorrows[name] = PendingBorrow(saved: saved, changeCount: borrowChangeCount, restore: restoreItem)
+        pendingBorrows[name] = PendingBorrow(saved: saved, text: text, changeCount: borrowChangeCount,
+                                             restore: restoreItem)
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: restoreItem)
         paste()
     }

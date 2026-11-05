@@ -25,6 +25,7 @@ clipboard on works. Fix: `ClipboardUtil.borrowForPaste` serves the text lazily a
 0.25 s after the first read (never before 1.0 s), 5 s if nothing reads. Unit tests written,
 not run (Linux session): CI Build Check is the gate. Not done: try it in Rhino Dev on
 claude.ai in Chrome, release, tell Deepak he can turn Copy to clipboard back off.
+Superseded 2026-11-05 (#111): text is written up front and restored on a fixed 5 s timer; see decisions.md.
 
 ### Steve: Sentence case switch + "Hi Steve" comma (2026-10-28, branch claude/nice-ptolemy-ggiqsu)
 

@@ -344,10 +344,13 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /Getting ready…/);
   assert.match(html, /Needs a Mac with Apple Silicon \(M1 or newer\) and macOS 14\+/);
   assert.match(html, /noahkagan@gmail\.com/);
-  assert.match(
-    await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8"),
-    /Rhino-0\.1\.44\.dmg/,
-  );
+  const form = await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8");
+  assert.match(form, /Rhino-0\.1\.44\.dmg/);
+  // The success screen only renders after a valid code, so check its source: rhinovoice:// does
+  // nothing until Rhino has been opened once, and the code must stay on screen for the fallback.
+  assert.match(form, /drag Rhino to Applications, then open Rhino once\./);
+  assert.match(form, /choose Get Rhino Unlimited, paste your code and press Unlock\./);
+  assert.match(form, /navigator\.clipboard\.writeText/);
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });
 

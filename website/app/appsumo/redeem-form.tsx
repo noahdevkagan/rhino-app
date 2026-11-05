@@ -35,6 +35,8 @@ export default function RedeemForm() {
   const [status, setStatus] = useState<Status>("loading");
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
+  const [copyResult, setCopyResult] = useState<"copied" | "refused" | null>(null);
+  const redeemedCodeBox = useRef<HTMLInputElement>(null);
   const hashes = useRef<Set<string> | null>(null);
   const mac = useMacVerdict();
 
@@ -91,12 +93,40 @@ export default function RedeemForm() {
     }).catch(() => {});
   }
 
+  /** The clipboard can be refused or missing, so fall back to selecting the code for a manual ⌘C. */
+  async function copyRedeemedCode() {
+    try {
+      await navigator.clipboard.writeText(normalizeCode(code));
+      setCopyResult("copied");
+    } catch {
+      redeemedCodeBox.current?.focus();
+      redeemedCodeBox.current?.select();
+      setCopyResult("refused");
+    }
+  }
+
   if (status === "success") {
     return (
       <section className="redemption-card redemption-success" aria-live="polite">
         <span className="success-check" aria-hidden="true">✓</span>
         <p className="redemption-eyebrow">Code redeemed</p>
         <h1>You&apos;re in.</h1>
+        <div className="redeemed-code">
+          <label htmlFor="redeemed-code">Your code</label>
+          <div className="redeemed-code-row">
+            <input
+              id="redeemed-code"
+              ref={redeemedCodeBox}
+              className="redeemed-code-input"
+              value={normalizeCode(code)}
+              readOnly
+              spellCheck={false}
+            />
+            <button className="button redeemed-code-copy" type="button" onClick={copyRedeemedCode}>
+              {copyResult === "copied" ? "Copied" : copyResult === "refused" ? "Press ⌘C" : "Copy"}
+            </button>
+          </div>
+        </div>
         <ol className="unlock-steps">
           <li>
             <div className="unlock-step-body">
@@ -110,7 +140,7 @@ export default function RedeemForm() {
                 </a>
               </MacDownloadGate>
             </div>
-            <span>Open the DMG and drag Rhino to Applications.</span>
+            <span>Open the DMG, drag Rhino to Applications, then open Rhino once.</span>
           </li>
           <li>
             <a
@@ -119,7 +149,10 @@ export default function RedeemForm() {
             >
               Unlock Rhino
             </a>
-            <span>Once Rhino is installed, click this. Rhino opens already unlimited.</span>
+            <span>
+              Rhino opens already unlimited. Nothing happened? Click the Rhino icon in your menu bar,
+              choose Get Rhino Unlimited, paste your code and press Unlock.
+            </span>
           </li>
         </ol>
         <p className="redemption-help">

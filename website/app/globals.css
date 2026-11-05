@@ -577,6 +577,27 @@ footer span { color: var(--ink); font-weight: 700; }
 .redemption-success .redemption-eyebrow { background: #e8f5ec; color: #348454; }
 .redemption-success .download-button { margin-top: 28px; }
 
+.redemption-success .unlock-steps span { text-align: left; }
+.redeemed-code { margin-top: 24px; text-align: left; }
+.redeemed-code label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 13px; }
+.redeemed-code-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.redeemed-code-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 2px solid var(--line);
+  border-radius: 13px;
+  background: white;
+  color: var(--ink);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: 0.03em;
+}
+.redeemed-code-input:focus { outline: none; border-color: var(--coral); box-shadow: 0 0 0 4px rgba(255, 112, 95, 0.12); }
+.redeemed-code-copy { flex: 0 0 auto; min-width: 104px; margin: 0; }
+
 
 /* ---- Long-form pages: comparisons, alternatives, and the homepage's
    below-the-fold SEO sections. The hero above them stays one screen. ---- */

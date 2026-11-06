@@ -2413,3 +2413,23 @@ Russell, Rob, Andrea: "Unlock Rhino" did nothing, because the rhinovoice:// link
 ## 2026-11-05 — Borrowed clipboard is written up front and restored on a fixed 5 s timer
 
 Reverses the lazy provider and read-triggered restore from 2026-10-29. Robert, Steve, Benjamin, Deepak: dictation stops landing in Chrome text boxes after the first one. Benjamin's Loom shows the first landing in a GitHub comment box and the next two not; "Copy to clipboard" on, which pastes without the lazy path, is reliable. The cost is the one rejected on 2026-10-29: a ⌘V of the user's own within 5 s pastes the dictation. A second borrow now saves anything copied since the first, because the longer window makes copy-then-dictate common. Each borrow restarts the 5 s, so steady dictation keeps the old clipboard away until 5 s after the last one. The evidence is not airtight: with Copy on, a dictation whose text was fitted to the caret still used the lazy path, and the fix was not tried with real dictation in Chrome before merge.
+
+## 2026-11-05 — Long messages get paragraphs from code, not the model
+
+Noah: a 90-second dictated Slack message opening with a greeting came out as one block with
+cleanup on. The cue gate let it through and no guard fired: the model returned it unchanged.
+Replaying through installed Rhino with `Rhino cleanup`, the model laid out messages up to about
+500 characters and returned one block from 554 to 1,379 (an ordinary neutral email failed from
+about 650, with a sign-off from 526). More prompt wording is unlikely to help, since the prompt
+already says "never one solid block", so `MessageLayout` does this deterministically: greeting
+line, paragraphs on topic cues or at about 3 sentences, sign-off block. Noah prefers an occasional
+odd break to a wall of text.
+
+- Runs on messages (opening greeting or a closing sign-off sentence) with a line of 400+ characters.
+  Shorter ones stay with the model, which does them well.
+- Those skip the model, saving the call, unless they carry a list cue. Then the model runs first.
+- Runs after the model passes, so it also covers transcripts over the model's input budget and
+  people who have not downloaded the model, like spoken punctuation. Verbatim apps and non-English
+  dictations are excluded.
+- Long rambles with no greeting or sign-off stay one block: guessing a topic structure with no sign
+  it is a message is a separate decision.

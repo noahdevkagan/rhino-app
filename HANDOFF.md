@@ -7,6 +7,14 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Long messages stay one block (2026-11-05, branch crxnamja/dxwa1)
+
+The cleanup model stops laying out messages past about 500 characters. Plan: `MessageLayout` adds
+greeting line, paragraphs and sign-off block in code after the model passes; such messages skip the
+model unless they carry a list cue. See decisions.md. Unit tests pass and it was replayed through
+the dev build with and without the model. Uncommitted. Not done: a real dictation pasted into Slack
+(including inside a bullet), commit, PR, release.
+
 ### Jacek: 2 GB while idle (2026-11-04, branch crxnamja/screenshot-fix-status)
 
 Whisper now leaves memory after 5 idle minutes and reloads at recording start; the cleanup model no

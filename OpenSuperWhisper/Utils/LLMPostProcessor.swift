@@ -84,6 +84,22 @@ enum LLMPostProcessor {
         // frontmost now.
         if prefs.verbatimInAIApps, isVerbatimTarget(bundleID) { return text }
 
+        let cleaned = await runModelPasses(text)
+        // The model leaves long messages as one block, so their layout comes from code,
+        // whether or not the model ran. English only, like the cues it reads.
+        guard smartFormatting,
+              resolvedCleanupLanguageCode(configuredCode: prefs.whisperLanguage, text: cleaned) == "en"
+        else { return cleaned }
+        return MessageLayout.apply(cleaned)
+    }
+
+    /// The model passes: spoken edits, then cleanup. Each falls back to the text it was given.
+    private static func runModelPasses(_ text: String) async -> String {
+        let prefs = AppPreferences.shared
+        let general = prefs.aiPostProcessingEnabled
+        let smartFormatting = prefs.smartFormattingEnabled
+        let spokenEdits = prefs.spokenEditsEnabled
+
         // A long transcript cannot round-trip the model's 4096-token context: the passes
         // re-emit the whole text, so prompt (system + formatting examples, ~2k tokens
         // worst case) + input + an equally long output must all fit. Past this size the
@@ -144,9 +160,12 @@ enum LLMPostProcessor {
         // rewrites were on exactly those dictations (docs/performance-audit-2026-10-05.md).
         // So the pass runs only when there is layout to produce. An applied spoken edit
         // comes back unpolished and always goes on to cleanup. English only: the cues are
-        // English words, and other languages keep the pass as it was.
-        if prefs.cleanupOnlyWhenNeeded, smartFormatting, languageCode == "en",
-           working == text, !containsLayoutCue(working) {
+        // English words, and other languages keep the pass as it was. A long message skips it
+        // too: MessageLayout does its layout, and the model would only copy it (a list cue
+        // still runs the pass, in case the model can lay the list out).
+        if prefs.cleanupOnlyWhenNeeded, smartFormatting, languageCode == "en", working == text,
+           !containsLayoutCue(working)
+            || (MessageLayout.qualifies(working) && !containsListOrBreakCue(working)) {
             return working
         }
 
@@ -517,11 +536,17 @@ enum LLMPostProcessor {
     /// a spoken "new line" / "new paragraph". Deliberately generous — a false hit only runs
     /// the cleanup pass, which is what every dictation used to get.
     static func containsLayoutCue(_ text: String) -> Bool {
-        let number = #"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)"#
         let cues = #"^\W*(?:hi|hey|hello|dear|good (?:morning|afternoon|evening))\b"#
             + #"|\b(?:thanks(?: so much| a lot| again)?|thank you(?: so much)?|best(?: wishes| regards)?"#
             + #"|(?:kind |warm )?regards|cheers|sincerely|talk soon)[,.!]?(?:\s+\w+){0,2}\W*$"#
-            + #"|\b(?:new|next) (?:line|paragraph)\b"#
+        return text.range(of: cues, options: [.regularExpression, .caseInsensitive]) != nil
+            || containsListOrBreakCue(text)
+    }
+
+    /// The list and spoken-break half of `containsLayoutCue`, without the message cues.
+    static func containsListOrBreakCue(_ text: String) -> Bool {
+        let number = #"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)"#
+        let cues = #"\b(?:new|next) (?:line|paragraph)\b"#
             + #"|\bbullet(?:s|ed)?\b|\b(?:a|the|this|to-?do) list\b"#
             + #"|\b(?:item|number|step|point) "# + number + #"\b"#
             + #"|\bfirst(?:ly)?\b.*\bsecond(?:ly)?\b"#

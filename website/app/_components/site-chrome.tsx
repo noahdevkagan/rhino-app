@@ -29,7 +29,7 @@ export function BuyForm({ compact = false }: { compact?: boolean }) {
     <form className={compact ? "buy-form buy-form-compact" : "buy-form"} action={paypalAction} method="post">
       <input type="hidden" name="cmd" value="_xclick" />
       <input type="hidden" name="business" value="paypal@okdork.com" />
-      <input type="hidden" name="item_name" value="Rhino for Mac" />
+      <input type="hidden" name="item_name" value="Rhino for Mac - get your unlock code at rhinovoice.app/thanks" />
       <input type="hidden" name="amount" value={rhinoPrice.toFixed(2)} />
       <input type="hidden" name="currency_code" value="USD" />
       <input type="hidden" name="no_shipping" value="1" />

@@ -39,7 +39,7 @@ test("server-renders the concise PayPal purchase page", async () => {
   assert.match(html, /href="\/get"/);
   assert.match(html, /action="https:\/\/www\.paypal\.com\/cgi-bin\/webscr"/);
   assert.match(html, /name="business" value="paypal@okdork\.com"/);
-  assert.match(html, /name="item_name" value="Rhino for Mac"/);
+  assert.match(html, /name="item_name" value="Rhino for Mac - get your unlock code at rhinovoice\.app\/thanks"/);
   assert.match(html, /name="amount" value="20\.00"/);
   assert.match(html, /name="return" value="https:\/\/rhinovoice\.app\/thanks"/);
   assert.match(html, /30-day money-back guarantee/);

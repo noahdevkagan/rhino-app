@@ -290,6 +290,12 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(thanks, /Rhino-0\.1\.45\.dmg/);
   assert.match(thanks, /RHINO-33MY-Q56S/);
   assert.match(thanks, /href="rhinovoice:\/\/unlock\?code=RHINO-33MY-Q56S"/);
+  // PayPal requires the return page to confirm payment and the emailed receipt.
+  assert.match(thanks, /Your payment is complete\. PayPal emailed you a receipt\./);
+  // The code is big and copyable, with the one place to paste it spelled out.
+  assert.match(thanks, /class="unlock-code"/);
+  assert.match(thanks, /Copy code/);
+  assert.match(thanks, /Get Rhino Unlimited/);
   const download = await (await render("/download")).text();
   assert.match(download, /Download Rhino free/);
   assert.match(download, /href="\/get"/);

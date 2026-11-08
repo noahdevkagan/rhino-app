@@ -24,6 +24,7 @@ export default function Thanks() {
           🦏
         </span>
         <h1>Thanks for buying Rhino.</h1>
+        <p className="payment-note">Your payment is complete and PayPal has emailed you a receipt.</p>
         <ol className="unlock-steps">
           <li>
             <a className="button button-primary download-button" href={downloadUrl}>

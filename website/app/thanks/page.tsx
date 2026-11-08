@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CopyCode } from "./copy-code";
 
 export const metadata: Metadata = {
   title: "Thanks for buying Rhino",
@@ -24,25 +25,35 @@ export default function Thanks() {
           🦏
         </span>
         <h1>Thanks for buying Rhino.</h1>
+        <p className="payment-note">
+          Your payment is complete. PayPal emailed you a receipt.
+        </p>
         <ol className="unlock-steps">
           <li>
             <a className="button button-primary download-button" href={downloadUrl}>
               Download Rhino for Mac
             </a>
-            <span>Open the DMG and drag Rhino to Applications.</span>
+            <span>Open the DMG and drag Rhino to Applications. Already have Rhino? Skip to step 2.</span>
           </li>
           <li>
             <a className="button button-primary" href={`rhinovoice://unlock?code=${unlockCode}`}>
               Unlock Rhino
             </a>
-            <span>Once Rhino is installed, click this. Rhino opens already unlimited.</span>
+            <span>One click. Nothing to type. Rhino opens and says it&apos;s unlimited.</span>
           </li>
         </ol>
+        <div className="unlock-backup">
+          <p className="unlock-backup-label">Your unlock code</p>
+          <CopyCode code={unlockCode} />
+          <p className="unlock-backup-help">
+            Only needed if the button doesn&apos;t open Rhino, or on another Mac:
+            click the Rhino icon in your menu bar → <strong>Get Rhino Unlimited</strong> →
+            paste the code.
+          </p>
+        </div>
         <p className="install-note">
-          Requires macOS 14 or later on Apple silicon. Using Rhino on another
-          Mac? Click Unlock Rhino there too, or enter your code in Rhino under
-          Get Rhino Unlimited: <code>{unlockCode}</code>. If you used Rhino
-          before it went free, you are unlocked already.
+          Requires macOS 14 or later on Apple silicon. If you used Rhino before
+          it went free, you are unlocked already.
         </p>
       </div>
     </main>

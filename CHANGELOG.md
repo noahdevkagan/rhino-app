@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.46 — 2026-11-10
+
+- Copy something, dictate, then press ⌘V and you get what you copied, not your dictation a second time. Rhino now puts your clipboard back the moment you paste, without making you wait 5 seconds first.
+- Long dictated messages are split into a greeting line, paragraphs and a sign-off instead of landing as one block.
+
 ## 0.1.45 — 2026-11-05
 
 - Dictating into text boxes in Chrome, like a GitHub comment box, no longer stops working after the first dictation. Rhino now writes your words to the clipboard right away and puts your previous clipboard back 5 seconds later, so a ⌘V of your own in those 5 seconds pastes the dictation.

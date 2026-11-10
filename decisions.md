@@ -2442,3 +2442,8 @@ Same change adds a skippable first-dictation step. It needs no hotkey changes (S
 armed at launch), and onboarding now completes only on Done/Skip there, so quitting mid-practice
 replays setup (cheap: permissions skip ahead, the model is already on disk).
 
+## 2026-11-10 — The user's own ⌘V ends the clipboard borrow early
+
+Benjamin went back to Wispr Flow: he copies something, dictates a comment, then presses ⌘V to put the copy after it. Since 0.1.45 that ⌘V, inside the 5 s restore window, pasted the dictation a second time (the cost accepted on 2026-11-05). Now an event tap (`UserPasteWatcher`) sees the user's ⌘V key-down and `ClipboardUtil.restoreBeforeUserPaste` puts their clipboard back before the app receives the key. Rhino's own ⌘V carries a marker in `eventSourceUserData` so it is not mistaken for the user's. The 5 s timer stays as the fallback, so a slow Chrome page still gets the dictation.
+
+Choices: the tap is active, not listen-only, because the restore must finish before the app reads the clipboard; it is enabled only while a borrow is pending, so it never sits in the keystroke path otherwise. It looks at key-downs for ⌘V only and keeps nothing. A ⌘V under 0.3 s after Rhino's is ignored: nobody reacts to seeing text that fast, and Rhino's paste may not be serviced yet. Rejected: going back to a read-triggered restore (broke Chrome, 2026-11-05); a shorter fixed timer (Deepak's late Chrome paste). Not covered: Edit → Paste with the mouse inside the 5 s, and a ⌘V pressed while a busy page still has Rhino's ⌘V queued (both pastes then carry the old clipboard). Not built or run: written in a Linux session, CI Build Check is the gate, and it needs a real try in Rhino Dev in Chrome.

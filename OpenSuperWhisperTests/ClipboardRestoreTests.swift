@@ -219,6 +219,70 @@ final class ClipboardRestoreTests: XCTestCase {
         XCTAssertEqual(pasteboard.string(forType: .string), "original")
     }
 
+    // MARK: - the user's own ⌘V during a borrow
+
+    func testUserPasteDuringBorrowGetsTheirClipboardBack() {
+        // Benjamin: copy something, dictate a comment, ⌘V the copy after it, all inside the
+        // restore delay. His ⌘V must carry what he copied, not the dictation again.
+        ClipboardUtil.copyToClipboard("original", to: pasteboard)
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 2) {}
+
+        spin(ClipboardUtil.userPasteGrace + 0.1)
+        XCTAssertTrue(ClipboardUtil.restoreBeforeUserPaste(on: pasteboard))
+        XCTAssertEqual(pasteboard.string(forType: .string), "original")
+
+        // The timer was cancelled with it: a copy made afterwards is left alone.
+        ClipboardUtil.copyToClipboard("later copy", to: pasteboard)
+        spin(2.2)
+        XCTAssertEqual(pasteboard.string(forType: .string), "later copy")
+    }
+
+    func testUserPasteRightAfterRhinosKeepsTheDictation() {
+        // Rhino's own ⌘V may not have been serviced yet this early.
+        ClipboardUtil.copyToClipboard("original", to: pasteboard)
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 0.5) {}
+
+        XCTAssertFalse(ClipboardUtil.restoreBeforeUserPaste(on: pasteboard))
+        XCTAssertEqual(pasteboard.string(forType: .string), "transcription")
+        spin(0.7)
+        XCTAssertEqual(pasteboard.string(forType: .string), "original")
+    }
+
+    func testUserPasteAfterACopyDuringTheBorrowKeepsThatCopy() {
+        ClipboardUtil.copyToClipboard("original", to: pasteboard)
+        ClipboardUtil.borrowForPaste("transcription", on: pasteboard, restoreAfter: 2) {}
+        spin(ClipboardUtil.userPasteGrace + 0.1)
+        ClipboardUtil.copyToClipboard("copied during borrow", to: pasteboard)
+
+        ClipboardUtil.restoreBeforeUserPaste(on: pasteboard)
+        XCTAssertEqual(pasteboard.string(forType: .string), "copied during borrow")
+    }
+
+    func testUserPasteWithNoBorrowDoesNothing() {
+        ClipboardUtil.copyToClipboard("original", to: pasteboard)
+        XCTAssertFalse(ClipboardUtil.restoreBeforeUserPaste(on: pasteboard))
+        XCTAssertEqual(pasteboard.string(forType: .string), "original")
+    }
+
+    func testOnlyTheUsersCommandVCountsAsAUserPaste() {
+        let v: Int64 = 0x09
+        XCTAssertTrue(UserPasteWatcher.isUserPaste(keyCode: v, flags: .maskCommand,
+                                                   characters: "v", userData: 0))
+        XCTAssertTrue(UserPasteWatcher.isUserPaste(keyCode: v, flags: [.maskCommand, .maskShift],
+                                                   characters: "V", userData: 0))
+        // Dvorak: V sits on another key.
+        XCTAssertTrue(UserPasteWatcher.isUserPaste(keyCode: 0x2F, flags: .maskCommand,
+                                                   characters: "v", userData: 0))
+        // Rhino's own synthetic ⌘V.
+        XCTAssertFalse(UserPasteWatcher.isUserPaste(keyCode: v, flags: .maskCommand, characters: "v",
+                                                    userData: UserPasteWatcher.syntheticMarker))
+        XCTAssertFalse(UserPasteWatcher.isUserPaste(keyCode: v, flags: [], characters: "v", userData: 0))
+        XCTAssertFalse(UserPasteWatcher.isUserPaste(keyCode: 0x08, flags: .maskCommand,
+                                                    characters: "c", userData: 0))
+        XCTAssertFalse(UserPasteWatcher.isUserPaste(keyCode: v, flags: [.maskCommand, .maskControl],
+                                                    characters: "v", userData: 0))
+    }
+
     func testOverlappingBorrowRestartsTheTimer() {
         ClipboardUtil.copyToClipboard("original", to: pasteboard)
 

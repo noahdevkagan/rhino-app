@@ -45,7 +45,8 @@ enum ClipboardUtil {
 
     /// How long borrowed text stays before the previous contents come back. The ⌘V can sit queued
     /// behind a busy page for well over a second: Chrome on claude.ai pasted the user's previous
-    /// clipboard under a one-second restore (Deepak, 0.1.41).
+    /// clipboard under a one-second restore (Deepak, 0.1.41). The user's own ⌘V doesn't wait this
+    /// long: `UserPasteWatcher` restores just before it.
     static let borrowRestoreDelay: TimeInterval = 5.0
 
     /// The nspasteboard.org conventions a borrowed (temporary) write carries so clipboard managers
@@ -63,7 +64,40 @@ enum ClipboardUtil {
         let saved: Snapshot
         let text: String
         let changeCount: Int
+        /// `ProcessInfo.systemUptime` when the text went on the pasteboard.
+        let startedAt: TimeInterval
         let restore: DispatchWorkItem
+    }
+
+    /// A ⌘V of the user's own this soon after Rhino's is not a reaction to seeing the dictation
+    /// land, and Rhino's own ⌘V may not have been serviced yet, so the borrowed text stays.
+    static let userPasteGrace: TimeInterval = 0.3
+
+    /// Ends a pending borrow now: cancels its timer and puts the saved contents back, unless
+    /// something else has written to the pasteboard since (newer content wins).
+    private static func endBorrow(on pasteboard: NSPasteboard) {
+        guard let pending = pendingBorrows.removeValue(forKey: pasteboard.name) else { return }
+        pending.restore.cancel()
+        if pasteboard.name == .general { UserPasteWatcher.shared.setActive(false) }
+        guard pasteboard.changeCount == pending.changeCount else { return }
+        // The put-back is the user's own earlier copy, which their clipboard manager
+        // already logged when they made it. Mark it transient so it isn't logged again as
+        // a new entry after every dictation. This never hides a genuine new copy: anything
+        // written during the borrow changes changeCount and the restore is skipped above.
+        Self.restore(pending.saved, to: pasteboard, markTransient: true)
+    }
+
+    /// The user is pasting for themselves (⌘V) while the clipboard is still borrowed: give their
+    /// contents back first, so the paste carries what they copied and not the dictation again
+    /// (Benjamin: copy something, dictate a comment, ⌘V the copy after it). Called by
+    /// `UserPasteWatcher` before the keystroke reaches the app. Returns whether a borrow ended.
+    @discardableResult
+    static func restoreBeforeUserPaste(on pasteboard: NSPasteboard = .general,
+                                       now: TimeInterval = ProcessInfo.processInfo.systemUptime) -> Bool {
+        guard let pending = pendingBorrows[pasteboard.name],
+              now - pending.startedAt >= userPasteGrace else { return false }
+        endBorrow(on: pasteboard)
+        return true
     }
 
     /// Borrows whose restore hasn't fired yet, keyed by pasteboard name. A borrow that lands while
@@ -81,7 +115,8 @@ enum ClipboardUtil {
     /// then restores the previous contents after `delay` — for when the user opted out of keeping
     /// transcriptions on the clipboard and it's only borrowed as the paste vehicle (#44). The
     /// restore is skipped if anything else writes to the pasteboard meanwhile (a user copy, a
-    /// clipboard manager): newer content wins over our restore. Overlapping borrows — a dictation
+    /// clipboard manager): newer content wins over our restore. A ⌘V the user presses before
+    /// `delay` is up brings the restore forward (`restoreBeforeUserPaste`). Overlapping borrows — a dictation
     /// insert followed by the paste-last shortcut — coalesce onto one snapshot and one restore,
     /// timed from the latest borrow.
     static func borrowForPaste(_ text: String,
@@ -108,18 +143,13 @@ enum ClipboardUtil {
         pasteboard.writeObjects([item])
         let borrowChangeCount = pasteboard.changeCount
 
-        let restoreItem = DispatchWorkItem {
-            pendingBorrows[name] = nil
-            guard pasteboard.changeCount == borrowChangeCount else { return }
-            // The put-back is the user's own earlier copy, which their clipboard manager
-            // already logged when they made it. Mark it transient so it isn't logged again as
-            // a new entry after every dictation. This never hides a genuine new copy: anything
-            // written during the borrow changes changeCount and the restore is skipped above.
-            Self.restore(saved, to: pasteboard, markTransient: true)
-        }
+        let restoreItem = DispatchWorkItem { endBorrow(on: pasteboard) }
         pendingBorrows[name] = PendingBorrow(saved: saved, text: text, changeCount: borrowChangeCount,
+                                             startedAt: ProcessInfo.processInfo.systemUptime,
                                              restore: restoreItem)
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: restoreItem)
+        // Until that timer fires, a ⌘V of the user's own gets their clipboard back first.
+        if name == .general { UserPasteWatcher.shared.setActive(true) }
         paste()
     }
 

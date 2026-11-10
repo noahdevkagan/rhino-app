@@ -7,6 +7,16 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Benjamin: ⌘V after a dictation pastes the dictation again (2026-11-10, branch claude/dreamy-sagan-bfolm7)
+
+Benjamin copies something, dictates a comment, then ⌘Vs the copy after it; inside 0.1.45's 5 s
+restore window that pasted the dictation twice, so he went back to Wispr Flow. Fix:
+`UserPasteWatcher` (event tap, on only while the clipboard is borrowed) sees his ⌘V and
+`ClipboardUtil.restoreBeforeUserPaste` puts his clipboard back before the app gets the key. See
+decisions.md. Unit tests written, not run (Linux session): CI Build Check is the gate. Not done:
+try it in Rhino Dev (copy a link, dictate into a GitHub comment in Chrome, ⌘V right away; then
+check dictation still lands on claude.ai), release, reply to Benjamin.
+
 ### Long messages stay one block (2026-11-05, branch crxnamja/dxwa1)
 
 The cleanup model stops laying out messages past about 500 characters. Plan: `MessageLayout` adds

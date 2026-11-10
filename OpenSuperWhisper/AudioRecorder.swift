@@ -3,6 +3,7 @@ import Foundation
 import SwiftUI
 import AppKit
 import CoreAudio
+import Combine
 
 class AudioRecorder: NSObject, ObservableObject {
     @Published var isRecording = false
@@ -10,7 +11,15 @@ class AudioRecorder: NSObject, ObservableObject {
     @Published var currentlyPlayingURL: URL?
     @Published var canRecord = false
     @Published var isConnecting = false
-    
+
+    /// Fires on the main queue when a start attempt failed after the UI already showed
+    /// "Recording" (the start runs on `stateQueue`, so the hotkey path can't learn this
+    /// synchronously).
+    let startFailures = PassthroughSubject<Void, Never>()
+    /// `stateQueue`-confined: the latest start failed and no stop has consumed it yet. Lets a
+    /// stop that returns no file tell a failed start from a too-short or discarded take.
+    private var startFailed = false
+
     // All capture state lives on `stateQueue` — start used to run on a detached task while
     // stop ran on main, racing on these ARC references (orphaned hot mic on a fast
     // press-release, and UB from unsynchronized retain/release). `startRecording()` enqueues
@@ -193,8 +202,10 @@ class AudioRecorder: NSObject, ObservableObject {
         let micAvailable = activeMic != nil
         #endif
         Diag.mark("recorder.startRecording (canRecord=\(micAvailable))")
+        startFailed = false
         guard micAvailable else {
             print("Cannot start recording - no audio input available")
+            reportStartFailure()
             return
         }
 
@@ -274,7 +285,7 @@ class AudioRecorder: NSObject, ObservableObject {
                 audioRecorder = nil
                 try? FileManager.default.removeItem(at: fileURL)
                 currentRecordingURL = nil
-                updateRecordingState(isRecording: false, isConnecting: false)
+                reportStartFailure()
                 return
             }
             Task { @MainActor in SpectrumAnalyzer.shared.start() }
@@ -288,7 +299,24 @@ class AudioRecorder: NSObject, ObservableObject {
             print("Failed to start recording: \(error)")
             audioRecorder = nil
             currentRecordingURL = nil
-            updateRecordingState(isRecording: false, isConnecting: false)
+            reportStartFailure()
+        }
+    }
+
+    /// Runs on `stateQueue`. A start that did not produce a recording: clear the published
+    /// state, remember it for the stop that follows, and tell the indicator.
+    private func reportStartFailure() {
+        startFailed = true
+        updateRecordingState(isRecording: false, isConnecting: false)
+        DispatchQueue.main.async { self.startFailures.send() }
+    }
+
+    /// True once if the last start failed (then clears it). Call right after a `stopRecording`
+    /// that returned nil. Queue-sync like the stop, so it reads after the start it belongs to.
+    func consumeStartFailure() -> Bool {
+        stateQueue.sync {
+            defer { startFailed = false }
+            return startFailed
         }
     }
     
@@ -348,6 +376,7 @@ class AudioRecorder: NSObject, ObservableObject {
     }
 
     private func performCancelRecording() {
+        startFailed = false
         audioRecorder?.stop()
         audioRecorder = nil
         updateRecordingState(isRecording: false, isConnecting: false)
@@ -447,7 +476,7 @@ class AudioRecorder: NSObject, ObservableObject {
                 #if os(macOS)
                 self.recoverFromDeadInput(deadFileURL: url)
                 #else
-                self.updateRecordingState(isRecording: false, isConnecting: false)
+                self.reportStartFailure()
                 #endif
             }
         }
@@ -493,7 +522,7 @@ class AudioRecorder: NSObject, ObservableObject {
         )
         guard let fallback else {
             print("No live audio input to fall back to")
-            updateRecordingState(isRecording: false, isConnecting: false)
+            reportStartFailure()
             return
         }
         if fallback.mustSetSystemDefault {

@@ -7,6 +7,19 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Silent dictation failures: mic start and dropped notices (2026-11-10, branch crxnamja/mic-failure-notices)
+
+Two ways a dictation failed with no message. State: built, PR open. (1) The recorder starts on its
+own queue, so a failed start left the bubble on "Recording" and the key release closed it silently:
+`AudioRecorder.startFailures` now fires from every failure branch, the bubble switches to "Couldn't
+start the microphone", and a nil-file stop reports it only when the recorder's own start-failed flag
+is set (too-short and discarded takes stay silent). (2) `flash` dropped notices while a take was
+recording; `PendingNoticeSlot` now holds one (error beats info, else newest) and
+`didFinishDecoding` shows it when that take ends; `stopForce` clears it. Copy pass: "No speech heard.
+Check your mic", and failures say "retry in History" only when the clip was kept. See decisions.md.
+Outstanding: nobody has yet unplugged a mic or run the real hotkey path; the failure events and the
+queue/main ordering are verified by reading and unit tests only.
+
 ### Benjamin: ⌘V after a dictation pastes the dictation again (2026-11-10, branch claude/dreamy-sagan-bfolm7)
 
 Benjamin copies something, dictates a comment, then ⌘Vs the copy after it; inside 0.1.45's 5 s

@@ -178,7 +178,7 @@ final class DictationPipeline: ObservableObject {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !fallback.isEmpty else {
                     try? FileManager.default.removeItem(at: item.tempURL)
-                    IndicatorWindowManager.shared.flash(.info("No speech detected"))
+                    IndicatorWindowManager.shared.flash(.info("No speech heard. Check your mic"))
                     return
                 }
                 // The preview bypasses TranscriptionService's number formatter.
@@ -306,6 +306,7 @@ final class DictationPipeline: ObservableObject {
             // Don't lose the audio on failure. When history is on, keep the recording with a .failed
             // status + retry message so it shows in the log and can be re-run with the regenerate (↻)
             // button. Otherwise discard. Either way, surface the failure — silent loss is worse.
+            var keptForRetry = false
             if AppPreferences.shared.saveTranscriptionHistory,
                let saved = persistFailedRecording(timestamp: item.startedAt, tempURL: item.tempURL) {
                 await storeRecording(
@@ -313,10 +314,12 @@ final class DictationPipeline: ObservableObject {
                     finalURL: saved.url, transcription: "\(reason) — click ↻ to try again.",
                     status: .failed, progress: 0, context: item.context,
                     modelUsed: nil, wasFallback: false, failureDetail: detail)
+                keptForRetry = true
             } else {
                 try? FileManager.default.removeItem(at: item.tempURL)
             }
-            IndicatorWindowManager.shared.flash(.error(reason))
+            IndicatorWindowManager.shared.flash(.error(
+                Self.failureNotice(reason: reason, keptForRetry: keptForRetry)))
         }
     }
 
@@ -343,6 +346,14 @@ final class DictationPipeline: ObservableObject {
         default:
             return "Transcription failed"
         }
+    }
+
+    /// What the bubble says for a failure. The recording is only retryable when it was kept in
+    /// History, so the pointer is added only then, and only to the reasons that retrying can fix
+    /// (a missing model needs Settings, not another try). Kept short: the bubble is one line.
+    nonisolated static func failureNotice(reason: String, keptForRetry: Bool) -> String {
+        guard keptForRetry, !reason.hasPrefix("Model not loaded") else { return reason }
+        return "\(reason) — retry in History"
     }
 
     /// Verbatim technical detail persisted alongside a failed recording: the raw error, the

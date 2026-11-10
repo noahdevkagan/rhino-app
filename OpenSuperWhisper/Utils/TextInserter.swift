@@ -68,6 +68,10 @@ enum TextInserter {
         // physical modifier state — not only the event flags — still register the paste.
         vDown.flags = .maskCommand
         vUp.flags = .maskCommand
+        // Tell UserPasteWatcher this ⌘V is Rhino's, not the user's.
+        for event in [cmdDown, vDown, vUp, cmdUp] {
+            event.setIntegerValueField(.eventSourceUserData, value: UserPasteWatcher.syntheticMarker)
+        }
         cmdDown.post(tap: .cghidEventTap)
         vDown.post(tap: .cghidEventTap)
         vUp.post(tap: .cghidEventTap)

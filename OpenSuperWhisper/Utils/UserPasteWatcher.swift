@@ -16,6 +16,8 @@ final class UserPasteWatcher {
 
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
+    /// Whether a borrow is pending right now, i.e. whether the tap should be on.
+    private var wanted = false
 
     private init() {}
 
@@ -31,6 +33,7 @@ final class UserPasteWatcher {
     }
 
     func setActive(_ active: Bool) {
+        wanted = active
         if active, tap == nil { createTap() }
         if let tap { CGEvent.tapEnable(tap: tap, enable: active) }
     }
@@ -55,8 +58,9 @@ final class UserPasteWatcher {
 
     private func handle(type: CGEventType, event: CGEvent) {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            // macOS turns a slow tap off; turn it back on while a borrow still needs it.
-            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            // macOS turns a slow tap off; turn it back on only while a borrow still needs it,
+            // so a late notification after the borrow ended doesn't leave it in the key path.
+            if wanted, let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return
         }
         guard type == .keyDown else { return }

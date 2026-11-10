@@ -9,6 +9,14 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.46",
+    date: "November 10, 2026",
+    changes: [
+      "Copy something, dictate, then press ⌘V and you get what you copied, not your dictation a second time. Rhino now puts your clipboard back the moment you paste, without making you wait 5 seconds first.",
+      "Long dictated messages are split into a greeting line, paragraphs and a sign-off instead of landing as one block.",
+    ],
+  },
+  {
     version: "0.1.45",
     date: "November 5, 2026",
     changes: [

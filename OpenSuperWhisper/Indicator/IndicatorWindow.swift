@@ -33,6 +33,9 @@ class IndicatorViewModel: ObservableObject {
     @Published var isVisible = false
 
     var recordingStartedAt: Date?
+    /// Set once the take has been stopped. `state` keeps reading `.recording` until the
+    /// manager moves it on, so "is the user still recording this" needs its own bit.
+    private(set) var hasStoppedRecording = false
     /// Set by the trigger when this take should be submitted after insertion (#50). Carried
     /// on the queued clip rather than read at paste time: transcription runs in the
     /// background now, so the next recording may already have started by then.
@@ -75,8 +78,32 @@ class IndicatorViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        // The recorder starts on its own queue, so a failed start is only known after the
+        // optimistic "Recording" above. Delivered on main; no `receive(on:)` hop, so it lands
+        // before any later main-queue work such as the next take's `show()`.
+        recorder.startFailures
+            .sink { [weak self] in self?.handleRecorderStartFailure() }
+            .store(in: &cancellables)
     }
-    
+
+    /// Switches a take that still shows recording/connecting to an error, and stops what was
+    /// started for it. Takes that already ended or already show an error are left alone.
+    func handleRecorderStartFailure() {
+        guard let next = RecorderStartFailure.stateAfterFailure(from: state),
+              case .error(let message) = next else { return }
+        stopLiveStreaming()
+        stopBlinking()
+        resetCancelConfirmation()
+        showError(message)
+    }
+
+    private func stopLiveStreaming() {
+        guard liveStreamingActive else { return }
+        liveStreamingActive = false
+        Task { await StreamingTranscriptionController.shared.cancel() }
+    }
+
     var isTranscriptionBusy: Bool {
         transcriptionService.isTranscribing || transcriptionQueue.isProcessing
     }
@@ -209,6 +236,7 @@ class IndicatorViewModel: ObservableObject {
     }
 
     func startDecoding(discard: Bool = false) {
+        hasStoppedRecording = true
         resetCancelConfirmation()
         stopBlinking()
 
@@ -223,6 +251,20 @@ class IndicatorViewModel: ObservableObject {
         }
 
         guard let tempURL = recorder.stopRecording(discard: discard) else {
+            // No file is normal for a discard and for a take under the keep threshold: stay
+            // silent. It is an error only when the recorder never started. The recorder's own
+            // flag is the source of truth here: its failure event reaches main only after this
+            // stop returns (the stop is queue-sync, we are on main).
+            let startFailed = recorder.consumeStartFailure()
+            if case .error = state {
+                // This take already shows its error (failure event, or no microphone at all):
+                // leave it up for its own timer rather than closing it the moment the key lifts.
+                return
+            }
+            if RecorderStartFailure.shouldReportOnEmptyStop(discard: discard, startFailed: startFailed) {
+                showError(RecorderStartFailure.message)
+                return
+            }
             print("!!! Not found record url !!!")
             delegate?.didFinishDecoding()
             return

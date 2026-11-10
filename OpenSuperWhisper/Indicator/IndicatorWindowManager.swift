@@ -45,6 +45,9 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     static let decodeWatchdogTimeout: TimeInterval = 120
     private var decodeWatchdog: Task<Void, Never>?
 
+    /// A notice that arrived while a take was recording (see `flash`). Internal for tests.
+    var pendingNotice = PendingNoticeSlot()
+
     private init() {}
     
     func show(nearPoint point: NSPoint? = nil,
@@ -286,7 +289,13 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     /// progress so it never interrupts the live recording bubble. The message auto-hides via the
     /// view model's own timer (showError/showInfo). (parallel-recording #3)
     func flash(_ state: RecordingState) {
-        if let current = viewModel, current.state == .recording || current.state == .connecting {
+        if let current = viewModel, current.state == .recording || current.state == .connecting,
+           !current.hasStoppedRecording {
+            // The bubble belongs to the take being recorded. Hold the notice instead of losing
+            // it (take 1 can fail or fall back to the clipboard while take 2 records); it is
+            // shown when that recording ends — see `didFinishDecoding`. One slot; an error
+            // outranks an info (`PendingNoticeSlot`).
+            pendingNotice.hold(state)
             return
         }
         let vm = show(nearPoint: FocusUtils.getCurrentCursorPosition(), initialState: state)
@@ -303,6 +312,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     }
 
     func stopForce() {
+        // The user threw the take away; a notice held for it would pop up out of nowhere.
+        pendingNotice.clear()
         viewModel?.cancelRecording()
         viewModel?.cleanup()
         hide()
@@ -380,6 +391,20 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     }
     
     func didFinishDecoding() {
+        // The take's recording has ended, so the bubble is free for a notice held during it.
+        // The notice's own timer calls back here, which restores the "decoding" bubble (or
+        // hides) afterwards, and shows a newer held notice first if there is one. Not while a
+        // newer take is recording: a stale timer must not hand it the bubble. (`state` still
+        // reads .recording right after a stop, hence `hasStoppedRecording`.)
+        let takeStillRecording = viewModel.map {
+            ($0.state == .recording || $0.state == .connecting) && !$0.hasStoppedRecording
+        } ?? false
+        if !takeStillRecording, let notice = pendingNotice.take() {
+            flash(notice)
+            return
+        }
+
+
         // The clip has gone to the background pipeline and the bubble is free for the next
         // recording. It used to vanish here, which left nothing on screen between the moment
         // you stop talking and the moment the text lands: on a slow model that reads as the

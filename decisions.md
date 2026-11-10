@@ -2433,3 +2433,12 @@ odd break to a wall of text.
   dictations are excluded.
 - Long rambles with no greeting or sign-off stay one block: guessing a topic structure with no sign
   it is a message is a separate decision.
+
+**2026-11-10 — One-click model setup stays click-initiated, never auto-start.** The model step's
+footer button became "Download <recommended model> and finish" because new users stalled on the
+small per-row Download button. The download still begins only from that click, not on appear: the
+all-local rule allows only explicit user-initiated model downloads, and tests/hygiene enforces it.
+Same change adds a skippable first-dictation step. It needs no hotkey changes (ShortcutManager is
+armed at launch), and onboarding now completes only on Done/Skip there, so quitting mid-practice
+replays setup (cheap: permissions skip ahead, the model is already on disk).
+

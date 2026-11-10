@@ -7,6 +7,17 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### One-click model setup + first-dictation practice (2026-11-10, branch crxnamja/ux-bugs-security-audit)
+
+Plan: model step's footer button becomes "Download <model> and finish" while no model is on disk
+(click-only download, progress above the button, then the normal Finish verify); a new fourth
+onboarding step ("Try it") has a focused text box for a real dictation with Skip always visible and
+Done after text lands; Home empty state teaches "Hold {trigger} in any app, speak, release".
+State: implemented, unit tests in OnboardingOneClickSetupTests. ShortcutManager is armed at app
+init, so the hotkey is already live in onboarding (no hotkey/pipeline change). Outstanding: a real
+dictation into the practice box (not tried: no mic), PR review, merge. Parakeet size not shown
+(catalog has no size for it).
+
 ### Long messages stay one block (2026-11-05, branch crxnamja/dxwa1)
 
 The cleanup model stops laying out messages past about 500 characters. Plan: `MessageLayout` adds

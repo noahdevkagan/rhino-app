@@ -100,6 +100,14 @@ enum ClipboardUtil {
         return true
     }
 
+    /// Ends a pending borrow right away, putting the user's contents back (Command Mode, before
+    /// its ⌘C fallback snapshots the clipboard: otherwise it would save the dictation, and the
+    /// borrow's restore would then be skipped because the clipboard changed). No-op when no
+    /// borrow is pending.
+    static func finishPendingBorrow(on pasteboard: NSPasteboard = .general) {
+        endBorrow(on: pasteboard)
+    }
+
     /// Borrows whose restore hasn't fired yet, keyed by pasteboard name. A borrow that lands while
     /// another is still pending must NOT snapshot — the pasteboard currently holds the previous
     /// borrow's transcription, and restoring that later would overwrite the user's contents with

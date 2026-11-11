@@ -135,4 +135,41 @@ final class DictationPipelineTests: XCTestCase {
                        "clips must be transcribed in recording-start order")
         XCTAssertEqual(pipeline.pendingCount, 0, "pendingCount returns to zero once drained")
     }
+
+    /// A Command Mode take hands its transcript to the rewrite as the instruction, with the
+    /// captured selection, and never reaches dictation insertion or history.
+    func testCommandTakeRoutesTranscriptToRewrite() async {
+        let prefs = AppPreferences.shared
+        let savedHistory = prefs.saveTranscriptionHistory
+        prefs.saveTranscriptionHistory = false
+        defer { prefs.saveTranscriptionHistory = savedHistory }
+
+        let pipeline = DictationPipeline.shared
+        pipeline.transcribeOverride = { _, _ in "make this shorter" }
+        var seen: [(String, String)] = []
+        // A failure, so nothing is pasted anywhere during the test.
+        pipeline.commandRewriteOverride = { selection, instruction in
+            seen.append((selection, instruction))
+            return .failure(.unchanged)
+        }
+        defer {
+            pipeline.transcribeOverride = nil
+            pipeline.commandRewriteOverride = nil
+        }
+
+        pipeline.enqueue(
+            tempURL: URL(fileURLWithPath: "/tmp/osw-command-test.wav"),
+            startedAt: Date(), streamedFallback: "",
+            context: DictationPipeline.ContextSnapshot(), modelOption: nil,
+            command: CommandSelection(text: "a long selected sentence", method: .copy, processID: nil))
+
+        var waited = 0
+        while pipeline.isProcessing && waited < 500 {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+            waited += 1
+        }
+        XCTAssertEqual(seen.count, 1)
+        XCTAssertEqual(seen.first?.0, "a long selected sentence")
+        XCTAssertEqual(seen.first?.1, "make this shorter")
+    }
 }

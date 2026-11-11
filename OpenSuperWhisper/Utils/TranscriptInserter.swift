@@ -111,6 +111,26 @@ enum TranscriptInserter {
         return .inserted
     }
 
+    /// Command Mode: pastes `text` over the selection that is still active in the focused app.
+    /// Always a single ⌘V (never typed), so one ⌘Z undoes the whole replacement in apps that
+    /// support undo. The clipboard is borrowed and restored exactly like a dictation paste, unless
+    /// "Copy to clipboard" asks to keep the text there. Never falls back to the clipboard on a
+    /// missing permission: the caller reports it and the selection stays as it was.
+    @MainActor
+    @discardableResult
+    static func replaceSelection(with text: String) -> Outcome {
+        guard AXIsProcessTrusted() else { return .noPermission }
+        if AppPreferences.shared.autoCopyToClipboard {
+            ClipboardUtil.copyToClipboard(text, to: pasteboard)
+            Diag.measure("TextInserter.paste") { TextInserter.paste() }
+        } else {
+            ClipboardUtil.borrowForPaste(text, on: pasteboard) {
+                Diag.measure("TextInserter.paste") { TextInserter.paste() }
+            }
+        }
+        return .inserted
+    }
+
     /// Adjusts the dictation to the text around the caret (`ContextCasing`): lowercase and no
     /// closing period mid-sentence, no period on a one-to-three-word field value, one space at
     /// each seam. Where the focused app doesn't expose its text, unchanged unless "Sentence

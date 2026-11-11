@@ -12,6 +12,12 @@ extension KeyboardShortcuts.Name {
     // the user explicitly records.
     static let toggleRecord = Self("toggleRecord")
     static let escape = Self("escape", default: .init(.escape))
+    /// Command Mode (beta): hold, speak an instruction, release; the selection is rewritten.
+    /// ⌃⌥⌘C by default ("C" for command): a combination, not a lone modifier, because the
+    /// modifier tap fires on every press and Command Mode reads the selection (possibly with a
+    /// synthetic ⌘C) at key-down; and three modifiers stay clear of the dictation trigger (Fn),
+    /// Rectangle's ⌃⌥ letters and Finder's ⌥⌘C. Only enabled while Command Mode is on.
+    static let commandMode = Self("commandMode", default: .init(.c, modifiers: [.control, .option, .command]))
 
     /// One registration handle per recorded key combination. Names are dynamic because the
     /// number of triggers is: the combinations themselves live in `recordingTriggers`, and
@@ -31,6 +37,10 @@ class ShortcutManager {
     private let holdThreshold: TimeInterval = 0.3
     private var holdMode = false
     private var useModifierOnlyHotkey = false
+    /// The live take is a Command Mode take (started by the Command Mode shortcut).
+    private var commandTake = false
+    /// A Command Mode press is reading the selection; further presses wait for it.
+    private var commandStarting = false
 
     /// Hands-free lock: once locked, release (and hold-release) no longer stops the recording;
     /// the next press does. A press locks instead of stopping whenever stopping would throw the
@@ -93,6 +103,7 @@ class ShortcutManager {
         activeVm = nil
         holdMode = false
         lockedOn = false
+        commandTake = false
         takeStartedAt = nil
         pendingHoldStop?.cancel()
         pendingHoldStop = nil
@@ -124,6 +135,9 @@ class ShortcutManager {
             KeyboardShortcuts.onKeyUp(for: slot) { [weak self] in self?.handleKeyUp() }
         }
 
+        KeyboardShortcuts.onKeyDown(for: .commandMode) { [weak self] in self?.handleCommandKeyDown() }
+        KeyboardShortcuts.onKeyUp(for: .commandMode) { [weak self] in self?.handleCommandKeyUp() }
+
         KeyboardShortcuts.onKeyUp(for: .escape) { [weak self] in
             Task { @MainActor in
                 // The manager decides by bubble state: while recording this is the cancel
@@ -152,6 +166,17 @@ class ShortcutManager {
         }
 
         bindKeyComboSlots(set.keyCombos)
+
+        // Off by default; while off, its combination must not be swallowed system-wide.
+        // A combination also on the dictation list stays a dictation trigger: one press must
+        // not start both.
+        let commandCombo = KeyboardShortcuts.getShortcut(for: .commandMode)
+        if AppPreferences.shared.commandModeEnabled,
+           commandCombo.map({ !set.keyCombos.contains($0) }) ?? false {
+            KeyboardShortcuts.enable(.commandMode)
+        } else {
+            KeyboardShortcuts.disable(.commandMode)
+        }
 
         useModifierOnlyHotkey = !set.modifiers.isEmpty
         print("ShortcutManager: \(set.triggers.count) recording trigger(s) armed")
@@ -284,6 +309,78 @@ class ShortcutManager {
         IndicatorWindowManager.shared.stopRecording(discard: discard)
         activeVm = nil
         holdMode = false
+        commandTake = false
         takeStartedAt = nil
+    }
+
+    // MARK: - Command Mode
+
+    /// Command Mode press. Hold to talk (release stops) or tap to start and tap again to stop;
+    /// no hands-free lock. The selection is read before anything records, so a missing
+    /// selection or model costs nothing but a message.
+    private func handleCommandKeyDown() {
+        holdWorkItem?.cancel()
+        holdMode = false
+        let holdToRecordEnabled = AppPreferences.shared.holdToRecord
+
+        Task { @MainActor in
+            if self.activeVm == nil {
+                await self.startCommandTake()
+            } else if self.commandTake, !self.holdMode {
+                self.stopActiveTake()
+            }
+            // A press during a dictation is ignored: that take belongs to the dictation trigger.
+        }
+
+        if holdToRecordEnabled {
+            let workItem = DispatchWorkItem { [weak self] in self?.holdMode = true }
+            holdWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + holdThreshold, execute: workItem)
+        }
+    }
+
+    private func handleCommandKeyUp() {
+        holdWorkItem?.cancel()
+        holdWorkItem = nil
+        let holdToRecordEnabled = AppPreferences.shared.holdToRecord
+        Task { @MainActor in
+            guard self.commandTake, holdToRecordEnabled, self.holdMode, self.activeVm != nil
+            else { return }
+            self.stopActiveTake()
+        }
+    }
+
+    @MainActor private func startCommandTake() async {
+        guard AppPreferences.shared.commandModeEnabled, !commandStarting else { return }
+        commandStarting = true
+        defer { commandStarting = false }
+
+        guard LLMPostProcessor.currentBackend().isReady else {
+            IndicatorWindowManager.shared.flash(.error(CommandMode.Failure.modelNotDownloaded.message))
+            return
+        }
+        let captureStart = CFAbsoluteTimeGetCurrent()
+        let captured = await SelectionCapture.capture(in: LiveSelectionCaptureEnvironment())
+        print(String(format: "Command Mode: selection capture %.0fms (%@)",
+                     (CFAbsoluteTimeGetCurrent() - captureStart) * 1000,
+                     captured.map { "\($0.method)" } ?? "none"))
+        if let failure = CommandMode.validateSelection(captured?.text) {
+            IndicatorWindowManager.shared.flash(failure.isInfo ? .info(failure.message)
+                                                               : .error(failure.message))
+            return
+        }
+        // A dictation may have started while the selection was being read.
+        guard activeVm == nil, let captured else { return }
+
+        Diag.mark("command keyDown → start recording (\(captured.method))")
+        RecordingContext.shared.captureFrontmost()
+        let vm = IndicatorWindowManager.shared.show(nearPoint: FocusUtils.getCurrentCursorPosition(),
+                                                    waitForCaret: false)
+        vm.commandSelection = captured
+        vm.startRecording()
+        activeVm = vm
+        commandTake = true
+        lockedOn = false
+        takeStartedAt = Date()
     }
 }

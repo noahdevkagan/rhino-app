@@ -24,6 +24,14 @@ enum CleanupFidelityGuard {
     /// Words that were never spoken: at least `addedFloor`, or `addedFraction` of a long dictation.
     static let addedFloor = 3
     static let addedFraction = 0.02
+    /// Under this many words the floors above are too loose: replaying real dictations, a short
+    /// one never legitimately loses two content words or gains one nobody said, while the bad
+    /// rewrites did exactly that ("Draft Matt a message to see if he…" → "Draft Matt: see if
+    /// you…"; "really liked your place" → "really looking forward to your place").
+    /// A join ("post hog" → "posthog"), a word-form change or a completed fragment
+    /// ("as f as" → "as far as") is explained by the spoken words and doesn't count.
+    static let shortDictationWords = 40
+    static let shortDroppedLimit = 2
 
     static func preservesSpokenWords(input: String, output: String) -> Bool {
         let spoken = words(input)
@@ -52,15 +60,59 @@ enum CleanupFidelityGuard {
         }
         let dropped = removed.reduce(0) { $0 + (isContent($1.key) ? $1.value : 0) }
         let added = inserted.reduce(0) { $0 + (isContent($1.key) ? $1.value : 0) }
+        let short = spoken.count < shortDictationWords
+        let unexplained = short ? unexplainedChanges(removed: removed, inserted: inserted) : nil
 
-        if added >= max(addedFloor, Int((Double(spoken.count) * addedFraction).rounded(.up))) {
+        // Short text: one unexplained word is enough, and joins don't count against it.
+        if let unexplained {
+            if unexplained.invented > 0 { return false }
+        } else if added >= max(addedFloor, Int((Double(spoken.count) * addedFraction).rounded(.up))) {
             return false
         }
         if isList(output) {
             return Double(dropped) <= Double(spoken.count) * listDroppedFraction
         }
         if longestRun(removedOffsets.sorted()) >= longestDroppedRun { return false }
+        if let unexplained { return unexplained.dropped < shortDroppedLimit }
         return dropped < droppedFloor || Double(dropped) <= Double(spoken.count) * droppedFraction
+    }
+
+    /// Content words lost and gained once joins, word-form changes and completed fragments
+    /// are paired off against each other.
+    private static func unexplainedChanges(removed: [String: Int], inserted: [String: Int])
+        -> (dropped: Int, invented: Int) {
+        var lost = removed.flatMap { word, count in Array(repeating: word, count: max(count, 0)) }
+        var invented = 0
+        for (word, count) in inserted where count > 0 && isContent(word) {
+            for _ in 0..<count {
+                // Joins first: "posthog" also starts with "post", which would leave "hog" lost.
+                if let (i, j) = joinParts(of: word, in: lost) {
+                    lost.remove(at: max(i, j))
+                    lost.remove(at: min(i, j))
+                } else if let i = lost.firstIndex(where: { isRelated($0, word) }) {
+                    lost.remove(at: i)
+                } else {
+                    invented += 1
+                }
+            }
+        }
+        return (lost.filter(isContent).count, invented)
+    }
+
+    /// "organizing"/"organize", "seatbelt's"/"seatbelt", a cut-off "f" completed to "far".
+    private static func isRelated(_ spoken: String, _ written: String) -> Bool {
+        guard isContent(spoken) else { return false }
+        if written.hasPrefix(spoken) || spoken.hasPrefix(written) { return true }
+        return spoken.count >= 4 && written.count >= 4 && spoken.prefix(4) == written.prefix(4)
+    }
+
+    /// Two spoken words written as one: "post hog" → "posthog", "call outs" → "callouts".
+    private static func joinParts(of word: String, in lost: [String]) -> (Int, Int)? {
+        for (i, head) in lost.enumerated() where word.hasPrefix(head) && word.count > head.count {
+            let tail = String(word.dropFirst(head.count))
+            if let j = lost.indices.first(where: { $0 != i && lost[$0] == tail }) { return (i, j) }
+        }
+        return nil
     }
 
     private static func words(_ text: String) -> [String] {
@@ -79,7 +131,7 @@ enum CleanupFidelityGuard {
 
     private static let ignorable: Set<String> = [
         "a", "an", "the", "and", "or", "but", "so", "to", "of", "in", "on", "at", "for", "with",
-        "that", "this", "it", "is", "was", "be", "i", "you", "we", "he", "she", "they", "them",
+        "that", "this", "it", "is", "are", "was", "be", "as", "i", "you", "we", "he", "she", "they", "them",
         "just", "like", "really", "well", "okay", "ok", "alright", "all", "right", "um", "uh",
         "yeah", "know", "mean",
         "number", "item", "step", "bullet", "point", "next", "new", "line", "paragraph",

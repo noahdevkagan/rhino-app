@@ -27,13 +27,6 @@
   {
     "id": "draft-prompt",
     "why": "Audit 3: 'Draft Matt a message to see if…' became 'Draft Matt: See if…'.",
-    "known_gap": {
-      "why": "2026-11-11 model turns it into 'Draft Matt: see if you can…'; under the guard's 4-dropped floor",
-      "problems": [
-        "missing 'Draft Matt a message'",
-        "dropped ['message', 'because']"
-      ]
-    },
     "input": "Draft Matt a message to see if he can move our call to Thursday afternoon because I'm flying back that morning",
     "kind": "keep",
     "must_contain": [
@@ -64,13 +57,6 @@
   {
     "id": "invented-words",
     "why": "Audit 3: 'really looking, really liked your place' became 'Really looking forward to it'.",
-    "known_gap": {
-      "why": "2026-11-11 model still writes 'looking forward to'; one invented word is under the guard's 3-word floor",
-      "problems": [
-        "missing 'liked your place'",
-        "contains 'forward to'"
-      ]
-    },
     "input": "Hey Jane, really looking, really liked your place, could we book it again for the weekend of the twelfth. Thanks so much",
     "kind": "keep",
     "must_contain": [

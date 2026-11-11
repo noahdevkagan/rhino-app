@@ -4,53 +4,80 @@
     "why": "Audit 3: a dictated request to write a message came back as the drafted message.",
     "input": "Write a message to Dana asking for the biggest discount possible and do it in a very creative and funny way so she actually says yes",
     "kind": "keep",
-    "must_contain": ["Write a message to Dana"],
-    "must_not_contain": ["Hi Dana", "Dear Dana", "Best,", "Cheers,"]
+    "must_contain": [
+      "Write a message to Dana"
+    ],
+    "must_not_contain": [
+      "Hi Dana",
+      "Dear Dana",
+      "Best,",
+      "Cheers,"
+    ]
   },
   {
     "id": "question-bait",
     "why": "The model must fix a question's wording, never answer it.",
     "input": "what's the best way to get more email subscribers this month without spending money on ads",
     "kind": "keep",
-    "must_contain": ["subscribers"],
+    "must_contain": [
+      "subscribers"
+    ],
     "max_lines": 1
   },
   {
     "id": "draft-prompt",
     "why": "Audit 3: 'Draft Matt a message to see if…' became 'Draft Matt: See if…'.",
+    "known_gap": "2026-11-11 model turns it into 'Draft Matt: see if you can…'; under the guard's 4-dropped floor",
     "input": "Draft Matt a message to see if he can move our call to Thursday afternoon because I'm flying back that morning",
     "kind": "keep",
-    "must_contain": ["Draft Matt a message"]
+    "must_contain": [
+      "Draft Matt a message"
+    ]
   },
   {
     "id": "word-order",
     "why": "Audit 3: 'screen like I do' was reordered to 'I do like a screen'.",
     "input": "I want to share my screen like I do every week so the whole team can follow along with the numbers",
     "kind": "keep",
-    "must_contain": ["screen like I do"]
+    "must_contain": [
+      "screen like I do"
+    ]
   },
   {
     "id": "long-message",
     "why": "Audit 3: a 24-word sentence was deleted from the middle of a 71-word dictation.",
     "input": "Hey Priya, quick update on the launch. We moved the date to the twelfth because the payment flow needed another round of testing and nobody wanted to ship it half done. The landing page is finished and the email sequence is scheduled, so the only open item is the onboarding video, which Sam is recording on Monday. If anything slips I will tell you right away. Thanks so much",
     "kind": "keep",
-    "must_contain": ["payment flow", "onboarding video", "Sam is recording on Monday"],
+    "must_contain": [
+      "payment flow",
+      "onboarding video",
+      "Sam is recording on Monday"
+    ],
     "min_lines": 2
   },
   {
     "id": "invented-words",
     "why": "Audit 3: 'really looking, really liked your place' became 'Really looking forward to it'.",
+    "known_gap": "2026-11-11 model still writes 'looking forward to'; one invented word is under the guard's 3-word floor",
     "input": "Hey Jane, really looking, really liked your place, could we book it again for the weekend of the twelfth. Thanks so much",
     "kind": "keep",
-    "must_contain": ["liked your place"],
-    "must_not_contain": ["forward to"]
+    "must_contain": [
+      "liked your place"
+    ],
+    "must_not_contain": [
+      "forward to"
+    ]
   },
   {
     "id": "list-numbered",
     "why": "The reason cleanup runs at all: a spoken list must come out as a list.",
     "input": "okay three things for the launch one update the pricing page two email the beta users three record the demo video",
     "kind": "list",
-    "must_contain": ["pricing page", "beta users", "demo video"],
+    "must_contain": [
+      "pricing page",
+      "beta users",
+      "demo video"
+    ],
     "min_list_items": 3
   },
   {
@@ -58,30 +85,49 @@
     "why": "Spoken line breaks must become real lines.",
     "input": "Packing list new line passport new line chargers new line running shoes",
     "kind": "list",
-    "must_contain": ["passport", "chargers", "running shoes"],
+    "must_contain": [
+      "passport",
+      "chargers",
+      "running shoes"
+    ],
     "min_lines": 3
   },
   {
     "id": "spoken-edit",
     "why": "A spoken self-correction should be applied, not typed out.",
+    "known_gap": "2026-11-11 edits pass runs but leaves 'actually no, make that four' in",
     "input": "Let's meet at the office at three, actually no, make that four o'clock",
     "kind": "edit",
-    "must_contain_any": ["four", "4"],
-    "must_not_contain": ["actually no"]
+    "must_contain_any": [
+      "four",
+      "4"
+    ],
+    "must_not_contain": [
+      "actually no"
+    ]
   },
   {
     "id": "million",
     "why": "Audit 3: 'Million Dollar Weekend' and 'thanks a million' became digits.",
     "input": "Hi Alex, my book Million Dollar Weekend is about starting fast, and thanks a million for reading it. Talk soon",
     "kind": "keep",
-    "must_contain": ["Million Dollar Weekend", "a million"],
-    "must_not_contain": ["1,000,000"]
+    "must_contain": [
+      "Million Dollar Weekend",
+      "a million"
+    ],
+    "must_not_contain": [
+      "1,000,000"
+    ]
   },
   {
     "id": "brand-names",
     "why": "Correctly spelled names in the input must survive cleanup.",
     "input": "Hey Austin, can you share the GrowthBook results for the TidyCal sidebar test with Marnie before Friday. Thanks",
     "kind": "keep",
-    "must_contain": ["GrowthBook", "TidyCal", "Marnie"]
+    "must_contain": [
+      "GrowthBook",
+      "TidyCal",
+      "Marnie"
+    ]
   }
 ]

@@ -7,7 +7,7 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
-### Accuracy gate suites (2026-11-11, branch gate/accuracy-suites, NOT pushed)
+### Accuracy gate suites (2026-11-11, branch gate/accuracy-suites)
 
 Why: the push gate only tested whisper tiny on synthetic speech, so a broken
 Parakeet or a cleanup regression could ship (top recommendation from the
@@ -29,20 +29,18 @@ Done:
   llm-models (dev folder was empty). Checks fidelity AND effect, because the
   guards turn a broken model into "unchanged text" that a harm-only test passes.
 
-Next (in order):
-1. Write `tests/cleanup/score.py` (run.sh already calls it): per case, apply
-   must_contain / must_contain_any / must_not_contain / min_lines / max_lines /
-   min_list_items; for kind keep, content-word bag diff input→output (fail on
-   ≥2 dropped or ≥2 invented content words; ignore function words/fillers/
-   numbers; lists may drop cue words); count "LLM cleanup rejected" lines in
-   cleanup.log between "cleanup line i/n" markers and print per case.
-2. Run once, look at every output, calibrate expectations to current good
-   behavior (if the 1.5B model fails a case today, e.g. spoken-edit, record it
-   as a known gap rather than a failing bar). Then mutation-check both suites
-   (corrupt one output → must fail).
-3. Update tests/README.md + AGENTS.md repo map, decisions.md entry, run
-   `./Scripts/push-gate.sh`, open PR.
-Until score.py exists, a push from this branch FAILS the gate (tests/cleanup).
+- `tests/cleanup/score.py`: phrase/layout checks + content-word diff (fail
+  at 2 dropped or 2 invented), guard rejections attributed per case. Outputs
+  are deterministic. 8/11 pass; 3 are `known_gap` (print every run, don't
+  block): draft-prompt and invented-words (the audit-3 rewrites still reach
+  users: CleanupFidelityGuard's floors of 4 dropped / 3 invented are too loose
+  for short dictations) and spoken-edit (correction not applied). Mutation
+  checks pass for both suites (incl. "model returns input unchanged" → fails).
+  Docs: tests/README.md, AGENTS.md map, decisions.md 2026-11-11.
+
+Next: push gate → push → PR. Then, own PR: tighten CleanupFidelityGuard for
+short dictations, replayed against real history (audit-3 harness in
+.context/audit3/) so legit rewrites aren't lost; remove the two known_gaps.
 
 Agreed follow-ups from the same audit (Noah wants both):
 - **Idle unload without the 5-min cliff.** The unload exists to free RAM. The

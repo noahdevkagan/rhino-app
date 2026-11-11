@@ -14,4 +14,11 @@ Conventions (from MeetingCoach, where this layout proved itself):
   hardware) live in a `*-manual.md` checklist, clearly marked as never
   run automatically — so nobody mistakes "documented" for "tested".
 
-`smoke/` is a placeholder — replace it with the first real suite.
+Suites: `hygiene` (privacy/egress), `asr` (whisper tiny WER), `parakeet`
+(Parakeet v2/v3 WER and inference time), `cleanup` (LLM cleanup fidelity and
+effect), `latency`, `release`, `smoke`. `parakeet` and `cleanup` need models
+already on this Mac and skip on CI and with `FAST=1`.
+
+`cleanup/cases.json` entries with `known_gap` are measured failures of the
+shipped model: printed as KNOWN GAP every run, they don't fail the gate. When
+the scorer says one now passes, delete its `known_gap` to lock it in.

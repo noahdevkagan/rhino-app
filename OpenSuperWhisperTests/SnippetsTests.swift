@@ -50,6 +50,97 @@ final class SnippetsMatchingTests: XCTestCase {
         XCTAssertEqual(Snippets.pruned([blank, half, calendar]), [half, calendar])
     }
 
+    func testTriggerMatchesInItsTranscriptForm() {
+        let room = Snippet(trigger: "my zoom room two", expansion: "https://zoom.us/j/1")
+        let form: (String) -> String = { $0.replacingOccurrences(of: "two", with: "2") }
+        XCTAssertEqual(Snippets.match("My zoom room 2.", in: [room], transcriptForm: form), room)
+        XCTAssertEqual(Snippets.match("my zoom room two", in: [room], transcriptForm: form), room)
+        XCTAssertNil(Snippets.match("My zoom room 2.", in: [room]))
+    }
+
+    /// The real transform: the dictionary, number formatting and British spelling that the
+    /// transcript went through all apply to the trigger too.
+    func testRealTranscriptFormAppliesDictionaryAndNumbers() {
+        let prefs = AppPreferences.shared
+        let saved = (on: prefs.customDictionaryEnabled, entries: prefs.customDictionaryEntries,
+                     snippets: prefs.snippets, enabled: prefs.snippetsEnabled)
+        defer {
+            prefs.customDictionaryEnabled = saved.on
+            prefs.customDictionaryEntries = saved.entries
+            prefs.snippets = saved.snippets
+            prefs.snippetsEnabled = saved.enabled
+        }
+        prefs.customDictionaryEnabled = true
+        prefs.customDictionaryEntries = [CustomDictionaryEntry(original: "clavio", replacement: "Klaviyo")]
+        prefs.snippetsEnabled = true
+        let klaviyo = Snippet(trigger: "my clavio link", expansion: "https://klaviyo.com/x")
+        let room = Snippet(trigger: "zoom room twenty five", expansion: "https://zoom.us/j/25")
+        prefs.snippets = [klaviyo, room]
+        let settings = Settings()
+        let form = { prefs.snippetTriggerTranscriptForm($0, settings: settings) }
+
+        XCTAssertEqual(prefs.matchingSnippet("My Klaviyo link.", transcriptForm: form), klaviyo)
+        // Whatever the number style makes of it, the transcript and trigger agree.
+        let spokenRoom = NumberCompaction.apply("Zoom room twenty five.", style: prefs.numberFormattingStyle)
+        XCTAssertEqual(prefs.matchingSnippet(spokenRoom, transcriptForm: form), room)
+    }
+
+    func testDuplicateWarningFollowsTheMatcher() {
+        let blank = Snippet(trigger: "my link", expansion: " ")
+        let first = Snippet(trigger: "My link.", expansion: "one")
+        let second = Snippet(trigger: "my link", expansion: "two")
+        let all = [blank, first, second]
+        XCTAssertNil(Snippets.shadowing(blank, in: all), "nothing above it")
+        XCTAssertNil(Snippets.shadowing(first, in: all), "a blank row above doesn't take the phrase")
+        XCTAssertEqual(Snippets.shadowing(second, in: all), first)
+        XCTAssertEqual(Snippets.match("my link", in: all), first)
+    }
+
+    func testDecodeIsTolerantPerRow() {
+        let json = """
+        [{"trigger":"no id","expansion":"a"},
+         {"id":"not-a-uuid","trigger":"bad id","expansion":"b"},
+         42,
+         {"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","trigger":"ok","expansion":"c"}]
+        """
+        let decoded = Snippets.decode(Data(json.utf8))
+        XCTAssertEqual(decoded.snippets.map(\.trigger), ["no id", "bad id", "ok"])
+        XCTAssertEqual(decoded.snippets.last?.id.uuidString, "6F9619FF-8B86-D011-B42D-00C04FC964FF")
+        XCTAssertFalse(decoded.lossless, "the 42 row was lost")
+
+        XCTAssertEqual(Snippets.decode(nil), Snippets.Decoded(snippets: [], lossless: true))
+        XCTAssertFalse(Snippets.decode(Data("{\"not\":\"a list\"}".utf8)).lossless)
+    }
+
+    func testUnreadableStoredDataIsBackedUpBeforeOverwrite() {
+        let prefs = AppPreferences.shared
+        let defaults = DefaultsStore.current
+        let savedData = defaults.data(forKey: "snippetsData")
+        let savedBackup = prefs.snippetsDataUnreadableBackup
+        defer {
+            defaults.set(savedData, forKey: "snippetsData")
+            prefs.snippetsDataUnreadableBackup = savedBackup
+        }
+        prefs.snippetsDataUnreadableBackup = nil
+        let garbage = Data("{\"future\":true}".utf8)
+        defaults.set(garbage, forKey: "snippetsData")
+        XCTAssertEqual(prefs.snippets, [])
+
+        prefs.snippets = [calendar]
+        XCTAssertEqual(prefs.snippets, [calendar])
+        XCTAssertEqual(prefs.snippetsDataUnreadableBackup, garbage)
+
+        // A later write of a readable list leaves the first backup alone.
+        prefs.snippets = [address]
+        XCTAssertEqual(prefs.snippetsDataUnreadableBackup, garbage)
+    }
+
+    func testMultilineDetection() {
+        XCTAssertTrue(DictationPipeline.isMultiline("1 Main St\nAustin"))
+        XCTAssertTrue(DictationPipeline.isMultiline("a\r\nb"))
+        XCTAssertFalse(DictationPipeline.isMultiline("https://cal.com/noah/30min"))
+    }
+
     func testPreferenceRoundTripAndToggle() {
         let prefs = AppPreferences.shared
         let saved = prefs.snippets

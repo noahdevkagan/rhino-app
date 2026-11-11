@@ -8,6 +8,27 @@ struct Snippet: Codable, Identifiable, Equatable, Hashable {
     var trigger: String = ""
     /// What lands in the document, exactly as typed, newlines included.
     var expansion: String = ""
+
+    init(id: UUID = UUID(), trigger: String = "", expansion: String = "") {
+        self.id = id
+        self.trigger = trigger
+        self.expansion = expansion
+    }
+
+    /// Tolerant: a missing or malformed field gets its default instead of failing the row,
+    /// so a hand-edited or older/newer stored list still loads.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        trigger = (try? c.decodeIfPresent(String.self, forKey: .trigger)) ?? ""
+        expansion = (try? c.decodeIfPresent(String.self, forKey: .expansion)) ?? ""
+    }
+
+    /// Has both a trigger and an expansion, so it can fire.
+    var isUsable: Bool {
+        !Snippets.normalize(trigger).isEmpty
+            && !expansion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 }
 
 /// Matching for snippets.
@@ -40,15 +61,35 @@ enum Snippets {
         return words.joined(separator: " ")
     }
 
-    /// The snippet whose trigger the whole `text` is, or nil. Snippets with an empty trigger
-    /// or an empty expansion never match. With duplicate triggers the first one wins.
-    static func match(_ text: String, in snippets: [Snippet]) -> Snippet? {
+    /// The snippet whose trigger the whole `text` is, or nil. Only usable snippets (trigger
+    /// and expansion both filled in) match; among those the first in the list wins.
+    ///
+    /// `transcriptForm` turns a typed trigger into what the transcript would look like by the
+    /// time it gets here (the dictionary, number formatting, British spelling all ran on the
+    /// transcript), so "room two" still matches a transcript of "room 2". The trigger matches
+    /// in either its typed or its transformed form.
+    static func match(_ text: String, in snippets: [Snippet],
+                      transcriptForm: (String) -> String = { $0 }) -> Snippet? {
         let spoken = normalize(text)
         guard !spoken.isEmpty else { return nil }
         return snippets.first { snippet in
-            !snippet.expansion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                && normalize(snippet.trigger) == spoken
+            snippet.isUsable
+                && (normalize(snippet.trigger) == spoken
+                    || normalize(transcriptForm(snippet.trigger)) == spoken)
         }
+    }
+
+    /// The earlier usable snippet with the same trigger that takes precedence over `snippet`,
+    /// or nil when `snippet` itself would be the one used. The editor's duplicate warning uses
+    /// this, so it states the same rule `match` applies.
+    static func shadowing(_ snippet: Snippet, in snippets: [Snippet]) -> Snippet? {
+        let key = normalize(snippet.trigger)
+        guard !key.isEmpty else { return nil }
+        for other in snippets {
+            if other.id == snippet.id { return nil }
+            if other.isUsable && normalize(other.trigger) == key { return other }
+        }
+        return nil
     }
 
     /// Snippets worth keeping on disk: drops rows where both fields are blank, so "Add
@@ -57,6 +98,32 @@ enum Snippets {
         snippets.filter {
             !$0.trigger.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || !$0.expansion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    // MARK: - Storage
+
+    /// Result of reading the stored list. `lossless` is false when the data was there but
+    /// some or all of it could not be read; the caller must then not overwrite it blindly.
+    struct Decoded: Equatable {
+        var snippets: [Snippet]
+        var lossless: Bool
+    }
+
+    /// Decodes each row on its own, so one bad row costs that row, not the whole list.
+    static func decode(_ data: Data?) -> Decoded {
+        guard let data else { return Decoded(snippets: [], lossless: true) }
+        guard let rows = try? JSONDecoder().decode([LossyRow].self, from: data) else {
+            return Decoded(snippets: [], lossless: false)
+        }
+        let snippets = rows.compactMap(\.snippet)
+        return Decoded(snippets: snippets, lossless: snippets.count == rows.count)
+    }
+
+    private struct LossyRow: Decodable {
+        let snippet: Snippet?
+        init(from decoder: Decoder) throws {
+            snippet = try? Snippet(from: decoder)
         }
     }
 }

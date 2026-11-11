@@ -189,7 +189,10 @@ final class DictationPipeline: ObservableObject {
             // its text exactly. It skips everything below that rewrites words (cleanup, spoken
             // punctuation, British spelling, the dictionary, greetings) and, at insertion, the
             // spacing and caret fitting: a URL or an address must land as the user typed it.
-            let snippet = AppPreferences.shared.matchingSnippet(text)
+            // Triggers go through the same transforms the transcript did, so they compare alike.
+            let snippet = AppPreferences.shared.matchingSnippet(text) {
+                AppPreferences.shared.snippetTriggerTranscriptForm($0, settings: settings)
+            }
             let spokenTrailingMark: Bool
             var spokenSubmit = false
             if let snippet {
@@ -436,10 +439,18 @@ final class DictationPipeline: ObservableObject {
     private func insertText(_ text: String, spokenTrailingMark: Bool,
                             verbatim: Bool = false) -> TranscriptInserter.Outcome {
         // `verbatim` (a snippet): the text goes in exactly as stored, with no sentence spacing
-        // and no casing or period fitted to the caret.
+        // and no casing or period fitted to the caret. A multi-line one is pasted even in
+        // typing mode: typed newlines are Return keystrokes, which send a Slack or Messages
+        // message halfway through the address.
         TranscriptInserter.insert(verbatim ? text : IndicatorViewModel.applyPostProcessing(text),
                                   honorAutoPastePreference: true,
                                   fitToContext: !verbatim,
-                                  spokenTrailingMark: spokenTrailingMark)
+                                  spokenTrailingMark: spokenTrailingMark,
+                                  forcePaste: verbatim && Self.isMultiline(text))
+    }
+
+    /// Internal so tests can pin it.
+    nonisolated static func isMultiline(_ text: String) -> Bool {
+        text.contains(where: \.isNewline)
     }
 }

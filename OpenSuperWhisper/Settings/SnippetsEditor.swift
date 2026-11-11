@@ -133,10 +133,9 @@ struct SnippetsEditor: View {
         .help(snippet.expansion)
     }
 
+    /// Same rule as matching: only an earlier snippet that can fire takes the phrase.
     private func isDuplicate(_ snippet: Snippet) -> Bool {
-        let key = Snippets.normalize(snippet.trigger)
-        guard !key.isEmpty else { return false }
-        return snippets.contains { $0.id != snippet.id && Snippets.normalize($0.trigger) == key }
+        Snippets.shadowing(snippet, in: snippets) != nil
     }
 
     /// Closing a snippet nobody filled in drops it, so "Add snippet" then clicking away doesn't
@@ -185,7 +184,7 @@ private struct SnippetRowEditor: View {
                     .padding(.vertical, 6)
                     .background(RoundedRectangle(cornerRadius: 6).fill(STheme.inputBg))
                 Text(duplicate
-                     ? "Another snippet already uses this phrase. The first one in the list wins."
+                     ? "A snippet higher in the list already uses this phrase, so Rhino types that one instead."
                      : "Works when this phrase is the whole dictation. Capitals and punctuation don't matter.")
                     .scaledFont(size: 11)
                     .foregroundColor(duplicate ? STheme.warn : STheme.hint)

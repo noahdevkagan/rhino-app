@@ -2464,6 +2464,15 @@ unchanged (they see the expansion). Free tier, no gate.
   cue ("insert my address") or trigger words nobody says otherwise; revisit with real use.
 - Lives as a main-window tab next to Dictionary (where the dictionary is edited), stored in
   UserDefaults as JSON like the dictionary. Duplicate triggers: the first in the list wins, and the
-  editor warns.
-- Matching runs on the engine's output, after number formatting: a trigger typed "room two" won't
-  match a transcript of "room 2". Not handled in v1.
+  editor warns. Only usable rows (trigger and expansion both filled) take a phrase, in matching and
+  in the warning alike (`Snippets.shadowing`).
+- The transcript reaches the matcher after the engine's dictionary pass, number formatting and
+  British spelling, so each trigger goes through the same three before comparing
+  (`snippetTriggerTranscriptForm`); a trigger matches in its typed or transformed form. "room two"
+  matches "room 2", "my clavio link" matches after a clavio → Klaviyo rule.
+- Multi-line expansions are pasted even in typing mode: typed newlines are Return keystrokes and
+  would send a Slack or Messages message halfway through an address.
+- Stored rows decode one by one with defaults for missing fields, so a bad row costs that row. If
+  the stored data couldn't be fully read, the first write copies it to
+  `snippetsDataUnreadableBackup` (kept once) before replacing it, rather than refusing writes
+  forever.

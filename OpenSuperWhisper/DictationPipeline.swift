@@ -273,7 +273,9 @@ final class DictationPipeline: ObservableObject {
                 break
             }
 
-            if hasText {
+            // A snippet is saved text, not dictation: it counts no words toward the free
+            // weekly limit. (History below still records it like any dictation.)
+            if hasText && snippet == nil {
                 UnlockRhino.shared.record(text: text)
             }
 

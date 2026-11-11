@@ -177,6 +177,20 @@ final class SnippetsPipelineTests: XCTestCase {
         XCTAssertEqual(output, expansion)
     }
 
+    /// Snippets are saved text: zero words toward the free weekly limit. A normal dictation
+    /// still counts.
+    func testSnippetCountsNoFreeTierWords() async {
+        let gate = UnlockRhino.shared.gate
+        let snippets = [Snippet(trigger: "my address", expansion: "1 Main St\nAustin, TX 78701 USA")]
+
+        let before = gate.wordsThisWeek
+        _ = await runPipeline(transcript: "My address.", snippets: snippets, aiCleanup: false)
+        XCTAssertEqual(gate.wordsThisWeek, before, "a snippet must not count words")
+
+        _ = await runPipeline(transcript: "three words here", snippets: snippets, aiCleanup: false)
+        XCTAssertEqual(gate.wordsThisWeek, before + 3, "a normal dictation still counts")
+    }
+
     func testNonMatchingDictationStillGoesThroughNormalPath() async {
         // AI cleanup off here so a cleanup model on the test Mac can't make this nondeterministic;
         // sentence spacing still runs on the normal path.

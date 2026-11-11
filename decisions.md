@@ -2455,8 +2455,9 @@ whole dictation is the trigger, compared after `Snippets.normalize` (case, diacr
 punctuation/whitespace collapsed), so "My calendar link." matches "my calendar link". A match skips
 everything that rewrites words: cleanup (and `CleanupOffer` counting), spoken punctuation, British
 spelling, the dictionary, greetings, and at insertion the sentence spacing and `ContextCasing` caret
-fitting. The expansion lands exactly as typed. Word count, history and the long-clip hold are
-unchanged (they see the expansion). Free tier, no gate.
+fitting. The expansion lands exactly as typed. History and the long-clip hold are unchanged (they
+see the expansion). Free tier, no gate, and a snippet counts zero words toward the free weekly
+limit: it is saved text, not dictation, and a long address shouldn't eat the allowance.
 
 - No inline expansion inside a longer sentence. A trigger like "my address" is ordinary speech
   ("I changed my address last week"), and pasting a multi-line address into the middle of that is a

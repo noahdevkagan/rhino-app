@@ -18,13 +18,13 @@ final class UnlockRhino {
 
     /// Called on the trigger key. Returns false (and shows the paywall) when the
     /// free words for this week are used up.
-    func allowRecording() -> Bool {
-        guard gate.isBlocked else { return true }
-        // The cursor bubble is the proven way to reach a user over any app; the panel
-        // carries the buy button and code field.
+    var recordingBlocked: Bool { gate.isBlocked }
+
+    /// The cursor bubble is the proven way to reach a user over any app; the panel
+    /// carries the buy button and code field.
+    func showRecordingBlocked() {
         IndicatorWindowManager.shared.flash(.info("Free words used up this week. Rhino menu → Get Rhino Unlimited"))
         show(limitReached: true)
-        return false
     }
 
     func record(text: String) {

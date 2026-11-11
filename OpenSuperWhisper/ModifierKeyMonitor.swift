@@ -239,17 +239,34 @@ class ModifierKeyMonitor {
     /// key code is read solely to leave Esc to the cancel shortcut, and is never stored or logged.
     private func handleKeyDown(event: CGEvent) {
         guard let key = pressedKey, !pressChorded else { return }
-        // A key already held before the trigger keeps auto-repeating; that is not a new press.
-        guard event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else { return }
-        // Esc while recording is the cancel shortcut, with its own long-take confirmation.
-        // Leave it to that flow rather than discarding first and racing it.
-        guard event.getIntegerValueField(.keyboardEventKeycode) != Int64(kVK_Escape) else { return }
+        guard Self.keyDownCountsAsChord(
+            isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+            isEscape: event.getIntegerValueField(.keyboardEventKeycode) == Int64(kVK_Escape),
+            sourcePID: event.getIntegerValueField(.eventSourceUnixProcessID),
+            sourceStateID: event.getIntegerValueField(.eventSourceStateID),
+            ownPID: Int64(getpid())) else { return }
         pressChorded = true
         DispatchQueue.main.async {
             self.onChord?(key)
         }
     }
     
+    /// Whether a key-down during a trigger press is a person's chord. Only a key physically
+    /// typed counts:
+    /// - Rhino's own synthetic keys (typed text, ⌘V, Return) land after a release, possibly
+    ///   while the next take's trigger is already held; they must not cancel that take.
+    /// - Other apps' synthetic keys (text expanders, automation) don't come from the HID
+    ///   system state; real keyboards, including virtual HID devices like Karabiner's, do.
+    /// - Autorepeat of a key held before the trigger is not a new press.
+    /// - Esc while recording is the cancel shortcut, with its own long-take confirmation:
+    ///   leave it to that flow rather than discarding first and racing it.
+    static func keyDownCountsAsChord(isAutorepeat: Bool, isEscape: Bool, sourcePID: Int64,
+                                     sourceStateID: Int64, ownPID: Int64) -> Bool {
+        guard sourcePID != ownPID else { return false }
+        guard sourceStateID == Int64(CGEventSourceStateID.hidSystemState.rawValue) else { return false }
+        return !isAutorepeat && !isEscape
+    }
+
     deinit {
         stop()
     }

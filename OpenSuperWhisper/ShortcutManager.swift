@@ -52,6 +52,8 @@ class ShortcutManager {
     struct ChordState {
         private(set) var press = 0
         private var chordedPress: Int?
+        /// The last press that saw a chord, cancelled or not: one chord per press.
+        private var lastChordPress: Int?
         private var takeOwner: Int?
 
         /// A new trigger press. Returns its number.
@@ -62,31 +64,47 @@ class ShortcutManager {
 
         /// Marks the held press as a chord. Returns its number, or nil if it already was one.
         mutating func chord() -> Int? {
-            guard press > 0, chordedPress != press else { return nil }
+            guard press > 0, lastChordPress != press else { return nil }
             chordedPress = press
+            lastChordPress = press
             return press
         }
 
         func isChorded(_ press: Int) -> Bool { chordedPress == press }
 
+        /// The chord didn't cancel anything: the press goes back to behaving as it does
+        /// without one, release included.
+        mutating func chordIgnored(_ press: Int) {
+            if chordedPress == press { chordedPress = nil }
+        }
+
         mutating func takeStarted(by press: Int) { takeOwner = press }
         mutating func takeEnded() { takeOwner = nil }
 
         /// Whether a chord on `press` should throw the live take away.
-        func chordDiscardsTake(press: Int, takeLive: Bool, lockedOn: Bool) -> Bool {
+        func chordDiscardsTake(press: Int, takeLive: Bool, lockedOn: Bool,
+                               takeAge: TimeInterval) -> Bool {
             ShortcutManager.chordDiscardsTake(startedByThisPress: takeOwner == press,
-                                              takeLive: takeLive, lockedOn: lockedOn)
+                                              takeLive: takeLive, lockedOn: lockedOn,
+                                              takeAge: takeAge)
         }
 
-        /// A chorded press's release does nothing: not a tap, no lock, no deferred stop.
+        /// A chord that cancelled its take leaves a release that does nothing: not a tap, no
+        /// lock, no deferred stop.
         func releaseIgnored(_ press: Int) -> Bool { isChorded(press) }
     }
 
-    /// A chord only cancels a take that the chorded press itself started. A take that was
-    /// already locked on (hands-free), or one the press locked or stopped, keeps today's
-    /// behavior, so Fn+↑ while dictating hands-free scrolls without losing the dictation.
-    static func chordDiscardsTake(startedByThisPress: Bool, takeLive: Bool, lockedOn: Bool) -> Bool {
-        startedByThisPress && takeLive && !lockedOn
+    /// How young a take must be for a chord to cancel it. A shortcut like Fn+↑ lands almost
+    /// at once; a key after this is a stray press during real dictation, which keeps recording
+    /// (a long take is never wiped without the Esc confirmation).
+    static let chordCancelWindow: TimeInterval = 1.0
+
+    /// A chord only cancels a young take that the chorded press itself started. With a locked
+    /// (hands-free) take, the trigger press itself stops (or locks) the take before any chord
+    /// arrives, exactly as before chords existed, so the chord then has nothing to cancel.
+    static func chordDiscardsTake(startedByThisPress: Bool, takeLive: Bool, lockedOn: Bool,
+                                  takeAge: TimeInterval) -> Bool {
+        startedByThisPress && takeLive && !lockedOn && takeAge < chordCancelWindow
     }
 
     /// Whether a trigger press on a live take locks it on rather than stopping it. A take
@@ -300,13 +318,21 @@ class ShortcutManager {
     /// A non-modifier key went down while a modifier trigger was held (see `ChordState`).
     private func handleChord() {
         guard let press = chords.chord() else { return }
-        holdWorkItem?.cancel()
-        holdWorkItem = nil
+        let now = Date()
+        // Runs before this press's release Task (both queue on the main actor in order), so
+        // the release sees whether the chord cancelled the take.
         Task { @MainActor in
+            let takeAge = self.takeStartedAt.map { now.timeIntervalSince($0) } ?? .infinity
             guard self.chords.chordDiscardsTake(
-                press: press, takeLive: self.activeVm != nil, lockedOn: self.lockedOn) else { return }
+                press: press, takeLive: self.activeVm != nil, lockedOn: self.lockedOn,
+                takeAge: takeAge) else {
+                self.chords.chordIgnored(press)
+                return
+            }
             // Quietly: hide the bubble, transcribe and insert nothing.
             Diag.mark("trigger chord → discard take")
+            self.holdWorkItem?.cancel()
+            self.holdWorkItem = nil
             self.stopActiveTake(discard: true)
         }
     }
@@ -314,14 +340,16 @@ class ShortcutManager {
     private func handleKeyUp() {
         holdWorkItem?.cancel()
         holdWorkItem = nil
-        // A chorded press's release is not a tap: no stop, no lock, no deferred stop.
-        if chords.releaseIgnored(chords.press) { return }
+        let press = chords.press
 
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord
         let doubleTapLock = AppPreferences.shared.doubleTapLock
         let now = Date()
 
         Task { @MainActor in
+            // A press whose chord cancelled its take: the release is not a tap, so no stop,
+            // no lock, no deferred stop. Checked here, after the chord's Task has decided.
+            if self.chords.releaseIgnored(press) { return }
             // Locked on (hands-free): releases never stop the recording; only a press does.
             if self.lockedOn { return }
             guard holdToRecordEnabled && self.holdMode else { return }

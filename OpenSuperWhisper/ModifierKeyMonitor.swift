@@ -102,9 +102,15 @@ class ModifierKeyMonitor {
     /// "dictate and submit" alongside the plain record trigger (#50).
     private var watched: [UInt16: ModifierKey] = [:]
     private var pressedKey: ModifierKey?
+    /// Whether a non-modifier key went down during the current press (see `handleKeyDown`).
+    private var pressChorded = false
 
     var onKeyDown: ((ModifierKey) -> Void)?
     var onKeyUp: ((ModifierKey) -> Void)?
+    /// A non-modifier key went down while the trigger was held: the press is a shortcut such as
+    /// Fn+↑ (Page Up), Fn+Delete or Fn+F5, not dictation. Fires at most once per press, on main,
+    /// after that press's `onKeyDown` and before its `onKeyUp`.
+    var onChord: ((ModifierKey) -> Void)?
     
     private init() {}
     
@@ -128,6 +134,7 @@ class ModifierKeyMonitor {
         
         watched = [modifierKey.keyCode: modifierKey]
         pressedKey = nil
+        pressChorded = false
 
         // Accessibility already authorizes both posting and listening to events. Rhino needs it
         // to insert text, so requiring Input Monitoring as well creates a redundant TCC prompt
@@ -138,7 +145,10 @@ class ModifierKeyMonitor {
             return
         }
         
+        // keyDown is only there to spot chords while a trigger is held. Still listen-only:
+        // nothing is ever swallowed or delayed.
         let eventMask = CGEventMask(1 << CGEventType.flagsChanged.rawValue)
+            | CGEventMask(1 << CGEventType.keyDown.rawValue)
         
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -157,7 +167,11 @@ class ModifierKeyMonitor {
                     return Unmanaged.passUnretained(event)
                 }
                 
-                monitor.handleFlagsChanged(event: event)
+                if type == .keyDown {
+                    monitor.handleKeyDown(event: event)
+                } else {
+                    monitor.handleFlagsChanged(event: event)
+                }
                 return Unmanaged.passUnretained(event)
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
@@ -187,6 +201,7 @@ class ModifierKeyMonitor {
         runLoopSource = nil
         watched = [:]
         pressedKey = nil
+        pressChorded = false
         print("ModifierKeyMonitor: Stopped")
     }
     
@@ -208,6 +223,7 @@ class ModifierKeyMonitor {
         if isPressed, pressedKey == nil {
             // A second modifier pressed mid-recording is ignored: the first owns this take.
             pressedKey = key
+            pressChorded = false
             DispatchQueue.main.async {
                 self.onKeyDown?(key)
             }
@@ -216,6 +232,21 @@ class ModifierKeyMonitor {
             DispatchQueue.main.async {
                 self.onKeyUp?(key)
             }
+        }
+    }
+
+    /// A key went down somewhere. Privacy: keys are only counted here, never recorded — the
+    /// key code is read solely to leave Esc to the cancel shortcut, and is never stored or logged.
+    private func handleKeyDown(event: CGEvent) {
+        guard let key = pressedKey, !pressChorded else { return }
+        // A key already held before the trigger keeps auto-repeating; that is not a new press.
+        guard event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else { return }
+        // Esc while recording is the cancel shortcut, with its own long-take confirmation.
+        // Leave it to that flow rather than discarding first and racing it.
+        guard event.getIntegerValueField(.keyboardEventKeycode) != Int64(kVK_Escape) else { return }
+        pressChorded = true
+        DispatchQueue.main.async {
+            self.onChord?(key)
         }
     }
     

@@ -42,6 +42,52 @@ class ShortcutManager {
     private let secondTapGrace: TimeInterval = 0.35
     /// The stop a too-short hold-release deferred (see `handleKeyUp`).
     private var pendingHoldStop: DispatchWorkItem?
+    /// Which press is held, whether it became a chord, and which press started the live take.
+    private var chords = ChordState()
+
+    /// Per-press bookkeeping for chords: a non-modifier key pressed while a modifier trigger is
+    /// held (Fn+↑ is Page Up, Fn+Delete, Fn+F5…) makes that press a shortcut, not dictation.
+    /// Presses are numbered so a later main-actor Task can tell whether its press was chorded.
+    /// Presses, chords and releases arrive on main in that order (ModifierKeyMonitor).
+    struct ChordState {
+        private(set) var press = 0
+        private var chordedPress: Int?
+        private var takeOwner: Int?
+
+        /// A new trigger press. Returns its number.
+        mutating func pressBegan() -> Int {
+            press += 1
+            return press
+        }
+
+        /// Marks the held press as a chord. Returns its number, or nil if it already was one.
+        mutating func chord() -> Int? {
+            guard press > 0, chordedPress != press else { return nil }
+            chordedPress = press
+            return press
+        }
+
+        func isChorded(_ press: Int) -> Bool { chordedPress == press }
+
+        mutating func takeStarted(by press: Int) { takeOwner = press }
+        mutating func takeEnded() { takeOwner = nil }
+
+        /// Whether a chord on `press` should throw the live take away.
+        func chordDiscardsTake(press: Int, takeLive: Bool, lockedOn: Bool) -> Bool {
+            ShortcutManager.chordDiscardsTake(startedByThisPress: takeOwner == press,
+                                              takeLive: takeLive, lockedOn: lockedOn)
+        }
+
+        /// A chorded press's release does nothing: not a tap, no lock, no deferred stop.
+        func releaseIgnored(_ press: Int) -> Bool { isChorded(press) }
+    }
+
+    /// A chord only cancels a take that the chorded press itself started. A take that was
+    /// already locked on (hands-free), or one the press locked or stopped, keeps today's
+    /// behavior, so Fn+↑ while dictating hands-free scrolls without losing the dictation.
+    static func chordDiscardsTake(startedByThisPress: Bool, takeLive: Bool, lockedOn: Bool) -> Bool {
+        startedByThisPress && takeLive && !lockedOn
+    }
 
     /// Whether a trigger press on a live take locks it on rather than stopping it. A take
     /// younger than the recorder's keep threshold would be discarded by a stop, so the only
@@ -94,6 +140,7 @@ class ShortcutManager {
         holdMode = false
         lockedOn = false
         takeStartedAt = nil
+        chords.takeEnded()
         pendingHoldStop?.cancel()
         pendingHoldStop = nil
     }
@@ -148,6 +195,7 @@ class ShortcutManager {
         if !modifiers.isEmpty {
             ModifierKeyMonitor.shared.onKeyDown = { [weak self] _ in self?.handleKeyDown() }
             ModifierKeyMonitor.shared.onKeyUp = { [weak self] _ in self?.handleKeyUp() }
+            ModifierKeyMonitor.shared.onChord = { [weak self] _ in self?.handleChord() }
             ModifierKeyMonitor.shared.start(modifierKeys: modifiers)
         }
 
@@ -181,6 +229,7 @@ class ShortcutManager {
     private func handleKeyDown() {
         holdWorkItem?.cancel()
         holdMode = false
+        let press = chords.pressBegan()
 
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord
         let doubleTapLock = AppPreferences.shared.doubleTapLock
@@ -193,6 +242,8 @@ class ShortcutManager {
 
         Task { @MainActor in
             if self.activeVm == nil {
+                // Already a chord (the key landed before this Task ran): never start.
+                guard !self.chords.isChorded(press) else { return }
                 guard UnlockRhino.shared.allowRecording() else { return }
                 Diag.mark("keyDown → start recording")
                 let cursorPosition = FocusUtils.getCurrentCursorPosition()
@@ -209,6 +260,7 @@ class ShortcutManager {
                 self.activeVm = vm
                 self.lockedOn = false
                 self.takeStartedAt = now
+                self.chords.takeStarted(by: press)
                 // The mic is already starting. Resolve placement in the background;
                 // the manager briefly holds the bubble offscreen, then keeps its anchor.
                 if needsCaret, let processID {
@@ -245,10 +297,26 @@ class ShortcutManager {
         }
     }
     
+    /// A non-modifier key went down while a modifier trigger was held (see `ChordState`).
+    private func handleChord() {
+        guard let press = chords.chord() else { return }
+        holdWorkItem?.cancel()
+        holdWorkItem = nil
+        Task { @MainActor in
+            guard self.chords.chordDiscardsTake(
+                press: press, takeLive: self.activeVm != nil, lockedOn: self.lockedOn) else { return }
+            // Quietly: hide the bubble, transcribe and insert nothing.
+            Diag.mark("trigger chord → discard take")
+            self.stopActiveTake(discard: true)
+        }
+    }
+
     private func handleKeyUp() {
         holdWorkItem?.cancel()
         holdWorkItem = nil
-        
+        // A chorded press's release is not a tap: no stop, no lock, no deferred stop.
+        if chords.releaseIgnored(chords.press) { return }
+
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord
         let doubleTapLock = AppPreferences.shared.doubleTapLock
         let now = Date()
@@ -285,5 +353,6 @@ class ShortcutManager {
         activeVm = nil
         holdMode = false
         takeStartedAt = nil
+        chords.takeEnded()
     }
 }

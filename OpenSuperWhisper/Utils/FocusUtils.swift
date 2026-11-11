@@ -241,6 +241,19 @@ class FocusUtils {
     /// answer within `axMessagingTimeout`); "" when the app reports an empty selection. Many web
     /// and Electron fields answer "" even with text selected, so callers treat "" as "try ⌘C".
     /// Nothing read here is stored or leaves the process.
+    /// The system-wide focused UI element, or nil when Accessibility can't say.
+    static func focusedElement() -> AXUIElement? {
+        guard AXIsProcessTrusted() else { return nil }
+        let systemElement = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemElement, axMessagingTimeout)
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(systemElement, kAXFocusedUIElementAttribute as CFString,
+                                            &focused) == .success,
+              let focusedCF = focused,
+              CFGetTypeID(focusedCF) == AXUIElementGetTypeID() else { return nil }
+        return (focusedCF as! AXUIElement)
+    }
+
     static func selectedText() -> String? {
         guard AXIsProcessTrusted() else { return nil }
         let systemElement = AXUIElementCreateSystemWide()

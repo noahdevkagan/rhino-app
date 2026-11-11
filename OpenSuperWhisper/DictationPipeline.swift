@@ -353,10 +353,8 @@ final class DictationPipeline: ObservableObject {
         case .failure(let reason):
             failure = reason
         case .success(let rewrite):
-            if let reason = CommandMode.replaceBlocker(
-                captured: command,
-                currentProcessID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
-                currentAXSelection: command.method == .accessibility ? FocusUtils.selectedText() : nil) {
+            if let reason = await SelectionCapture.verifyBeforeReplace(
+                command, in: LiveSelectionCaptureEnvironment()) {
                 failure = reason
             } else if TranscriptInserter.replaceSelection(with: rewrite) == .noPermission {
                 failure = .noPermission

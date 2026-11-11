@@ -96,14 +96,21 @@ enum CommandMode {
     ]
 
     /// Strips what the model adds around the rewrite: code fences, echoed `<<< >>>` fences,
-    /// a preamble line or label, trailing notes, and quotes wrapping the whole answer (unless the
-    /// selection itself was quoted). Returns the bare rewrite, trimmed.
+    /// a preamble line or label, trailing notes, and quotes wrapping the whole answer. Each strip
+    /// is skipped when the thing it would remove came from the selection (the user selected code
+    /// with fences, a list headed "Here are the next steps:", an email ending "Let me know…"),
+    /// so the user's own text is never eaten. Returns the bare rewrite, trimmed.
     static func sanitize(_ raw: String, selection: String) -> String {
+        let source = selection.replacingOccurrences(of: "\r\n", with: "\n")
+        let sourceLower = source.lowercased()
+        let sourceLines = source.components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        let sourceLineSet = Set(sourceLines.map { $0.lowercased() })
         var text = raw.replacingOccurrences(of: "\r\n", with: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // ```lang ... ``` around everything.
-        if text.hasPrefix("```"), text.hasSuffix("```"), text.count >= 6 {
+        // ```lang ... ``` around everything, unless the selection has fences of its own.
+        if !source.contains("```"), text.hasPrefix("```"), text.hasSuffix("```"), text.count >= 6 {
             var lines = text.components(separatedBy: "\n")
             lines.removeFirst()
             if lines.last?.trimmingCharacters(in: .whitespaces) == "```" { lines.removeLast() }
@@ -111,38 +118,52 @@ enum CommandMode {
             text = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // Echoed fences from the prompt.
-        for fence in ["<<<", ">>>"] {
-            text = text.replacingOccurrences(of: fence, with: "")
+        // Echoed prompt fences: whole lines, or glued to the start/end. Never inside the text,
+        // and not at all when the selection contains them (shell heredocs, merge markers).
+        for fence in ["<<<", ">>>"] where !source.contains(fence) {
+            text = text.components(separatedBy: "\n")
+                .filter { $0.trimmingCharacters(in: .whitespaces) != fence }
+                .joined(separator: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.hasPrefix(fence) { text = String(text.dropFirst(fence.count)) }
+            if text.hasSuffix(fence) { text = String(text.dropLast(fence.count)) }
+            text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        text = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // A preamble on its own first line.
+        // A preamble on its own first line, unless the selection has that line or one like it.
+        let selectionHasPreamble = sourceLines.contains { matches($0, preambleLinePattern) }
         var lines = text.components(separatedBy: "\n")
-        if lines.count > 1, matches(lines[0].trimmingCharacters(in: .whitespaces), preambleLinePattern) {
-            lines.removeFirst()
-            text = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        if lines.count > 1, !selectionHasPreamble {
+            let first = lines[0].trimmingCharacters(in: .whitespaces)
+            if matches(first, preambleLinePattern), !sourceLineSet.contains(first.lowercased()) {
+                lines.removeFirst()
+                text = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            }
         }
 
         // "Sure! Here's the rewritten text: ..." on one line: drop the chatty opener first, then
-        // the label.
-        text = text.replacingOccurrences(
-            of: #"^(?:sure|certainly|of course|okay|ok|absolutely)[!,.]?\s+(?=here)"#,
-            with: "", options: [.regularExpression, .caseInsensitive])
-        text = text.replacingOccurrences(of: inlineLabelPattern, with: "",
-                                         options: [.regularExpression, .caseInsensitive])
+        // the label; each only when the selection doesn't contain it.
+        text = stripLeading(#"^(?:sure|certainly|of course|okay|ok|absolutely)[!,.]?\s+(?=here)"#,
+                            from: text, unlessIn: sourceLower)
+        text = stripLeading(inlineLabelPattern, from: text, unlessIn: sourceLower)
 
         // Trailing commentary: a paragraph (after a blank line) that talks about the rewrite.
-        var paragraphs = text.components(separatedBy: "\n\n")
-        while paragraphs.count > 1,
-              let last = paragraphs.last?.trimmingCharacters(in: .whitespacesAndNewlines),
-              matches(last, trailerPattern) {
-            paragraphs.removeLast()
+        // Kept when it is in the selection, or the selection has such a line of its own (an
+        // email ending "Let me know…" keeps its rewritten sign-off).
+        let selectionHasTrailer = sourceLines.contains { matches($0, trailerPattern) }
+        if !selectionHasTrailer {
+            var paragraphs = text.components(separatedBy: "\n\n")
+            while paragraphs.count > 1,
+                  let last = paragraphs.last?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  matches(last, trailerPattern),
+                  !sourceLower.contains(last.lowercased()) {
+                paragraphs.removeLast()
+            }
+            text = paragraphs.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        text = paragraphs.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Quotes around the whole answer, unless the user selected quoted text.
-        let trimmedSelection = selection.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSelection = source.trimmingCharacters(in: .whitespacesAndNewlines)
         for (open, close) in quotePairs {
             guard text.count >= 2, text.first == open, text.last == close else { continue }
             let selectionQuoted = trimmedSelection.first == open && trimmedSelection.last == close
@@ -154,6 +175,16 @@ enum CommandMode {
             break
         }
         return text
+    }
+
+    /// Removes a leading match of `pattern`, unless the matched words appear in the selection.
+    private static func stripLeading(_ pattern: String, from text: String,
+                                     unlessIn sourceLower: String) -> String {
+        guard let range = text.range(of: pattern, options: [.regularExpression, .caseInsensitive]),
+              !range.isEmpty else { return text }
+        let matched = text[range].trimmingCharacters(in: .whitespaces).lowercased()
+        if !matched.isEmpty, sourceLower.contains(matched) { return text }
+        return String(text[range.upperBound...])
     }
 
     /// Re-applies the selection's own leading/trailing whitespace, so replacing a triple-clicked
@@ -242,17 +273,28 @@ enum CommandMode {
     }
 
     /// Whether the paste may still go over the selection the take started from. The rewrite takes
-    /// a second or more, so the user may have clicked into another app, or (where Accessibility
-    /// can read it) changed the selection; pasting then would drop the rewrite somewhere else.
-    /// `currentAXSelection` is nil when it couldn't be read, which doesn't block. nil = paste.
+    /// a second or more, so the user may have clicked into another app, another field, or moved
+    /// the selection; pasting then would drop the rewrite in the wrong place. nil = paste.
+    ///
+    /// - `currentFocus`: the focused element now; nil when it can't be read (doesn't block).
+    /// - `currentSelection`: the selection read again the same way it was captured. For an
+    ///   Accessibility capture nil means "couldn't read" and doesn't block; for a ⌘C capture the
+    ///   re-copy is the only check that sees a selection moved inside the same field, so nil
+    ///   (nothing copied) blocks.
     static func replaceBlocker(captured: CommandSelection, currentProcessID: pid_t?,
-                               currentAXSelection: String?) -> Failure? {
+                               currentFocus: FocusToken? = nil,
+                               currentSelection: String?) -> Failure? {
         if let pid = captured.processID, let currentProcessID, pid != currentProcessID {
             return .selectionChanged
         }
-        if captured.method == .accessibility, let currentAXSelection,
-           currentAXSelection != captured.text {
+        if let before = captured.focus, let currentFocus, before != currentFocus {
             return .selectionChanged
+        }
+        switch captured.method {
+        case .accessibility:
+            if let currentSelection, currentSelection != captured.text { return .selectionChanged }
+        case .copy:
+            if currentSelection != captured.text { return .selectionChanged }
         }
         return nil
     }
@@ -300,6 +342,18 @@ struct CommandSelection: Equatable {
     let text: String
     let method: Method
     let processID: pid_t?
+    /// The focused element at capture (an AXUIElement in the app), to notice a click into
+    /// another field of the same app before pasting.
+    var focus: FocusToken? = nil
+}
+
+/// An opaque focused-element identity, compared with CFEqual (AXUIElements for the same element
+/// are equal even when they are different objects).
+struct FocusToken: Equatable {
+    let ref: AnyObject
+    static func == (lhs: FocusToken, rhs: FocusToken) -> Bool {
+        CFEqual(lhs.ref as CFTypeRef, rhs.ref as CFTypeRef)
+    }
 }
 
 /// The system calls selection capture needs, behind a protocol so the fallback logic is tested
@@ -318,6 +372,8 @@ protocol SelectionCaptureEnvironment {
     /// Posts a synthetic ⌘C to the focused app.
     func sendCopy()
     func frontmostProcessID() -> pid_t?
+    /// The focused UI element, for `CommandSelection.focus`; nil when Accessibility can't say.
+    func focusedElement() -> FocusToken?
 }
 
 @MainActor
@@ -326,23 +382,72 @@ enum SelectionCapture {
     /// milliseconds; a busy browser page can take a couple of hundred.
     nonisolated static let copyTimeout: TimeInterval = 0.35
     nonisolated static let copyPollInterval: TimeInterval = 0.02
+    /// After a ⌘C timed out, how long to keep watching for the app answering late. A late copy
+    /// would otherwise leave the selection on the clipboard instead of the user's contents.
+    nonisolated static let lateCopyGrace: TimeInterval = 2.0
 
-    /// Reads the current selection: Accessibility first, and when that yields nothing, a synthetic
-    /// ⌘C with the clipboard saved before and put back after, so the user's clipboard is never
-    /// lost. Returns nil when nothing is selected.
+    /// The running late-copy watch, if any (tests await it).
+    static var lateCopyWatch: Task<Void, Never>?
+
+    /// Reads the current selection: Accessibility first; only when Accessibility can't be read
+    /// at all, a synthetic ⌘C with the clipboard saved before and put back after, so the user's
+    /// clipboard is never lost. Returns nil when nothing is selected.
+    ///
+    /// An Accessibility answer of "" (the field says nothing is selected) is trusted and does
+    /// not fall back to ⌘C: editors such as VS Code, JetBrains and Sublime copy the whole
+    /// current line on ⌘C with no selection, which would then be rewritten and pasted over.
     static func capture(in env: SelectionCaptureEnvironment,
                         timeout: TimeInterval = copyTimeout,
-                        pollInterval: TimeInterval = copyPollInterval) async -> CommandSelection? {
+                        pollInterval: TimeInterval = copyPollInterval,
+                        lateGrace: TimeInterval = lateCopyGrace) async -> CommandSelection? {
         let pid = env.frontmostProcessID()
-        if let axText = env.accessibilitySelectedText(),
-           !axText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return CommandSelection(text: axText, method: .accessibility, processID: pid)
+        let focus = env.focusedElement()
+        if let axText = env.accessibilitySelectedText() {
+            guard !axText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return CommandSelection(text: axText, method: .accessibility, processID: pid, focus: focus)
         }
-
         // Many web and Electron fields don't expose their selection over Accessibility. Copy it.
+        guard let copied = await copySelection(in: env, timeout: timeout,
+                                               pollInterval: pollInterval, lateGrace: lateGrace),
+              !copied.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return CommandSelection(text: copied, method: .copy, processID: pid, focus: focus)
+    }
+
+    /// Reads the selection again right before the paste, the same way it was captured, plus the
+    /// app and focused element, and says whether pasting is still safe. nil = paste.
+    static func verifyBeforeReplace(_ captured: CommandSelection,
+                                    in env: SelectionCaptureEnvironment,
+                                    timeout: TimeInterval = copyTimeout,
+                                    pollInterval: TimeInterval = copyPollInterval,
+                                    lateGrace: TimeInterval = lateCopyGrace) async -> CommandMode.Failure? {
+        let pid = env.frontmostProcessID()
+        let focus = env.focusedElement()
+        // App or field changed: no need to touch the clipboard to know.
+        if let failure = CommandMode.replaceBlocker(captured: captured, currentProcessID: pid,
+                                                    currentFocus: focus,
+                                                    currentSelection: captured.text) {
+            return failure
+        }
+        let current: String?
+        switch captured.method {
+        case .accessibility: current = env.accessibilitySelectedText()
+        case .copy: current = await copySelection(in: env, timeout: timeout,
+                                                  pollInterval: pollInterval, lateGrace: lateGrace)
+        }
+        return CommandMode.replaceBlocker(captured: captured, currentProcessID: pid,
+                                          currentFocus: focus, currentSelection: current)
+    }
+
+    /// Synthetic ⌘C with the user's clipboard saved and put back. Returns what was copied, or
+    /// nil when the app copied nothing within `timeout`. If the app answers after the timeout,
+    /// a watch keeps going for `lateGrace` and puts the user's clipboard back then.
+    static func copySelection(in env: SelectionCaptureEnvironment,
+                              timeout: TimeInterval, pollInterval: TimeInterval,
+                              lateGrace: TimeInterval) async -> String? {
         // A dictation's borrowed clipboard may still be pending: put the user's contents back
         // first, or the snapshot would save Rhino's dictation and the borrow's own restore would
         // then be skipped (the clipboard changed), losing what the user had copied.
+        lateCopyWatch?.cancel()
         env.finishPendingBorrow()
         let saved = env.snapshotClipboard()
         let before = env.clipboardChangeCount
@@ -354,16 +459,24 @@ enum SelectionCapture {
             waited += pollInterval
         }
         guard env.clipboardChangeCount != before else {
-            // Nothing was copied (no selection, or an app that ignores ⌘C): the clipboard is
-            // untouched, so there is nothing to restore.
+            // Nothing copied yet (no selection, an app that ignores ⌘C, or a slow one). The
+            // clipboard is untouched for now; if the copy lands late, put the user's back.
+            lateCopyWatch = Task { @MainActor in
+                var extra: TimeInterval = 0
+                while extra < lateGrace, !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+                    extra += pollInterval
+                    if env.clipboardChangeCount != before {
+                        env.restoreClipboard(saved)
+                        return
+                    }
+                }
+            }
             return nil
         }
         let copied = env.clipboardString()
         env.restoreClipboard(saved)
-        guard let copied, !copied.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return nil
-        }
-        return CommandSelection(text: copied, method: .copy, processID: pid)
+        return copied
     }
 }
 
@@ -393,4 +506,108 @@ struct LiveSelectionCaptureEnvironment: SelectionCaptureEnvironment {
     func sendCopy() { TextInserter.copy() }
 
     func frontmostProcessID() -> pid_t? { NSWorkspace.shared.frontmostApplication?.processIdentifier }
+
+    func focusedElement() -> FocusToken? { FocusUtils.focusedElement().map { FocusToken(ref: $0) } }
+}
+
+// MARK: - Shortcut gesture
+
+/// The Command Mode shortcut's press/release logic, on its own state (never the dictation
+/// trigger's), as a pure value so it is unit-tested without hotkeys or timers.
+///
+/// Hold to talk (release stops) or tap to start and tap again to stop; no hands-free lock.
+/// Hold vs tap is decided by how long the key was down at release. The selection is read
+/// between the press and the start of recording; a release in that window is remembered.
+struct CommandGesture {
+    enum Phase: Equatable { case idle, capturing, recording }
+    enum Action: Equatable {
+        case none
+        /// Read the selection, then call `captureFinished`.
+        case startCapture
+        case startRecording
+        case stop
+        /// Don't record (nothing selected, or a hold already let go before recording began).
+        case cancel
+    }
+
+    let holdThreshold: TimeInterval
+    private(set) var phase: Phase = .idle
+    private var pressedAt: Date?
+    private var releasedAt: Date?
+    /// The take is tap-to-stop: releases no longer stop it, the next press does.
+    private var tapMode = false
+
+    init(holdThreshold: TimeInterval = 0.3) { self.holdThreshold = holdThreshold }
+
+    /// A Command Mode take is starting or running; dictation presses are ignored meanwhile.
+    var isBusy: Bool { phase != .idle }
+
+    /// - Parameter dictationActive: a dictation take is live; Command Mode stays out of it.
+    mutating func press(at now: Date, dictationActive: Bool) -> Action {
+        guard !dictationActive else { return .none }
+        switch phase {
+        case .idle:
+            phase = .capturing
+            pressedAt = now
+            releasedAt = nil
+            tapMode = false
+            return .startCapture
+        case .capturing:
+            return .none
+        case .recording:
+            guard tapMode else { return .none }
+            reset()
+            return .stop
+        }
+    }
+
+    /// - Parameter keyStillDown: the shortcut's key is physically still down. A release reported
+    ///   while it is (the synthetic ⌘C's key-up can look like one) is not the user's.
+    mutating func release(at now: Date, keyStillDown: Bool, holdToRecord: Bool) -> Action {
+        guard !keyStillDown, let pressedAt else { return .none }
+        switch phase {
+        case .idle:
+            return .none
+        case .capturing:
+            if releasedAt == nil { releasedAt = now }
+            return .none
+        case .recording:
+            if tapMode { return .none }
+            if holdToRecord, now.timeIntervalSince(pressedAt) >= holdThreshold {
+                reset()
+                return .stop
+            }
+            tapMode = true
+            return .none
+        }
+    }
+
+    /// The selection read finished. `selected` = there is a usable selection.
+    mutating func captureFinished(selected: Bool, holdToRecord: Bool) -> Action {
+        guard phase == .capturing, let pressedAt else { return .none }
+        guard selected else {
+            reset()
+            return .cancel
+        }
+        if !holdToRecord {
+            tapMode = true
+        } else if let releasedAt {
+            // Let go before recording began: a hold means nothing was said, so don't record;
+            // a quick tap starts a tap-to-stop take.
+            if releasedAt.timeIntervalSince(pressedAt) >= holdThreshold {
+                reset()
+                return .cancel
+            }
+            tapMode = true
+        }
+        phase = .recording
+        return .startRecording
+    }
+
+    mutating func reset() {
+        phase = .idle
+        pressedAt = nil
+        releasedAt = nil
+        tapMode = false
+    }
 }

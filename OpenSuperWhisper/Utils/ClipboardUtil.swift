@@ -131,6 +131,9 @@ enum ClipboardUtil {
                                on pasteboard: NSPasteboard = .general,
                                restoreAfter delay: TimeInterval = borrowRestoreDelay,
                                paste: () -> Void) {
+        // Command Mode may be watching for a late ⌘C answer to undo; this write is not that,
+        // so the watch must not revert it (and then skip this borrow's own restore).
+        SelectionCapture.clipboardTakenElsewhere()
         let name = pasteboard.name
         let saved: Snapshot
         if let pending = pendingBorrows[name] {

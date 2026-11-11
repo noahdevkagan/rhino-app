@@ -330,9 +330,12 @@ class ShortcutManager {
         let now = Date()
         Task { @MainActor in
             let dictationActive = self.activeVm != nil && !self.commandTake
-            switch self.commandGesture.press(at: now, dictationActive: dictationActive) {
+            switch self.commandGesture.press(at: now, dictationActive: dictationActive,
+                                             commandInFlight: SelectionCapture.isBusy) {
             case .startCapture: await self.startCommandTake()
             case .stop: self.stopActiveTake()
+            case .busy:
+                IndicatorWindowManager.shared.flash(.info(CommandMode.Failure.busy.message))
             default: break
             }
         }
@@ -401,9 +404,17 @@ class ShortcutManager {
                                                                : .error(failure.message))
             return
         }
-        guard activeVm == nil, let captured,
-              commandGesture.captureFinished(selected: true, holdToRecord: holdToRecord) == .startRecording
-        else {
+        guard activeVm == nil, let captured else {
+            commandGesture.reset()
+            return
+        }
+        switch commandGesture.captureFinished(selected: true, holdToRecord: holdToRecord) {
+        case .startRecording:
+            break
+        case .releasedEarly:
+            IndicatorWindowManager.shared.flash(.info(CommandMode.Failure.releasedEarly.message))
+            return
+        default:
             commandGesture.reset()
             return
         }

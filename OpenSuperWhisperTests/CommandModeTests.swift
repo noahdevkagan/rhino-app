@@ -290,8 +290,10 @@ final class CommandModeTests: XCTestCase {
         var held = CommandGesture()
         _ = held.press(at: t0, dictationActive: false)
         _ = held.release(at: t0 + 0.4, keyStillDown: false, holdToRecord: true)
-        XCTAssertEqual(held.captureFinished(selected: true, holdToRecord: true), .cancel)
+        XCTAssertEqual(held.captureFinished(selected: true, holdToRecord: true), .releasedEarly,
+                       "not silently dropped: the indicator says to hold while speaking")
         XCTAssertFalse(held.isBusy)
+        XCTAssertTrue(CommandMode.Failure.releasedEarly.isInfo)
 
         // A quick tap during capture: a tap-to-stop take.
         var tapped = CommandGesture()
@@ -395,6 +397,136 @@ final class CommandModeTests: XCTestCase {
         XCTAssertEqual(env.clipboard, "user clipboard")
     }
 
+    // MARK: - Second review fixes
+
+    func testSanitizeStripsModelNoteEvenWhenSelectionHasATrailerLikeLine() {
+        // A "This is…" / "I have…" line in the selection used to switch trailer stripping off.
+        let selection = "This is the plan: ship Friday.\nI have the build ready."
+        let rewrite = "Plan: ship Friday, build is ready.\n\nThis version is shorter."
+        XCTAssertEqual(CommandMode.sanitize(rewrite, selection: selection),
+                       "Plan: ship Friday, build is ready.")
+        // But that paragraph itself, verbatim from the selection, stays.
+        let twoParas = "Ship Friday.\n\nI have the build ready."
+        let reordered = "We ship Friday.\n\nI have the build ready."
+        XCTAssertEqual(CommandMode.sanitize(reordered, selection: twoParas), reordered)
+        // A reworded sign-off plus a model note: the note goes, the sign-off stays.
+        let email = "Hi Sam,\n\nThe draft is attached.\n\nLet me know if anything looks off."
+        let withNote = "Hi Sam,\n\nDraft attached.\n\nLet me know if something's off.\n\nNote: I shortened it."
+        XCTAssertEqual(CommandMode.sanitize(withNote, selection: email),
+                       "Hi Sam,\n\nDraft attached.\n\nLet me know if something's off.")
+    }
+
+    func testGestureIgnoresPressWhileACommandIsInFlight() {
+        let t0 = Date()
+        var gesture = CommandGesture()
+        XCTAssertEqual(gesture.press(at: t0, dictationActive: false, commandInFlight: true), .busy)
+        XCTAssertFalse(gesture.isBusy, "an ignored press leaves no state behind")
+        XCTAssertEqual(gesture.press(at: t0 + 1, dictationActive: false, commandInFlight: false), .startCapture)
+        // A tap-to-stop press of a running take is never blocked.
+        _ = gesture.captureFinished(selected: true, holdToRecord: false)
+        XCTAssertEqual(gesture.press(at: t0 + 3, dictationActive: false, commandInFlight: true), .stop)
+    }
+
+    @MainActor
+    func testCaptureAndVerifyMarkAnOperationInFlight() async {
+        let env = FakeEnvironment(axText: nil, copyResult: "web selection")
+        var busyDuringCopy = false
+        env.onCopy = { busyDuringCopy = SelectionCapture.isBusy }
+        XCTAssertFalse(SelectionCapture.isBusy)
+        let captured = await SelectionCapture.capture(in: env, timeout: 0.05, pollInterval: 0.01)
+        XCTAssertTrue(busyDuringCopy)
+        XCTAssertFalse(SelectionCapture.isBusy)
+        busyDuringCopy = false
+        _ = await SelectionCapture.verifyBeforeReplace(captured!, in: env, timeout: 0.05, pollInterval: 0.01)
+        XCTAssertTrue(busyDuringCopy, "the paste re-copy counts too")
+        XCTAssertFalse(SelectionCapture.isBusy)
+    }
+
+    @MainActor
+    func testLateCopyWatchStopsForTheUsersOwnCopy() async {
+        let env = FakeEnvironment(axText: nil, copyResult: "slow page selection")
+        env.copyIsLate = true
+        _ = await SelectionCapture.capture(in: env, timeout: 0.03, pollInterval: 0.01, lateGrace: 1.0)
+        XCTAssertTrue(env.watchingUserCopy, "the ⌘C tap runs while the watch does")
+        // The user presses ⌘C (the tap fires before the app writes), then the app writes it.
+        SelectionCapture.clipboardTakenElsewhere()
+        env.clipboard = "user's fresh copy"
+        env.changeCount += 1
+        await SelectionCapture.lateCopyWatch?.value
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(env.clipboard, "user's fresh copy", "never reverted")
+        XCTAssertEqual(env.restores, 0)
+        XCTAssertFalse(env.watchingUserCopy)
+    }
+
+    @MainActor
+    func testLateCopyWatchStopsForADictationBorrow() async {
+        let env = FakeEnvironment(axText: nil, copyResult: "slow page selection")
+        env.copyIsLate = true
+        _ = await SelectionCapture.capture(in: env, timeout: 0.03, pollInterval: 0.01, lateGrace: 1.0)
+        XCTAssertNotNil(SelectionCapture.lateCopyWatch)
+        let board = NSPasteboard(name: NSPasteboard.Name("rhino.test.cm-borrow-\(UUID().uuidString)"))
+        ClipboardUtil.borrowForPaste("dictated", on: board, restoreAfter: 0.01) {}
+        XCTAssertNil(SelectionCapture.lateCopyWatch, "a borrow ends the watch")
+        env.clipboard = "dictated"
+        env.changeCount += 1
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(env.restores, 0, "the watch doesn't restore over a borrow")
+        XCTAssertFalse(env.watchingUserCopy)
+        board.releaseGlobally()
+    }
+
+    func testUserCopyDetection() {
+        let marker = UserPasteWatcher.syntheticMarker
+        XCTAssertTrue(UserPasteWatcher.isUserCopy(keyCode: 0x08, flags: .maskCommand, characters: "c", userData: 0))
+        XCTAssertTrue(UserPasteWatcher.isUserCopy(keyCode: 0x07, flags: .maskCommand, characters: "x", userData: 0))
+        XCTAssertTrue(UserPasteWatcher.isUserCopy(keyCode: 0x22, flags: .maskCommand, characters: "c", userData: 0),
+                      "Dvorak: by character")
+        XCTAssertFalse(UserPasteWatcher.isUserCopy(keyCode: 0x08, flags: .maskCommand, characters: "c",
+                                                   userData: marker), "Rhino's own ⌘C")
+        XCTAssertFalse(UserPasteWatcher.isUserCopy(keyCode: 0x08, flags: [.maskCommand, .maskControl, .maskAlternate],
+                                                   characters: "c", userData: 0), "the ⌃⌥⌘C shortcut")
+        XCTAssertFalse(UserPasteWatcher.isUserCopy(keyCode: 0x08, flags: [], characters: "c", userData: 0))
+    }
+
+    @MainActor
+    func testEmptyAccessibilityInBrowsersAndElectronFallsBackToCopy() async {
+        for (bundle, electron) in [("com.google.Chrome", false), ("com.tinyspeck.slackmacgap", true)] {
+            let env = FakeEnvironment(axText: "", copyResult: "web selection")
+            env.bundleID = bundle
+            env.isElectron = electron
+            let captured = await SelectionCapture.capture(in: env, timeout: 0.05, pollInterval: 0.01)
+            XCTAssertEqual(captured?.text, "web selection", bundle)
+            XCTAssertEqual(captured?.method, .copy)
+            XCTAssertEqual(env.clipboard, "user clipboard")
+        }
+        XCTAssertTrue(SelectionCapture.trustsEmptyAccessibilitySelection(bundleID: "com.apple.TextEdit",
+                                                                         isElectron: false))
+    }
+
+    @MainActor
+    func testCodeEditorWholeLineCopyIsNoSelection() async {
+        // VS Code returns nil over AX and copies the current line on ⌘C with nothing selected.
+        for bundle in ["com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92", "com.jetbrains.intellij",
+                       "com.sublimetext.4", "dev.zed.Zed", "com.exafunction.windsurf"] {
+            let env = FakeEnvironment(axText: nil, copyResult: "    let x = compute()\n")
+            env.bundleID = bundle
+            let captured = await SelectionCapture.capture(in: env, timeout: 0.05, pollInterval: 0.01)
+            XCTAssertNil(captured, bundle)
+            XCTAssertEqual(env.clipboard, "user clipboard", "the copied line is still put back")
+        }
+        // A real selection in the editor is kept: partial line, or several lines.
+        for selected in ["compute()", "let a = 1\nlet b = 2\n"] {
+            let env = FakeEnvironment(axText: nil, copyResult: selected)
+            env.bundleID = "com.microsoft.VSCode"
+            let captured = await SelectionCapture.capture(in: env, timeout: 0.05, pollInterval: 0.01)
+            XCTAssertEqual(captured?.text, selected)
+        }
+        // Elsewhere a one-line copy with a newline is a normal selection.
+        XCTAssertFalse(SelectionCapture.looksLikeWholeLineCopy("a line\n", bundleID: "com.google.Chrome"))
+        XCTAssertTrue(SelectionCapture.looksLikeWholeLineCopy("a line\r\n", bundleID: "com.jetbrains.pycharm"))
+    }
+
     // MARK: - Helpers
 
     private func failure<T>(_ result: Result<T, CommandMode.Failure>) -> CommandMode.Failure? {
@@ -440,6 +572,10 @@ private final class FakeEnvironment: SelectionCaptureEnvironment {
     var copies = 0
     var restores = 0
     var borrowsFinished = 0
+    var bundleID: String?
+    var isElectron = false
+    var watchingUserCopy = false
+    var onCopy: (() -> Void)?
 
     init(axText: String?, copyResult: String?) {
         self.axText = axText
@@ -465,6 +601,7 @@ private final class FakeEnvironment: SelectionCaptureEnvironment {
 
     func sendCopy() {
         copies += 1
+        onCopy?()
         if copyIsLate { return }
         if let copyResult {
             clipboard = copyResult
@@ -474,6 +611,9 @@ private final class FakeEnvironment: SelectionCaptureEnvironment {
 
     func frontmostProcessID() -> pid_t? { 99 }
     func focusedElement() -> FocusToken? { focus }
+    func frontmostBundleID() -> String? { bundleID }
+    func frontmostAppIsElectron() -> Bool { isElectron }
+    func watchForUserCopy(_ on: Bool) { watchingUserCopy = on }
 
     func deliverLateCopy() {
         clipboard = copyResult

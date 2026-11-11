@@ -236,11 +236,6 @@ class FocusUtils {
 
     // MARK: - Selected text (Command Mode)
 
-    /// The focused element's selected text over Accessibility, for Command Mode. nil when it
-    /// can't be read (no trust, no focused element, the app doesn't expose it, or it doesn't
-    /// answer within `axMessagingTimeout`); "" when the app reports an empty selection. Many web
-    /// and Electron fields answer "" even with text selected, so callers treat "" as "try ⌘C".
-    /// Nothing read here is stored or leaves the process.
     /// The system-wide focused UI element, or nil when Accessibility can't say.
     static func focusedElement() -> AXUIElement? {
         guard AXIsProcessTrusted() else { return nil }
@@ -254,6 +249,12 @@ class FocusUtils {
         return (focusedCF as! AXUIElement)
     }
 
+    /// The focused element's selected text over Accessibility, for Command Mode. nil when it
+    /// can't be read (no trust, no focused element, the app doesn't expose it, or it doesn't
+    /// answer within `axMessagingTimeout`); "" when the app reports an empty selection. Many web
+    /// and Electron fields answer "" even with text selected, so in browsers and Electron apps
+    /// `SelectionCapture` treats "" as "try ⌘C"; elsewhere "" is trusted.
+    /// Nothing read here is stored or leaves the process.
     static func selectedText() -> String? {
         guard AXIsProcessTrusted() else { return nil }
         let systemElement = AXUIElementCreateSystemWide()

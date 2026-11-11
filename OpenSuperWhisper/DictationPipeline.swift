@@ -338,6 +338,16 @@ final class DictationPipeline: ObservableObject {
     /// then paste over it. Any failure leaves the user's text and clipboard as they were and
     /// says why on the indicator.
     private func runCommand(_ command: CommandSelection, instruction: String) async {
+        // Command presses wait until this take's rewrite, re-copy and paste are done, plus a
+        // beat for the ⌘V to be serviced: a new capture's ⌘C would otherwise snapshot this
+        // take's selection or borrowed text as "the user's clipboard".
+        SelectionCapture.beginOperation()
+        defer {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(ClipboardUtil.userPasteGrace * 1_000_000_000))
+                SelectionCapture.endOperation()
+            }
+        }
         let start = CFAbsoluteTimeGetCurrent()
         let result: Result<String, CommandMode.Failure>
         if let commandRewriteOverride {

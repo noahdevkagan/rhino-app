@@ -2434,6 +2434,14 @@ odd break to a wall of text.
 - Long rambles with no greeting or sign-off stay one block: guessing a topic structure with no sign
   it is a message is a separate decision.
 
+**2026-11-10 — One-click model setup stays click-initiated, never auto-start.** The model step's
+footer button became "Download <recommended model> and finish" because new users stalled on the
+small per-row Download button. The download still begins only from that click, not on appear: the
+all-local rule allows only explicit user-initiated model downloads, and tests/hygiene enforces it.
+Same change adds a skippable first-dictation step. It needs no hotkey changes (ShortcutManager is
+armed at launch), and onboarding now completes only on Done/Skip there, so quitting mid-practice
+replays setup (cheap: permissions skip ahead, the model is already on disk).
+
 ## 2026-11-10 — The user's own ⌘V ends the clipboard borrow early
 
 Benjamin went back to Wispr Flow: he copies something, dictates a comment, then presses ⌘V to put the copy after it. Since 0.1.45 that ⌘V, inside the 5 s restore window, pasted the dictation a second time (the cost accepted on 2026-11-05). Now an event tap (`UserPasteWatcher`) sees the user's ⌘V key-down and `ClipboardUtil.restoreBeforeUserPaste` puts their clipboard back before the app receives the key. Rhino's own ⌘V carries a marker in `eventSourceUserData` so it is not mistaken for the user's. The 5 s timer stays as the fallback, so a slow Chrome page still gets the dictation.

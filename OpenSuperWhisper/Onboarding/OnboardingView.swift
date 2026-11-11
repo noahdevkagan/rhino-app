@@ -126,6 +126,44 @@ class OnboardingViewModel: ObservableObject {
         return unifiedModels.contains { $0.id == selectedId && $0.isDownloaded }
     }
 
+    /// True while no model is on this Mac yet: the footer's primary button then IS the
+    /// download (nobody has to guess that the small row button is the thing to press).
+    /// With a model already downloaded the footer stays the plain Finish it always was.
+    var needsDownloadAction: Bool {
+        !unifiedModels.contains { $0.isDownloaded }
+    }
+
+    /// What the footer's one-click button downloads: the model the user has picked if it
+    /// isn't on disk yet, otherwise the recommended row (first row as a last resort).
+    /// Nil when there is nothing to download.
+    var primaryDownloadTarget: OnboardingUnifiedModel? {
+        if let id = selectedModelId,
+           let picked = unifiedModels.first(where: { $0.id == id && !$0.isDownloaded }) {
+            return picked
+        }
+        return unifiedModels.first(where: { $0.isRecommended && !$0.isDownloaded })
+            ?? unifiedModels.first(where: { !$0.isDownloaded })
+    }
+
+    /// Download size shown on the footer button when the catalog knows it (Whisper rows).
+    static func sizeLabel(for model: OnboardingUnifiedModel) -> String? {
+        guard case .whisper(_, let mb) = model.type else { return nil }
+        return mb >= 1000 ? String(format: "%.1f GB", Double(mb) / 1000) : "\(mb) MB"
+    }
+
+    /// Returns every download indicator to idle so the footer button is ready to press
+    /// again. A failed or cancelled attempt must not leave a stuck spinner or a dead button.
+    func resetDownloadState(for modelId: UUID? = nil) {
+        isDownloading = false
+        downloadingModelName = nil
+        downloadProgress = 0.0
+        downloadPhaseText = nil
+        for index in unifiedModels.indices
+        where modelId == nil || unifiedModels[index].id == modelId {
+            unifiedModels[index].downloadProgress = 0.0
+        }
+    }
+
     func selectModel(_ model: OnboardingUnifiedModel) {
         selectedModelId = model.id
 
@@ -206,23 +244,10 @@ class OnboardingViewModel: ObservableObject {
                     downloadProgress = 0.0
                 }
             } catch is CancellationError {
-                await MainActor.run {
-                    isDownloading = false
-                    downloadingModelName = nil
-                    downloadProgress = 0.0
-                    if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
-                        unifiedModels[index].downloadProgress = 0.0
-                    }
-                }
+                await MainActor.run { resetDownloadState(for: model.id) }
             } catch {
-                await MainActor.run {
-                    isDownloading = false
-                    downloadingModelName = nil
-                    downloadProgress = 0.0
-                    if let index = unifiedModels.firstIndex(where: { $0.id == model.id }) {
-                        unifiedModels[index].downloadProgress = 0.0
-                    }
-                }
+                // Back to the ready state so the footer button can retry.
+                await MainActor.run { resetDownloadState(for: model.id) }
                 throw error
             }
         }
@@ -361,12 +386,12 @@ class OnboardingViewModel: ObservableObject {
     }
 }
 
-/// The three setup steps, shown one at a time. User feedback on the old
+/// The four setup steps, shown one at a time. User feedback on the old
 /// single-screen layout: it "looked like a settings screen … I wasn't sure
 /// that I was supposed to action on it" — numbered steps that advance on
 /// completion make the required actions unmissable.
 enum OnboardingStep: Int, CaseIterable, Comparable {
-    case permissions = 0, dictateKey, speechModel
+    case permissions = 0, dictateKey, speechModel, practice
     static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
 
     var label: LocalizedStringKey {
@@ -374,6 +399,7 @@ enum OnboardingStep: Int, CaseIterable, Comparable {
         case .permissions: return "Permissions"
         case .dictateKey: return "Dictate key"
         case .speechModel: return "Speech model"
+        case .practice: return "Try it"
         }
     }
 }
@@ -388,6 +414,9 @@ struct OnboardingView: View {
     @State private var fnGlobeConflict = FnGlobeKeySetting.conflictsWithFnTrigger
 
     @State private var step: OnboardingStep = .permissions
+    /// What the practice dictation typed into the step's text field.
+    @State private var practiceText = ""
+    @FocusState private var practiceFieldFocused: Bool
     /// Slide direction for the step transition (forward = new step enters from the right).
     @State private var movingForward = true
 
@@ -395,6 +424,10 @@ struct OnboardingView: View {
     /// widths (780–900+) full-width cards push each row's trailing control (Grant…,
     /// Download) far from the text it belongs to.
     private let contentWidth: CGFloat = 620
+
+    private var practiceSucceeded: Bool {
+        !practiceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     private var permissionsComplete: Bool {
         permissionsManager.isMicrophonePermissionGranted
@@ -426,6 +459,7 @@ struct OnboardingView: View {
                     case .permissions: permissionsStep
                     case .dictateKey: dictateKeyStep
                     case .speechModel: speechModelStep
+                    case .practice: practiceStep
                     }
                 }
                 .id(step)
@@ -558,9 +592,63 @@ struct OnboardingView: View {
         }
     }
 
+    private var practiceStep: some View {
+        let trigger = RecordingTriggerSet
+            .load(from: AppPreferences.shared.recordingTriggers)
+            .primaryDescription
+        return VStack(alignment: .leading, spacing: 12) {
+            stepHeading("Try your first dictation",
+                        "Hold \(trigger), say a sentence, then let go. Your words will appear in the box below.")
+            stepCard {
+                TextField("Your words show up here", text: $practiceText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(3...6)
+                    .scaledFont(size: 13)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(STheme.windowBg)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(practiceSucceeded ? STheme.ok.opacity(0.6) : STheme.border, lineWidth: 1)
+                    )
+                    .focused($practiceFieldFocused)
+                    .accessibilityLabel("Practice dictation text box")
+
+                if practiceSucceeded {
+                    Label("That's it. Hold \(trigger) in any app and Rhino types for you.",
+                          systemImage: "checkmark.circle.fill")
+                        .scaledFont(size: 12, weight: .medium)
+                        .foregroundColor(STheme.ok)
+                } else if !permissionsComplete {
+                    Text("The dictate key needs Microphone and Accessibility access to work. You can skip this and finish setup anyway.")
+                        .scaledFont(size: 11)
+                        .foregroundColor(STheme.hint)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Nothing happening? You can skip this and try it in any app.")
+                        .scaledFont(size: 11)
+                        .foregroundColor(STheme.hint)
+                }
+            }
+        }
+        .onAppear {
+            // The dictated text is inserted into whatever has focus; make that this box.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { practiceFieldFocused = true }
+        }
+    }
+
     // MARK: Footer
 
     private var footer: some View {
+        VStack(spacing: 0) {
+            footerDownloadProgress
+            footerButtons
+        }
+    }
+
+    private var footerButtons: some View {
         HStack(spacing: 10) {
             if step > .permissions {
                 Button("Back") {
@@ -587,28 +675,110 @@ struct OnboardingView: View {
             case .dictateKey:
                 nextButton(enabled: true)
             case .speechModel:
-                Button(action: {
-                    handleContinueButtonTap()
-                }) {
-                    HStack(spacing: 6) {
-                        if isVerifyingModel {
-                            ProgressView().controlSize(.small)
-                            Text("Checking model…")
-                        } else {
-                            Text("Finish")
-                            Image(systemName: "arrow.right")
-                                .scaledFont(size: 12, weight: .semibold)
-                        }
-                    }
-                    .frame(minWidth: 100)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(!viewModel.canContinue || viewModel.isDownloading || isVerifyingModel)
+                speechModelFooterButton
+            case .practice:
+                practiceFooterButtons
             }
         }
         .frame(maxWidth: contentWidth)
         .padding(16)
+    }
+
+    /// Download in progress: real progress right above the footer button, so the one
+    /// thing the user pressed visibly works.
+    @ViewBuilder
+    private var footerDownloadProgress: some View {
+        if step == .speechModel, viewModel.isDownloading, let name = viewModel.downloadingModelName {
+            VStack(spacing: 4) {
+                HStack {
+                    Text("Downloading \(name)…")
+                        .scaledFont(size: 11)
+                        .foregroundColor(STheme.hint)
+                    Spacer()
+                    Text(verbatim: "\(Int((min(viewModel.downloadProgress, 1.0)) * 100))%")
+                        .scaledFont(size: 11, weight: .medium)
+                        .foregroundColor(STheme.hint)
+                }
+                ProgressView(value: min(viewModel.downloadProgress, 1.0))
+                    .progressViewStyle(LinearProgressViewStyle())
+                if let phase = viewModel.downloadPhaseText {
+                    Text(phase)
+                        .scaledFont(size: 11)
+                        .foregroundColor(STheme.hint)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .frame(maxWidth: contentWidth)
+            .padding(.horizontal, 16).padding(.top, 10)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Model download progress")
+        }
+    }
+
+    @ViewBuilder
+    private var speechModelFooterButton: some View {
+        if viewModel.needsDownloadAction {
+            // No model on this Mac yet: the primary button does the download, then
+            // carries on exactly like Finish. Only ever starts from this click.
+            let target = viewModel.primaryDownloadTarget
+            let size = target.flatMap { OnboardingViewModel.sizeLabel(for: $0) }
+            let title = target.map { "Download \($0.name)" + (size.map { " (\($0))" } ?? "") + " and finish" }
+                ?? "Download and finish"
+            Button(action: { downloadAndFinish() }) {
+                HStack(spacing: 6) {
+                    if viewModel.isDownloading || isVerifyingModel {
+                        ProgressView().controlSize(.small)
+                        Text(isVerifyingModel ? "Checking model…" : "Downloading…")
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                            .scaledFont(size: 12, weight: .semibold)
+                        Text(verbatim: title)
+                    }
+                }
+                .frame(minWidth: 100)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(target == nil || viewModel.isDownloading || isVerifyingModel)
+            .accessibilityLabel(viewModel.isDownloading ? "Downloading the speech model"
+                                                        : "\(title). Starts the download.")
+        } else {
+            Button(action: {
+                handleContinueButtonTap()
+            }) {
+                HStack(spacing: 6) {
+                    if isVerifyingModel {
+                        ProgressView().controlSize(.small)
+                        Text("Checking model…")
+                    } else {
+                        Text("Finish")
+                        Image(systemName: "arrow.right")
+                            .scaledFont(size: 12, weight: .semibold)
+                    }
+                }
+                .frame(minWidth: 100)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(!viewModel.canContinue || viewModel.isDownloading || isVerifyingModel)
+        }
+    }
+
+    @ViewBuilder
+    private var practiceFooterButtons: some View {
+        Button("Skip") { completeOnboarding() }
+            .buttonStyle(.plain)
+            .scaledFont(size: 12)
+            .foregroundColor(STheme.hint)
+            .accessibilityLabel("Skip the practice dictation")
+        if practiceSucceeded {
+            Button(action: { completeOnboarding() }) {
+                Text("Done").frame(minWidth: 100)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .accessibilityLabel("Done, finish setup")
+        }
     }
 
     private func nextButton(enabled: Bool) -> some View {
@@ -724,8 +894,35 @@ struct OnboardingView: View {
                 if viewModel.selectedShortcut == .fn {
                     FnGlobeKeySetting.silenceForFnTrigger()
                 }
-                appState.hasCompletedOnboarding = true
+                // One more step before setup closes: a first real dictation (skippable).
+                advance()
             }
+        }
+    }
+
+    private func completeOnboarding() {
+        appState.hasCompletedOnboarding = true
+    }
+
+    /// Footer primary button while no model is on this Mac. Starts only from the user's
+    /// click (privacy rule: model downloads are always user-initiated). Success continues
+    /// exactly as Finish does; a failure or cancel leaves the button ready for a retry.
+    private func downloadAndFinish() {
+        guard let target = viewModel.primaryDownloadTarget, !viewModel.isDownloading else { return }
+        Task { @MainActor in
+            do {
+                try await viewModel.downloadModel(target)
+            } catch is CancellationError {
+                return
+            } catch {
+                errorMessage = error.localizedDescription
+                showError = true
+                return
+            }
+            // downloadModel selects the model on success. A swallowed cancel (Parakeet)
+            // or a half-finished download leaves canContinue false: stop, never continue.
+            guard viewModel.canContinue else { return }
+            handleContinueButtonTap()
         }
     }
 }

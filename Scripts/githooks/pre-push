@@ -26,4 +26,7 @@ while read -r local_ref local_sha _remote_ref _remote_sha; do
     esac
 done
 
-exec bash "$(dirname "$0")/../push-gate.sh"
+# Gate the checkout being pushed, not the one the hook file lives in: with an
+# absolute core.hooksPath, a push from a worktree would otherwise build the
+# main checkout's code.
+exec bash "$(git rev-parse --show-toplevel)/Scripts/push-gate.sh"

@@ -7,6 +7,57 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Accuracy gate suites (2026-11-11, branch gate/accuracy-suites, NOT pushed)
+
+Why: the push gate only tested whisper tiny on synthetic speech, so a broken
+Parakeet or a cleanup regression could ship (top recommendation from the
+2026-11-11 audit; docs/performance-audit-2026-10-05.md §5).
+
+Done:
+- `tests/parakeet/` (run.sh + score.py): reuses tests/asr's synthetic clips,
+  runs `Rhino bench` with Parakeet v2 and v3 (whichever are on disk; never
+  downloads; fails if neither is). Bars allow one miss per case; budget is on
+  engine inference time (stages.infer_ms ≤ 1000 ms), not wall time, because
+  the first clip pays a one-time Core ML warm-up (~15 s on a fresh build).
+  `"No speech detected in the audio"` is the engine's no-speech sentinel
+  (AppPreferences.noSpeech), not a hallucination. **Passes on M4**: WER 0% on
+  three cases, 5.9% on `short` ("lunch"→"launch", same as tiny), ~90–140 ms.
+- `tests/cleanup/` run.sh + cases.json (11 cases: the audit-3 harmful
+  rewrites, instruction/question bait, lists, spoken edit, "million", brand
+  names). Runs `cleanup --stdin` with cleanupOnlyWhenNeeded OFF so the model
+  runs every time; symlinks the installed app's Qwen gguf into Rhino Dev's
+  llm-models (dev folder was empty). Checks fidelity AND effect, because the
+  guards turn a broken model into "unchanged text" that a harm-only test passes.
+
+Next (in order):
+1. Write `tests/cleanup/score.py` (run.sh already calls it): per case, apply
+   must_contain / must_contain_any / must_not_contain / min_lines / max_lines /
+   min_list_items; for kind keep, content-word bag diff input→output (fail on
+   ≥2 dropped or ≥2 invented content words; ignore function words/fillers/
+   numbers; lists may drop cue words); count "LLM cleanup rejected" lines in
+   cleanup.log between "cleanup line i/n" markers and print per case.
+2. Run once, look at every output, calibrate expectations to current good
+   behavior (if the 1.5B model fails a case today, e.g. spoken-edit, record it
+   as a known gap rather than a failing bar). Then mutation-check both suites
+   (corrupt one output → must fail).
+3. Update tests/README.md + AGENTS.md repo map, decisions.md entry, run
+   `./Scripts/push-gate.sh`, open PR.
+Until score.py exists, a push from this branch FAILS the gate (tests/cleanup).
+
+Agreed follow-ups from the same audit (Noah wants both):
+- **Idle unload without the 5-min cliff.** The unload exists to free RAM. The
+  weights are mmap'd (LlamaContext.swift:138 use_mmap = true), so they are
+  clean file-backed pages macOS can drop on its own; the dirty memory is the
+  context/KV cache. Measure footprint of each, then: keep the model mapped,
+  free only the context on idle (cheap to rebuild), and unload the model only
+  on a DispatchSource memory-pressure warning. 56% of Noah's dictations were cold.
+- **Auto-teach the dictionary (Noah loves this; "too lazy to go into the app").**
+  After a paste, watch the focused field via Accessibility for ~30 s (Rhino
+  already reads text around the cursor). If the user retypes a word Rhino just
+  typed (Apsumo → AppSumo), add a dictionary rule automatically with a small
+  "Learned AppSumo · Undo" toast. Also seed from Contacts names and capitalized
+  words visible near the cursor. All local.
+
 ### One-click model setup + first-dictation practice (2026-11-10, branch crxnamja/ux-bugs-security-audit)
 
 Plan: model step's footer button becomes "Download <model> and finish" while no model is on disk

@@ -219,6 +219,31 @@ final class AppPreferences {
             if !SoundAlike.eligibleTerms(newValue).isEmpty { SystemWordList.prewarm() }
         }
     }
+
+    /// Snippets: say a saved phrase, get its text (`Snippets`). On by default; with no
+    /// snippets saved it does nothing. Free tier, like the dictionary.
+    @UserDefault(key: "snippetsEnabled", defaultValue: true)
+    var snippetsEnabled: Bool
+
+    @OptionalUserDefault(key: "snippetsData")
+    private var snippetsData: Data?
+
+    var snippets: [Snippet] {
+        get {
+            guard let data = snippetsData,
+                  let snippets = try? JSONDecoder().decode([Snippet].self, from: data) else {
+                return []
+            }
+            return snippets
+        }
+        set { snippetsData = try? JSONEncoder().encode(newValue) }
+    }
+
+    /// The snippet this whole dictation triggers, or nil (off, none saved, or no match).
+    func matchingSnippet(_ text: String) -> Snippet? {
+        guard snippetsEnabled else { return nil }
+        return Snippets.match(text, in: snippets)
+    }
     
     @UserDefault(key: "useBeamSearch", defaultValue: false)
     var useBeamSearch: Bool

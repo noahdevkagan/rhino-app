@@ -2447,3 +2447,23 @@ replays setup (cheap: permissions skip ahead, the model is already on disk).
 Benjamin went back to Wispr Flow: he copies something, dictates a comment, then presses ⌘V to put the copy after it. Since 0.1.45 that ⌘V, inside the 5 s restore window, pasted the dictation a second time (the cost accepted on 2026-11-05). Now an event tap (`UserPasteWatcher`) sees the user's ⌘V key-down and `ClipboardUtil.restoreBeforeUserPaste` puts their clipboard back before the app receives the key. Rhino's own ⌘V carries a marker in `eventSourceUserData` so it is not mistaken for the user's. The 5 s timer stays as the fallback, so a slow Chrome page still gets the dictation.
 
 Choices: the tap is active, not listen-only, because the restore must finish before the app reads the clipboard; it is enabled only while a borrow is pending, so it never sits in the keystroke path otherwise. It looks at key-downs for ⌘V only and keeps nothing. A ⌘V under 0.3 s after Rhino's is ignored: nobody reacts to seeing text that fast, and Rhino's paste may not be serviced yet. Rejected: going back to a read-triggered restore (broke Chrome, 2026-11-05); a shorter fixed timer (Deepak's late Chrome paste). Not covered: Edit → Paste with the mouse inside the 5 s, and a ⌘V pressed while a busy page still has Rhino's ⌘V queued (both pastes then carry the old clipboard). Not built or run: written in a Linux session, CI Build Check is the gate, and it needs a real try in Rhino Dev in Chrome.
+
+## 2026-11-11 — Snippets: whole-utterance match only, inserted verbatim
+
+Snippets (like Wispr Flow's): a saved trigger phrase → expansion text. v1 expands only when the
+whole dictation is the trigger, compared after `Snippets.normalize` (case, diacritics, every run of
+punctuation/whitespace collapsed), so "My calendar link." matches "my calendar link". A match skips
+everything that rewrites words: cleanup (and `CleanupOffer` counting), spoken punctuation, British
+spelling, the dictionary, greetings, and at insertion the sentence spacing and `ContextCasing` caret
+fitting. The expansion lands exactly as typed. Word count, history and the long-clip hold are
+unchanged (they see the expansion). Free tier, no gate.
+
+- No inline expansion inside a longer sentence. A trigger like "my address" is ordinary speech
+  ("I changed my address last week"), and pasting a multi-line address into the middle of that is a
+  worse failure than having to dictate the trigger on its own. Doing it safely needs an explicit
+  cue ("insert my address") or trigger words nobody says otherwise; revisit with real use.
+- Lives as a main-window tab next to Dictionary (where the dictionary is edited), stored in
+  UserDefaults as JSON like the dictionary. Duplicate triggers: the first in the list wins, and the
+  editor warns.
+- Matching runs on the engine's output, after number formatting: a trigger typed "room two" won't
+  match a transcript of "room 2". Not handled in v1.

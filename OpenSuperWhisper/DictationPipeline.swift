@@ -271,6 +271,13 @@ final class DictationPipeline: ObservableObject {
                 TextInserter.pressReturn()
             }
 
+            // Watch for the user retyping a word we got wrong. Not after a submit: the text has
+            // left the field. Not after a snippet: its text was typed by the user, not heard, so
+            // an edit to it says nothing about what Rhino mishears.
+            if outcome == .inserted && !shouldSubmit && snippet == nil {
+                DictionaryAutoLearn.shared.watch(inserted: IndicatorViewModel.applyPostProcessing(text))
+            }
+
             if holdLongClip {
                 IndicatorWindowManager.shared.flash(.info("Long recording — copied, press ⌘V to paste"))
             }
@@ -358,6 +365,9 @@ final class DictationPipeline: ObservableObject {
     /// then paste over it. Any failure leaves the user's text and clipboard as they were and
     /// says why on the indicator.
     private func runCommand(_ command: CommandSelection, instruction: String) async {
+        // The rewrite is the model's edit, not the user's: a field change from it must not be
+        // read as a correction of the previous dictation.
+        DictionaryAutoLearn.shared.stop()
         // Command presses wait until this take's rewrite, re-copy and paste are done, plus a
         // beat for the ⌘V to be serviced: a new capture's ⌘C would otherwise snapshot this
         // take's selection or borrowed text as "the user's clipboard".

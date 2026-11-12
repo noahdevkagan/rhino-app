@@ -2487,6 +2487,17 @@ With hold-Fn as the trigger, Fn+↑ (Page Up), Fn+← (Home), Fn+Delete and Fn+F
 
 Choices: the mic and bubble still start on press with no delay, but the start chime, media pause and the over-limit paywall wait `chordSettleDelay` (150 ms) and are skipped if the take is chorded or stopped first. Not deferred: the system default input switch (it is part of starting the mic on the recorder queue) and the share-panel dismissal in `show()`. A discarded chord take ends through `didFinishDecoding`, so if a previous take is still transcribing the bubble goes back to its decoding state with the drain watch and watchdog re-armed. With a take locked on (hands-free), Fn+↑ behaves exactly as before: the Fn press itself stops and transcribes the take before the chord arrives, so the chord finds nothing to cancel. Rhino's own synthetic keys (typed text, ⌘V, Return can land while the next take's Fn is held) are skipped by source PID. Other apps' synthetic keys (text expanders) still count: nothing in a CGEvent reliably separates them from a keyboard. Autorepeat is ignored, and so is whatever key the cancel shortcut is bound to (Esc by default), which keeps its own flow. Mouse clicks don't count. Keys are only counted, never recorded or logged. Known gaps: a tap then Fn+↑ inside the double-tap window locks the recording on (as before); the press counter is shared with key-combo triggers. Not verified by hand: a real Fn+↑ in Rhino Dev.
 
+## 2026-11-11 — The dictionary learns from the user's own fixes, but only names and brands
+
+Noah wants Rhino to learn spellings without opening the app ("too lazy to go into the app"). After a paste, `DictionaryAutoLearn` reads the focused field through Accessibility every 1.5 s for 30 s. If the user swaps a word Rhino typed (Apsumo → AppSumo, Tidy Cal → TidyCal), it adds a dictionary rule and shows "Learned AppSumo" with Undo. On by default (Settings → Dictionary → Learn from my fixes).
+
+The risk is learning a wrong global rule, so `DictionaryLearner` is narrow. It learns only a one-for-one swap or a two-word join; the new spelling must have a capital letter, and for a swap Rhino's word must not be in the system word list and must be close in spelling. "their" → "there" or "Jon" → "John" never become rules, and a reworded sentence is not a correction. The new spelling must agree across two polls in a row, so a half-typed word is never taken. Password fields, fields over 20k characters, and apps that don't expose their text are skipped. Field text is compared in memory and never stored. Not built: seeding from Contacts (a new permission prompt; Noah to decide) and capitalized words near the cursor (no signal that they are spellings the user wants). Not tried live yet: needs a real dictation in Rhino Dev.
+
+## 2026-11-11 — Auto-learn review fixes
+
+Code review of the first version: a learned rule could be silently deleted, because open Dictionary editors weren't told and wrote their stale copy back. Sentence-start capitals ("Going", "Anyway") passed as "names". Adding 's to a brand would teach Klaviyo → Klaviyo's. A rule could be saved while a recording hid its Undo. An old notice's hide timer could hide the next take's bubble (this was pre-existing for every flash). The notice took over Esc. The watcher compared against pre-fit text and did its field reads on the main thread. Now learn and Undo post `.customDictionaryDidChange`. A real word capitalized at a sentence start is never learned, nor a join into an ordinary word, nor a plural or possessive. Learning waits until the notice can show. `show()` detaches the old bubble's timers. The learned notice leaves Esc to the app. Reads run on a utility queue, and a fix must hold for 3 polls (~3 s).
+
+
 ## 2026-11-11 — Snippets: whole-utterance match only, inserted verbatim
 
 Snippets (like Wispr Flow's): a saved trigger phrase → expansion text. v1 expands only when the
@@ -2517,6 +2528,14 @@ limit: it is saved text, not dictation, and a long address shouldn't eat the all
   `snippetsDataUnreadableBackup` (kept once) before replacing it, rather than refusing writes
   forever.
 
+## 2026-11-12 — Auto-learn doesn't watch snippet expansions
+
+A snippet's expansion is text the user saved, inserted verbatim, never heard by the recognizer. An
+edit to it right after insertion is the user changing their own text, not correcting a mishearing,
+so learning a dictionary rule from it would rewrite future dictations on bad evidence. The pipeline
+starts the auto-learn watcher only when no snippet matched.
+
+
 ## 2026-11-11 — Command Mode (beta): rewrite the selection by voice
 
 Select text, hold the Command Mode shortcut, say what to do, release: the embedded Qwen model rewrites the selection and Rhino pastes the result over it (one ⌘V, so one ⌘Z undoes it). Off by default, labelled Beta in Settings → Dictation.
@@ -2526,3 +2545,10 @@ Choices: the default shortcut is ⌃⌥⌘C, a key combination rather than a bar
 Review fixes (same day): the sanitizer only strips a preamble, label, trailing note or fence when it did not come from the selection (and skips the preamble/trailer strip entirely when the selection has such a line of its own), so selected emails, step lists and code survive. ⌘C is used only when Accessibility can't be read at all; an AX answer of "" is trusted, because VS Code / JetBrains / Sublime copy the whole line on ⌘C with no selection. A ⌘C that lands after the 0.35 s timeout is watched for 2 s more and the user's clipboard put back. Before pasting, Rhino checks the app, the focused element (CFEqual on the AX element) and re-reads the selection the way it was captured (a re-copy for ⌘C captures; nothing copied blocks). The shortcut has its own gesture state (`CommandGesture`), hold vs tap decided by key-down time at release; a release reported while the key is physically down (hidSystemState, e.g. the synthetic ⌘C's C key-up) is ignored and the key polled until it really comes up; a release during capture is remembered (held → no recording, tapped → tap-to-stop). Command presses during a dictation and dictation presses during a command take are ignored.
 
 Second review fixes (same day): (1) The late-copy watch only undoes the late synthetic ⌘C. A dictation borrow (`ClipboardUtil.borrowForPaste`) or the user's own ⌘C / ⌘X (seen by `UserPasteWatcher`'s tap, which now also runs while the watch does) stops it without restoring, so a copy the user makes right after "Select text first", or a quick dictation's borrow, is never reverted. (2) Command presses are ignored, with a "Still working on the last command" note, while a capture, re-copy or rewrite+paste is in flight (`SelectionCapture.isBusy`, held for `userPasteGrace` after the paste), so two ⌘C round-trips never snapshot each other's selection as the user's clipboard. (3) A hold released before a slow capture finished shows "Hold the shortcut while you speak" instead of vanishing. Not tap-to-start: the user held and spoke, and the dictation trigger also treats a held-and-released key as a finished take, never as a start. (4) Reverses the "trust AX \"\"" choice above for browsers and Electron apps (bundle list, or Electron Framework inside the app bundle): their web fields answer "" with text selected, so "" means "try ⌘C" there; native apps still trust "". The whole-line problem is handled where it happens instead: in VS Code, Cursor, Windsurf, JetBrains IDEs, Android Studio, Sublime and Zed (by bundle id), a ⌘C copy that is exactly one line ending in a newline counts as no selection. Cost: a deliberately selected full line including its newline is refused there; selecting it without the newline works. (5) Trailer stripping is per paragraph: a trailer-like paragraph stays if it is verbatim in the selection, or if it is within the selection's paragraph count and the selection ends with such a paragraph (reworded sign-offs); a paragraph beyond the selection's count goes. A "This is…" line elsewhere in the selection no longer disables stripping for the whole rewrite.
+
+## 2026-11-12 — A Command Mode take stops the auto-learn watcher
+
+Command Mode (#122) replaces selected text with the model's rewrite. If that selection is the
+dictation auto-learn is still watching, the rewrite would look like the user's edit and a word the
+model changed could become a dictionary rule. Starting a command take stops the watcher; only
+edits the user types count as evidence.

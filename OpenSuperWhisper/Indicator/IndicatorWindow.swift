@@ -11,6 +11,8 @@ enum RecordingState: Equatable {
     case busy
     case error(String)
     case info(String)
+    /// A dictionary word learned from the user's edit, with an Undo button.
+    case learned(String)
 }
 
 @MainActor
@@ -105,6 +107,36 @@ class IndicatorViewModel: ObservableObject {
                 self?.delegate?.didFinishDecoding()
             }
         }
+    }
+
+    /// Undo for the `.learned` notice; cleared when it hides.
+    var undoLearned: (() -> Void)?
+
+    /// The manager replaced this bubble: its pending hide must not act on the new one.
+    func detach() {
+        hideTimer?.invalidate()
+        hideTimer = nil
+        undoLearned = nil
+        delegate = nil
+    }
+
+    func showLearned(_ word: String, undo: @escaping () -> Void) {
+        state = .learned(word)
+        undoLearned = undo
+        hideTimer?.invalidate()
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 6.0, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.undoLearned = nil
+                self?.delegate?.didFinishDecoding()
+            }
+        }
+    }
+
+    func undoLearnedWord() {
+        undoLearned?()
+        undoLearned = nil
+        hideTimer?.invalidate()
+        delegate?.didFinishDecoding()
     }
 
     /// Brief, non-alarming notice (e.g. when there was no editable field to paste into).
@@ -628,6 +660,20 @@ struct IndicatorWindow: View {
                     Text(message)
                         .scaledFont(size: 13, weight: .semibold)
                         .foregroundColor(.primary)
+                }
+            case .learned(let word):
+                HStack(spacing: 8) {
+                    Image(systemName: "text.badge.checkmark")
+                        .foregroundColor(.accentColor)
+                        .frame(width: 24)
+                    Text("Learned \(word)")
+                        .scaledFont(size: 13, weight: .semibold)
+                        .foregroundColor(.primary)
+                    Button("Undo") { viewModel.undoLearnedWord() }
+                        .buttonStyle(.plain)
+                        .scaledFont(size: 13, weight: .semibold)
+                        .foregroundColor(.accentColor)
+                        .pointerCursorOnHover()
                 }
             case .idle:
                 EmptyView()

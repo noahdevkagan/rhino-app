@@ -202,6 +202,11 @@ final class AppPreferences {
     @UserDefault(key: "customDictionarySoundAlikesEnabled", defaultValue: true)
     var customDictionarySoundAlikesEnabled: Bool
 
+    /// When the user retypes a word Rhino just dictated (Apsumo → AppSumo), add it to the
+    /// dictionary with an Undo notice. See `DictionaryAutoLearn`.
+    @UserDefault(key: "autoLearnDictionary", defaultValue: true)
+    var autoLearnDictionary: Bool
+
     @OptionalUserDefault(key: "customDictionaryData")
     private var customDictionaryData: Data?
 

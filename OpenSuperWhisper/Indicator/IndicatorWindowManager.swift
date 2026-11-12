@@ -74,6 +74,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         // .idle exposed a blank 200pt pill, then animated it down to the recording size.
         newViewModel.state = initialState
         newViewModel.delegate = self
+        // A notice's hide timer on the old bubble would otherwise hide or re-state this one.
+        viewModel?.detach()
         viewModel = newViewModel
         
         if window == nil {
@@ -295,6 +297,23 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         case .info(let message): vm.showInfo(message)
         default: vm.showBusyMessage()
         }
+    }
+
+    /// "Learned AppSumo · Undo" after `DictionaryAutoLearn` adds a word. Clickable while it
+    /// shows (the bubble is otherwise click-through; the next show() resets that).
+    func flashLearned(_ word: String, undo: @escaping () -> Void) {
+        guard canFlash else { return }
+        let vm = show(nearPoint: FocusUtils.getCurrentCursorPosition(), initialState: .learned(word))
+        window?.ignoresMouseEvents = false
+        // The user is typing in their own app: Esc belongs to it, not to this notice.
+        KeyboardShortcuts.disable(.escape)
+        vm.showLearned(word, undo: undo)
+    }
+
+    /// False while a recording owns the bubble; notices wait rather than interrupt it.
+    var canFlash: Bool {
+        guard let current = viewModel else { return true }
+        return current.state != .recording && current.state != .connecting
     }
 
     /// `discard` ends the take without transcribing it (see `AudioRecorder.stopRecording`).

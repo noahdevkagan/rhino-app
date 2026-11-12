@@ -145,9 +145,11 @@ enum LLMPostProcessor {
                 // the original text goes on to cleanup untouched.
                 if !edited.isEmpty,
                    !backend.enforcesLengthRatio
-                       || passesLengthGuard(input: text, output: edited,
-                                            condensingAllowed: true) {
+                       || (passesLengthGuard(input: text, output: edited, condensingAllowed: true)
+                           && spokenEditIsSafe(input: text, output: edited)) {
                     working = edited
+                } else if !edited.isEmpty {
+                    print("LLM spoken-edits rejected: the edit didn't keep the correction")
                 }
             } catch {
                 print("Spoken-edits pass failed, cleaning the unedited transcription: \(error)")
@@ -430,6 +432,8 @@ enum LLMPostProcessor {
         + "tell alex the demo moved to thursday\n"
         + "Example: 'the price is fifty dollars actually make that forty five' becomes:\n"
         + "the price is forty five dollars\n"
+        + "Example: 'Ship it on Monday, actually no, make that Tuesday.' becomes:\n"
+        + "Ship it on Tuesday.\n"
         + "Example: 'send the report to sam I mean to sarah before lunch' becomes:\n"
         + "send the report to sarah before lunch\n"
         + "Example: 'what time is the meeting wait no what day is the meeting' becomes:\n"
@@ -525,10 +529,46 @@ enum LLMPostProcessor {
     /// ordinary sentence ("she said we should scrap that feature") merely runs the pass once;
     /// its counter-examples keep the text itself intact.
     static func containsSpokenEditCue(_ text: String) -> Bool {
-        let cues = #"\b(?:scra(?:p|tch) (?:that|all of (?:that|it))|delete that|forget (?:that|it)"#
-            + #"|wait,? no|no,? wait|start (?:over|again)|never ?mind|instead say"#
-            + #"|actually,? (?:no|make that|say)|I mean\b)"#
-        return text.range(of: cues, options: [.regularExpression, .caseInsensitive]) != nil
+        text.range(of: spokenEditCuePattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private static let spokenEditCuePattern =
+        #"\b(?:scra(?:p|tch) (?:that|all of (?:that|it))|delete that|forget (?:that|it)"#
+        + #"|wait,? no|no,? wait|start (?:over|again)|never ?mind|instead say"#
+        + #"|actually,? (?:no|make that|say)|I mean\b)"#
+
+    /// Whether a spoken-edits result can be trusted. The 1.5B model sometimes keeps the words
+    /// the speaker took back ("Invite Priya, I mean Maya" → "Invite Priya"), or half-applies an
+    /// edit and leaves the command in. Either is worse than the unedited dictation, which at
+    /// least has the speaker's real words. An unchanged result is always fine. Otherwise the
+    /// edit must only delete words (any order: "fifty dollars, make that forty five" → "forty
+    /// five dollars"), leave no correction command behind, and keep some word of what was said
+    /// after the last command — that is the correction.
+    static func spokenEditIsSafe(input: String, output: String) -> Bool {
+        let key = { (w: Substring) in String(w).lowercased() }
+        let split = { (t: String) in
+            t.split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "'") }).map(key)
+        }
+        let spoken = split(input), written = split(output)
+        if spoken == written { return true }
+
+        var available = Dictionary(spoken.map { ($0, 1) }, uniquingKeysWith: +)
+        for word in written {
+            guard let n = available[word], n > 0 else { return false }
+            available[word] = n - 1
+        }
+        if containsSpokenEditCue(output) { return false }
+
+        let cues = input.ranges(of: try! Regex(spokenEditCuePattern).ignoresCase())
+        guard let last = cues.last else { return true }
+        let filler: Set<String> = ["make", "that", "it", "say", "no", "wait", "actually", "it's", "to",
+                                   "the", "a", "an", "and", "so", "um", "uh", "oh", "i", "mean"]
+        // The correction runs to the end of its clause: "no wait, ten thirty, so plan…" → "ten thirty".
+        let rest = input[last.upperBound...].drop(while: { ",.;:!? ".contains($0) })
+        let clause = rest.prefix(while: { !",.;:!?".contains($0) })
+        let correction = split(String(clause)).prefix(4).filter { !filler.contains($0) }
+        guard !correction.isEmpty else { return true }
+        return correction.contains(where: written.contains)
     }
 
     /// Whether the dictation has something for smart formatting to lay out: a message

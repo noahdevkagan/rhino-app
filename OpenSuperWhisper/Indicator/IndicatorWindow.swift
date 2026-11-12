@@ -254,6 +254,20 @@ class IndicatorViewModel: ObservableObject {
         delegate?.didFinishDecoding()
     }
 
+    /// Throws the take away without transcribing it and without waiting on the recorder's
+    /// queue (a chord: Fn+↑ and friends). The bubble then goes the way of any finished take:
+    /// it hides, or shows the previous take still decoding, with its drain watch re-armed.
+    func discardRecording() {
+        resetCancelConfirmation()
+        stopBlinking()
+        if liveStreamingActive {
+            liveStreamingActive = false
+            Task { await StreamingTranscriptionController.shared.cancel() }
+        }
+        recorder.discardRecording()
+        delegate?.didFinishDecoding()
+    }
+
     static func applyPostProcessing(_ text: String) -> String {
         guard AppPreferences.shared.addSpaceAfterSentence else { return text }
         // Some models emit run-on sentences with no space after the period ("regularly.Using" — #107).

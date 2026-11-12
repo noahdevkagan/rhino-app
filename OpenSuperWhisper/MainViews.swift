@@ -8,13 +8,14 @@ import SwiftUI
 enum MainTab: String, CaseIterable, Identifiable {
     // History lives inside Home now (Willow-style: stats strip on top, history
     // below) — Paul S.: "you can merge the home tab with history to simplify".
-    case home, dictionary
+    case home, dictionary, snippets
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .home: return "Home"
         case .dictionary: return "Dictionary"
+        case .snippets: return "Snippets"
         }
     }
 
@@ -22,6 +23,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         switch self {
         case .home: return "house"
         case .dictionary: return "character.book.closed"
+        case .snippets: return "text.quote"
         }
     }
 }

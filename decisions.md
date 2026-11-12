@@ -926,6 +926,7 @@ sliding-window/arbitration, amplified by boosting terms absent from the
 audio). The harness therefore runs the base twice and excludes clips that
 are unstable base-vs-base before comparing. Worth an upstream look if
 boost-quality reports come in.
+
 ## 2026-08-31 — CI release path must deploy the website too; Sparkle key goes
 to Actions secrets so any machine can cut a release
 Cutting 0.1.17 from the laptop failed at the appcast: 0.1.9+ pin the desktop's
@@ -959,6 +960,7 @@ Dictation. Verified in the dev build. The Models deep-link (Home's
 `settingsTab` and passes it as a `@Binding`, which is read at render time and
 cannot go stale; the callers set the tab directly instead of posting a
 notification the sheet may not exist to receive.
+
 ## 2026-09-01 — failed recordings persist the verbatim error (failureDetail column)
 Field report of failed dictations dead-ended: three status=failed rows with
 empty modelUsed, no error text anywhere retrievable — the raw error was
@@ -2448,11 +2450,21 @@ Benjamin went back to Wispr Flow: he copies something, dictates a comment, then 
 
 Choices: the tap is active, not listen-only, because the restore must finish before the app reads the clipboard; it is enabled only while a borrow is pending, so it never sits in the keystroke path otherwise. It looks at key-downs for ⌘V only and keeps nothing. A ⌘V under 0.3 s after Rhino's is ignored: nobody reacts to seeing text that fast, and Rhino's paste may not be serviced yet. Rejected: going back to a read-triggered restore (broke Chrome, 2026-11-05); a shorter fixed timer (Deepak's late Chrome paste). Not covered: Edit → Paste with the mouse inside the 5 s, and a ⌘V pressed while a busy page still has Rhino's ⌘V queued (both pastes then carry the old clipboard). Not built or run: written in a Linux session, CI Build Check is the gate, and it needs a real try in Rhino Dev in Chrome.
 
+## 2026-11-11 — The push gate tests Parakeet and the cleanup model, and records known gaps instead of hiding them
+
+Until now the gate ran only whisper tiny on synthetic speech, so a broken Parakeet or a cleanup regression could ship (top item of the 2026-11-11 audit). Two new suites, both local-only (skip on CI and with FAST=1, never download a model):
+
+- `tests/parakeet`: the asr suite's synthetic clips through `Rhino bench` with Parakeet v2 and v3, whichever are on disk. Bars allow one word miss per case over the M4 baseline. The time budget is the engine's own inference time (≤1000 ms), not wall time, because the first clip pays a one-time Core ML warm-up of about 15 s.
+- `tests/cleanup`: 11 fixed transcripts through `Rhino cleanup --stdin` with `cleanupOnlyWhenNeeded` off, so the model runs every time. Scored for fidelity (required phrases, banned phrases, no more than 1 content word dropped or invented) and for effect (lists become lists, messages get laid out). Both directions matter because the guards turn a broken model into the unchanged transcript, which a harm-only test would pass. The mutation check confirms it: "every output equals its input" fails three cases.
+
+Outputs are deterministic (two runs byte-identical), so bars are exact. Three cases fail on today's model and are marked `known_gap` in cases.json: they print every run and don't block a push, and the scorer says when one starts passing. They are `draft-prompt` ("Draft Matt: see if you can…"), `invented-words` ("looking forward to") and `spoken-edit` ("actually no, make that four" left in). The first two are the audit-3 rewrites, still reaching users. `CleanupFidelityGuard` lets them through because its floors (4 dropped, 3 invented) are tuned for long dictations, and these drop 2 or invent 1. Tightening the guard for short text is the obvious fix, but it needs its own replay against real history, since every legitimate rewrite it rejects is lost cleanup. Rejected: failing the gate on these three (no push could land until the model improves) and deleting them (the regression would be invisible).
+
 ## 2026-11-11 — A key pressed while the modifier trigger is held makes it a chord, not dictation
 
 With hold-Fn as the trigger, Fn+↑ (Page Up), Fn+← (Home), Fn+Delete and Fn+F-keys started a take, and a quick one counted as a tap so the recording stayed on. Now `ModifierKeyMonitor` has a second listen-only keyDown tap, enabled only while a trigger is held (like UserPasteWatcher), so Rhino isn't on every keystroke's path when idle. The first counted key-down during a press fires `onChord` once. If it lands within `chordCancelWindow` (1 s) of the press, `ShortcutManager` discards the take that press started, quietly and without blocking main on the recorder queue, and ignores the press's release, so it can't count as a tap, arm the double-tap lock or start a deferred hold stop. A later key is a stray press during real dictation: ignored, and the take behaves as before (a long take is never wiped without Esc's confirmation).
 
 Choices: the mic and bubble still start on press with no delay, but the start chime, media pause and the over-limit paywall wait `chordSettleDelay` (150 ms) and are skipped if the take is chorded or stopped first. Not deferred: the system default input switch (it is part of starting the mic on the recorder queue) and the share-panel dismissal in `show()`. A discarded chord take ends through `didFinishDecoding`, so if a previous take is still transcribing the bubble goes back to its decoding state with the drain watch and watchdog re-armed. With a take locked on (hands-free), Fn+↑ behaves exactly as before: the Fn press itself stops and transcribes the take before the chord arrives, so the chord finds nothing to cancel. Rhino's own synthetic keys (typed text, ⌘V, Return can land while the next take's Fn is held) are skipped by source PID. Other apps' synthetic keys (text expanders) still count: nothing in a CGEvent reliably separates them from a keyboard. Autorepeat is ignored, and so is whatever key the cancel shortcut is bound to (Esc by default), which keeps its own flow. Mouse clicks don't count. Keys are only counted, never recorded or logged. Known gaps: a tap then Fn+↑ inside the double-tap window locks the recording on (as before); the press counter is shared with key-combo triggers. Not verified by hand: a real Fn+↑ in Rhino Dev.
+
 ## 2026-11-11 — Snippets: whole-utterance match only, inserted verbatim
 
 Snippets (like Wispr Flow's): a saved trigger phrase → expansion text. v1 expands only when the

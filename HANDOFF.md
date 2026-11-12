@@ -7,6 +7,55 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Accuracy gate suites (2026-11-11, branch gate/accuracy-suites)
+
+Why: the push gate only tested whisper tiny on synthetic speech, so a broken
+Parakeet or a cleanup regression could ship (top recommendation from the
+2026-11-11 audit; docs/performance-audit-2026-10-05.md §5).
+
+Done:
+- `tests/parakeet/` (run.sh + score.py): reuses tests/asr's synthetic clips,
+  runs `Rhino bench` with Parakeet v2 and v3 (whichever are on disk; never
+  downloads; fails if neither is). Bars allow one miss per case; budget is on
+  engine inference time (stages.infer_ms ≤ 1000 ms), not wall time, because
+  the first clip pays a one-time Core ML warm-up (~15 s on a fresh build).
+  `"No speech detected in the audio"` is the engine's no-speech sentinel
+  (AppPreferences.noSpeech), not a hallucination. **Passes on M4**: WER 0% on
+  three cases, 5.9% on `short` ("lunch"→"launch", same as tiny), ~90–140 ms.
+- `tests/cleanup/` run.sh + cases.json (11 cases: the audit-3 harmful
+  rewrites, instruction/question bait, lists, spoken edit, "million", brand
+  names). Runs `cleanup --stdin` with cleanupOnlyWhenNeeded OFF so the model
+  runs every time; symlinks the installed app's Qwen gguf into Rhino Dev's
+  llm-models (dev folder was empty). Checks fidelity AND effect, because the
+  guards turn a broken model into "unchanged text" that a harm-only test passes.
+
+- `tests/cleanup/score.py`: phrase/layout checks + content-word diff (fail
+  at 2 dropped or 2 invented), guard rejections attributed per case. Outputs
+  are deterministic. 8/11 pass; 3 are `known_gap` (print every run, don't
+  block): draft-prompt and invented-words (the audit-3 rewrites still reach
+  users: CleanupFidelityGuard's floors of 4 dropped / 3 invented are too loose
+  for short dictations) and spoken-edit (correction not applied). Mutation
+  checks pass for both suites (incl. "model returns input unchanged" → fails).
+  Docs: tests/README.md, AGENTS.md map, decisions.md 2026-11-11.
+
+Next: push gate → push → PR. Then, own PR: tighten CleanupFidelityGuard for
+short dictations, replayed against real history (audit-3 harness in
+.context/audit3/) so legit rewrites aren't lost; remove the two known_gaps.
+
+Agreed follow-ups from the same audit (Noah wants both):
+- **Idle unload without the 5-min cliff.** The unload exists to free RAM. The
+  weights are mmap'd (LlamaContext.swift:138 use_mmap = true), so they are
+  clean file-backed pages macOS can drop on its own; the dirty memory is the
+  context/KV cache. Measure footprint of each, then: keep the model mapped,
+  free only the context on idle (cheap to rebuild), and unload the model only
+  on a DispatchSource memory-pressure warning. 56% of Noah's dictations were cold.
+- **Auto-teach the dictionary (Noah loves this; "too lazy to go into the app").**
+  After a paste, watch the focused field via Accessibility for ~30 s (Rhino
+  already reads text around the cursor). If the user retypes a word Rhino just
+  typed (Apsumo → AppSumo), add a dictionary rule automatically with a small
+  "Learned AppSumo · Undo" toast. Also seed from Contacts names and capitalized
+  words visible near the cursor. All local.
+
 ### One-click model setup + first-dictation practice (2026-11-10, branch crxnamja/ux-bugs-security-audit)
 
 Plan: model step's footer button becomes "Download <model> and finish" while no model is on disk

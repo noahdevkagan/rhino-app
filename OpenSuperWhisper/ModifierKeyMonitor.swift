@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 import Foundation
+import KeyboardShortcuts
 
 enum ModifierKey: String, CaseIterable, Identifiable, Codable {
     case none = "none"
@@ -98,13 +99,23 @@ class ModifierKeyMonitor {
     
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    /// Listen-only keyDown tap for spotting chords. Enabled only while a trigger is held, so
+    /// Rhino is not on every keystroke's path otherwise (the same pattern as UserPasteWatcher).
+    private var keyTap: CFMachPort?
+    private var keyTapSource: CFRunLoopSource?
     /// Modifiers being watched, by key code. More than one so a second modifier can mean
     /// "dictate and submit" alongside the plain record trigger (#50).
     private var watched: [UInt16: ModifierKey] = [:]
     private var pressedKey: ModifierKey?
+    /// Whether a non-modifier key went down during the current press (see `handleKeyDown`).
+    private var pressChorded = false
 
     var onKeyDown: ((ModifierKey) -> Void)?
     var onKeyUp: ((ModifierKey) -> Void)?
+    /// A non-modifier key went down while the trigger was held: the press may be a shortcut
+    /// such as Fn+↑ (Page Up), Fn+Delete or Fn+F5, not dictation. Fires at most once per press,
+    /// on main, after that press's `onKeyDown` and before its `onKeyUp`.
+    var onChord: (() -> Void)?
     
     private init() {}
     
@@ -128,6 +139,7 @@ class ModifierKeyMonitor {
         
         watched = [modifierKey.keyCode: modifierKey]
         pressedKey = nil
+        pressChorded = false
 
         // Accessibility already authorizes both posting and listening to events. Rhino needs it
         // to insert text, so requiring Input Monitoring as well creates a redundant TCC prompt
@@ -174,6 +186,43 @@ class ModifierKeyMonitor {
             CGEvent.tapEnable(tap: tap, enable: true)
             print("ModifierKeyMonitor: Started monitoring for \(modifierKey.displayName)")
         }
+
+        createKeyTap()
+    }
+
+    /// Listen-only: nothing is ever swallowed or delayed. Created disabled; see `setKeyTap`.
+    private func createKeyTap() {
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .listenOnly,
+            eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
+            callback: { (_, type, event, refcon) -> Unmanaged<CGEvent>? in
+                guard let refcon else { return Unmanaged.passUnretained(event) }
+                let monitor = Unmanaged<ModifierKeyMonitor>.fromOpaque(refcon).takeUnretainedValue()
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    monitor.setKeyTap(enabled: monitor.pressedKey != nil)
+                } else if type == .keyDown {
+                    monitor.handleKeyDown(event: event)
+                }
+                return Unmanaged.passUnretained(event)
+            },
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
+        ) else {
+            // Chords just go unnoticed; the trigger itself still works.
+            print("ModifierKeyMonitor: Failed to create the chord tap")
+            return
+        }
+        CGEvent.tapEnable(tap: tap, enable: false)
+        keyTap = tap
+        keyTapSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        if let keyTapSource {
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), keyTapSource, .commonModes)
+        }
+    }
+
+    private func setKeyTap(enabled: Bool) {
+        if let keyTap { CGEvent.tapEnable(tap: keyTap, enable: enabled) }
     }
     
     func stop() {
@@ -183,10 +232,19 @@ class ModifierKeyMonitor {
                 CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
             }
         }
+        if let keyTap {
+            CGEvent.tapEnable(tap: keyTap, enable: false)
+            if let keyTapSource {
+                CFRunLoopRemoveSource(CFRunLoopGetCurrent(), keyTapSource, .commonModes)
+            }
+        }
         eventTap = nil
         runLoopSource = nil
+        keyTap = nil
+        keyTapSource = nil
         watched = [:]
         pressedKey = nil
+        pressChorded = false
         print("ModifierKeyMonitor: Stopped")
     }
     
@@ -208,15 +266,49 @@ class ModifierKeyMonitor {
         if isPressed, pressedKey == nil {
             // A second modifier pressed mid-recording is ignored: the first owns this take.
             pressedKey = key
+            pressChorded = false
+            setKeyTap(enabled: true)
             DispatchQueue.main.async {
                 self.onKeyDown?(key)
             }
         } else if !isPressed, pressedKey == key {
             pressedKey = nil
+            setKeyTap(enabled: false)
             DispatchQueue.main.async {
                 self.onKeyUp?(key)
             }
         }
+    }
+
+    /// A key went down while a trigger is held. Privacy: keys are only counted here, never
+    /// recorded — the key code is compared to the cancel shortcut's and never stored or logged.
+    private func handleKeyDown(event: CGEvent) {
+        guard pressedKey != nil, !pressChorded else { return }
+        guard Self.keyDownCountsAsChord(
+            isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+            keyCode: event.getIntegerValueField(.keyboardEventKeycode),
+            cancelKeyCode: KeyboardShortcuts.getShortcut(for: .escape).map { Int64($0.carbonKeyCode) },
+            sourcePID: event.getIntegerValueField(.eventSourceUnixProcessID),
+            ownPID: Int64(getpid())) else { return }
+        pressChorded = true
+        DispatchQueue.main.async {
+            self.onChord?()
+        }
+    }
+
+    /// Whether a key-down during a trigger press counts as a chord.
+    /// - Rhino's own synthetic keys (typed text, ⌘V, Return) are skipped: they land after a
+    ///   release, possibly while the next take's trigger is already held.
+    /// - Other apps' synthetic keys (text expanders, automation) DO still count. Nothing in a
+    ///   CGEvent reliably tells them from a keyboard: a poster using the HID system state
+    ///   reports the same source state ID as hardware.
+    /// - Autorepeat of a key held before the trigger is not a new press.
+    /// - The cancel shortcut's key (Esc by default) is left to that flow, with its long-take
+    ///   confirmation, rather than discarding first and racing it.
+    static func keyDownCountsAsChord(isAutorepeat: Bool, keyCode: Int64, cancelKeyCode: Int64?,
+                                     sourcePID: Int64, ownPID: Int64) -> Bool {
+        guard sourcePID != ownPID else { return false }
+        return !isAutorepeat && keyCode != cancelKeyCode
     }
     
     deinit {

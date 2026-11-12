@@ -470,6 +470,7 @@ struct ContentView: View {
                 switch mainTab {
                 case .home: homePane
                 case .dictionary: DictionaryTabView()
+                case .snippets: SnippetsTabView()
                 }
             }
         }

@@ -219,6 +219,50 @@ final class AppPreferences {
             if !SoundAlike.eligibleTerms(newValue).isEmpty { SystemWordList.prewarm() }
         }
     }
+
+    /// Snippets: say a saved phrase, get its text (`Snippets`). On by default; with no
+    /// snippets saved it does nothing. Free tier, like the dictionary.
+    @UserDefault(key: "snippetsEnabled", defaultValue: true)
+    var snippetsEnabled: Bool
+
+    @OptionalUserDefault(key: "snippetsData")
+    private var snippetsData: Data?
+
+    /// The stored data as it was before the first write that would have lost rows Rhino
+    /// couldn't read (a damaged or future-format list). Kept once, never overwritten, so the
+    /// user's snippets can still be recovered by hand.
+    @OptionalUserDefault(key: "snippetsDataUnreadableBackup")
+    var snippetsDataUnreadableBackup: Data?
+
+    /// Rows that can't be read are skipped (see `Snippets.decode`), not the whole list.
+    var snippets: [Snippet] {
+        get { Snippets.decode(snippetsData).snippets }
+        set {
+            guard let encoded = try? JSONEncoder().encode(newValue) else { return }
+            if let existing = snippetsData, !Snippets.decode(existing).lossless,
+               snippetsDataUnreadableBackup == nil {
+                snippetsDataUnreadableBackup = existing
+            }
+            snippetsData = encoded
+        }
+    }
+
+    /// The snippet this whole dictation triggers, or nil (off, none saved, or no match).
+    /// `transcriptForm` is what the transcript went through before it got here, applied to
+    /// each trigger so both sides compare alike (see `Snippets.match`).
+    func matchingSnippet(_ text: String,
+                         transcriptForm: (String) -> String = { $0 }) -> Snippet? {
+        guard snippetsEnabled else { return nil }
+        return Snippets.match(text, in: snippets, transcriptForm: transcriptForm)
+    }
+
+    /// What a typed trigger becomes on the way the transcript took: the engine's dictionary
+    /// pass, then number formatting and British spelling (TranscriptionService). "room two" →
+    /// "room 2", "my colour card" stays matching under Brit mode.
+    func snippetTriggerTranscriptForm(_ trigger: String, settings: Settings) -> String {
+        applyBritishSpelling(NumberCompaction.apply(settings.applyCustomDictionary(trigger),
+                                                    style: numberFormattingStyle))
+    }
     
     @UserDefault(key: "useBeamSearch", defaultValue: false)
     var useBeamSearch: Bool

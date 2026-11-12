@@ -164,10 +164,27 @@ class AudioRecorder: NSObject, ObservableObject {
     /// Safe to call from any thread; returns immediately. The real work runs on `stateQueue`
     /// so the hotkey tap on the main thread never waits on AVFoundation/CoreAudio (#freeze).
     func startRecording() {
-        stateQueue.async { [weak self] in self?.performStartRecording() }
+        let cues = startCuesEpoch()
+        stateQueue.async { [weak self] in self?.performStartRecording(cues: cues) }
     }
 
-    private func performStartRecording() {
+    /// The start chime and media pause wait `ShortcutManager.chordSettleDelay`, and are
+    /// dropped if the take is stopped or discarded first, so a chord (Fn+↑) never plays the
+    /// chime or pauses music. Each start takes the current epoch; every stop bumps it.
+    private let cuesLock = NSLock()
+    private var cuesEpoch = 0
+
+    private func startCuesEpoch() -> Int {
+        cuesLock.lock(); defer { cuesLock.unlock() }
+        return cuesEpoch
+    }
+
+    private func cancelStartCues() {
+        cuesLock.lock(); defer { cuesLock.unlock() }
+        cuesEpoch += 1
+    }
+
+    private func performStartRecording(cues: Int) {
         // Ground truth for "mic available" is CoreAudio, not the cached device (nor the
         // @Published `canRecord`, which is written on main for the UI — reading it here
         // would race). After a headset drops off (AirPods into their case), the cache can
@@ -203,12 +220,14 @@ class AudioRecorder: NSObject, ObservableObject {
             _ = performStopRecording()
         }
 
-        if AppPreferences.shared.pauseMediaOnRecord {
-            DispatchQueue.main.async { MediaPlaybackController.shared.pauseMedia() }
-        }
-
-        if AppPreferences.shared.playSoundOnRecordStart {
-            DispatchQueue.main.async { self.playNotificationSound() }
+        let pauseMedia = AppPreferences.shared.pauseMediaOnRecord
+        let playSound = AppPreferences.shared.playSoundOnRecordStart
+        if pauseMedia || playSound {
+            DispatchQueue.main.asyncAfter(deadline: .now() + ShortcutManager.chordSettleDelay) {
+                guard self.startCuesEpoch() == cues else { return }
+                if pauseMedia { MediaPlaybackController.shared.pauseMedia() }
+                if playSound { self.playNotificationSound() }
+            }
         }
 
         let fileURL = temporaryDirectory.appendingPathComponent(Self.makeRecordingFilename())
@@ -297,7 +316,15 @@ class AudioRecorder: NSObject, ObservableObject {
     /// `discard` drops the take whatever its length: for a stop already judged too short
     /// earlier, so the extra time it waited can't push it over the keep threshold.
     func stopRecording(discard: Bool = false) -> URL? {
-        stateQueue.sync { performStopRecording(discard: discard) }
+        cancelStartCues()
+        return stateQueue.sync { performStopRecording(discard: discard) }
+    }
+
+    /// Discards the take without blocking the caller: queued behind any in-flight start, so
+    /// the mic still can't be orphaned, but main never waits on CoreAudio for it.
+    func discardRecording() {
+        cancelStartCues()
+        stateQueue.async { [weak self] in _ = self?.performStopRecording(discard: true) }
     }
 
     private func performStopRecording(discard: Bool = false) -> URL? {
@@ -344,6 +371,7 @@ class AudioRecorder: NSObject, ObservableObject {
     /// Queue-sync like `stopRecording()` for the same reason: a cancel must always land
     /// after the start it is cancelling.
     func cancelRecording() {
+        cancelStartCues()
         stateQueue.sync { performCancelRecording() }
     }
 

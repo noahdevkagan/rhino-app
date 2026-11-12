@@ -41,11 +41,14 @@ enum TranscriptInserter {
     ///     stored transcript, where the user picked that exact text.
     ///   - spokenTrailingMark: The user said the closing "period"/"comma" out loud, so
     ///     `ContextCasing` must keep it.
+    ///   - forcePaste: Paste even when the user chose typing, for text whose newlines must not
+    ///     become Return keystrokes (a multi-line snippet).
     @MainActor
     @discardableResult
     static func insert(_ text: String, honorAutoPastePreference: Bool,
                        fitToContext: Bool = false,
-                       spokenTrailingMark: Bool = false) -> Outcome {
+                       spokenTrailingMark: Bool = false,
+                       forcePaste: Bool = false) -> Outcome {
         let prefs = AppPreferences.shared
         let pasteboard = Self.pasteboard
 
@@ -76,7 +79,7 @@ enum TranscriptInserter {
             return .noPermission
         }
 
-        if prefs.pasteInsteadOfTyping {
+        if prefs.pasteInsteadOfTyping || forcePaste {
             let fitted = fitToContext ? fitToCaret(text, spokenTrailingMark: spokenTrailingMark) : text
             // Paste is universal: ⌘V lands in any text field, including apps the accessibility check
             // can't read (Messages, Electron), and is a harmless no-op otherwise. So no editable-

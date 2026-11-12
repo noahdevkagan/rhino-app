@@ -2448,6 +2448,40 @@ Benjamin went back to Wispr Flow: he copies something, dictates a comment, then 
 
 Choices: the tap is active, not listen-only, because the restore must finish before the app reads the clipboard; it is enabled only while a borrow is pending, so it never sits in the keystroke path otherwise. It looks at key-downs for ⌘V only and keeps nothing. A ⌘V under 0.3 s after Rhino's is ignored: nobody reacts to seeing text that fast, and Rhino's paste may not be serviced yet. Rejected: going back to a read-triggered restore (broke Chrome, 2026-11-05); a shorter fixed timer (Deepak's late Chrome paste). Not covered: Edit → Paste with the mouse inside the 5 s, and a ⌘V pressed while a busy page still has Rhino's ⌘V queued (both pastes then carry the old clipboard). Not built or run: written in a Linux session, CI Build Check is the gate, and it needs a real try in Rhino Dev in Chrome.
 
+## 2026-11-11 — A key pressed while the modifier trigger is held makes it a chord, not dictation
+
+With hold-Fn as the trigger, Fn+↑ (Page Up), Fn+← (Home), Fn+Delete and Fn+F-keys started a take, and a quick one counted as a tap so the recording stayed on. Now `ModifierKeyMonitor` has a second listen-only keyDown tap, enabled only while a trigger is held (like UserPasteWatcher), so Rhino isn't on every keystroke's path when idle. The first counted key-down during a press fires `onChord` once. If it lands within `chordCancelWindow` (1 s) of the press, `ShortcutManager` discards the take that press started, quietly and without blocking main on the recorder queue, and ignores the press's release, so it can't count as a tap, arm the double-tap lock or start a deferred hold stop. A later key is a stray press during real dictation: ignored, and the take behaves as before (a long take is never wiped without Esc's confirmation).
+
+Choices: the mic and bubble still start on press with no delay, but the start chime, media pause and the over-limit paywall wait `chordSettleDelay` (150 ms) and are skipped if the take is chorded or stopped first. Not deferred: the system default input switch (it is part of starting the mic on the recorder queue) and the share-panel dismissal in `show()`. A discarded chord take ends through `didFinishDecoding`, so if a previous take is still transcribing the bubble goes back to its decoding state with the drain watch and watchdog re-armed. With a take locked on (hands-free), Fn+↑ behaves exactly as before: the Fn press itself stops and transcribes the take before the chord arrives, so the chord finds nothing to cancel. Rhino's own synthetic keys (typed text, ⌘V, Return can land while the next take's Fn is held) are skipped by source PID. Other apps' synthetic keys (text expanders) still count: nothing in a CGEvent reliably separates them from a keyboard. Autorepeat is ignored, and so is whatever key the cancel shortcut is bound to (Esc by default), which keeps its own flow. Mouse clicks don't count. Keys are only counted, never recorded or logged. Known gaps: a tap then Fn+↑ inside the double-tap window locks the recording on (as before); the press counter is shared with key-combo triggers. Not verified by hand: a real Fn+↑ in Rhino Dev.
+## 2026-11-11 — Snippets: whole-utterance match only, inserted verbatim
+
+Snippets (like Wispr Flow's): a saved trigger phrase → expansion text. v1 expands only when the
+whole dictation is the trigger, compared after `Snippets.normalize` (case, diacritics, every run of
+punctuation/whitespace collapsed), so "My calendar link." matches "my calendar link". A match skips
+everything that rewrites words: cleanup (and `CleanupOffer` counting), spoken punctuation, British
+spelling, the dictionary, greetings, and at insertion the sentence spacing and `ContextCasing` caret
+fitting. The expansion lands exactly as typed. History and the long-clip hold are unchanged (they
+see the expansion). Free tier, no gate, and a snippet counts zero words toward the free weekly
+limit: it is saved text, not dictation, and a long address shouldn't eat the allowance.
+
+- No inline expansion inside a longer sentence. A trigger like "my address" is ordinary speech
+  ("I changed my address last week"), and pasting a multi-line address into the middle of that is a
+  worse failure than having to dictate the trigger on its own. Doing it safely needs an explicit
+  cue ("insert my address") or trigger words nobody says otherwise; revisit with real use.
+- Lives as a main-window tab next to Dictionary (where the dictionary is edited), stored in
+  UserDefaults as JSON like the dictionary. Duplicate triggers: the first in the list wins, and the
+  editor warns. Only usable rows (trigger and expansion both filled) take a phrase, in matching and
+  in the warning alike (`Snippets.shadowing`).
+- The transcript reaches the matcher after the engine's dictionary pass, number formatting and
+  British spelling, so each trigger goes through the same three before comparing
+  (`snippetTriggerTranscriptForm`); a trigger matches in its typed or transformed form. "room two"
+  matches "room 2", "my clavio link" matches after a clavio → Klaviyo rule.
+- Multi-line expansions are pasted even in typing mode: typed newlines are Return keystrokes and
+  would send a Slack or Messages message halfway through an address.
+- Stored rows decode one by one with defaults for missing fields, so a bad row costs that row. If
+  the stored data couldn't be fully read, the first write copies it to
+  `snippetsDataUnreadableBackup` (kept once) before replacing it, rather than refusing writes
+  forever.
 ## 2026-11-11 — Command Mode (beta): rewrite the selection by voice
 
 Select text, hold the Command Mode shortcut, say what to do, release: the embedded Qwen model rewrites the selection and Rhino pastes the result over it (one ⌘V, so one ⌘Z undoes it). Off by default, labelled Beta in Settings → Dictation.

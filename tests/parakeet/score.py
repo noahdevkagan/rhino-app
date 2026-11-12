@@ -21,9 +21,9 @@ from score import wer  # noqa: E402  (shared normalizer: digits, punctuation)
 # Max WER % per case. Baseline on an M4 (2026-11-11), v2 and v3 alike: 0% on
 # message/prose/technical, and one miss on `short` — the synthetic voice's
 # "lunch" reads as "launch", the same miss whisper tiny makes. Each bar allows
-# exactly one substitution and fails at two (one word is 5.9% of `short`,
-# 3.8% of `message`, 2.2% of `prose`, 2.9% of `technical`).
-BARS = {"short": 6.0, "message": 4.0, "prose": 3.0, "technical": 3.0}
+# one miss on top of the baseline: one word is 5.9% of `short` (baseline 1 miss,
+# so 2 allowed), 3.8% of `message`, 2.2% of `prose`, 2.9% of `technical`.
+BARS = {"short": 12.0, "message": 4.0, "prose": 3.0, "technical": 3.0}
 
 # The engine's own inference time per clip ("stages".infer_ms): ~90–150 ms
 # here on a debug build. Past this budget the engine fell off its fast path
@@ -71,10 +71,11 @@ def main() -> int:
             summary["cases"][case] = {"wer": round(rate, 2), "inferMs": ms}
         fail = fail or not ok
 
-    first = min(rows.values(), key=lambda r: r["file"])
-    summary["firstClipWallMs"] = int(first.get("ms", 0))
-    print(f"parakeet {version}: first clip took {summary['firstClipWallMs']} ms wall "
-          "(includes one-time model warm-up; informational)")
+    if rows:
+        first = min(rows.values(), key=lambda r: r["file"])
+        summary["firstClipWallMs"] = int(first.get("ms", 0))
+        print(f"parakeet {version}: first clip took {summary['firstClipWallMs']} ms wall "
+              "(includes one-time model warm-up; informational)")
     print(f"JSON\t{json.dumps(summary)}")
     return 1 if fail else 0
 

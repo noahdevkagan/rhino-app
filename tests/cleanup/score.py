@@ -15,14 +15,17 @@ Per case, in this order:
                        ignored (they legitimately come and go). `edit` cases
                        skip this, since applying an edit drops words on purpose.
 
-A case marked `"known_gap": "<why>"` is a failure we have measured on the
-shipped model and accepted for now: it is printed as KNOWN GAP and does not
-fail the suite. If it starts passing, the line says so — delete the field
-to lock the improvement in.
+A case marked `"known_gap": {"why": ..., "problems": [...]}` is a failure we
+have measured on the shipped model and accepted for now. Exactly those
+problems print as KNOWN GAP and don't fail the suite; any OTHER problem on the
+case fails it as usual, so a known gap can't hide a new regression. If the
+case starts passing, the line says so: delete the field to lock it in.
 
-Also prints how many cleanup passes the app's own guards rejected per case
-(a rejected pass falls back to the transcript, so a case can "pass" only
-because the guard caught a bad rewrite; that should be visible).
+Also prints how many cleanup passes the app's fidelity guard rejected per
+case, and marks any case whose output is identical to its input: some
+guards (length, numbers) fall back to the transcript without logging, so a case
+can "pass" only because a guard threw the model's output away; that should be
+visible.
 
 Prints one line per case plus a `JSON\t{...}` summary; exits nonzero on failure.
 """
@@ -151,12 +154,17 @@ def main() -> int:
         problems = check(case, out)
         gap = case.get("known_gap")
         rej = f", guard rejected {rejected[i]}" if rejected and rejected[i] else ""
+        if out.strip() == case["input"].strip():
+            # The model always changes at least punctuation; identical text means a guard
+            # (some log nothing) threw the model's output away.
+            rej += ", output identical to input (model output discarded)"
+        unexpected = [p for p in problems if not gap or p not in gap["problems"]]
         if not problems:
             status = "PASS" + (" (known gap now passes: remove known_gap)" if gap else "")
-        elif gap:
-            status = f"KNOWN GAP ({gap}): " + "; ".join(problems)
+        elif not unexpected:
+            status = f"KNOWN GAP ({gap['why']}): " + "; ".join(problems)
         else:
-            status = "FAIL — " + "; ".join(problems)
+            status = "FAIL — " + "; ".join(unexpected) + (" (beyond the known gap)" if gap else "")
             fail = True
         print(f"cleanup {cid}: {status}{rej}, {row.get('ms', 0)} ms")
         if problems:

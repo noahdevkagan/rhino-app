@@ -46,8 +46,9 @@ if [ ! -e "$DEV_MODEL" ]; then
         ln -s "$SUPPORT/com.noahkagan.rhino/llm-models/$MODEL" "$DEV_MODEL"
         echo "cleanup: linked the installed app's model into Rhino Dev"
     else
-        echo "cleanup SKIPPED: cleanup model not downloaded (download it in Rhino → Settings → Output → Cleanup)"
-        exit 0
+        # Fail, like tests/parakeet: a machine without the model must not pass the gate untested.
+        echo "cleanup FAIL: cleanup model not downloaded (download it in Rhino → Settings → Output → Cleanup, or FAST=1 to skip)"
+        exit 1
     fi
 fi
 

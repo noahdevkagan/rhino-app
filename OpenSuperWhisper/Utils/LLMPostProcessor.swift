@@ -143,10 +143,13 @@ enum LLMPostProcessor {
                 // An applied edit only ever shrinks the text, so the condensing floor
                 // applies. A blank or ballooned result means the pass went off-contract;
                 // the original text goes on to cleanup untouched.
-                if !edited.isEmpty,
-                   !backend.enforcesLengthRatio
-                       || passesLengthGuard(input: text, output: edited,
-                                            condensingAllowed: true) {
+                if edited.isEmpty || !backend.enforcesLengthRatio {
+                    if !edited.isEmpty { working = edited }
+                } else if !passesLengthGuard(input: text, output: edited, condensingAllowed: true) {
+                    print("LLM spoken-edits rejected: output length out of range")
+                } else if !spokenEditIsSafe(input: text, output: edited) {
+                    print("LLM spoken-edits rejected: the edit didn't apply the correction cleanly")
+                } else {
                     working = edited
                 }
             } catch {
@@ -430,6 +433,8 @@ enum LLMPostProcessor {
         + "tell alex the demo moved to thursday\n"
         + "Example: 'the price is fifty dollars actually make that forty five' becomes:\n"
         + "the price is forty five dollars\n"
+        + "Example: 'Ship it on Monday, actually no, make that Tuesday.' becomes:\n"
+        + "Ship it on Tuesday.\n"
         + "Example: 'send the report to sam I mean to sarah before lunch' becomes:\n"
         + "send the report to sarah before lunch\n"
         + "Example: 'what time is the meeting wait no what day is the meeting' becomes:\n"
@@ -525,10 +530,93 @@ enum LLMPostProcessor {
     /// ordinary sentence ("she said we should scrap that feature") merely runs the pass once;
     /// its counter-examples keep the text itself intact.
     static func containsSpokenEditCue(_ text: String) -> Bool {
-        let cues = #"\b(?:scra(?:p|tch) (?:that|all of (?:that|it))|delete that|forget (?:that|it)"#
+        spokenEditCue.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
+    }
+
+    /// One compiled pattern for both the cue gate and `spokenEditIsSafe`, so the two can never
+    /// disagree about what a cue is.
+    private static let spokenEditCue = try! NSRegularExpression(
+        pattern: #"\b(?:scra(?:p|tch) (?:that|all of (?:that|it))|delete that|forget (?:that|it)"#
             + #"|wait,? no|no,? wait|start (?:over|again)|never ?mind|instead say"#
-            + #"|actually,? (?:no|make that|say)|I mean\b)"#
-        return text.range(of: cues, options: [.regularExpression, .caseInsensitive]) != nil
+            + #"|actually,? (?:no|make that|say)|I mean\b)"#,
+        options: [.caseInsensitive])
+
+    private static let editFiller: Set<String> = [
+        "make", "that", "it", "say", "no", "wait", "actually", "it's", "to", "the", "a", "an",
+        "and", "so", "um", "uh", "oh", "i", "mean", "just", "instead"]
+
+    private static func editWords(_ text: some StringProtocol) -> [String] {
+        text.lowercased().replacingOccurrences(of: "\u{2019}", with: "'")
+            .split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "'") })
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "'")) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Whether a spoken-edits result can be trusted. The 1.5B model sometimes keeps the words
+    /// the speaker took back ("Invite Priya, I mean Maya" → "Invite Priya"), merges both
+    /// ("nine, no wait, ten thirty" → "nine thirty"), or half-applies an edit and leaves the
+    /// command in. Each is worse than the unedited dictation. An unchanged result is always
+    /// fine. Otherwise the edit may only delete words (in any order: "fifty dollars, make that
+    /// forty five" → "forty five dollars"), and for EVERY correction command in the dictation:
+    ///   - left in place with the same words around it → it wasn't a command ("I mean, …"); fine
+    ///   - left in with different words around it → a half-applied edit; reject
+    ///   - removed → the correction (its clause after the command, minus words said earlier)
+    ///     must survive, and the retracted clause before it must have lost a word
+    static func spokenEditIsSafe(input: String, output: String) -> Bool {
+        let spoken = editWords(input), written = editWords(output)
+        if spoken == written { return true }
+
+        var available = Dictionary(spoken.map { ($0, 1) }, uniquingKeysWith: +)
+        for word in written {
+            guard let n = available[word], n > 0 else { return false }
+            available[word] = n - 1
+        }
+        let writtenCount = Dictionary(written.map { ($0, 1) }, uniquingKeysWith: +)
+        let spokenCount = Dictionary(spoken.map { ($0, 1) }, uniquingKeysWith: +)
+        let joinedOutput = " " + written.joined(separator: " ") + " "
+
+        let ns = input as NSString
+        let cues = spokenEditCue.matches(in: input, range: NSRange(location: 0, length: ns.length))
+        let clauseBreak = CharacterSet(charactersIn: ",.;:!?")
+        for (index, cue) in cues.enumerated() {
+            let before = ns.substring(to: cue.range.location)
+            let cueWords = editWords(ns.substring(with: cue.range))
+            let previous = editWords(before).last
+            let restStart = cue.range.location + cue.range.length
+            let nextCueStart = index + 1 < cues.count ? cues[index + 1].range.location : ns.length
+            let rest = ns.substring(with: NSRange(location: restStart, length: nextCueStart - restStart))
+
+            if " \(joinedOutput) ".contains(" " + cueWords.joined(separator: " ") + " ") {
+                // Left in: fine only if it reads exactly as spoken, then it was never a command.
+                let window = [previous].compactMap { $0 } + cueWords + Array(editWords(rest).prefix(1))
+                if joinedOutput.contains(" " + window.joined(separator: " ") + " ") { continue }
+                return false
+            }
+
+            // The correction: its clause after the command, minus filler and anything said before.
+            let saidBefore = Set(editWords(before))
+            let clause = rest.drop(while: { $0.unicodeScalars.allSatisfy(clauseBreak.union(.whitespaces).contains) })
+            let correctionClause = clause.prefix(while: { !$0.unicodeScalars.allSatisfy(clauseBreak.contains) })
+            let correction = editWords(correctionClause).prefix(4)
+                .filter { !editFiller.contains($0) && !saidBefore.contains($0) }
+            if !correction.isEmpty, !correction.contains(where: { writtenCount[$0, default: 0] > 0 }) {
+                return false
+            }
+
+            // The retraction: the clause right before the command must have lost a word.
+            let previousCueEnd = index > 0 ? cues[index - 1].range.location + cues[index - 1].range.length : 0
+            let head = ns.substring(with: NSRange(location: previousCueEnd,
+                                                  length: cue.range.location - previousCueEnd))
+                .trimmingCharacters(in: clauseBreak.union(.whitespaces))
+            let retractedClause = head.components(separatedBy: clauseBreak).last ?? head
+            let keep = Set(editWords(correctionClause))
+            let retracted = editWords(retractedClause).filter { !editFiller.contains($0) && !keep.contains($0) }
+            if !retracted.isEmpty,
+               !retracted.contains(where: { writtenCount[$0, default: 0] < spokenCount[$0, default: 0] }) {
+                return false
+            }
+        }
+        return true
     }
 
     /// Whether the dictation has something for smart formatting to lay out: a message

@@ -38,9 +38,16 @@ Done:
   checks pass for both suites (incl. "model returns input unchanged" → fails).
   Docs: tests/README.md, AGENTS.md map, decisions.md 2026-11-11.
 
-Next: push gate → push → PR. Then, own PR: tighten CleanupFidelityGuard for
-short dictations, replayed against real history (audit-3 harness in
-.context/audit3/) so legit rewrites aren't lost; remove the two known_gaps.
+PR #124 open (gate/accuracy-suites).
+
+Guard fix (branch guard/short-dictations, on top of #124): under 40 words,
+reject on 1 unexplained invented or 2 unexplained dropped content words
+(joins, word forms, completed fragments explained). Replayed on 116 real
+history clips (Parakeet v2 → cleanup, model on every one): only 1 output
+changed, a rewording now rejected. Both audit-3 gate cases now enforced.
+Replay data lived in the session scratchpad, NOT in the repo: `.context/` is
+not gitignored in ~/rhino-app (it was in the Conductor workspaces), so never
+put transcripts there. Remaining known gap: spoken-edit.
 
 Agreed follow-ups from the same audit (Noah wants both):
 - **Idle unload without the 5-min cliff.** The unload exists to free RAM. The

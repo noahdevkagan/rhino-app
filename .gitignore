@@ -137,3 +137,6 @@ bench/parity/.out/
 SOURCEPACKAGES*/
 SourcePackages/
 Scripts/.german-verify/
+
+# Local agent scratch (audits, replays). Can hold dictation transcripts: never commit.
+.context/

@@ -117,6 +117,14 @@ final class IndicatorPresentationTests: XCTestCase {
     }
 
     func testPresentationWhileRhinoIsInactiveDoesNotStealFocus() async throws {
+        // macOS reports every window as occluded while the display sleeps or the screen is
+        // locked, so the drawn-on-top check can't be made then (it failed the push gate on an
+        // idle Mac, 2026-11-11). Skip rather than fail; the rest of the suite still runs.
+        let session = CGSessionCopyCurrentDictionary() as? [String: Any]
+        if CGDisplayIsAsleep(CGMainDisplayID()) != 0
+            || (session?["CGSSessionScreenIsLocked"] as? Bool) == true {
+            throw XCTSkip("Display asleep or screen locked: occlusion can't be checked")
+        }
         NSApp.deactivate()
         let ownPID = ProcessInfo.processInfo.processIdentifier
         await waitUntil {

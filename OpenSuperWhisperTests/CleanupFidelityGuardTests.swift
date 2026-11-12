@@ -68,6 +68,83 @@ final class CleanupFidelityGuardTests: XCTestCase {
         XCTAssertTrue(preserved(input, output))
     }
 
+    // Short dictations (under 40 words): the floors above let these through.
+
+    func testShortRequestTurnedIntoAHeadingIsRejected() {
+        let input = "Draft Lena a message to see if she can push our review to Monday morning "
+            + "because the deck still needs another pass"
+        let output = "Draft Lena: see if you can push our review to Monday morning. The deck still needs another pass."
+        XCTAssertFalse(preserved(input, output))
+    }
+
+    func testShortDictationWithAnInventedWordIsRejected() {
+        let input = "Hi Omar, really enjoyed, really liked the venue, could we hold it again "
+            + "for the last week of March. Thanks a lot"
+        let output = "Hi Omar,\n\nReally looking forward to the venue. Really liked it. Could we "
+            + "hold it again for the last week of March. Thanks a lot."
+        XCTAssertFalse(preserved(input, output))
+    }
+
+    func testShortDictationWithASwappedWordIsRejected() {
+        let input = "I also think the shipping delay thing was a bigger issue than most of the team expected"
+        let output = "I also think the shipping delay issue was a bigger problem than most of the team expected."
+        XCTAssertFalse(preserved(input, output))
+    }
+
+    func testShortDictationJoinsFragmentsAndWordFormsPass() {
+        XCTAssertTrue(preserved(
+            "We saw it in a post hog chart and you had great call outs on the seatbelt's design notes today",
+            "We saw it in a posthog chart and you had great callouts on the seatbelt design notes today."))
+        XCTAssertTrue(preserved(
+            "There's no refund option in the old checkout as f as long as I remember it honestly",
+            "There's no refund option in the old checkout as far as I remember it honestly."))
+    }
+
+    // From code review (2026-11-11): the explain-away rules must not accept these.
+
+    func testShortDictationNegationFlipIsRejected() {
+        let pairs = [
+            ("We should ship the release on Friday because the payment flow is finally ready for customers",
+             "We shouldn't ship the release on Friday because the payment flow is finally ready for customers."),
+            ("I don't want you to cancel the order before the supplier confirms the new delivery date",
+             "I do want you to cancel the order before the supplier confirms the new delivery date."),
+            ("Can you confirm we did sign the contract with the venue for the March offsite",
+             "Can you confirm we didn't sign the contract with the venue for the March offsite?"),
+        ]
+        for (input, output) in pairs { XCTAssertFalse(preserved(input, output), output) }
+    }
+
+    func testShortDictationSamePrefixSwapIsRejected() {
+        XCTAssertFalse(preserved(
+            "Can you approve the budget for the offsite before Thursday so we can book the venue",
+            "Can you approach the budget for the offsite before Thursday so we can book the venue?"))
+    }
+
+    func testFragmentOnlyCompletesIntoAShortWord() {
+        XCTAssertFalse(preserved(
+            "There's no refund option in the old checkout as f as long as I remember it honestly",
+            "There's no refund option in the old checkout as fired as I remember it honestly."))
+    }
+
+    func testJoinNeedsAdjacentSpokenWords() {
+        XCTAssertFalse(preserved(
+            "There is no real excuse for the thing we shipped last week to the beta customers",
+            "There is real nothing we shipped last week to the beta customers."))
+    }
+
+    func testShortListMayGainAHeading() {
+        XCTAssertTrue(preserved(
+            "okay make a list milk eggs bread butter coffee and some apples for the kids lunches",
+            "Shopping list:\n- Milk\n- Eggs\n- Bread\n- Butter\n- Coffee\n- Some apples for the kids lunches"))
+    }
+
+    func testVerdictDoesNotDependOnHashOrder() {
+        let input = "we went f fast on the rollout and honestly it was too much for the support team to handle"
+        let output = "We went far faster on the rollout, and honestly it was too much for the support team to handle."
+        let first = preserved(input, output)
+        for _ in 0..<50 { XCTAssertEqual(preserved(input, output), first) }
+    }
+
     func testShortTextIsLeftToTheLengthGuard() {
         XCTAssertTrue(preserved("screen like I do", "I do like a screen."))
     }

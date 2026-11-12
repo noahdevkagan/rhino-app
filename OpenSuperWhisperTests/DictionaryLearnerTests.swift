@@ -5,10 +5,13 @@ import XCTest
 final class DictionaryLearnerTests: XCTestCase {
     /// Deterministic stand-in for the system word list.
     private let realWords: Set<String> = ["we", "use", "it", "daily", "their", "there", "the", "call",
-                                          "with", "and", "tidy", "cal", "send", "hello", "jon"]
-    private func learn(_ inserted: String, _ edited: String, open: Bool = false) -> DictionaryLearner.Correction? {
+                                          "with", "and", "tidy", "cal", "send", "hello", "jon",
+                                          "any", "way", "anyway", "going", "can", "meet", "team", "ask"]
+    private func learn(_ inserted: String, _ edited: String, open: Bool = false,
+                       start: Bool = false) -> DictionaryLearner.Correction? {
         DictionaryLearner.correction(inserted: DictionaryLearner.words(inserted),
                                      edited: DictionaryLearner.words(edited), trailingOpen: open,
+                                     atSentenceStart: start,
                                      isRealWord: { self.realWords.contains($0.lowercased()) })
     }
 
@@ -64,5 +67,21 @@ final class DictionaryLearnerTests: XCTestCase {
         XCTAssertEqual(DictionaryAutoLearn.lastRange(of: DictionaryLearner.words("we use Apsumo daily"),
                                                      in: field), 2..<6)
         XCTAssertNil(DictionaryAutoLearn.lastRange(of: ["missing"], in: field))
+    }
+
+    // From code review (2026-11-11).
+
+    func testSentenceStartCapitalOfARealWordIsNotLearned() {
+        XCTAssertNil(learn("Gonna meet the team", "Going meet the team", start: true))
+        XCTAssertNil(learn("we can meet. Gonna ask the team", "we can meet. Going ask the team"))
+    }
+
+    func testJoinIntoAnOrdinaryWordIsNotLearned() {
+        XCTAssertNil(learn("Any way we can meet", "Anyway we can meet", start: true))
+    }
+
+    func testPluralOrPossessiveIsNotLearned() {
+        XCTAssertNil(learn("ask Klaviyo team", "ask Klaviyo's team"))
+        XCTAssertNil(learn("ask Klaviyo", "ask Klaviyo's", open: true))
     }
 }

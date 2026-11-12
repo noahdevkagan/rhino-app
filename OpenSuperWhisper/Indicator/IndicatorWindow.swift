@@ -108,6 +108,14 @@ class IndicatorViewModel: ObservableObject {
     /// Undo for the `.learned` notice; cleared when it hides.
     var undoLearned: (() -> Void)?
 
+    /// The manager replaced this bubble: its pending hide must not act on the new one.
+    func detach() {
+        hideTimer?.invalidate()
+        hideTimer = nil
+        undoLearned = nil
+        delegate = nil
+    }
+
     func showLearned(_ word: String, undo: @escaping () -> Void) {
         state = .learned(word)
         undoLearned = undo

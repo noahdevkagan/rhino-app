@@ -9,9 +9,12 @@ import Foundation
 ///   - it is one word for one word, or two spoken words joined into one ("Tidy Cal" → "TidyCal");
 ///     any other change to the words is a rewrite, not a spelling fix
 ///   - the new spelling is a name or brand (has a capital letter) — "their" → "there" must never
-///     become a rule that rewrites every "their"
-///   - for a one-for-one swap, the word Rhino typed is not a real word and the two are close
-///     in spelling (sound-alike letters free, as in `SoundAlike`)
+///     become a rule that rewrites every "their". A real word capitalized only because it starts
+///     a sentence ("Going", "Anyway") is not a name.
+///   - for a one-for-one swap, the word Rhino typed is not a real word, the two are close in
+///     spelling (sound-alike letters free, as in `SoundAlike`), and the new one isn't just the
+///     old one plus a plural or possessive ("Klaviyo" → "Klaviyo's" is grammar, not spelling)
+///   - for a join, the joined word is not an ordinary word ("any way" → "anyway")
 /// Pure logic; `DictionaryAutoLearn` reads the field and calls this.
 enum DictionaryLearner {
     struct Correction: Equatable {
@@ -27,23 +30,28 @@ enum DictionaryLearner {
     ///   - edited: the same stretch of the field now. When `trailingOpen`, the field had nothing
     ///     after the dictation, so the user may have kept typing; extra trailing words are ignored.
     ///   - isRealWord: the word list check (injected for tests).
+    ///   - atSentenceStart: the stretch begins a sentence (start of field or after . ! ?).
     static func correction(inserted: [String], edited: [String], trailingOpen: Bool,
+                           atSentenceStart: Bool = false,
                            isRealWord: (String) -> Bool = SystemWordList.contains) -> Correction? {
         let spoken = inserted.map(clean).filter { !$0.isEmpty }
-        let written = edited.map(clean).filter { !$0.isEmpty }
+        let raw = edited.filter { !clean($0).isEmpty }
         guard !spoken.isEmpty else { return nil }
         if trailingOpen {
             // Try the stretch as long as the dictation (a swap), then one word shorter (a join).
-            for length in [spoken.count, spoken.count - 1] where length > 0 && written.count >= length {
-                if let found = aligned(spoken, Array(written.prefix(length)), isRealWord) { return found }
+            for length in [spoken.count, spoken.count - 1] where length > 0 && raw.count >= length {
+                if let found = aligned(spoken, Array(raw.prefix(length)), atSentenceStart, isRealWord) {
+                    return found
+                }
             }
             return nil
         }
-        return aligned(spoken, written, isRealWord)
+        return aligned(spoken, raw, atSentenceStart, isRealWord)
     }
 
-    private static func aligned(_ spoken: [String], _ written: [String],
+    private static func aligned(_ spoken: [String], _ raw: [String], _ atSentenceStart: Bool,
                                 _ isRealWord: (String) -> Bool) -> Correction? {
+        let written = raw.map(clean)
         var head = 0
         while head < min(spoken.count, written.count), same(spoken[head], written[head]) { head += 1 }
         var tail = 0
@@ -53,22 +61,32 @@ enum DictionaryLearner {
         let typed = Array(written[head..<(written.count - tail)])
         guard typed.count == 1, let correct = typed.first,
               correct.count >= minimumLength, correct.contains(where: \.isUppercase) else { return nil }
+        // Capitalized only because it starts a sentence: not evidence of a name.
+        let startsSentence = head == 0
+            ? atSentenceStart
+            : raw[head - 1].last.map { ".!?".contains($0) } ?? false
+        if startsSentence, innerCapitals(correct).isEmpty, isRealWord(correct) { return nil }
 
         switch heard.count {
         case 1:
             let wrong = heard[0]
             guard !isRealWord(wrong) else { return nil }
             let a = wrong.lowercased(), b = correct.lowercased()
-            guard a != b || wrong != correct else { return nil }
+            guard !isPluralOrPossessive(a, of: b), !isPluralOrPossessive(b, of: a) else { return nil }
             guard SoundAlike.editDistance(a, b) <= max(2, b.count / 3) else { return nil }
             return Correction(heard: wrong, correct: correct)
         case 2:
-            // A join: the two spoken words spell the new one.
-            guard (heard[0] + heard[1]).lowercased() == correct.lowercased() else { return nil }
+            // A join: the two spoken words spell the new one, and it isn't an ordinary word.
+            guard (heard[0] + heard[1]).lowercased() == correct.lowercased(),
+                  !isRealWord(correct) else { return nil }
             return Correction(heard: heard.joined(separator: " "), correct: correct)
         default:
             return nil
         }
+    }
+
+    private static func isPluralOrPossessive(_ word: String, of base: String) -> Bool {
+        ["s", "es", "'s"].contains { word == base + $0 }
     }
 
     /// Words match ignoring case, unless the user added capitals inside the word ("Appsumo" →

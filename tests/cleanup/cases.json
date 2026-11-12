@@ -93,13 +93,6 @@
   {
     "id": "spoken-edit",
     "why": "A spoken self-correction should be applied, not typed out.",
-    "known_gap": {
-      "why": "2026-11-11 edits pass runs but leaves 'actually no, make that four' in",
-      "problems": [
-        "contains 'actually no'",
-        "contains 'three'"
-      ]
-    },
     "input": "Let's meet at the office at three, actually no, make that four o'clock",
     "kind": "edit",
     "must_contain_any": [
@@ -109,6 +102,25 @@
     "must_not_contain": [
       "actually no",
       "three"
+    ]
+  },
+  {
+    "id": "spoken-edit-keeps-correction",
+    "why": "2026-11-11: the edits pass returned 'Invite Priya to the kickoff', keeping the name the speaker took back.",
+    "known_gap": {
+      "why": "2026-11-11 model drops Maya; the edit guard rejects that, so the dictation stays as spoken (safe, but the correction isn't applied)",
+      "problems": [
+        "contains 'I mean'"
+      ]
+    },
+    "input": "Invite Priya, I mean Maya, to the kickoff on Thursday",
+    "kind": "edit",
+    "must_contain": [
+      "Maya"
+    ],
+    "must_not_contain": [
+      "Invite Priya to",
+      "I mean"
     ]
   },
   {

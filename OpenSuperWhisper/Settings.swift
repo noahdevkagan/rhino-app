@@ -174,6 +174,17 @@ class SettingsViewModel: ObservableObject {
     /// so this stays parked at `.none`.
     @Published var cancelModifierUnused: ModifierKey = .none
 
+    /// Command Mode's shortcut is key-combination only (see `KeyboardShortcuts.Name.commandMode`),
+    /// so this stays parked at `.none` too.
+    @Published var commandModeModifierUnused: ModifierKey = .none
+
+    @Published var commandModeEnabled: Bool {
+        didSet {
+            AppPreferences.shared.commandModeEnabled = commandModeEnabled
+            NotificationCenter.default.post(name: .hotkeySettingsChanged, object: nil)
+        }
+    }
+
     @Published var textScale: Double {
         didSet { AppPreferences.shared.textScale = TextScale.clamped(textScale) }
     }
@@ -424,6 +435,7 @@ class SettingsViewModel: ObservableObject {
         self.modifierOnlyHotkey = ModifierKey(rawValue: prefs.modifierOnlyHotkey) ?? .none
         self.holdToRecord = prefs.holdToRecord
         self.doubleTapLock = prefs.doubleTapLock
+        self.commandModeEnabled = prefs.commandModeEnabled
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.britModeEnabled = prefs.britModeEnabled
         self.sentenceCaseEnabled = prefs.sentenceCaseEnabled
@@ -1696,6 +1708,31 @@ struct SettingsView: View {
                 SRow(title: "Hands-free mode",
                      hint: "Double-press the shortcut to lock recording on; press again to stop") {
                     SToggle(isOn: $viewModel.doubleTapLock)
+                }
+            }
+
+            SSection(title: "Command Mode") {
+                HStack(spacing: 8) {
+                    Text("Edit selected text by voice")
+                        .scaledFont(size: 13)
+                        .foregroundColor(STheme.text)
+                    STag("Beta")
+                    Spacer()
+                    SToggle(isOn: $viewModel.commandModeEnabled)
+                }
+                .frame(minHeight: 26)
+                Text("Select text in any app, hold the shortcut and say what to do: “make this shorter”, “more polite”, “turn into bullets”, “translate to Spanish”. The AI model on this Mac rewrites it in place; ⌘Z undoes it. Needs the AI cleanup model.")
+                    .scaledFont(size: 11)
+                    .foregroundColor(STheme.hint)
+                    .fixedSize(horizontal: false, vertical: true)
+                if viewModel.commandModeEnabled {
+                    SRow(title: "Command Mode shortcut",
+                         hint: "A combination with ⌘ ⌥ ⌃. Hold it while you speak; ⌫ clears it") {
+                        TriggerRecorderField(name: .commandMode,
+                                             modifierKey: $viewModel.commandModeModifierUnused,
+                                             allowsModifier: false)
+                            .frame(width: 168)
+                    }
                 }
             }
 

@@ -2495,3 +2495,10 @@ limit: it is saved text, not dictation, and a long address shouldn't eat the all
   the stored data couldn't be fully read, the first write copies it to
   `snippetsDataUnreadableBackup` (kept once) before replacing it, rather than refusing writes
   forever.
+
+## 2026-11-12 — Auto-learn doesn't watch snippet expansions
+
+A snippet's expansion is text the user saved, inserted verbatim, never heard by the recognizer. An
+edit to it right after insertion is the user changing their own text, not correcting a mishearing,
+so learning a dictionary rule from it would rewrite future dictations on bad evidence. The pipeline
+starts the auto-learn watcher only when no snippet matched.

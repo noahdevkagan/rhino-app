@@ -258,8 +258,9 @@ final class DictationPipeline: ObservableObject {
             }
 
             // Watch for the user retyping a word we got wrong. Not after a submit: the text has
-            // left the field.
-            if outcome == .inserted && !shouldSubmit {
+            // left the field. Not after a snippet: its text was typed by the user, not heard, so
+            // an edit to it says nothing about what Rhino mishears.
+            if outcome == .inserted && !shouldSubmit && snippet == nil {
                 DictionaryAutoLearn.shared.watch(inserted: IndicatorViewModel.applyPostProcessing(text))
             }
 

@@ -12,6 +12,12 @@ extension KeyboardShortcuts.Name {
     // the user explicitly records.
     static let toggleRecord = Self("toggleRecord")
     static let escape = Self("escape", default: .init(.escape))
+    /// Command Mode (beta): hold, speak an instruction, release; the selection is rewritten.
+    /// ⌃⌥⌘C by default ("C" for command): a combination, not a lone modifier, because the
+    /// modifier tap fires on every press and Command Mode reads the selection (possibly with a
+    /// synthetic ⌘C) at key-down; and three modifiers stay clear of the dictation trigger (Fn),
+    /// Rectangle's ⌃⌥ letters and Finder's ⌥⌘C. Only enabled while Command Mode is on.
+    static let commandMode = Self("commandMode", default: .init(.c, modifiers: [.control, .option, .command]))
 
     /// One registration handle per recorded key combination. Names are dynamic because the
     /// number of triggers is: the combinations themselves live in `recordingTriggers`, and
@@ -31,6 +37,13 @@ class ShortcutManager {
     private let holdThreshold: TimeInterval = 0.3
     private var holdMode = false
     private var useModifierOnlyHotkey = false
+    /// The live take is a Command Mode take (started by the Command Mode shortcut).
+    private var commandTake = false
+    /// Command Mode's own press/release state, separate from the dictation trigger's
+    /// `holdMode`/`holdWorkItem` so neither shortcut can disturb the other's take.
+    private var commandGesture = CommandGesture()
+    /// Bumped per release poll, so only the latest poll may deliver a release.
+    private var commandReleasePoll = 0
 
     /// Hands-free lock: once locked, release (and hold-release) no longer stops the recording;
     /// the next press does. A press locks instead of stopping whenever stopping would throw the
@@ -153,6 +166,8 @@ class ShortcutManager {
         activeVm = nil
         holdMode = false
         lockedOn = false
+        if commandTake { commandGesture.reset() }
+        commandTake = false
         takeStartedAt = nil
         chords.takeEnded()
         pendingHoldStop?.cancel()
@@ -185,6 +200,9 @@ class ShortcutManager {
             KeyboardShortcuts.onKeyUp(for: slot) { [weak self] in self?.handleKeyUp() }
         }
 
+        KeyboardShortcuts.onKeyDown(for: .commandMode) { [weak self] in self?.handleCommandKeyDown() }
+        KeyboardShortcuts.onKeyUp(for: .commandMode) { [weak self] in self?.handleCommandKeyUp() }
+
         KeyboardShortcuts.onKeyUp(for: .escape) { [weak self] in
             Task { @MainActor in
                 // The manager decides by bubble state: while recording this is the cancel
@@ -215,6 +233,17 @@ class ShortcutManager {
 
         bindKeyComboSlots(set.keyCombos)
 
+        // Off by default; while off, its combination must not be swallowed system-wide.
+        // A combination also on the dictation list stays a dictation trigger: one press must
+        // not start both.
+        let commandCombo = KeyboardShortcuts.getShortcut(for: .commandMode)
+        if AppPreferences.shared.commandModeEnabled,
+           commandCombo.map({ !set.keyCombos.contains($0) }) ?? false {
+            KeyboardShortcuts.enable(.commandMode)
+        } else {
+            KeyboardShortcuts.disable(.commandMode)
+        }
+
         useModifierOnlyHotkey = !set.modifiers.isEmpty
         print("ShortcutManager: \(set.triggers.count) recording trigger(s) armed")
     }
@@ -241,6 +270,8 @@ class ShortcutManager {
     }
 
     private func handleKeyDown() {
+        // A Command Mode take owns the bubble until it ends (Esc still cancels it).
+        guard !commandGesture.isBusy else { return }
         holdWorkItem?.cancel()
         holdMode = false
 
@@ -337,6 +368,7 @@ class ShortcutManager {
     }
 
     private func handleKeyUp() {
+        guard !commandGesture.isBusy else { return }
         holdWorkItem?.cancel()
         holdWorkItem = nil
         // A chorded press's release is not a tap: no stop, no lock, no deferred stop.
@@ -381,6 +413,8 @@ class ShortcutManager {
         }
         activeVm = nil
         holdMode = false
+        if commandTake { commandGesture.reset() }
+        commandTake = false
         takeStartedAt = nil
         chords.takeEnded()
     }
@@ -393,5 +427,115 @@ class ShortcutManager {
         holdMode = false
         takeStartedAt = nil
         chords.takeEnded()
+    }
+
+    // MARK: - Command Mode
+
+    /// Command Mode press. Hold to talk (release stops) or tap to start and tap again to stop;
+    /// no hands-free lock. The selection is read before anything records, so a missing
+    /// selection or model costs nothing but a message. See `CommandGesture`.
+    private func handleCommandKeyDown() {
+        let now = Date()
+        Task { @MainActor in
+            let dictationActive = self.activeVm != nil && !self.commandTake
+            switch self.commandGesture.press(at: now, dictationActive: dictationActive,
+                                             commandInFlight: SelectionCapture.isBusy) {
+            case .startCapture: await self.startCommandTake()
+            case .stop: self.stopActiveTake()
+            case .busy:
+                IndicatorWindowManager.shared.flash(.info(CommandMode.Failure.busy.message))
+            default: break
+            }
+        }
+    }
+
+    private func handleCommandKeyUp() {
+        let now = Date()
+        let keyStillDown = Self.commandKeyPhysicallyDown()
+        Task { @MainActor in
+            self.deliverCommandRelease(at: now, keyStillDown: keyStillDown)
+            // Reported while the key is still down: most likely the synthetic ⌘C's C key-up
+            // matched the hotkey. The real release may then never be reported, so watch the
+            // key and deliver it when it actually comes up.
+            if keyStillDown { self.pollForCommandRelease() }
+        }
+    }
+
+    @MainActor private func deliverCommandRelease(at now: Date, keyStillDown: Bool) {
+        let action = commandGesture.release(at: now, keyStillDown: keyStillDown,
+                                            holdToRecord: AppPreferences.shared.holdToRecord)
+        if action == .stop, commandTake { stopActiveTake() }
+    }
+
+    @MainActor private func pollForCommandRelease() {
+        commandReleasePoll += 1
+        let generation = commandReleasePoll
+        Task { @MainActor in
+            while self.commandReleasePoll == generation, self.commandGesture.isBusy {
+                try? await Task.sleep(nanoseconds: 30_000_000)
+                if !Self.commandKeyPhysicallyDown() {
+                    if self.commandReleasePoll == generation {
+                        self.deliverCommandRelease(at: Date(), keyStillDown: false)
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    /// Whether the Command Mode shortcut's key is physically down (hardware state, which the
+    /// synthetic ⌘C doesn't change).
+    private static func commandKeyPhysicallyDown() -> Bool {
+        guard let shortcut = KeyboardShortcuts.getShortcut(for: .commandMode) else { return false }
+        return CGEventSource.keyState(.hidSystemState, key: CGKeyCode(shortcut.carbonKeyCode))
+    }
+
+    @MainActor private func startCommandTake() async {
+        let holdToRecord = AppPreferences.shared.holdToRecord
+        guard AppPreferences.shared.commandModeEnabled else {
+            _ = commandGesture.captureFinished(selected: false, holdToRecord: holdToRecord)
+            return
+        }
+        guard LLMPostProcessor.currentBackend().isReady else {
+            _ = commandGesture.captureFinished(selected: false, holdToRecord: holdToRecord)
+            IndicatorWindowManager.shared.flash(.error(CommandMode.Failure.modelNotDownloaded.message))
+            return
+        }
+        let captureStart = CFAbsoluteTimeGetCurrent()
+        let captured = await SelectionCapture.capture(in: LiveSelectionCaptureEnvironment())
+        print(String(format: "Command Mode: selection capture %.0fms (%@)",
+                     (CFAbsoluteTimeGetCurrent() - captureStart) * 1000,
+                     captured.map { "\($0.method)" } ?? "none"))
+        if let failure = CommandMode.validateSelection(captured?.text) {
+            _ = commandGesture.captureFinished(selected: false, holdToRecord: holdToRecord)
+            IndicatorWindowManager.shared.flash(failure.isInfo ? .info(failure.message)
+                                                               : .error(failure.message))
+            return
+        }
+        guard activeVm == nil, let captured else {
+            commandGesture.reset()
+            return
+        }
+        switch commandGesture.captureFinished(selected: true, holdToRecord: holdToRecord) {
+        case .startRecording:
+            break
+        case .releasedEarly:
+            IndicatorWindowManager.shared.flash(.info(CommandMode.Failure.releasedEarly.message))
+            return
+        default:
+            commandGesture.reset()
+            return
+        }
+
+        Diag.mark("command keyDown → start recording (\(captured.method))")
+        RecordingContext.shared.captureFrontmost()
+        let vm = IndicatorWindowManager.shared.show(nearPoint: FocusUtils.getCurrentCursorPosition(),
+                                                    waitForCaret: false)
+        vm.commandSelection = captured
+        vm.startRecording()
+        activeVm = vm
+        commandTake = true
+        lockedOn = false
+        takeStartedAt = Date()
     }
 }

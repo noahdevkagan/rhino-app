@@ -334,6 +334,12 @@ final class AppPreferences {
     @UserDefault(key: "doubleTapLock", defaultValue: true)
     var doubleTapLock: Bool
 
+    /// Command Mode (beta): select text, hold the Command Mode shortcut, speak an instruction,
+    /// and the local model rewrites the selection in place. Off by default; its shortcut is
+    /// `KeyboardShortcuts.Name.commandMode`.
+    @UserDefault(key: "commandModeEnabled", defaultValue: false)
+    var commandModeEnabled: Bool
+
     @UserDefault(key: "addSpaceAfterSentence", defaultValue: true)
     var addSpaceAfterSentence: Bool
 

@@ -78,6 +78,33 @@ enum TextInserter {
         cmdUp.post(tap: .cghidEventTap)
     }
 
+    /// Copies the focused app's selection via a synthetic ⌘C (Command Mode's fallback when the
+    /// app doesn't expose its selection over Accessibility). Same shape and marker as `paste`.
+    static func copy() {
+        guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
+        let cmdKey: CGKeyCode = 0x37 // kVK_Command
+        let cKey: CGKeyCode = 0x08   // kVK_ANSI_C
+        guard
+            let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: cmdKey, keyDown: true),
+            let cDown = CGEvent(keyboardEventSource: source, virtualKey: cKey, keyDown: true),
+            let cUp = CGEvent(keyboardEventSource: source, virtualKey: cKey, keyDown: false),
+            let cmdUp = CGEvent(keyboardEventSource: source, virtualKey: cmdKey, keyDown: false)
+        else { return }
+        // Explicit flags: the user is still holding the Command Mode shortcut's modifiers, which
+        // must not turn this into ⌃⌥⌘C.
+        cmdDown.flags = .maskCommand
+        cDown.flags = .maskCommand
+        cUp.flags = .maskCommand
+        cmdUp.flags = []
+        for event in [cmdDown, cDown, cUp, cmdUp] {
+            event.setIntegerValueField(.eventSourceUserData, value: UserPasteWatcher.syntheticMarker)
+        }
+        cmdDown.post(tap: .cghidEventTap)
+        cDown.post(tap: .cghidEventTap)
+        cUp.post(tap: .cghidEventTap)
+        cmdUp.post(tap: .cghidEventTap)
+    }
+
     /// Presses Return in the focused app — used by the "press enter" voice command to submit a
     /// message or prompt after the dictated text has been inserted. Modifier flags are cleared so a
     /// still-held hotkey can't turn it into a shortcut (⌘↩, ⇧↩, …).

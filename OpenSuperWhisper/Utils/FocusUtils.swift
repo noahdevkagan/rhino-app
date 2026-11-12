@@ -234,6 +234,44 @@ class FocusUtils {
                                    role: role)
     }
 
+    // MARK: - Selected text (Command Mode)
+
+    /// The system-wide focused UI element, or nil when Accessibility can't say.
+    static func focusedElement() -> AXUIElement? {
+        guard AXIsProcessTrusted() else { return nil }
+        let systemElement = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemElement, axMessagingTimeout)
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(systemElement, kAXFocusedUIElementAttribute as CFString,
+                                            &focused) == .success,
+              let focusedCF = focused,
+              CFGetTypeID(focusedCF) == AXUIElementGetTypeID() else { return nil }
+        return (focusedCF as! AXUIElement)
+    }
+
+    /// The focused element's selected text over Accessibility, for Command Mode. nil when it
+    /// can't be read (no trust, no focused element, the app doesn't expose it, or it doesn't
+    /// answer within `axMessagingTimeout`); "" when the app reports an empty selection. Many web
+    /// and Electron fields answer "" even with text selected, so in browsers and Electron apps
+    /// `SelectionCapture` treats "" as "try ⌘C"; elsewhere "" is trusted.
+    /// Nothing read here is stored or leaves the process.
+    static func selectedText() -> String? {
+        guard AXIsProcessTrusted() else { return nil }
+        let systemElement = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemElement, axMessagingTimeout)
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(systemElement, kAXFocusedUIElementAttribute as CFString,
+                                            &focused) == .success,
+              let focusedCF = focused,
+              CFGetTypeID(focusedCF) == AXUIElementGetTypeID() else { return nil }
+        let element = focusedCF as! AXUIElement
+        AXUIElementSetMessagingTimeout(element, axMessagingTimeout)
+        var selected: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString,
+                                            &selected) == .success else { return nil }
+        return selected as? String
+    }
+
     // MARK: - Text around the caret
 
     /// Total budget for the caret-context read, which sits on the main thread right before the

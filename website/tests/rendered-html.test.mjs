@@ -287,7 +287,7 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(changelog, /permission loop/);
   assert.match(changelog, /updates itself automatically/);
   assert.match(thanks, /Thanks for buying Rhino/);
-  assert.match(thanks, /Rhino-0\.1\.46\.dmg/);
+  assert.match(thanks, /Rhino-0\.1\.47\.dmg/);
   assert.match(thanks, /RHINO-33MY-Q56S/);
   assert.match(thanks, /href="rhinovoice:\/\/unlock\?code=RHINO-33MY-Q56S"/);
   // PayPal requires the return page to confirm payment and the emailed receipt.
@@ -303,7 +303,7 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(download, /Needs a Mac with Apple Silicon \(M1 or newer\) and macOS 14\+\. Check: Apple menu &gt; About This Mac &gt; Chip\./);
   const get = await render("/get");
   assert.equal(get.status, 302);
-  assert.match(get.headers.get("location") ?? "", /\/v0\.1\.46\/Rhino-0\.1\.46\.dmg$/);
+  assert.match(get.headers.get("location") ?? "", /\/v0\.1\.47\/Rhino-0\.1\.47\.dmg$/);
   assert.match(thanks, /Download Rhino for Mac/);
 });
 
@@ -351,7 +351,7 @@ test("renders the AppSumo redemption route", async () => {
   assert.match(html, /Needs a Mac with Apple Silicon \(M1 or newer\) and macOS 14\+/);
   assert.match(html, /noahkagan@gmail\.com/);
   const form = await readFile(new URL("../app/appsumo/redeem-form.tsx", import.meta.url), "utf8");
-  assert.match(form, /Rhino-0\.1\.46\.dmg/);
+  assert.match(form, /Rhino-0\.1\.47\.dmg/);
   // The success screen only renders after a valid code, so check its source: rhinovoice:// does
   // nothing until Rhino has been opened once, and the code must stay on screen for the fallback.
   assert.match(form, /drag Rhino to Applications, then open Rhino once\./);

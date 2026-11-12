@@ -3,6 +3,16 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.47 — 2026-11-12
+
+- Rhino learns your spellings. Dictate a name it gets wrong, fix it right there (Apsumo → AppSumo), and Rhino adds the fix to your dictionary, with an Undo. Turn it off in Settings with “Learn from my fixes”.
+- Snippets: save a phrase like “my calendar link” and say it to drop in the full text, exactly as you saved it.
+- Command Mode (beta): select text, press ⌃⌥⌘C and say what to change (“make this shorter”). Turn it on in Settings.
+- Spoken corrections work mid-sentence: “Ship it Monday, actually no, make that Tuesday” types “Ship it Tuesday.”
+- Cleanup keeps your exact words on short dictations instead of rewording them.
+- With Fn as your trigger, Fn+arrow keys (Page Up, Home and friends) no longer start a dictation.
+- Setup downloads the speech model in one click, then lets you try a first dictation.
+
 ## 0.1.46 — 2026-11-10
 
 - Copy something, dictate, then press ⌘V and you get what you copied, not your dictation a second time. Rhino now puts your clipboard back the moment you paste, without making you wait 5 seconds first.

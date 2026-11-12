@@ -130,4 +130,39 @@ final class SpokenEditsPromptTests: XCTestCase {
             input: "Move the launch to Friday. Wait, no, Thursday.",
             output: "Move the launch to Thursday morning."))
     }
+
+    // From code review (2026-11-11).
+
+    func testSharedWordDoesNotVouchForAMissingCorrection() {
+        XCTAssertFalse(LLMPostProcessor.spokenEditIsSafe(
+            input: "The call is with Dana. Scratch that, it's with Omar.", output: "The call is with Dana."))
+        XCTAssertFalse(LLMPostProcessor.spokenEditIsSafe(
+            input: "Put it on Monday, I mean on Tuesday.", output: "Put it on Monday."))
+    }
+
+    func testMergedRetractionIsRejected() {
+        XCTAssertFalse(LLMPostProcessor.spokenEditIsSafe(
+            input: "We land at nine, no wait, ten thirty, so plan dinner late.",
+            output: "We land at nine thirty, so plan dinner late."))
+    }
+
+    func testEveryCorrectionIsChecked() {
+        let input = "Invite Priya, I mean Maya, and book the room for Monday, actually no, Tuesday."
+        XCTAssertFalse(LLMPostProcessor.spokenEditIsSafe(
+            input: input, output: "Invite Priya and book the room for Tuesday."))
+        XCTAssertTrue(LLMPostProcessor.spokenEditIsSafe(
+            input: input, output: "Invite Maya and book the room for Tuesday."))
+    }
+
+    func testLiteralCuePhraseMayStay() {
+        XCTAssertTrue(LLMPostProcessor.spokenEditIsSafe(
+            input: "I mean, the price is fifty, actually make that forty five.",
+            output: "I mean, the price is forty five."))
+    }
+
+    func testCurlyApostropheIsTheSameWord() {
+        XCTAssertTrue(LLMPostProcessor.spokenEditIsSafe(
+            input: "Let's meet at the office at three, actually no, make that four o'clock",
+            output: "Let\u{2019}s meet at the office at four o\u{2019}clock"))
+    }
 }

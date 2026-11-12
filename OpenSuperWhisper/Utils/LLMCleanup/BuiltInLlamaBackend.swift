@@ -1,9 +1,10 @@
 import Foundation
 
 /// Built-in LLM cleanup backend: a small GGUF model run locally via llama.cpp (`LlamaContext`),
-/// with no external server. The model downloads on first use (`LLMModelManager`); the inference
-/// context loads lazily, is reused by later dictations, and is released again after
-/// `idleUnloadDelay` without work. This is the app's only cleanup backend.
+/// with no external server. The model downloads on first use (`LLMModelManager`); it loads
+/// lazily and stays loaded. After `idleUnloadDelay` without work only the inference state
+/// (KV cache, compute buffers) is released; the whole model is dropped only when macOS reports
+/// memory pressure. This is the app's only cleanup backend.
 ///
 /// Threading: `llama_context` is not thread-safe and two transcriptions CAN overlap (a hotkey
 /// dictation and a file-drop/rerun pass run on different queues), so every touch of `context` —
@@ -14,9 +15,9 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
 
     enum BuiltInLlamaError: Error { case modelNotReady, outputTruncated }
 
-    /// Release the inference context (~1.2 GB resident, model + KV cache) after this long with no
-    /// cleanup. An occasional dictation shouldn't hold a second model in RAM next to Whisper's own
-    /// ~1 GB for the whole session; a burst of dictations still shares one load.
+    /// Release the inference state after this long with no cleanup. It is the dirty memory; the
+    /// mmap'd weights stay mapped as clean pages macOS can drop by itself, so the next dictation
+    /// rebuilds a context instead of reloading the model (decisions.md 2026-11-11).
     private static let idleUnloadDelay: TimeInterval = 5 * 60
 
     private let manager = LLMModelManager.shared
@@ -26,8 +27,20 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
     /// Owned by `inferenceQueue` — never read or written from anywhere else.
     private var context: LlamaContext?
     private var idleUnloadWork: DispatchWorkItem?
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
 
-    private init() {}
+    private init() {
+        // Under memory pressure give the model back entirely; the next cleanup reloads it.
+        let source = DispatchSource.makeMemoryPressureSource(
+            eventMask: [.warning, .critical], queue: inferenceQueue)
+        source.setEventHandler { [weak self] in
+            guard let self, self.context != nil else { return }
+            print("LLM cleanup: memory pressure, unloading the model")
+            self.context = nil
+        }
+        source.resume()
+        memoryPressureSource = source
+    }
 
     /// Ready once the default model is on disk. The context itself loads on first `generate`.
     var isReady: Bool { manager.isDefaultModelDownloaded() }
@@ -116,7 +129,7 @@ final class BuiltInLlamaBackend: LLMCleanupBackend {
         idleUnloadWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            self.context = nil          // deinit frees the llama model + KV cache
+            self.context?.releaseInferenceState()   // model stays mapped
             self.idleUnloadWork = nil
         }
         idleUnloadWork = work

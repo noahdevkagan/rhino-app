@@ -74,6 +74,8 @@ public final class LlamaContext {
     // llama_sampler is a complete struct, so it imports as UnsafeMutablePointer<llama_sampler>.
     private var model: OpaquePointer?
     private var ctx: OpaquePointer?
+    /// Kept so an idle-released context can be rebuilt on the same model (`ensureContext`).
+    private let contextParams: llama_context_params
     private var sampler: UnsafeMutablePointer<llama_sampler>?
     private let vocab: OpaquePointer?
 
@@ -155,6 +157,7 @@ public final class LlamaContext {
         ctxParams.n_threads = cpuCount
         ctxParams.n_threads_batch = cpuCount
 
+        self.contextParams = ctxParams
         guard let createdCtx = llama_init_from_model(loadedModel, ctxParams) else {
             print("LlamaContext: failed to create context")
             llama_model_free(loadedModel)
@@ -180,6 +183,33 @@ public final class LlamaContext {
         // Allocated last: every failure path above returns before it, so a failed init has
         // nothing of it to free (deinit only runs for a fully initialized object).
         self.verifyBatch = llama_batch_init(Int32(Self.maxDraftTokens + 1), 0, 1)
+    }
+
+    /// Frees the inference context (KV cache, compute buffers, prompt snapshots) and keeps the
+    /// model. The weights are mmap'd, so they are clean file-backed pages macOS can reclaim on
+    /// its own; the context is the dirty memory. The next `prefill`/`generate` rebuilds it,
+    /// which costs far less than reloading the model.
+    func releaseInferenceState() {
+        if let ctx { llama_free(ctx) }
+        ctx = nil
+        kvTokens.removeAll()
+        activeSystem = nil
+        activeSystemPrefix.removeAll()
+        inactivePrompt = nil
+        decodeShapesWarm = false
+    }
+
+    var hasInferenceState: Bool { ctx != nil }
+
+    /// The live context, recreating it on the loaded model after `releaseInferenceState`.
+    private func ensureContext() -> OpaquePointer? {
+        if let ctx { return ctx }
+        guard let model, let created = llama_init_from_model(model, contextParams) else {
+            print("LlamaContext: failed to recreate context")
+            return nil
+        }
+        ctx = created
+        return created
     }
 
     deinit {
@@ -503,7 +533,8 @@ public final class LlamaContext {
         guard !prefix.isEmpty else { return }
 
         let prefixTokens = tokenize(prefix, addSpecial: true)
-        guard !prefixTokens.isEmpty, let ctx, prefixTokens.count < Int(llama_n_ctx(ctx)) else { return }
+        guard !prefixTokens.isEmpty, let ctx = ensureContext(),
+              prefixTokens.count < Int(llama_n_ctx(ctx)) else { return }
 
         preparePromptCache(for: system)
         let shared = Self.commonPrefixLength(kvTokens, prefixTokens)
@@ -534,7 +565,7 @@ public final class LlamaContext {
     /// is still reset every call — its accepted-token history belongs to the previous generation.
     public func generate(system: String, user: String, maxTokens: Int = 512) -> String {
         lastGenerationTruncated = false
-        guard let ctx, let sampler else {
+        guard let ctx = ensureContext(), let sampler else {
             lastGenerationTruncated = true
             return ""
         }

@@ -16,8 +16,12 @@ final class UserPasteWatcher {
 
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
-    /// Whether a borrow is pending right now, i.e. whether the tap should be on.
-    private var wanted = false
+    /// Whether a borrow is pending right now (watch the user's ⌘V).
+    private var wantedPaste = false
+    /// Whether Command Mode's late-copy watch is running (watch the user's ⌘C / ⌘X).
+    private var wantedCopy = false
+    /// The tap should be on.
+    private var wanted: Bool { wantedPaste || wantedCopy }
 
     private init() {}
 
@@ -32,10 +36,32 @@ final class UserPasteWatcher {
         return keyCode == 0x09 || characters?.lowercased() == "v"
     }
 
+    /// Whether a key-down is the user copying or cutting for themselves (⌘C / ⌘X, by position or
+    /// by the layout's character). ⌃ excludes the Command Mode shortcut (⌃⌥⌘C) and its
+    /// autorepeat; Rhino's own synthetic ⌘C carries the marker.
+    static func isUserCopy(keyCode: Int64, flags: CGEventFlags, characters: String?,
+                           userData: Int64) -> Bool {
+        guard userData != syntheticMarker,
+              flags.contains(.maskCommand), !flags.contains(.maskControl) else { return false }
+        let char = characters?.lowercased()
+        return keyCode == 0x08 || keyCode == 0x07 || char == "c" || char == "x"
+    }
+
     func setActive(_ active: Bool) {
-        wanted = active
-        if active, tap == nil { createTap() }
-        if let tap { CGEvent.tapEnable(tap: tap, enable: active) }
+        wantedPaste = active
+        applyWanted()
+    }
+
+    /// Command Mode's late-copy watch: a ⌘C / ⌘X of the user's own ends it, so the watch never
+    /// puts the old clipboard back over a copy the user just made.
+    func setCopyWatchActive(_ active: Bool) {
+        wantedCopy = active
+        applyWanted()
+    }
+
+    private func applyWanted() {
+        if wanted, tap == nil { createTap() }
+        if let tap { CGEvent.tapEnable(tap: tap, enable: wanted) }
     }
 
     private func createTap() {
@@ -69,9 +95,15 @@ final class UserPasteWatcher {
         event.keyboardGetUnicodeString(maxStringLength: units.count, actualStringLength: &length,
                                        unicodeString: &units)
         let characters = String(utf16CodeUnits: units, count: min(length, units.count))
-        guard Self.isUserPaste(keyCode: event.getIntegerValueField(.keyboardEventKeycode),
-                               flags: event.flags, characters: characters,
-                               userData: event.getIntegerValueField(.eventSourceUserData))
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        let userData = event.getIntegerValueField(.eventSourceUserData)
+        if wantedCopy, Self.isUserCopy(keyCode: keyCode, flags: event.flags,
+                                       characters: characters, userData: userData) {
+            SelectionCapture.clipboardTakenElsewhere()
+            return
+        }
+        guard wantedPaste, Self.isUserPaste(keyCode: keyCode, flags: event.flags,
+                                            characters: characters, userData: userData)
         else { return }
         ClipboardUtil.restoreBeforeUserPaste()
     }

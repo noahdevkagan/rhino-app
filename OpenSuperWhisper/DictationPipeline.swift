@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 
@@ -40,6 +41,9 @@ final class DictationPipeline: ObservableObject {
         let modelOption: DictationModelOption?
         /// This take was started by the submit mouse button, so press Return after inserting (#50).
         let submitAfterInsert: Bool
+        /// A Command Mode take: the transcript is an instruction for rewriting this selection,
+        /// not text to insert.
+        let command: CommandSelection?
     }
 
     /// Dictations waiting in the queue plus the one currently being processed. Drives optional
@@ -91,7 +95,8 @@ final class DictationPipeline: ObservableObject {
     /// `seq` is monotonic and assigned here, so append order == recording-start order.
     func enqueue(tempURL: URL, startedAt: Date, streamedFallback: String,
                  context: ContextSnapshot, modelOption: DictationModelOption?,
-                 submitAfterInsert: Bool = false, stoppedAt: Date = Date()) {
+                 submitAfterInsert: Bool = false, command: CommandSelection? = nil,
+                 stoppedAt: Date = Date()) {
         seqCounter += 1
         queue.append(PendingDictation(
             id: UUID(),
@@ -102,7 +107,8 @@ final class DictationPipeline: ObservableObject {
             streamedFallback: streamedFallback,
             context: context,
             modelOption: modelOption,
-            submitAfterInsert: submitAfterInsert))
+            submitAfterInsert: submitAfterInsert,
+            command: command))
         refreshPendingCount()
         startLoopIfNeeded()
     }
@@ -183,6 +189,14 @@ final class DictationPipeline: ObservableObject {
                 }
                 // The preview bypasses TranscriptionService's number formatter.
                 text = NumberCompaction.apply(fallback, style: AppPreferences.shared.numberFormattingStyle)
+            }
+
+            // Command Mode: the transcript is the instruction. Rewrite the selection and paste
+            // over it; nothing is saved to history (the instruction alone isn't a dictation).
+            if let command = item.command {
+                try? FileManager.default.removeItem(at: item.tempURL)
+                await runCommand(command, instruction: text)
+                return
             }
 
             // Snippets: the whole dictation is a saved trigger ("my calendar link"), so insert
@@ -346,6 +360,54 @@ final class DictationPipeline: ObservableObject {
             IndicatorWindowManager.shared.flash(.error(reason))
         }
     }
+
+    /// Command Mode's second half: rewrite, re-check the selection is still the one captured,
+    /// then paste over it. Any failure leaves the user's text and clipboard as they were and
+    /// says why on the indicator.
+    private func runCommand(_ command: CommandSelection, instruction: String) async {
+        // Command presses wait until this take's rewrite, re-copy and paste are done, plus a
+        // beat for the ⌘V to be serviced: a new capture's ⌘C would otherwise snapshot this
+        // take's selection or borrowed text as "the user's clipboard".
+        SelectionCapture.beginOperation()
+        defer {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(ClipboardUtil.userPasteGrace * 1_000_000_000))
+                SelectionCapture.endOperation()
+            }
+        }
+        let start = CFAbsoluteTimeGetCurrent()
+        let result: Result<String, CommandMode.Failure>
+        if let commandRewriteOverride {
+            result = await commandRewriteOverride(command.text, instruction)
+        } else {
+            result = await CommandMode.rewrite(selection: command.text, instruction: instruction)
+        }
+        print(String(format: "Command Mode: rewrite %.0fms", (CFAbsoluteTimeGetCurrent() - start) * 1000))
+        if discarding { return }
+
+        let failure: CommandMode.Failure?
+        switch result {
+        case .failure(let reason):
+            failure = reason
+        case .success(let rewrite):
+            if let reason = await SelectionCapture.verifyBeforeReplace(
+                command, in: LiveSelectionCaptureEnvironment()) {
+                failure = reason
+            } else if TranscriptInserter.replaceSelection(with: rewrite) == .noPermission {
+                failure = .noPermission
+            } else {
+                failure = nil
+            }
+        }
+        if let failure {
+            Diag.log.notice("command mode: \(String(describing: failure), privacy: .public)")
+            IndicatorWindowManager.shared.flash(failure.isInfo ? .info(failure.message)
+                                                               : .error(failure.message))
+        }
+    }
+
+    /// Test seam for Command Mode's model call. nil in production.
+    var commandRewriteOverride: ((String, String) async -> Result<String, CommandMode.Failure>)?
 
     /// A dictation this long stops being pasted automatically (see the hold in `process`).
     /// 5 minutes: deliberate dictations — even Noah's long emails — finish well under it,

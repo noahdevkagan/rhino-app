@@ -17,6 +17,7 @@ enum CLI {
       Rhino bench <dir-of-wavs>
       Rhino cleanup <text> [--repeat <n>]
       Rhino cleanup --stdin
+      Rhino command --stdin
 
     Options:
       --json       Print a JSON object ({ "file", "text" }) instead of plain text.
@@ -35,13 +36,17 @@ enum CLI {
     including smart formatting and spoken edits) over the given text — for testing cleanup
     without recording.
 
+    `command` runs Command Mode's rewrite without recording: each stdin line is a JSON object
+    { "selection", "instruction" }, and it prints a JSON array of { "selection", "instruction",
+    "text", "failure", "ms" } — for checking rewrite quality and latency on the real model.
+
     All use the engine and settings configured in the app. Set up a model in the app first.
     """
 
     /// Returns true if these arguments are a CLI invocation (and the GUI should not launch).
     static func shouldHandle(_ args: [String]) -> Bool {
         guard args.count >= 2 else { return false }
-        return ["transcribe", "bench", "cleanup", "--help", "-h"].contains(args[1])
+        return ["transcribe", "bench", "cleanup", "command", "--help", "-h"].contains(args[1])
     }
 
     static func run(_ args: [String]) -> Never {
@@ -49,7 +54,7 @@ enum CLI {
             print(usage); exit(0)
         }
         let mode = args[1]
-        guard ["transcribe", "bench", "cleanup"].contains(mode), args.count >= 3 else {
+        guard ["transcribe", "bench", "cleanup", "command"].contains(mode), args.count >= 3 else {
             fail(usage, code: 2)
         }
         let json = args.dropFirst(3).contains("--json")
@@ -62,6 +67,43 @@ enum CLI {
 
         // No dock icon / activation for a CLI run.
         NSApplication.shared.setActivationPolicy(.prohibited)
+
+        if mode == "command" {
+            let lines = (String(data: FileHandle.standardInput.readDataToEndOfFile(),
+                                encoding: .utf8) ?? "")
+                .split(separator: "\n", omittingEmptySubsequences: true)
+            Task { @MainActor in
+                if !BuiltInLlamaBackend.shared.isReady {
+                    warn("note: built-in model not downloaded — every rewrite will fail")
+                }
+                var rows: [[String: Any]] = []
+                for line in lines {
+                    guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8))
+                            as? [String: String],
+                          let selection = object["selection"],
+                          let instruction = object["instruction"] else {
+                        warn("skipping line that isn't {\"selection\", \"instruction\"}")
+                        continue
+                    }
+                    let start = CFAbsoluteTimeGetCurrent()
+                    let result = await CommandMode.rewrite(selection: selection, instruction: instruction)
+                    let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+                    warn("command line \(rows.count + 1)/\(lines.count): \(ms)ms")
+                    var row: [String: Any] = ["selection": selection, "instruction": instruction, "ms": ms]
+                    switch result {
+                    case .success(let text): row["text"] = text
+                    case .failure(let failure): row["failure"] = String(describing: failure)
+                    }
+                    rows.append(row)
+                }
+                let data = (try? JSONSerialization.data(
+                    withJSONObject: rows, options: [.sortedKeys, .prettyPrinted])) ?? Data()
+                resultOut.write(data)
+                resultOut.write(Data("\n".utf8))
+                exit(0)
+            }
+            dispatchMain()
+        }
 
         if mode == "cleanup" {
             // No ASR engine involved: run the post-transcription cleanup pass alone. `process`

@@ -39,6 +39,10 @@ class IndicatorViewModel: ObservableObject {
     /// on the queued clip rather than read at paste time: transcription runs in the
     /// background now, so the next recording may already have started by then.
     var submitAfterInsert = false
+    /// Set when the Command Mode shortcut started this take: the selection captured at
+    /// key-down, which the spoken instruction will rewrite. Carried on the queued clip, like
+    /// `submitAfterInsert`.
+    var commandSelection: CommandSelection?
 
     var delegate: IndicatorViewDelegate?
     private var blinkTimer: Timer?
@@ -176,7 +180,11 @@ class IndicatorViewModel: ObservableObject {
         // dropped it and pre-decode the constant prompt prefix (system prompt + wrapper), so at
         // stop only the transcript tokens remain to evaluate. Fire-and-forget on the backend's
         // serial inference queue; no-op when cleanup is off. (#latency)
-        LLMPostProcessor.prewarm()
+        if commandSelection != nil {
+            CommandMode.prewarm()
+        } else {
+            LLMPostProcessor.prewarm()
+        }
         // Same for the speech engine, which also has an idle release.
         TranscriptionService.shared.prewarmEngine()
 
@@ -280,6 +288,7 @@ class IndicatorViewModel: ObservableObject {
             context: snapshot,
             modelOption: modelOption,
             submitAfterInsert: submitAfterInsert,
+            command: commandSelection,
             stoppedAt: Date())
 
         // Free the indicator right away so the next hotkey press starts a fresh recording.

@@ -926,6 +926,7 @@ sliding-window/arbitration, amplified by boosting terms absent from the
 audio). The harness therefore runs the base twice and excludes clips that
 are unstable base-vs-base before comparing. Worth an upstream look if
 boost-quality reports come in.
+
 ## 2026-08-31 — CI release path must deploy the website too; Sparkle key goes
 to Actions secrets so any machine can cut a release
 Cutting 0.1.17 from the laptop failed at the appcast: 0.1.9+ pin the desktop's
@@ -959,6 +960,7 @@ Dictation. Verified in the dev build. The Models deep-link (Home's
 `settingsTab` and passes it as a `@Binding`, which is read at render time and
 cannot go stale; the callers set the tab directly instead of posting a
 notification the sheet may not exist to receive.
+
 ## 2026-09-01 — failed recordings persist the verbatim error (failureDetail column)
 Field report of failed dictations dead-ended: three status=failed rows with
 empty modelUsed, no error text anywhere retrievable — the raw error was
@@ -2463,3 +2465,33 @@ The risk is learning a wrong global rule, so `DictionaryLearner` is narrow. It l
 ## 2026-11-11 — Auto-learn review fixes
 
 Code review of the first version: a learned rule could be silently deleted, because open Dictionary editors weren't told and wrote their stale copy back. Sentence-start capitals ("Going", "Anyway") passed as "names". Adding 's to a brand would teach Klaviyo → Klaviyo's. A rule could be saved while a recording hid its Undo. An old notice's hide timer could hide the next take's bubble (this was pre-existing for every flash). The notice took over Esc. The watcher compared against pre-fit text and did its field reads on the main thread. Now learn and Undo post `.customDictionaryDidChange`. A real word capitalized at a sentence start is never learned, nor a join into an ordinary word, nor a plural or possessive. Learning waits until the notice can show. `show()` detaches the old bubble's timers. The learned notice leaves Esc to the app. Reads run on a utility queue, and a fix must hold for 3 polls (~3 s).
+
+## 2026-11-11 — Snippets: whole-utterance match only, inserted verbatim
+
+Snippets (like Wispr Flow's): a saved trigger phrase → expansion text. v1 expands only when the
+whole dictation is the trigger, compared after `Snippets.normalize` (case, diacritics, every run of
+punctuation/whitespace collapsed), so "My calendar link." matches "my calendar link". A match skips
+everything that rewrites words: cleanup (and `CleanupOffer` counting), spoken punctuation, British
+spelling, the dictionary, greetings, and at insertion the sentence spacing and `ContextCasing` caret
+fitting. The expansion lands exactly as typed. History and the long-clip hold are unchanged (they
+see the expansion). Free tier, no gate, and a snippet counts zero words toward the free weekly
+limit: it is saved text, not dictation, and a long address shouldn't eat the allowance.
+
+- No inline expansion inside a longer sentence. A trigger like "my address" is ordinary speech
+  ("I changed my address last week"), and pasting a multi-line address into the middle of that is a
+  worse failure than having to dictate the trigger on its own. Doing it safely needs an explicit
+  cue ("insert my address") or trigger words nobody says otherwise; revisit with real use.
+- Lives as a main-window tab next to Dictionary (where the dictionary is edited), stored in
+  UserDefaults as JSON like the dictionary. Duplicate triggers: the first in the list wins, and the
+  editor warns. Only usable rows (trigger and expansion both filled) take a phrase, in matching and
+  in the warning alike (`Snippets.shadowing`).
+- The transcript reaches the matcher after the engine's dictionary pass, number formatting and
+  British spelling, so each trigger goes through the same three before comparing
+  (`snippetTriggerTranscriptForm`); a trigger matches in its typed or transformed form. "room two"
+  matches "room 2", "my clavio link" matches after a clavio → Klaviyo rule.
+- Multi-line expansions are pasted even in typing mode: typed newlines are Return keystrokes and
+  would send a Slack or Messages message halfway through an address.
+- Stored rows decode one by one with defaults for missing fields, so a bad row costs that row. If
+  the stored data couldn't be fully read, the first write copies it to
+  `snippetsDataUnreadableBackup` (kept once) before replacing it, rather than refusing writes
+  forever.

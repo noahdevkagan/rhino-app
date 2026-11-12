@@ -239,6 +239,12 @@ final class DictationPipeline: ObservableObject {
                 TextInserter.pressReturn()
             }
 
+            // Watch for the user retyping a word we got wrong. Not after a submit: the text has
+            // left the field.
+            if outcome == .inserted && !shouldSubmit {
+                DictionaryAutoLearn.shared.watch(inserted: text)
+            }
+
             if holdLongClip {
                 IndicatorWindowManager.shared.flash(.info("Long recording — copied, press ⌘V to paste"))
             }

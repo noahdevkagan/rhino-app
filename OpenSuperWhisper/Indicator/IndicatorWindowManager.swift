@@ -297,6 +297,17 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         }
     }
 
+    /// "Learned AppSumo · Undo" after `DictionaryAutoLearn` adds a word. Clickable while it
+    /// shows (the bubble is otherwise click-through; the next show() resets that).
+    func flashLearned(_ word: String, undo: @escaping () -> Void) {
+        if let current = viewModel, current.state == .recording || current.state == .connecting {
+            return
+        }
+        let vm = show(nearPoint: FocusUtils.getCurrentCursorPosition(), initialState: .learned(word))
+        window?.ignoresMouseEvents = false
+        vm.showLearned(word, undo: undo)
+    }
+
     /// `discard` ends the take without transcribing it (see `AudioRecorder.stopRecording`).
     func stopRecording(discard: Bool = false) {
         viewModel?.startDecoding(discard: discard)

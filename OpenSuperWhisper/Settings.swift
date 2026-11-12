@@ -138,6 +138,10 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var autoLearnDictionary: Bool {
+        didSet { AppPreferences.shared.autoLearnDictionary = autoLearnDictionary }
+    }
+
     @Published var customDictionaryEntries: [CustomDictionaryEntry] {
         didSet {
             AppPreferences.shared.customDictionaryEntries = customDictionaryEntries
@@ -411,6 +415,7 @@ class SettingsViewModel: ObservableObject {
         self.customDictionaryEnabled = prefs.customDictionaryEnabled
         self.customDictionaryBoostEnabled = prefs.customDictionaryBoostEnabled
         self.customDictionarySoundAlikesEnabled = prefs.customDictionarySoundAlikesEnabled
+        self.autoLearnDictionary = prefs.autoLearnDictionary
         // Folded when the window opens rather than as the user types: merging live would yank a
         // row away mid-keystroke the moment its replacement matched another.
         self.customDictionaryEntries = CustomDictionary.merged(prefs.customDictionaryEntries)
@@ -1439,6 +1444,16 @@ struct SettingsView: View {
                         InfoButton(text: "A word you add also fixes near-miss spellings of it that aren't real words — add “Klaviyo” and “Clavio” or “Claviyo” get fixed too, without listing them. Real words are never changed (“Stripe” won't touch “strip”), and words under 5 letters need an exact “hears it as” spelling.")
                         Spacer()
                         SToggle(isOn: $viewModel.customDictionarySoundAlikesEnabled)
+                    }
+                    .padding(.leading, 16)
+                    .frame(minHeight: 24)
+
+                    HStack(spacing: 8) {
+                        Text("Learn from my fixes")
+                            .scaledFont(size: 12).foregroundColor(STheme.text)
+                        InfoButton(text: "Retype a name Rhino got wrong right after dictating (Apsumo → AppSumo) and Rhino adds it here, with an Undo. Only names and brands with a capital letter, and only when Rhino's spelling isn't a real word. Rhino reads the field for 30 seconds after a dictation to notice; nothing it reads is kept.")
+                        Spacer()
+                        SToggle(isOn: $viewModel.autoLearnDictionary)
                     }
                     .padding(.leading, 16)
                     .frame(minHeight: 24)

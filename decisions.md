@@ -926,6 +926,7 @@ sliding-window/arbitration, amplified by boosting terms absent from the
 audio). The harness therefore runs the base twice and excludes clips that
 are unstable base-vs-base before comparing. Worth an upstream look if
 boost-quality reports come in.
+
 ## 2026-08-31 — CI release path must deploy the website too; Sparkle key goes
 to Actions secrets so any machine can cut a release
 Cutting 0.1.17 from the laptop failed at the appcast: 0.1.9+ pin the desktop's
@@ -959,6 +960,7 @@ Dictation. Verified in the dev build. The Models deep-link (Home's
 `settingsTab` and passes it as a `@Binding`, which is read at render time and
 cannot go stale; the callers set the tab directly instead of posting a
 notification the sheet may not exist to receive.
+
 ## 2026-09-01 — failed recordings persist the verbatim error (failureDetail column)
 Field report of failed dictations dead-ended: three status=failed rows with
 empty modelUsed, no error text anywhere retrievable — the raw error was
@@ -2466,6 +2468,7 @@ Evidence: 116 real dictations from the installed app's history, transcribed with
 ## 2026-11-11 — Short-dictation guard: real word forms only, adjacent joins, fixed order (code review)
 
 Code review of the first version found it explained away too much and wasn't deterministic. Any prefix counted as a "word form", so "should" → "shouldn't" and "do" → "don't" were accepted. A shared 4-letter prefix let "approve" → "approach" through. Any fragment covered any word starting with it, and joins could pair words from anywhere in the text. Pairing iterated Swift dictionaries, so the same text was accepted 24 of 30 runs and rejected 6. Now: word forms are only the endings s, es, 's, ed, d, ing, er, ers, ly (plus a dropped final e), so "n't" is never explained. A fragment must be one letter, completed into a word of at most 4 letters. A join needs two spoken words side by side. Pairing walks the diff's ordered changes. Up to 2 words on a list heading line ("Shopping list:") don't count as invented. "as"/"are" are ignored only for short dictations, so long dictations are back to the exact old rules. Replay of 116 real dictations: 2 outputs change vs the old guard. Both are rejected rewrites: the earlier "thing… issue" rewording, and "slotssocial dot app" → "slotsocial app" (an email address mangled).
+
 ## 2026-11-11 — Spoken edits: a punctuated example, and edits are checked before use
 
 "Let's meet at three, actually no, make that four o'clock" came out unchanged. The model applied the same edit when the text was lowercase with no commas (how every prompt example was written), but not with Parakeet's punctuation. Added one punctuated example ("Ship it on Monday, actually no, make that Tuesday."), deliberately different from the gate case.
@@ -2475,3 +2478,40 @@ Probing 8 corrections and 8 non-corrections on the real model showed the bigger 
 ## 2026-11-11 — Spoken-edit check covers every command and needs the retraction gone (code review)
 
 Review of the first `spokenEditIsSafe` found it checked only the last command, let a shared word ("with") vouch for a missing correction, never checked the retracted words were removed ("nine, no wait, ten thirty" → "nine thirty" passed), rejected any edit leaving a literal "I mean," in place, split curly apostrophes, and ran the cue pattern through two regex engines. Now one compiled NSRegularExpression serves the cue gate and the check. Each command is judged on its own. Left in with the same neighbours means it wasn't a command; left in with different neighbours means half-applied, so reject. Removed means the correction clause (minus filler and words already said) must survive and the retracted clause must have lost a word. Rejections log which check failed. Gate: `spoken-edit` must also drop "three". `spoken-edit-keeps-correction` is a known gap: the model can't apply "Invite Priya, I mean Maya". The guard rejects its wrong edit, so the user gets their words as spoken, never "Invite Priya".
+
+
+## 2026-11-11 — A key pressed while the modifier trigger is held makes it a chord, not dictation
+
+With hold-Fn as the trigger, Fn+↑ (Page Up), Fn+← (Home), Fn+Delete and Fn+F-keys started a take, and a quick one counted as a tap so the recording stayed on. Now `ModifierKeyMonitor` has a second listen-only keyDown tap, enabled only while a trigger is held (like UserPasteWatcher), so Rhino isn't on every keystroke's path when idle. The first counted key-down during a press fires `onChord` once. If it lands within `chordCancelWindow` (1 s) of the press, `ShortcutManager` discards the take that press started, quietly and without blocking main on the recorder queue, and ignores the press's release, so it can't count as a tap, arm the double-tap lock or start a deferred hold stop. A later key is a stray press during real dictation: ignored, and the take behaves as before (a long take is never wiped without Esc's confirmation).
+
+Choices: the mic and bubble still start on press with no delay, but the start chime, media pause and the over-limit paywall wait `chordSettleDelay` (150 ms) and are skipped if the take is chorded or stopped first. Not deferred: the system default input switch (it is part of starting the mic on the recorder queue) and the share-panel dismissal in `show()`. A discarded chord take ends through `didFinishDecoding`, so if a previous take is still transcribing the bubble goes back to its decoding state with the drain watch and watchdog re-armed. With a take locked on (hands-free), Fn+↑ behaves exactly as before: the Fn press itself stops and transcribes the take before the chord arrives, so the chord finds nothing to cancel. Rhino's own synthetic keys (typed text, ⌘V, Return can land while the next take's Fn is held) are skipped by source PID. Other apps' synthetic keys (text expanders) still count: nothing in a CGEvent reliably separates them from a keyboard. Autorepeat is ignored, and so is whatever key the cancel shortcut is bound to (Esc by default), which keeps its own flow. Mouse clicks don't count. Keys are only counted, never recorded or logged. Known gaps: a tap then Fn+↑ inside the double-tap window locks the recording on (as before); the press counter is shared with key-combo triggers. Not verified by hand: a real Fn+↑ in Rhino Dev.
+
+## 2026-11-11 — Snippets: whole-utterance match only, inserted verbatim
+
+Snippets (like Wispr Flow's): a saved trigger phrase → expansion text. v1 expands only when the
+whole dictation is the trigger, compared after `Snippets.normalize` (case, diacritics, every run of
+punctuation/whitespace collapsed), so "My calendar link." matches "my calendar link". A match skips
+everything that rewrites words: cleanup (and `CleanupOffer` counting), spoken punctuation, British
+spelling, the dictionary, greetings, and at insertion the sentence spacing and `ContextCasing` caret
+fitting. The expansion lands exactly as typed. History and the long-clip hold are unchanged (they
+see the expansion). Free tier, no gate, and a snippet counts zero words toward the free weekly
+limit: it is saved text, not dictation, and a long address shouldn't eat the allowance.
+
+- No inline expansion inside a longer sentence. A trigger like "my address" is ordinary speech
+  ("I changed my address last week"), and pasting a multi-line address into the middle of that is a
+  worse failure than having to dictate the trigger on its own. Doing it safely needs an explicit
+  cue ("insert my address") or trigger words nobody says otherwise; revisit with real use.
+- Lives as a main-window tab next to Dictionary (where the dictionary is edited), stored in
+  UserDefaults as JSON like the dictionary. Duplicate triggers: the first in the list wins, and the
+  editor warns. Only usable rows (trigger and expansion both filled) take a phrase, in matching and
+  in the warning alike (`Snippets.shadowing`).
+- The transcript reaches the matcher after the engine's dictionary pass, number formatting and
+  British spelling, so each trigger goes through the same three before comparing
+  (`snippetTriggerTranscriptForm`); a trigger matches in its typed or transformed form. "room two"
+  matches "room 2", "my clavio link" matches after a clavio → Klaviyo rule.
+- Multi-line expansions are pasted even in typing mode: typed newlines are Return keystrokes and
+  would send a Slack or Messages message halfway through an address.
+- Stored rows decode one by one with defaults for missing fields, so a bad row costs that row. If
+  the stored data couldn't be fully read, the first write copies it to
+  `snippetsDataUnreadableBackup` (kept once) before replacing it, rather than refusing writes
+  forever.

@@ -185,30 +185,46 @@ final class DictationPipeline: ObservableObject {
                 text = NumberCompaction.apply(fallback, style: AppPreferences.shared.numberFormattingStyle)
             }
 
-            // Optional LLM cleanup (no-op when disabled; returns the raw text on failure). The
-            // app-aware formatting rules are keyed off the app that was frontmost when the clip was
-            // RECORDED — the app the user was dictating into — not whatever is frontmost now that
-            // the background queue got to it. (parallel-recording)
-            CleanupOffer.noteDictation(text)
-            // Did the user say the closing "period"/"comma"? Spoken punctuation turns it into the
-            // mark inside cleanup; insertion must then keep it even where it would drop an
-            // engine-added one (ContextCasing).
-            let prefs = AppPreferences.shared
-            let spokenTrailingMark = prefs.aiPostProcessingEnabled && prefs.smartFormattingEnabled
-                && ContextCasing.endsWithSpokenMark(text)
-            text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID)
-            // Again after cleanup, which tends to American spellings. (A no-op when off.)
-            text = prefs.applyBritishSpelling(text)
-            // The cleanup model doesn't know the user's spellings and can undo them, so the
-            // dictionary gets the last word. (A no-op pass when cleanup is off.)
-            text = settings.applyCustomDictionary(text, afterCleanup: true)
-            // Brit mode: "Hi, Steve" → "Hi Steve". After cleanup, which can add the comma back.
-            text = prefs.applyBritGreetings(text)
+            // Snippets: the whole dictation is a saved trigger ("my calendar link"), so insert
+            // its text exactly. It skips everything below that rewrites words (cleanup, spoken
+            // punctuation, British spelling, the dictionary, greetings) and, at insertion, the
+            // spacing and caret fitting: a URL or an address must land as the user typed it.
+            // Triggers go through the same transforms the transcript did, so they compare alike.
+            let snippet = AppPreferences.shared.matchingSnippet(text) {
+                AppPreferences.shared.snippetTriggerTranscriptForm($0, settings: settings)
+            }
+            let spokenTrailingMark: Bool
+            var spokenSubmit = false
+            if let snippet {
+                text = snippet.expansion
+                spokenTrailingMark = false
+            } else {
+                // Optional LLM cleanup (no-op when disabled; returns the raw text on failure). The
+                // app-aware formatting rules are keyed off the app that was frontmost when the clip was
+                // RECORDED — the app the user was dictating into — not whatever is frontmost now that
+                // the background queue got to it. (parallel-recording)
+                CleanupOffer.noteDictation(text)
+                // Did the user say the closing "period"/"comma"? Spoken punctuation turns it into the
+                // mark inside cleanup; insertion must then keep it even where it would drop an
+                // engine-added one (ContextCasing).
+                let prefs = AppPreferences.shared
+                spokenTrailingMark = prefs.aiPostProcessingEnabled && prefs.smartFormattingEnabled
+                    && ContextCasing.endsWithSpokenMark(text)
+                text = await LLMPostProcessor.process(text, bundleID: item.context.bundleID)
+                // Again after cleanup, which tends to American spellings. (A no-op when off.)
+                text = prefs.applyBritishSpelling(text)
+                // The cleanup model doesn't know the user's spellings and can undo them, so the
+                // dictionary gets the last word. (A no-op pass when cleanup is off.)
+                text = settings.applyCustomDictionary(text, afterCleanup: true)
+                // Brit mode: "Hi, Steve" → "Hi Steve". After cleanup, which can add the comma back.
+                text = prefs.applyBritGreetings(text)
 
-            // Trailing "press enter" voice command (opt-in): strip it and remember to press Return
-            // after insertion, submitting the message/prompt.
-            let (strippedText, spokenSubmit) = AppPreferences.shared.stripSubmitCommand(text)
-            text = strippedText
+                // Trailing "press enter" voice command (opt-in): strip it and remember to press
+                // Return after insertion, submitting the message/prompt.
+                let stripped = prefs.stripSubmitCommand(text)
+                text = stripped.text
+                spokenSubmit = stripped.submit
+            }
             // Either route asks for the same thing: send Return once the text is in.
             let shouldSubmit = spokenSubmit || item.submitAfterInsert
             let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -229,7 +245,9 @@ final class DictationPipeline: ObservableObject {
                 ClipboardUtil.copyToClipboard(text)
                 outcome = .skipped
             } else {
-                outcome = hasText ? insertText(text, spokenTrailingMark: spokenTrailingMark) : .skipped
+                outcome = hasText
+                    ? insertText(text, spokenTrailingMark: spokenTrailingMark, verbatim: snippet != nil)
+                    : .skipped
             }
 
             // Submit only when auto-paste actually inserted text somewhere. A short settle delay lets
@@ -255,7 +273,9 @@ final class DictationPipeline: ObservableObject {
                 break
             }
 
-            if hasText {
+            // A snippet is saved text, not dictation: it counts no words toward the free
+            // weekly limit. (History below still records it like any dictation.)
+            if hasText && snippet == nil {
                 UnlockRhino.shared.record(text: text)
             }
 
@@ -418,10 +438,21 @@ final class DictationPipeline: ObservableObject {
     /// and reports what happened, so the caller can flash the right notice when the text ended up
     /// on the clipboard instead of in the focused app.
     @discardableResult
-    private func insertText(_ text: String, spokenTrailingMark: Bool) -> TranscriptInserter.Outcome {
-        TranscriptInserter.insert(IndicatorViewModel.applyPostProcessing(text),
+    private func insertText(_ text: String, spokenTrailingMark: Bool,
+                            verbatim: Bool = false) -> TranscriptInserter.Outcome {
+        // `verbatim` (a snippet): the text goes in exactly as stored, with no sentence spacing
+        // and no casing or period fitted to the caret. A multi-line one is pasted even in
+        // typing mode: typed newlines are Return keystrokes, which send a Slack or Messages
+        // message halfway through the address.
+        TranscriptInserter.insert(verbatim ? text : IndicatorViewModel.applyPostProcessing(text),
                                   honorAutoPastePreference: true,
-                                  fitToContext: true,
-                                  spokenTrailingMark: spokenTrailingMark)
+                                  fitToContext: !verbatim,
+                                  spokenTrailingMark: spokenTrailingMark,
+                                  forcePaste: verbatim && Self.isMultiline(text))
+    }
+
+    /// Internal so tests can pin it.
+    nonisolated static func isMultiline(_ text: String) -> Bool {
+        text.contains(where: \.isNewline)
     }
 }

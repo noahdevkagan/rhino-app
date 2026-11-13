@@ -27,6 +27,31 @@ enum DictionaryLearner {
         let correct: String
     }
 
+    /// Why an edit was not taken as a correction (for the unified log; never user text).
+    enum Rejection: String, Equatable {
+        case empty = "no dictated words"
+        case unchanged = "no word changed"
+        case rewrite = "not a one-word swap or two-word join (rewrite)"
+        case tooShort = "new word too short"
+        case pluralOrPossessive = "plural or possessive only"
+        case tooDifferent = "spellings too far apart"
+        case realToNonWord = "real word changed into a non-word"
+        case ordinaryToName = "ordinary word changed into a name"
+        case realToReal = "real word changed into a different real word"
+        case joinNotAllowed = "join is an ordinary word or doesn't spell the two words"
+        case caseOnly = "only sentence-start case changed"
+    }
+
+    enum Verdict: Equatable {
+        case learn(Correction)
+        case reject(Rejection)
+
+        var correction: Correction? {
+            if case .learn(let c) = self { return c }
+            return nil
+        }
+    }
+
     /// The new word must have at least this many letters.
     static let minimumLength = 3
 
@@ -41,24 +66,34 @@ enum DictionaryLearner {
                            atSentenceStart: Bool = false,
                            isRealWord: (String) -> Bool = SystemWordList.contains,
                            isCommonWord: (String) -> Bool = SystemWordList.isCommonWord) -> Correction? {
+        verdict(inserted: inserted, edited: edited, trailingOpen: trailingOpen,
+                atSentenceStart: atSentenceStart, isRealWord: isRealWord, isCommonWord: isCommonWord).correction
+    }
+
+    /// `correction`, with the reason when there is none.
+    static func verdict(inserted: [String], edited: [String], trailingOpen: Bool,
+                        atSentenceStart: Bool = false,
+                        isRealWord: (String) -> Bool = SystemWordList.contains,
+                        isCommonWord: (String) -> Bool = SystemWordList.isCommonWord) -> Verdict {
         let spoken = inserted.map(clean).filter { !$0.isEmpty }
         let raw = edited.filter { !clean($0).isEmpty }
-        guard !spoken.isEmpty else { return nil }
+        guard !spoken.isEmpty else { return .reject(.empty) }
         if trailingOpen {
             // Try the stretch as long as the dictation (a swap), then one word shorter (a join).
+            var first: Verdict?
             for length in [spoken.count, spoken.count - 1] where length > 0 && raw.count >= length {
-                if let found = aligned(spoken, Array(raw.prefix(length)), atSentenceStart, isRealWord, isCommonWord) {
-                    return found
-                }
+                let result = aligned(spoken, Array(raw.prefix(length)), atSentenceStart, isRealWord, isCommonWord)
+                if case .learn = result { return result }
+                first = first ?? result
             }
-            return nil
+            return first ?? .reject(.rewrite)
         }
         return aligned(spoken, raw, atSentenceStart, isRealWord, isCommonWord)
     }
 
     private static func aligned(_ spoken: [String], _ raw: [String], _ atSentenceStart: Bool,
                                 _ isRealWord: (String) -> Bool,
-                                _ isCommonWord: (String) -> Bool) -> Correction? {
+                                _ isCommonWord: (String) -> Bool) -> Verdict {
         let written = raw.map(clean)
         var head = 0
         while head < min(spoken.count, written.count), same(spoken[head], written[head]) { head += 1 }
@@ -67,7 +102,9 @@ enum DictionaryLearner {
               same(spoken[spoken.count - 1 - tail], written[written.count - 1 - tail]) { tail += 1 }
         let heard = Array(spoken[head..<(spoken.count - tail)])
         let typed = Array(written[head..<(written.count - tail)])
-        guard typed.count == 1, var correct = typed.first, correct.count >= minimumLength else { return nil }
+        if heard.isEmpty, typed.isEmpty { return .reject(.unchanged) }
+        guard typed.count == 1, var correct = typed.first else { return .reject(.rewrite) }
+        guard correct.count >= minimumLength else { return .reject(.tooShort) }
         let startsSentence = head == 0
             ? atSentenceStart
             : raw[head - 1].last.map { ".!?".contains($0) } ?? false
@@ -77,28 +114,28 @@ enum DictionaryLearner {
         case 1:
             wrong = heard[0]
             let a = wrong.lowercased(), b = correct.lowercased()
-            guard !isPluralOrPossessive(a, of: b), !isPluralOrPossessive(b, of: a) else { return nil }
-            guard SoundAlike.editDistance(a, b) <= max(2, b.count / 3) else { return nil }
+            guard !isPluralOrPossessive(a, of: b), !isPluralOrPossessive(b, of: a) else { return .reject(.pluralOrPossessive) }
+            guard SoundAlike.editDistance(a, b) <= max(2, b.count / 3) else { return .reject(.tooDifferent) }
             let realA = isRealWord(a), realB = isRealWord(b)
             // A real word changed into a non-word is the user's own typo or slang ("going" → "goin").
-            if realA, !realB { return nil }
+            if realA, !realB { return .reject(.realToNonWord) }
             // An ordinary word turned into a name ("mark" → "Marc") would rewrite the ordinary
             // word everywhere.
             if realA, isCommonWord(a), correct.contains(where: \.isUppercase), !isCommonWord(b) {
-                return nil
+                return .reject(.ordinaryToName)
             }
             if realA, realB {
-                guard !neverRewritten.contains(a), onlyOnsetDiffers(a, b) else { return nil }
+                guard !neverRewritten.contains(a), onlyOnsetDiffers(a, b) else { return .reject(.realToReal) }
             }
         case 2:
             // A join: the two spoken words spell the new one, and it isn't an ordinary word.
             // "any way" → "anyway" or "may be" → "maybe" is right in one sentence and wrong in
             // the next ("is there any way").
             guard (heard[0] + heard[1]).lowercased() == correct.lowercased(),
-                  !isRealWord(correct) else { return nil }
+                  !isRealWord(correct) else { return .reject(.joinNotAllowed) }
             wrong = heard.joined(separator: " ")
         default:
-            return nil
+            return .reject(.rewrite)
         }
         // A sentence-start capital on an ordinary word belongs to the sentence, not the word.
         // Names keep their capital ("John" is in the list only as a name).
@@ -108,8 +145,8 @@ enum DictionaryLearner {
                 wrong = wrong.lowercased()
             }
         }
-        guard wrong != correct else { return nil }
-        return Correction(heard: wrong, correct: correct)
+        guard wrong != correct else { return .reject(.caseOnly) }
+        return .learn(Correction(heard: wrong, correct: correct))
     }
 
     /// Two real words that differ only in the consonants before the first vowel, same length,

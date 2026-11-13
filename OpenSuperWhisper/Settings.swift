@@ -1463,7 +1463,7 @@ struct SettingsView: View {
                     HStack(spacing: 8) {
                         Text("Learn from my fixes")
                             .scaledFont(size: 12).foregroundColor(STheme.text)
-                        InfoButton(text: "Retype a name Rhino got wrong right after dictating (Apsumo → AppSumo) and Rhino adds it here, with an Undo. Only names and brands with a capital letter, and only when Rhino's spelling isn't a real word. Rhino reads the field for 30 seconds after a dictation to notice; nothing it reads is kept.")
+                        InfoButton(text: "Fix a word Rhino got wrong right after dictating (Apsumo → AppSumo, kubernets → kubernetes) and Rhino adds it here, with an Undo. Lowercase words count too. Swapping in a different real word (ran → run), joining words into an ordinary word (any way → anyway) or rewording doesn't. Rhino reads the field for 30 seconds after a dictation to notice; nothing it reads is kept.")
                         Spacer()
                         SToggle(isOn: $viewModel.autoLearnDictionary)
                     }

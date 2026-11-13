@@ -26,7 +26,11 @@ enum SoundAlike {
     /// `isRealWord` is injectable so tests don't depend on the system word list.
     static func apply(_ text: String, entries: [CustomDictionaryEntry],
                       isRealWord: (String) -> Bool = SystemWordList.contains) -> String {
-        let terms = eligibleTerms(entries)
+        // An all-lowercase ordinary word ("chatter", taught from a fix) is an exact rule only:
+        // guessing at its near misses would rewrite other ordinary words.
+        let terms = eligibleTerms(entries).filter {
+            $0.contains(where: \.isUppercase) || !isRealWord(fold($0))
+        }
         guard !terms.isEmpty, !text.isEmpty else { return text }
 
         // Another rule's own words are never someone's mishearing of this one.
@@ -105,7 +109,8 @@ enum SoundAlike {
 
         var result = text
         for edit in edits.reversed() {
-            result.replaceSubrange(edit.range, with: edit.term)
+            result.replaceSubrange(edit.range, with: CustomDictionary.fittingCase(
+                edit.term, at: edit.range, in: result))
         }
         return result
     }
@@ -300,19 +305,31 @@ enum SoundAlike {
 /// mishearing. Loaded once, off the dictation path where possible (`prewarm`): ~100 ms and
 /// ~10 MB, paid only by people whose dictionary has a word long enough to guess at.
 enum SystemWordList {
-    private static let words: Set<String>? = {
+    /// Lowercased word → whether the list has it in lowercase (an ordinary word, not only a
+    /// name: "mark" is both, "John" is only a name).
+    private static let words: [String: Bool]? = {
         guard let text = try? String(contentsOfFile: "/usr/share/dict/words", encoding: .utf8)
         else { return nil }
-        var set = Set<String>(minimumCapacity: 240_000)
-        text.enumerateLines { line, _ in set.insert(line.lowercased()) }
-        return set
+        var map = [String: Bool](minimumCapacity: 240_000)
+        text.enumerateLines { line, _ in
+            let lower = line.lowercased()
+            if line == lower { map[lower] = true } else if map[lower] == nil { map[lower] = false }
+        }
+        return map
     }()
 
     /// Without the list nothing can be told apart, so every word counts as real and sound-alike
     /// matching stands down.
     static func contains(_ word: String) -> Bool {
         guard let words else { return true }
-        return words.contains(word.lowercased())
+        return words[word.lowercased()] != nil
+    }
+
+    /// Whether the word is in the list as an ordinary lowercase word, not only as a name.
+    /// Without the list every word counts as ordinary (the cautious answer for the learner).
+    static func isCommonWord(_ word: String) -> Bool {
+        guard let words else { return true }
+        return words[word.lowercased()] == true
     }
 
     static func prewarm() {

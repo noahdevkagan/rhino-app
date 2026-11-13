@@ -3,7 +3,8 @@ import ApplicationServices
 import Foundation
 
 /// Watches the field a dictation just went into, and when the user retypes a word Rhino got
-/// wrong (Apsumo → AppSumo), adds a dictionary rule for it with an Undo notice.
+/// wrong (Apsumo → AppSumo, kubernets → kubernetes), adds a dictionary rule for it with an Undo
+/// notice. `DictionaryLearner` decides which edits are corrections.
 ///
 /// After a paste it reads the focused text field through Accessibility every `pollInterval`
 /// for `watchDuration`, the way `FocusUtils.caretContext` already reads around the caret. The
@@ -32,8 +33,7 @@ final class DictionaryAutoLearn {
     private var before: [String] = []
     private var after: [String] = []
     private var baselineTaken = false
-    private var pending: DictionaryLearner.Correction?
-    private var pendingCount = 0
+    private var stability = DictionaryLearner.Stability()
 
     private init() {}
 
@@ -63,8 +63,7 @@ final class DictionaryAutoLearn {
         before = []
         after = []
         baselineTaken = false
-        pending = nil
-        pendingCount = 0
+        stability = DictionaryLearner.Stability()
     }
 
     private func tick() {
@@ -102,7 +101,7 @@ final class DictionaryAutoLearn {
         guard words.count >= before.count + after.count,
               zip(before, words).allSatisfy({ $0 == $1 }),
               zip(after.reversed(), words.reversed()).allSatisfy({ $0 == $1 }) else {
-            pending = nil
+            _ = stability.observe(nil, required: Self.stablePolls)
             return
         }
         let stretch = Array(words[before.count..<(words.count - after.count)])
@@ -110,17 +109,11 @@ final class DictionaryAutoLearn {
         guard let found = DictionaryLearner.correction(
             inserted: inserted, edited: stretch, trailingOpen: after.isEmpty,
             atSentenceStart: sentenceStart) else {
-            pending = nil
+            _ = stability.observe(nil, required: Self.stablePolls)
             return
         }
-        if found == pending {
-            pendingCount += 1
-        } else {
-            pending = found
-            pendingCount = 1
-        }
         // Learn only when the notice (and its Undo) can show; otherwise wait for the next poll.
-        if pendingCount >= Self.stablePolls, IndicatorWindowManager.shared.canFlash {
+        if stability.observe(found, required: Self.stablePolls), IndicatorWindowManager.shared.canFlash {
             learn(found)
         }
     }

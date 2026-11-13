@@ -3,6 +3,10 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.50 — 2026-11-13
+
+- Fn+arrow keys (Page Up, Home and friends) no longer flash the recording bubble.
+
 ## 0.1.49 — 2026-11-13
 
 - Fixed dictation sometimes flashing on and off without typing anything when you press Fn.

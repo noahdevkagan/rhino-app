@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.50",
+    date: "November 13, 2026",
+    changes: [
+      "Fn+arrow keys (Page Up, Home and friends) no longer flash the recording bubble.",
+    ],
+  },
+  {
     version: "0.1.49",
     date: "November 13, 2026",
     changes: [

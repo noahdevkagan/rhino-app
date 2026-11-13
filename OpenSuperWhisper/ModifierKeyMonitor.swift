@@ -84,6 +84,44 @@ enum ModifierKey: String, CaseIterable, Identifiable, Codable {
         }
     }
     
+    /// The device-dependent bit for this side of the modifier (IOKit's NX_DEVICE*KEYMASK).
+    /// The generic flag (`cgEventFlag`) is set by either side. Nil for Fn, which has one key.
+    var deviceFlagBit: UInt64? {
+        switch self {
+        case .none, .fn: return nil
+        case .leftControl: return 0x0000_0001
+        case .leftShift: return 0x0000_0002
+        case .rightShift: return 0x0000_0004
+        case .leftCommand: return 0x0000_0008
+        case .rightCommand: return 0x0000_0010
+        case .leftOption: return 0x0000_0020
+        case .rightOption: return 0x0000_0040
+        case .rightControl: return 0x0000_2000
+        }
+    }
+
+    /// Both sides' device bits for this modifier's class (e.g. left and right ⌘).
+    private var deviceClassBits: UInt64 {
+        switch self {
+        case .none, .fn: return 0
+        case .leftCommand, .rightCommand: return 0x08 | 0x10
+        case .leftOption, .rightOption: return 0x20 | 0x40
+        case .leftShift, .rightShift: return 0x02 | 0x04
+        case .leftControl, .rightControl: return 0x01 | 0x2000
+        }
+    }
+
+    /// Whether these flags say this exact key is down. Uses the side-specific device bit, so
+    /// holding left ⌘ doesn't look like a held right-⌘ trigger. Events that carry no device bits
+    /// for the class at all (some synthetic posters) fall back to the generic flag.
+    func isHeld(in flags: CGEventFlags) -> Bool {
+        guard flags.contains(cgEventFlag) else { return false }
+        guard let bit = deviceFlagBit else { return true }
+        let raw = flags.rawValue
+        if raw & deviceClassBits == 0 { return true }
+        return raw & bit != 0
+    }
+
     var isCommandOrOption: Bool {
         switch self {
         case .leftCommand, .rightCommand, .leftOption, .rightOption:
@@ -109,6 +147,15 @@ class ModifierKeyMonitor {
     private var pressedKey: ModifierKey?
     /// Whether a non-modifier key went down during the current press (see `handleKeyDown`).
     private var pressChorded = false
+    /// When the current press went down (`CGEvent.timestamp`); 0 between presses.
+    private var pressTimestamp: CGEventTimestamp = 0
+    /// Recent trigger edges as event timestamps, from both taps (deduplicated). The two taps
+    /// are separate ports serviced on main, and after a main-thread stall their events come
+    /// out of order relative to each other; the key tap also sees flagsChanged so its own
+    /// port is in order. Key-downs are matched to presses by timestamp, not by arrival.
+    private var edges: [UInt16: TriggerEdges] = [:]
+    /// A press the key tap already saw chorded before the flags tap handled that press.
+    private var pendingChordPress: CGEventTimestamp?
 
     var onKeyDown: ((ModifierKey) -> Void)?
     var onKeyUp: ((ModifierKey) -> Void)?
@@ -196,7 +243,10 @@ class ModifierKeyMonitor {
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .listenOnly,
-            eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
+            // flagsChanged too: it shares this port with the key-downs, so a trigger release
+            // is always seen before a key-down that came after it.
+            eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue)
+                | CGEventMask(1 << CGEventType.flagsChanged.rawValue),
             callback: { (_, type, event, refcon) -> Unmanaged<CGEvent>? in
                 guard let refcon else { return Unmanaged.passUnretained(event) }
                 let monitor = Unmanaged<ModifierKeyMonitor>.fromOpaque(refcon).takeUnretainedValue()
@@ -208,6 +258,8 @@ class ModifierKeyMonitor {
                     if monitor.pressedKey != nil { monitor.setKeyTap(enabled: true) }
                 } else if type == .keyDown {
                     monitor.handleKeyDown(event: event)
+                } else if type == .flagsChanged {
+                    monitor.recordEdge(event: event)
                 }
                 return Unmanaged.passUnretained(event)
             },
@@ -249,6 +301,9 @@ class ModifierKeyMonitor {
         watched = [:]
         pressedKey = nil
         pressChorded = false
+        pressTimestamp = 0
+        edges = [:]
+        pendingChordPress = nil
         print("ModifierKeyMonitor: Stopped")
     }
     
@@ -259,24 +314,35 @@ class ModifierKeyMonitor {
         }
     }
     
-    private func handleFlagsChanged(event: CGEvent) {
+    /// A trigger edge seen by either tap. Returns the watched key and whether it is now down.
+    @discardableResult
+    private func recordEdge(event: CGEvent) -> (key: ModifierKey, isPressed: Bool)? {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-        let flags = event.flags
-        
-        guard let key = watched[keyCode] else { return }
+        guard let key = watched[keyCode] else { return nil }
+        let isPressed = key.isHeld(in: event.flags)
+        edges[keyCode, default: TriggerEdges()].record(isPressed: isPressed, at: event.timestamp)
+        return (key, isPressed)
+    }
 
-        let isPressed = flags.contains(key.cgEventFlag)
+    private func handleFlagsChanged(event: CGEvent) {
+        guard let (key, isPressed) = recordEdge(event: event) else { return }
 
         if isPressed, pressedKey == nil {
             // A second modifier pressed mid-recording is ignored: the first owns this take.
             pressedKey = key
-            pressChorded = false
+            pressTimestamp = event.timestamp
+            // The key tap may already have seen this press chorded (it ran first after a stall).
+            pressChorded = pendingChordPress == event.timestamp
+            pendingChordPress = nil
             setKeyTap(enabled: true)
+            let chorded = pressChorded
             DispatchQueue.main.async {
                 self.onKeyDown?(key)
+                if chorded { self.onChord?() }
             }
         } else if !isPressed, pressedKey == key {
             pressedKey = nil
+            pressTimestamp = 0
             setKeyTap(enabled: false)
             DispatchQueue.main.async {
                 self.onKeyUp?(key)
@@ -287,35 +353,97 @@ class ModifierKeyMonitor {
     /// A key went down while a trigger is held. Privacy: keys are only counted here, never
     /// recorded — the key code is compared to the cancel shortcut's and never stored or logged.
     private func handleKeyDown(event: CGEvent) {
-        guard pressedKey != nil, !pressChorded else { return }
+        guard let held = pressedKey else { return }
         guard Self.keyDownCountsAsChord(
             isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
             keyCode: event.getIntegerValueField(.keyboardEventKeycode),
             cancelKeyCode: KeyboardShortcuts.getShortcut(for: .escape).map { Int64($0.carbonKeyCode) },
             sourcePID: event.getIntegerValueField(.eventSourceUnixProcessID),
-            ownPID: Int64(getpid())) else { return }
-        pressChorded = true
-        DispatchQueue.main.async {
-            self.onChord?()
+            ownPID: Int64(getpid()),
+            triggerHeldInEvent: held.isHeld(in: event.flags)) else { return }
+        // Which press was held when this key went down, by timestamp.
+        guard let owner = edges[held.keyCode]?.pressHolding(at: event.timestamp) else { return }
+        switch Self.chordTarget(owner: owner, currentPress: pressTimestamp) {
+        case .current:
+            guard !pressChorded else { return }
+            pressChorded = true
+            DispatchQueue.main.async {
+                self.onChord?()
+            }
+        case .upcoming:
+            // The flags tap hasn't handled this press yet; charge it there, after its onKeyDown.
+            pendingChordPress = owner
+        case .stale:
+            return
         }
     }
 
-    /// Whether a key-down during a trigger press counts as a chord.
+    enum ChordTarget: Equatable { case current, upcoming, stale }
+
+    /// Where a chord for the press that went down at `owner` goes, given the press the flags
+    /// tap is on (`currentPress`, 0 if none). A key-down from a quick second tap must not
+    /// discard the first tap's take, and must still mark the second press.
+    static func chordTarget(owner: CGEventTimestamp, currentPress: CGEventTimestamp) -> ChordTarget {
+        if owner == currentPress { return .current }
+        return owner > currentPress ? .upcoming : .stale
+    }
+
+    /// The Globe (fn) key's own key code. Some keyboards send it as a keyDown alongside the
+    /// Fn press; that is part of pressing the trigger, not a shortcut.
+    static let globeKeyCode: Int64 = 179
+
+    /// Whether a key-down during a trigger press counts as a chord. Which press it belongs to,
+    /// if any, is decided separately by timestamp (`TriggerEdges.pressHolding`).
     /// - Rhino's own synthetic keys (typed text, ⌘V, Return) are skipped: they land after a
     ///   release, possibly while the next take's trigger is already held.
-    /// - Other apps' synthetic keys (text expanders, automation) DO still count. Nothing in a
-    ///   CGEvent reliably tells them from a keyboard: a poster using the HID system state
-    ///   reports the same source state ID as hardware.
+    /// - Other apps' synthetic keys (text expanders, automation) can still count: nothing in a
+    ///   CGEvent reliably tells them from a keyboard. They count only if their flags show the
+    ///   trigger down, as a real key typed during the hold would.
     /// - Autorepeat of a key held before the trigger is not a new press.
     /// - The cancel shortcut's key (Esc by default) is left to that flow, with its long-take
     ///   confirmation, rather than discarding first and racing it.
+    /// - `triggerHeldInEvent`: the key-down's flags show this side of the trigger down (device
+    ///   bits, so left ⌘+C doesn't chord a right-⌘ take). This is a cheap filter, not the
+    ///   ordering guarantee: with Fn as the trigger, macOS sets the Fn flag on arrows,
+    ///   Home/End/Page keys, forward delete and F-keys even when Fn is up. The timestamp
+    ///   match in `TriggerEdges` is what keeps a key-down from after a release off that press.
+    /// - The Globe key is never a chord. (Modifier keys arrive as flagsChanged, never keyDown,
+    ///   so the trigger's own key code needs no check.)
     static func keyDownCountsAsChord(isAutorepeat: Bool, keyCode: Int64, cancelKeyCode: Int64?,
-                                     sourcePID: Int64, ownPID: Int64) -> Bool {
-        guard sourcePID != ownPID else { return false }
+                                     sourcePID: Int64, ownPID: Int64,
+                                     triggerHeldInEvent: Bool) -> Bool {
+        guard sourcePID != ownPID, triggerHeldInEvent, keyCode != globeKeyCode else { return false }
         return !isAutorepeat && keyCode != cancelKeyCode
     }
     
     deinit {
         stop()
+    }
+}
+
+/// The trigger's recent presses and releases by event timestamp, so a key-down can be matched
+/// to the press that was held when it happened, whatever order the two taps deliver in.
+struct TriggerEdges {
+    private(set) var presses: [CGEventTimestamp] = []
+    private(set) var releases: [CGEventTimestamp] = []
+    private static let keep = 8
+
+    mutating func record(isPressed: Bool, at time: CGEventTimestamp) {
+        if isPressed { Self.insert(time, into: &presses) } else { Self.insert(time, into: &releases) }
+    }
+
+    private static func insert(_ time: CGEventTimestamp, into list: inout [CGEventTimestamp]) {
+        guard !list.contains(time) else { return } // both taps report the same event
+        list.append(time)
+        list.sort()
+        if list.count > keep { list.removeFirst(list.count - keep) }
+    }
+
+    /// The press held at `time`: the latest press at or before it with no release between.
+    /// Nil if the trigger was up then (or the press is too old to know).
+    func pressHolding(at time: CGEventTimestamp) -> CGEventTimestamp? {
+        guard let press = presses.last(where: { $0 <= time }) else { return nil }
+        if releases.contains(where: { $0 > press && $0 <= time }) { return nil }
+        return press
     }
 }

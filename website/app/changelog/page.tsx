@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.48",
+    date: "November 12, 2026",
+    changes: [
+      "Fixed Rhino getting stuck after you let go of Fn, which made double-tap Fn feel glitchy and Rhino slow to respond.",
+    ],
+  },
+  {
     version: "0.1.47",
     date: "November 12, 2026",
     changes: [

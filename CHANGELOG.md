@@ -3,6 +3,10 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.48 — 2026-11-12
+
+- Fixed Rhino getting stuck after you let go of Fn, which made double-tap Fn feel glitchy and Rhino slow to respond.
+
 ## 0.1.47 — 2026-11-12
 
 - Rhino learns your spellings. Dictate a name it gets wrong, fix it right there (Apsumo → AppSumo), and Rhino adds the fix to your dictionary, with an Undo. Turn it off in Settings with “Learn from my fixes”.

@@ -78,4 +78,43 @@ final class BubbleRevealGateTests: XCTestCase {
         XCTAssertTrue(gate.awaitingSettle)
         XCTAssertTrue(gate.settled())
     }
+
+    // MARK: - Main-thread stall: a chord still queued in the tap's port
+
+    /// ↑ at 60 ms, main stalled until 400 ms: the window server saw the key-down after the
+    /// press, so the reveal waits for the chord to be delivered instead of flashing first.
+    func testKeyDownSincePressWaitsForChord() {
+        XCTAssertTrue(BubbleRevealGate.shouldAwaitChord(
+            secondsSinceLastKeyDown: 0.34, secondsSincePress: 0.40, catchUpsSoFar: 0))
+    }
+
+    /// Plain Fn hold, the last key typed before the press: reveal on time, no extra wait.
+    func testKeyBeforePressDoesNotDelay() {
+        XCTAssertFalse(BubbleRevealGate.shouldAwaitChord(
+            secondsSinceLastKeyDown: 1.5, secondsSincePress: 0.20, catchUpsSoFar: 0))
+    }
+
+    /// A key-down that never turns into a chord (Esc, autorepeat, Globe) only delays the
+    /// bubble by a few short hops; it can't hold it back.
+    func testCatchUpIsCapped() {
+        let cap = BubbleRevealGate.maxChordCatchUps
+        XCTAssertTrue(BubbleRevealGate.shouldAwaitChord(
+            secondsSinceLastKeyDown: 0.1, secondsSincePress: 0.2, catchUpsSoFar: cap - 1))
+        XCTAssertFalse(BubbleRevealGate.shouldAwaitChord(
+            secondsSinceLastKeyDown: 0.1, secondsSincePress: 0.2, catchUpsSoFar: cap))
+        XCTAssertLessThanOrEqual(Double(cap) * BubbleRevealGate.chordCatchUpDelay, 0.1)
+    }
+
+    /// The press time is backdated by the window server's "last modifier change" age, so a
+    /// late handler still counts keys pressed during its stall; never more than the chord window.
+    func testPhysicalPressTimeBackdatesTheHandler() {
+        let handled = Date(timeIntervalSinceReferenceDate: 1_000)
+        XCTAssertEqual(ShortcutManager.physicalPressTime(
+            handledAt: handled, secondsSinceLastFlagsChange: 0.35), handled.addingTimeInterval(-0.35))
+        XCTAssertEqual(ShortcutManager.physicalPressTime(
+            handledAt: handled, secondsSinceLastFlagsChange: 1e9),
+                       handled.addingTimeInterval(-ShortcutManager.chordCancelWindow))
+        XCTAssertEqual(ShortcutManager.physicalPressTime(
+            handledAt: handled, secondsSinceLastFlagsChange: -1), handled)
+    }
 }

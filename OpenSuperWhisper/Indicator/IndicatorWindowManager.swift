@@ -46,6 +46,25 @@ struct BubbleRevealGate: Equatable {
     mutating func revealed() { self = BubbleRevealGate() }
 
     var isReady: Bool { pending && !awaitingCaret && !awaitingSettle }
+
+    /// How long one extra wait lasts when a key went down during the press but no chord has
+    /// reached Rhino yet, and how many such waits a reveal may take.
+    static let chordCatchUpDelay: TimeInterval = 0.03
+    static let maxChordCatchUps = 3
+
+    /// Whether a reveal that is otherwise due should wait a little longer. The chord tap is
+    /// serviced on main, so after a main-thread stall (take start can block it for hundreds of
+    /// milliseconds) a ↑ pressed 60 ms into the hold can still be sitting in the tap's port
+    /// when the settle timer runs, and revealing first would flash the bubble. The window
+    /// server's own key-down clock doesn't depend on main: if it shows a key down since the
+    /// press, give the tap a few short hops to deliver the chord (whose discard cancels the
+    /// reveal). Capped, because that key may not be a chord at all (Esc, autorepeat, a Globe
+    /// key-down sent with Fn), in which case the bubble is only a little late.
+    static func shouldAwaitChord(secondsSinceLastKeyDown: TimeInterval,
+                                 secondsSincePress: TimeInterval,
+                                 catchUpsSoFar: Int) -> Bool {
+        catchUpsSoFar < maxChordCatchUps && secondsSinceLastKeyDown <= secondsSincePress
+    }
 }
 
 @MainActor
@@ -77,6 +96,10 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     static let caretPresentationDelay: Duration = .milliseconds(100)
     private var presentationTask: Task<Void, Never>?
     private var settleTask: Task<Void, Never>?
+    /// When the trigger press behind the pending reveal went down, and how many short catch-up
+    /// waits that reveal has taken (see `BubbleRevealGate.shouldAwaitChord`).
+    private var settlePressedAt: Date?
+    private var chordCatchUps = 0
     private var reveal = BubbleRevealGate()
     private var preparePresentation: (() -> Void)?
 
@@ -92,17 +115,22 @@ class IndicatorWindowManager: IndicatorViewDelegate {
 
     private init() {}
     
-    /// `chordSettle`: hold the bubble hidden this long (see `BubbleRevealGate`); `settleChord`
-    /// reveals it sooner, and `stopRecording`/`hide`/a new `show` cancel it.
+    /// `chordSettle`: hold the bubble hidden this long after `pressedAt` (see
+    /// `BubbleRevealGate`); `settleChord` reveals it sooner, and `hide`/a new `show` cancel it.
     func show(nearPoint point: NSPoint? = nil,
               initialState: RecordingState = .recording,
               waitForCaret: Bool = false,
-              chordSettle: TimeInterval = 0) -> IndicatorViewModel {
+              chordSettle: TimeInterval = 0,
+              pressedAt: Date = Date()) -> IndicatorViewModel {
         ShareRhino.shared.dismissForRecording()
 
         cancelPendingReveal()
         preparePresentation = nil
-        window?.orderOut(nil)
+        // While the new bubble settles hidden, a bubble already on screen (the previous take
+        // decoding, a notice) stays up where it is until the reveal swaps the content in, rather
+        // than blinking off for the settle. A chord or a hide takes it down as usual.
+        let keepPreviousUp = chordSettle > 0 && window?.isVisible == true
+        if !keepPreviousUp { window?.orderOut(nil) }
 
         KeyboardShortcuts.enable(.escape)
 
@@ -187,7 +215,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
                 }
             }
 
-            reposition(window: window, screen: screen)
+            // A kept-up previous bubble stays put; the reveal's resize repositions.
+            if !keepPreviousUp { reposition(window: window, screen: screen) }
 
             // Keep the bottom edge anchored as the content (and window) grows upward.
             if resizeObserver == nil {
@@ -247,6 +276,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
             }
         }
         if chordSettle > 0 {
+            settlePressedAt = pressedAt
             settleTask = Task { [weak self, weak newViewModel] in
                 try? await Task.sleep(for: .seconds(chordSettle))
                 guard !Task.isCancelled, let self, let newViewModel else { return }
@@ -262,6 +292,22 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         guard viewModel === recording, reveal.awaitingSettle else { return }
         settleTask?.cancel()
         settleTask = nil
+        if let pressedAt = settlePressedAt,
+           BubbleRevealGate.shouldAwaitChord(
+               secondsSinceLastKeyDown: CGEventSource.secondsSinceLastEventType(
+                   .hidSystemState, eventType: .keyDown),
+               secondsSincePress: Date().timeIntervalSince(pressedAt),
+               catchUpsSoFar: chordCatchUps) {
+            chordCatchUps += 1
+            Diag.mark("indicator reveal waits for a possible chord (\(chordCatchUps))")
+            settleTask = Task { [weak self, weak recording] in
+                try? await Task.sleep(for: .seconds(BubbleRevealGate.chordCatchUpDelay))
+                guard !Task.isCancelled, let self, let recording else { return }
+                self.settleChord(for: recording)
+            }
+            return
+        }
+        settlePressedAt = nil
         if reveal.settled() { present() }
     }
 
@@ -270,6 +316,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         presentationTask = nil
         settleTask?.cancel()
         settleTask = nil
+        settlePressedAt = nil
+        chordCatchUps = 0
         if reveal.cancel() { Diag.mark("indicator reveal cancelled (never shown)") }
     }
 

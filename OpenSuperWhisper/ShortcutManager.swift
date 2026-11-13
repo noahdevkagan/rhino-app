@@ -113,6 +113,12 @@ class ShortcutManager {
         triggerCanChord ? chordSettleDelay : 0
     }
 
+    /// The trigger press's real time: `handledAt` minus how long ago the last modifier change
+    /// happened, never more than `chordCancelWindow` back (an older change can't be this press).
+    static func physicalPressTime(handledAt: Date, secondsSinceLastFlagsChange: TimeInterval) -> Date {
+        handledAt.addingTimeInterval(-min(max(secondsSinceLastFlagsChange, 0), chordCancelWindow))
+    }
+
     static func keyIsChord(sincePress elapsed: TimeInterval) -> Bool {
         elapsed < chordCancelWindow
     }
@@ -291,6 +297,13 @@ class ShortcutManager {
         // gesture, and a deferred stop can't fire between this press and its handling.
         let now = Date()
         let press = chords.pressBegan(at: now)
+        // When the modifier actually went down, by the window server's clock: after a
+        // main-thread stall this handler runs late, and the bubble's chord check must count a
+        // key pressed in between (see `BubbleRevealGate.shouldAwaitChord`).
+        let physicalPressAt = canChord
+            ? Self.physicalPressTime(handledAt: now, secondsSinceLastFlagsChange:
+                CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: .flagsChanged))
+            : now
         let awaitingSecondTap = pendingHoldStop != nil
         pendingHoldStop?.cancel()
         pendingHoldStop = nil
@@ -320,7 +333,8 @@ class ShortcutManager {
                 let vm = Diag.measure("IndicatorWindowManager.show") {
                     IndicatorWindowManager.shared.show(
                         nearPoint: cursorPosition, waitForCaret: needsCaret,
-                        chordSettle: Self.bubbleSettle(triggerCanChord: canChord))
+                        chordSettle: Self.bubbleSettle(triggerCanChord: canChord),
+                        pressedAt: physicalPressAt)
                 }
                 Diag.measure("vm.startRecording") { vm.startRecording() }
                 self.activeVm = vm

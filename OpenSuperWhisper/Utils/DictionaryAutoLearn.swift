@@ -121,6 +121,8 @@ final class DictionaryAutoLearn {
         switch read {
         case .gone(let reason):
             return stop(reason: reason.rawValue + (baselineTaken ? "" : " (at baseline)"))
+        case .retry:
+            return note("character count didn't answer; retrying next poll")
         case .text(let e, let t, let s, let r):
             (focused, text, start, role) = (e, t, s, r)
         }
@@ -196,7 +198,7 @@ final class DictionaryAutoLearn {
         // Open dictionary editors hold their own copy; without this they'd write it back over us.
         NotificationCenter.default.post(name: .customDictionaryDidChange, object: nil)
         print("Dictionary: learned a correction from the user's edit")
-        Self.log.notice("autolearn: learned \(correction.heard, privacy: .public) → \(correction.correct, privacy: .public)")
+        Self.log.notice("autolearn: learned \(correction.heard, privacy: .private) → \(correction.correct, privacy: .private) (\(correction.heard.count, privacy: .public) → \(correction.correct.count, privacy: .public) chars)")
         IndicatorWindowManager.shared.flashLearned(correction.correct) {
             // Undo only what this added; leave any later dictionary edits alone.
             guard AppPreferences.shared.customDictionaryEntries == updated else { return }
@@ -221,12 +223,16 @@ final class DictionaryAutoLearn {
         /// The text read and the offset it starts at in the field (0 for the whole field).
         case text(AXUIElement, String, start: Int, role: String)
         case gone(SkipReason)
+        /// Nothing read this poll; try again next poll.
+        case retry
     }
 
     /// How a poll reads the field.
     enum ReadPlan: Equatable {
         /// Copy the whole value (`kAXValueAttribute`).
         case whole
+        /// Read nothing this poll and try again next poll (a windowed field's length didn't answer).
+        case wait
         /// Read `location..<location+length` with `kAXStringForRangeParameterizedAttribute`.
         case range(location: Int, length: Int)
         case skip(SkipReason)
@@ -248,7 +254,7 @@ final class DictionaryAutoLearn {
             if let count, count > limit { return .skip(.tooBig) }
             return .whole
         case let start?:
-            guard let count else { return .skip(.unreadable) }
+            guard let count else { return .wait }
             guard count >= start else { return .skip(.shrank) }
             guard count - start <= maxSpan else { return .skip(.outputGrew) }
             return .range(location: start, length: count - start)
@@ -295,6 +301,8 @@ final class DictionaryAutoLearn {
         switch readPlan(count: count, windowStart: windowStart) {
         case .skip(let reason):
             return .gone(reason)
+        case .wait:
+            return .retry
         case .range(let location, let length):
             var range = CFRange(location: location, length: length)
             guard let rangeValue = AXValueCreate(.cfRange, &range) else { return .gone(.unreadable) }

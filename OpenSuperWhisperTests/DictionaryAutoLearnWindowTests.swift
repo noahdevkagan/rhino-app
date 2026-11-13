@@ -20,7 +20,7 @@ final class DictionaryAutoLearnWindowTests: XCTestCase {
         case .whole: return (field, 0)
         case .range(let location, let length):
             return (ns.substring(with: NSRange(location: location, length: length)), location)
-        case .skip: return nil
+        case .skip, .wait: return nil
         }
     }
 
@@ -67,7 +67,7 @@ final class DictionaryAutoLearnWindowTests: XCTestCase {
         XCTAssertEqual(DictionaryAutoLearn.readPlan(count: 99, windowStart: 100), .skip(.shrank))
         XCTAssertEqual(DictionaryAutoLearn.readPlan(count: 100 + DictionaryAutoLearn.maxWindowSpan + 1,
                                                     windowStart: 100), .skip(.outputGrew))
-        XCTAssertEqual(DictionaryAutoLearn.readPlan(count: nil, windowStart: 100), .skip(.unreadable))
+        XCTAssertEqual(DictionaryAutoLearn.readPlan(count: nil, windowStart: 100), .wait)
     }
 
     // MARK: - stretch
@@ -149,5 +149,12 @@ final class DictionaryAutoLearnWindowTests: XCTestCase {
         XCTAssertEqual(verdict("I ran home", "I run home"), .reject(.realToReal))
         XCTAssertEqual(verdict("it may be fine", "it maybe fine"), .reject(.joinNotAllowed))
         XCTAssertEqual(verdict("buy Widget now", "buy Widgets now"), .reject(.pluralOrPossessive))
+    }
+
+    func testTerminalCtrlCEchoIsNotACorrection() {
+        // bash echoes Ctrl-C as "^C" right after the last word of the line.
+        XCTAssertEqual(verdict("ask Apsumo", "ask Apsumo^C"), .reject(.oddCharacters))
+        XCTAssertNil(DictionaryLearner.correction(inserted: ["Apsumo"], edited: ["Apsumo^C"], trailingOpen: true))
+        XCTAssertEqual(verdict("ask Apsumo", "ask App-Sumo"), .learn(.init(heard: "Apsumo", correct: "App-Sumo")))
     }
 }

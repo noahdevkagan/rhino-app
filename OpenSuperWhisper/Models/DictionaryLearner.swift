@@ -33,6 +33,7 @@ enum DictionaryLearner {
         case unchanged = "no word changed"
         case rewrite = "not a one-word swap or two-word join (rewrite)"
         case tooShort = "new word too short"
+        case oddCharacters = "new word has characters that aren't letters, digits, ' - or ."
         case pluralOrPossessive = "plural or possessive only"
         case tooDifferent = "spellings too far apart"
         case realToNonWord = "real word changed into a non-word"
@@ -105,6 +106,9 @@ enum DictionaryLearner {
         if heard.isEmpty, typed.isEmpty { return .reject(.unchanged) }
         guard typed.count == 1, var correct = typed.first else { return .reject(.rewrite) }
         guard correct.count >= minimumLength else { return .reject(.tooShort) }
+        // Only word characters: a terminal echoes Ctrl-C as "^C" right after the last word
+        // ("Apsumo^C"), which is close in spelling but not a correction.
+        guard correct.allSatisfy(isWordCharacter) else { return .reject(.oddCharacters) }
         let startsSentence = head == 0
             ? atSentenceStart
             : raw[head - 1].last.map { ".!?".contains($0) } ?? false
@@ -174,6 +178,10 @@ enum DictionaryLearner {
         "don't", "dont", "won't", "wont", "here", "hear", "know", "no", "now", "new", "knew",
         "who's", "whose", "lose", "loose", "accept", "except", "affect", "effect",
     ]
+
+    private static func isWordCharacter(_ c: Character) -> Bool {
+        c.isLetter || c.isNumber || "'’-.".contains(c)
+    }
 
     private static func isPluralOrPossessive(_ word: String, of base: String) -> Bool {
         ["s", "es", "'s"].contains { word == base + $0 }

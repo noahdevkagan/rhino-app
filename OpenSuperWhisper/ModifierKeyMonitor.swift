@@ -200,8 +200,12 @@ class ModifierKeyMonitor {
             callback: { (_, type, event, refcon) -> Unmanaged<CGEvent>? in
                 guard let refcon else { return Unmanaged.passUnretained(event) }
                 let monitor = Unmanaged<ModifierKeyMonitor>.fromOpaque(refcon).takeUnretainedValue()
-                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                    monitor.setKeyTap(enabled: monitor.pressedKey != nil)
+                // Our own tapEnable(false) on every trigger release is delivered back here as
+                // tapDisabledByUserInput. Answering it with another disable re-sent it forever and
+                // pinned the main thread (Rhino froze after a few Fn presses). Only a timeout
+                // needs handling, and only while a trigger is held.
+                if type == .tapDisabledByTimeout {
+                    if monitor.pressedKey != nil { monitor.setKeyTap(enabled: true) }
                 } else if type == .keyDown {
                     monitor.handleKeyDown(event: event)
                 }

@@ -78,8 +78,9 @@ enum CustomDictionary {
     ///
     /// Matching is case-insensitive and constrained to word boundaries so that
     /// substrings inside larger words are left untouched (e.g. a rule for "cat"
-    /// will not touch "category"). The replacement string is inserted verbatim,
-    /// preserving the casing the user typed.
+    /// will not touch "category"). The replacement keeps the casing the user typed,
+    /// except that an all-lowercase one is capitalized where it starts a sentence
+    /// (`fittingCase`).
     static func apply(_ text: String, entries: [CustomDictionaryEntry]) -> String {
         guard !text.isEmpty, !entries.isEmpty else { return text }
 
@@ -115,12 +116,44 @@ enum CustomDictionary {
                 let range = NSRange(result.startIndex..., in: result)
                 // Use the trimmed replacement (consistent with promptBoost) so a stray leading/
                 // trailing space in the rule doesn't produce double spaces in the output.
-                let template = NSRegularExpression.escapedTemplate(for: replacement)
-                result = regex.stringByReplacingMatches(in: result, options: [], range: range,
-                                                        withTemplate: template)
+                // Last match first, so earlier ranges stay valid while replacing.
+                for match in regex.matches(in: result, options: [], range: range).reversed() {
+                    guard let matched = Range(match.range, in: result) else { continue }
+                    result.replaceSubrange(matched, with: fittingCase(replacement, at: matched, in: result))
+                }
             }
         }
         return result
+    }
+
+    /// The replacement to write over `range` of `text`.
+    ///
+    /// A replacement with a capital is written exactly as the user typed it ("AppSumo"). An
+    /// all-lowercase one ("kubernetes", "chatter", most auto-learned fixes) would otherwise
+    /// lowercase the first word of a sentence, so when the text it replaces starts a sentence
+    /// and was capitalized there, its first letter is capitalized too. Mid-sentence it stays
+    /// lowercase even if the recognizer capitalized it, since lowercasing may be the point.
+    static func fittingCase(_ replacement: String, at range: Range<String.Index>,
+                            in text: String) -> String {
+        guard !replacement.contains(where: \.isUppercase),
+              let firstLetter = text[range].first(where: \.isLetter), firstLetter.isUppercase,
+              startsSentence(at: range.lowerBound, in: text),
+              let index = replacement.firstIndex(where: \.isLetter) else { return replacement }
+        return replacement.replacingCharacters(in: index...index, with: replacement[index].uppercased())
+    }
+
+    /// Whether `position` begins a sentence: only spaces, opening quotes or brackets between it
+    /// and the start of the text, a line break, or a `.`, `!` or `?`.
+    static func startsSentence(at position: String.Index, in text: String) -> Bool {
+        var index = position
+        while index > text.startIndex {
+            index = text.index(before: index)
+            let character = text[index]
+            if character.isNewline || ".!?".contains(character) { return true }
+            if character.isWhitespace || "\"'“‘([{".contains(character) { continue }
+            return false
+        }
+        return true
     }
 
     /// Everything the dictionary does to finished text: the user's exact phrasings, then the

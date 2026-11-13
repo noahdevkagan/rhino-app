@@ -3,7 +3,8 @@ import ApplicationServices
 import Foundation
 
 /// Watches the field a dictation just went into, and when the user retypes a word Rhino got
-/// wrong (Apsumo → AppSumo), adds a dictionary rule for it with an Undo notice.
+/// wrong (Apsumo → AppSumo, kubernets → kubernetes), adds a dictionary rule for it with an Undo
+/// notice. `DictionaryLearner` decides which edits are corrections.
 ///
 /// After a paste it reads the focused text field through Accessibility every `pollInterval`
 /// for `watchDuration`, the way `FocusUtils.caretContext` already reads around the caret. The

@@ -105,7 +105,8 @@ enum SoundAlike {
 
         var result = text
         for edit in edits.reversed() {
-            result.replaceSubrange(edit.range, with: edit.term)
+            result.replaceSubrange(edit.range, with: CustomDictionary.fittingCase(
+                edit.term, at: edit.range, in: result))
         }
         return result
     }

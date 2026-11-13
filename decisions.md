@@ -2552,3 +2552,11 @@ Command Mode (#122) replaces selected text with the model's rewrite. If that sel
 dictation auto-learn is still watching, the rewrite would look like the user's edit and a word the
 model changed could become a dictionary rule. Starting a command take stops the watcher; only
 edits the user types count as evidence.
+
+## 2026-11-13 — Auto-learn learns any word the user corrects, not just names
+
+Noah: "can it just update anything you correct, not just capitalized words." `DictionaryLearner` no longer needs a capital in the new word, nor a non-word from Rhino. Lowercase fixes (kubernets → kubernetes) and real-word mishearings (shatter → chatter) are learned with the same rule + "Learned" notice + Undo. Joins into ordinary words ("any way" → "anyway") are learned too, for the same reason: the user made that fix, and Undo is one click.
+
+What still separates a correction from a rewrite: one-for-one or two-words-joined only, close spelling, at least 3 letters, plurals/possessives ignored, sentence-position capitals ignored, 3 stable polls. One new guard replaces the dropped real-word one: when both words are real words they must sound alike (same `SoundAlike.skeleton`), so "fast" → "last" (a different word, not a mishearing) isn't learned, and the heard word must not be a short grammar word (`neverRewritten`: the/they, their/there, your/you're, then/than...). Those are always right in some sentences and wrong in others, and a global rule rewriting every "the" would wreck every dictation.
+
+Casing: a learned rule stores a real word in lowercase even if the user fixed it at a sentence start ("Shatter" → "Chatter" teaches shatter → chatter). `CustomDictionary.fittingCase` (used by exact rules and sound-alikes) capitalizes an all-lowercase replacement where the replaced text starts a sentence and was capitalized; mid-sentence it writes lowercase, and replacements with any capital are still written verbatim. Matching was already whole-word. Known gap: a non-word fixed at a sentence start ("Kubernets" → "Kubernetes") keeps its capital, since nothing says whether it's a name.

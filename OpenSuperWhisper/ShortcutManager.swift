@@ -100,10 +100,24 @@ class ShortcutManager {
     /// recording (a long take is never wiped without the Esc confirmation).
     static let chordCancelWindow: TimeInterval = 1.0
 
-    /// How long a new take's audible and visible side effects (start chime, media pause,
-    /// paywall) wait, so a chord landing in that time never triggers them. The mic and bubble
-    /// themselves start at once.
-    static let chordSettleDelay: TimeInterval = 0.15
+    /// How long a new take's audible and visible side effects (bubble, start chime, media
+    /// pause, paywall) wait, so a chord landing in that time never shows or plays them. The mic
+    /// itself starts at once, so no audio is lost. Real Fn+↑ chords in Noah's logs landed
+    /// 20–120 ms after the press; 200 ms covers them with margin and stays under the ~250 ms
+    /// where a late bubble starts to read as lag (see decisions.md 2026-11-13).
+    static let chordSettleDelay: TimeInterval = 0.2
+
+    /// How long the bubble stays hidden after a trigger press. Only a modifier trigger can be
+    /// the start of a chord (Fn+↑); a key-combination trigger or Command Mode shows at once.
+    static func bubbleSettle(triggerCanChord: Bool) -> TimeInterval {
+        triggerCanChord ? chordSettleDelay : 0
+    }
+
+    /// The trigger press's real time: `handledAt` minus how long ago the last modifier change
+    /// happened, never more than `chordCancelWindow` back (an older change can't be this press).
+    static func physicalPressTime(handledAt: Date, secondsSinceLastFlagsChange: TimeInterval) -> Date {
+        handledAt.addingTimeInterval(-min(max(secondsSinceLastFlagsChange, 0), chordCancelWindow))
+    }
 
     static func keyIsChord(sincePress elapsed: TimeInterval) -> Bool {
         elapsed < chordCancelWindow
@@ -196,7 +210,7 @@ class ShortcutManager {
         // One pair of handlers per slot, registered once for the process lifetime.
         for index in 0..<KeyboardShortcuts.Name.recordTriggerSlotLimit {
             let slot = KeyboardShortcuts.Name.recordTriggerSlot(index)
-            KeyboardShortcuts.onKeyDown(for: slot) { [weak self] in self?.handleKeyDown() }
+            KeyboardShortcuts.onKeyDown(for: slot) { [weak self] in self?.handleKeyDown(canChord: false) }
             KeyboardShortcuts.onKeyUp(for: slot) { [weak self] in self?.handleKeyUp() }
         }
 
@@ -225,7 +239,7 @@ class ShortcutManager {
         ModifierKeyMonitor.shared.stop()
         let modifiers = set.modifiers
         if !modifiers.isEmpty {
-            ModifierKeyMonitor.shared.onKeyDown = { [weak self] _ in self?.handleKeyDown() }
+            ModifierKeyMonitor.shared.onKeyDown = { [weak self] _ in self?.handleKeyDown(canChord: true) }
             ModifierKeyMonitor.shared.onKeyUp = { [weak self] _ in self?.handleKeyUp() }
             ModifierKeyMonitor.shared.onChord = { [weak self] in self?.handleChord() }
             ModifierKeyMonitor.shared.start(modifierKeys: modifiers)
@@ -269,7 +283,9 @@ class ShortcutManager {
         }
     }
 
-    private func handleKeyDown() {
+    /// `canChord`: a modifier trigger, which a following key can turn into a shortcut (Fn+↑);
+    /// its bubble waits out `chordSettleDelay` hidden while the mic already records.
+    private func handleKeyDown(canChord: Bool) {
         // A Command Mode take owns the bubble until it ends (Esc still cancels it).
         guard !commandGesture.isBusy else { return }
         holdWorkItem?.cancel()
@@ -281,6 +297,13 @@ class ShortcutManager {
         // gesture, and a deferred stop can't fire between this press and its handling.
         let now = Date()
         let press = chords.pressBegan(at: now)
+        // When the modifier actually went down, by the window server's clock: after a
+        // main-thread stall this handler runs late, and the bubble's chord check must count a
+        // key pressed in between (see `BubbleRevealGate.shouldAwaitChord`).
+        let physicalPressAt = canChord
+            ? Self.physicalPressTime(handledAt: now, secondsSinceLastFlagsChange:
+                CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: .flagsChanged))
+            : now
         let awaitingSecondTap = pendingHoldStop != nil
         pendingHoldStop?.cancel()
         pendingHoldStop = nil
@@ -308,7 +331,10 @@ class ShortcutManager {
                 // Optional title metadata stays on RecordingContext's worker queue.
                 RecordingContext.shared.captureFrontmost()
                 let vm = Diag.measure("IndicatorWindowManager.show") {
-                    IndicatorWindowManager.shared.show(nearPoint: cursorPosition, waitForCaret: needsCaret)
+                    IndicatorWindowManager.shared.show(
+                        nearPoint: cursorPosition, waitForCaret: needsCaret,
+                        chordSettle: Self.bubbleSettle(triggerCanChord: canChord),
+                        pressedAt: physicalPressAt)
                 }
                 Diag.measure("vm.startRecording") { vm.startRecording() }
                 self.activeVm = vm
@@ -373,12 +399,18 @@ class ShortcutManager {
         holdWorkItem = nil
         // A chorded press's release is not a tap: no stop, no lock, no deferred stop.
         if chords.isChorded(chords.press) { return }
+        let press = chords.press
 
         let holdToRecordEnabled = AppPreferences.shared.holdToRecord
         let doubleTapLock = AppPreferences.shared.doubleTapLock
         let now = Date()
 
         Task { @MainActor in
+            // No chord can land after the release, so a quick tap's bubble needn't wait out
+            // the rest of the settle.
+            if let vm = self.activeVm, self.chords.startedTake(press) {
+                IndicatorWindowManager.shared.settleChord(for: vm)
+            }
             // Locked on (hands-free): releases never stop the recording; only a press does.
             if self.lockedOn { return }
             guard holdToRecordEnabled && self.holdMode else { return }

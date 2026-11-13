@@ -143,17 +143,35 @@ enum CustomDictionary {
     }
 
     /// Whether `position` begins a sentence: only spaces, opening quotes or brackets between it
-    /// and the start of the text, a line break, or a `.`, `!` or `?`.
+    /// and the start of the text, a line break, or a `.`, `!` or `?` followed by a space. "2.Slak"
+    /// and "e.g. Slak" are not sentence starts.
     static func startsSentence(at position: String.Index, in text: String) -> Bool {
         var index = position
+        var sawSpace = false
         while index > text.startIndex {
             index = text.index(before: index)
             let character = text[index]
-            if character.isNewline || ".!?".contains(character) { return true }
-            if character.isWhitespace || "\"'“‘([{".contains(character) { continue }
+            if character.isNewline { return true }
+            if ".!?".contains(character) {
+                guard sawSpace else { return false }
+                if character == "." { return !endsWithAbbreviation(text[..<text.index(after: index)]) }
+                return true
+            }
+            if character.isWhitespace {
+                sawSpace = true
+                continue
+            }
+            if "\"'“‘([{".contains(character) { continue }
             return false
         }
         return true
+    }
+
+    private static let abbreviations: Set<String> = ["e.g.", "i.e.", "vs.", "cf.", "eg.", "ie."]
+
+    private static func endsWithAbbreviation(_ text: Substring) -> Bool {
+        let token = text.split(whereSeparator: { $0.isWhitespace }).last.map { $0.lowercased() } ?? ""
+        return abbreviations.contains(token.trimmingCharacters(in: CharacterSet(charactersIn: "\"'“‘([{")))
     }
 
     /// Everything the dictionary does to finished text: the user's exact phrasings, then the

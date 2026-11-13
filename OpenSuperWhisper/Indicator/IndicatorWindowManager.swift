@@ -3,6 +3,51 @@ import Combine
 import KeyboardShortcuts
 import SwiftUI
 
+/// What still holds a new bubble back from appearing. The bubble is laid out hidden and
+/// revealed once nothing is pending: the caret lookup (cursor placement), and the chord settle
+/// (a modifier trigger such as Fn, where a key landing soon after the press — Fn+↑ is Page Up —
+/// means a shortcut, not dictation, and the take is discarded). Waits overlap; they don't add.
+/// The mic never waits on either.
+struct BubbleRevealGate: Equatable {
+    private(set) var pending = false
+    private(set) var awaitingCaret = false
+    private(set) var awaitingSettle = false
+
+    /// A new bubble. Returns whether it can be revealed right away.
+    mutating func begin(waitForCaret: Bool, settle: Bool) -> Bool {
+        pending = true
+        awaitingCaret = waitForCaret
+        awaitingSettle = settle
+        return isReady
+    }
+
+    /// The caret lookup finished, or timed out. Returns whether to reveal now.
+    mutating func caretResolved() -> Bool {
+        awaitingCaret = false
+        return isReady
+    }
+
+    /// The chord window passed with no chord, or the trigger was released (no chord can land
+    /// after a release). Returns whether to reveal now.
+    mutating func settled() -> Bool {
+        awaitingSettle = false
+        return isReady
+    }
+
+    /// The take ended (discard, stop, Esc) or a new bubble replaced it: never reveal this one.
+    /// Returns whether a reveal was still pending.
+    @discardableResult
+    mutating func cancel() -> Bool {
+        defer { self = BubbleRevealGate() }
+        return pending
+    }
+
+    /// The bubble was revealed.
+    mutating func revealed() { self = BubbleRevealGate() }
+
+    var isReady: Bool { pending && !awaitingCaret && !awaitingSettle }
+}
+
 @MainActor
 class IndicatorWindowManager: IndicatorViewDelegate {
     static let shared = IndicatorWindowManager()
@@ -31,8 +76,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     // bubble is visible, a late AX reply must not teleport it away from the mouse.
     static let caretPresentationDelay: Duration = .milliseconds(100)
     private var presentationTask: Task<Void, Never>?
-    private var presentationPending = false
-    private var awaitingCaret = false
+    private var settleTask: Task<Void, Never>?
+    private var reveal = BubbleRevealGate()
     private var preparePresentation: (() -> Void)?
 
     /// In the `.decoding` state the bubble's only exit is the pipeline draining — and
@@ -47,16 +92,16 @@ class IndicatorWindowManager: IndicatorViewDelegate {
 
     private init() {}
     
+    /// `chordSettle`: hold the bubble hidden this long (see `BubbleRevealGate`); `settleChord`
+    /// reveals it sooner, and `stopRecording`/`hide`/a new `show` cancel it.
     func show(nearPoint point: NSPoint? = nil,
               initialState: RecordingState = .recording,
-              waitForCaret: Bool = false) -> IndicatorViewModel {
+              waitForCaret: Bool = false,
+              chordSettle: TimeInterval = 0) -> IndicatorViewModel {
         ShareRhino.shared.dismissForRecording()
 
-        presentationTask?.cancel()
-        presentationTask = nil
-        presentationPending = false
+        cancelPendingReveal()
         preparePresentation = nil
-        awaitingCaret = waitForCaret
         window?.orderOut(nil)
 
         KeyboardShortcuts.enable(.escape)
@@ -190,24 +235,49 @@ class IndicatorWindowManager: IndicatorViewDelegate {
             self.resizeToContent(hostingController.sizeThatFits(in: NSSize(width: 380, height: 120)))
             hostingController.view.layoutSubtreeIfNeeded()
         }
-        presentationPending = true
-        presentIfReady()
-        if awaitingCaret {
+        if reveal.begin(waitForCaret: waitForCaret, settle: chordSettle > 0) {
+            present()
+        }
+        if waitForCaret {
             presentationTask = Task { [weak self, weak newViewModel] in
                 try? await Task.sleep(for: Self.caretPresentationDelay)
                 guard !Task.isCancelled, let self, let newViewModel,
                       self.viewModel === newViewModel else { return }
-                self.awaitingCaret = false
-                self.presentIfReady()
+                if self.reveal.caretResolved() { self.present() }
+            }
+        }
+        if chordSettle > 0 {
+            settleTask = Task { [weak self, weak newViewModel] in
+                try? await Task.sleep(for: .seconds(chordSettle))
+                guard !Task.isCancelled, let self, let newViewModel else { return }
+                self.settleChord(for: newViewModel)
             }
         }
         return newViewModel
     }
 
-    private func presentIfReady() {
-        guard presentationPending, !awaitingCaret,
-              let window, let viewModel else { return }
-        presentationPending = false
+    /// The chord window is over for this take's bubble (it elapsed, or the trigger came up):
+    /// reveal it if nothing else is pending. A no-op for any other or already-revealed bubble.
+    func settleChord(for recording: IndicatorViewModel) {
+        guard viewModel === recording, reveal.awaitingSettle else { return }
+        settleTask?.cancel()
+        settleTask = nil
+        if reveal.settled() { present() }
+    }
+
+    private func cancelPendingReveal() {
+        presentationTask?.cancel()
+        presentationTask = nil
+        settleTask?.cancel()
+        settleTask = nil
+        if reveal.cancel() { Diag.mark("indicator reveal cancelled (never shown)") }
+    }
+
+    private func present() {
+        guard reveal.isReady, let window, let viewModel else { return }
+        reveal.revealed()
+        settleTask?.cancel()
+        settleTask = nil
         preparePresentation?()
         preparePresentation = nil
         // Fn is normally pressed while another app owns the key window. The
@@ -238,7 +308,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     /// A delayed AX reply must never move a visible, replacement or stopped bubble.
     func updateCaretAnchor(_ caret: CGRect?, for recording: IndicatorViewModel) {
         guard viewModel === recording,
-              presentationPending, awaitingCaret,
+              reveal.pending, reveal.awaitingCaret,
               recording.state == .recording || recording.state == .connecting,
               let window else { return }
         let screens = NSScreen.screens
@@ -254,8 +324,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         }
         presentationTask?.cancel()
         presentationTask = nil
-        awaitingCaret = false
-        presentIfReady()
+        if reveal.caretResolved() { present() }
     }
 
     private func reposition(window: NSWindow, screen: NSScreen) {
@@ -362,10 +431,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     }
 
     func hide() {
-        presentationTask?.cancel()
-        presentationTask = nil
-        presentationPending = false
-        awaitingCaret = false
+        cancelPendingReveal()
         preparePresentation = nil
         KeyboardShortcuts.disable(.escape)
         drainObserver?.cancel()
@@ -409,6 +475,17 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         }
 
         viewModel?.state = .decoding
+        // A take ended before its bubble was revealed (a chord during the settle, or a quick
+        // stop): the previous take's decoding bubble was on screen until this take's show()
+        // took it down, so put it back now rather than after the settle or caret wait.
+        if reveal.pending {
+            presentationTask?.cancel()
+            presentationTask = nil
+            settleTask?.cancel()
+            settleTask = nil
+            _ = reveal.caretResolved()
+            if reveal.settled() { present() }
+        }
         watchPipelineDrain()
         armDecodeWatchdog()
     }

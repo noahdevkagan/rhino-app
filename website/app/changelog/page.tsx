@@ -9,6 +9,14 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.49",
+    date: "November 13, 2026",
+    changes: [
+      "Fixed dictation sometimes flashing on and off without typing anything when you press Fn.",
+      "Rhino now learns any word you fix, not just names. Correct a misspelling like kubernets → kubernetes and it goes in your dictionary, with an Undo.",
+    ],
+  },
+  {
     version: "0.1.48",
     date: "November 12, 2026",
     changes: [

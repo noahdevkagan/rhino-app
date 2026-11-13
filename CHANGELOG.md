@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.49 — 2026-11-13
+
+- Fixed dictation sometimes flashing on and off without typing anything when you press Fn.
+- Rhino now learns any word you fix, not just names. Correct a misspelling like kubernets → kubernetes and it goes in your dictionary, with an Undo.
+
 ## 0.1.48 — 2026-11-12
 
 - Fixed Rhino getting stuck after you let go of Fn, which made double-tap Fn feel glitchy and Rhino slow to respond.

@@ -1,3 +1,4 @@
+import CoreGraphics
 import XCTest
 
 @testable import OpenSuperWhisper
@@ -112,11 +113,10 @@ final class TriggerChordTests: XCTestCase {
 
     private func counts(key: Int64 = 126, autorepeat: Bool = false,
                         cancelKey: Int64? = 53, pid: Int64 = 99,
-                        triggerHeld: Bool = true, afterPress: Bool = true) -> Bool {
+                        triggerHeld: Bool = true) -> Bool {
         ModifierKeyMonitor.keyDownCountsAsChord(
             isAutorepeat: autorepeat, keyCode: key, cancelKeyCode: cancelKey,
-            sourcePID: pid, ownPID: me, triggerKeyCode: 63,
-            triggerHeldInEvent: triggerHeld, afterPress: afterPress)
+            sourcePID: pid, ownPID: me, triggerHeldInEvent: triggerHeld)
     }
 
     func testTypedKeyCounts() {
@@ -141,19 +141,81 @@ final class TriggerChordTests: XCTestCase {
         XCTAssertTrue(counts(key: escape, cancelKey: nil))
     }
 
-    /// 0.1.48 glitch: a key-down handled late, after a main-thread stall, but typed while Fn
-    /// was up (between two quick taps) discarded the take. It must carry the trigger flag.
     func testKeyDownWithTriggerUpDoesntCount() {
         XCTAssertFalse(counts(triggerHeld: false))
     }
 
-    func testKeyDownFromBeforeThePressDoesntCount() {
-        XCTAssertFalse(counts(afterPress: false))
+    /// The Globe key's own keyDown is part of pressing Fn, not a chord.
+    func testGlobeKeyDoesntCount() {
+        XCTAssertFalse(counts(key: ModifierKeyMonitor.globeKeyCode))
     }
 
-    /// The Fn/Globe key's own events are part of pressing the trigger, not a chord.
-    func testTriggerAndGlobeKeysDontCount() {
-        XCTAssertFalse(counts(key: 63))
-        XCTAssertFalse(counts(key: ModifierKeyMonitor.globeKeyCode))
+    // MARK: - Matching key-downs to presses by timestamp (0.1.48 glitch)
+
+    /// Two quick Fn taps: A down 100, up 200, B down 300, key at 350 (a Fn-flagged arrow or a
+    /// phantom key from tap B). Delivered late after a stall, it must belong to B, not A.
+    func testKeyAfterReleaseBelongsToNextPress() {
+        var edges = TriggerEdges()
+        edges.record(isPressed: true, at: 100)
+        edges.record(isPressed: false, at: 200)
+        edges.record(isPressed: true, at: 300)
+        XCTAssertEqual(edges.pressHolding(at: 350), 300)
+        XCTAssertEqual(edges.pressHolding(at: 150), 100)
+        XCTAssertNil(edges.pressHolding(at: 250), "trigger was up")
+        XCTAssertNil(edges.pressHolding(at: 50), "before any press")
+    }
+
+    /// The key tap sees A's release before a later key-down (one port, FIFO), even when the
+    /// flags tap hasn't handled it yet: only A's press is known there, the release came via
+    /// the key tap.
+    func testReleaseSeenBeforeKeyDownMeansNoChordOnThatPress() {
+        var edges = TriggerEdges()
+        edges.record(isPressed: true, at: 100)   // flags tap: A down
+        edges.record(isPressed: false, at: 200)  // key tap: A up
+        XCTAssertNil(edges.pressHolding(at: 220))
+        edges.record(isPressed: true, at: 300)   // key tap: B down
+        edges.record(isPressed: true, at: 300)   // flags tap reports the same event later
+        XCTAssertEqual(edges.presses, [100, 300])
+        XCTAssertEqual(edges.pressHolding(at: 320), 300)
+    }
+
+    func testChordTargetsTheRightPress() {
+        // Flags tap is still on A (100); the key belongs to B (300): charge B when it lands.
+        XCTAssertEqual(ModifierKeyMonitor.chordTarget(owner: 300, currentPress: 100), .upcoming)
+        XCTAssertEqual(ModifierKeyMonitor.chordTarget(owner: 300, currentPress: 300), .current)
+        // Flags tap already moved on to B; a late key from A must not chord B.
+        XCTAssertEqual(ModifierKeyMonitor.chordTarget(owner: 100, currentPress: 300), .stale)
+    }
+
+    // MARK: - Device-dependent modifier bits
+
+    private func flags(_ generic: CGEventFlags, device: UInt64) -> CGEventFlags {
+        CGEventFlags(rawValue: generic.rawValue | device)
+    }
+
+    /// Right-⌘ trigger: left ⌘ held alone is not the trigger, and left ⌘+C is not a chord.
+    func testRightCommandTriggerIgnoresLeftCommand() {
+        let right = ModifierKey.rightCommand
+        XCTAssertTrue(right.isHeld(in: flags(.maskCommand, device: 0x10)))
+        XCTAssertFalse(right.isHeld(in: flags(.maskCommand, device: 0x08)))
+        XCTAssertTrue(right.isHeld(in: flags(.maskCommand, device: 0x18)))
+        XCTAssertFalse(right.isHeld(in: []))
+        XCTAssertFalse(counts(key: 8, triggerHeld: right.isHeld(in: flags(.maskCommand, device: 0x08))))
+        XCTAssertTrue(counts(key: 8, triggerHeld: right.isHeld(in: flags(.maskCommand, device: 0x10))))
+    }
+
+    func testOtherSidesUseTheirOwnBits() {
+        XCTAssertTrue(ModifierKey.leftOption.isHeld(in: flags(.maskAlternate, device: 0x20)))
+        XCTAssertFalse(ModifierKey.leftOption.isHeld(in: flags(.maskAlternate, device: 0x40)))
+        XCTAssertTrue(ModifierKey.rightControl.isHeld(in: flags(.maskControl, device: 0x2000)))
+        XCTAssertFalse(ModifierKey.rightControl.isHeld(in: flags(.maskControl, device: 0x01)))
+        XCTAssertTrue(ModifierKey.rightShift.isHeld(in: flags(.maskShift, device: 0x04)))
+    }
+
+    /// Synthetic events with only the generic flag still read as held.
+    func testGenericFlagWithoutDeviceBitsCountsAsHeld() {
+        XCTAssertTrue(ModifierKey.rightCommand.isHeld(in: .maskCommand))
+        XCTAssertTrue(ModifierKey.fn.isHeld(in: .maskSecondaryFn))
+        XCTAssertFalse(ModifierKey.fn.isHeld(in: .maskCommand))
     }
 }

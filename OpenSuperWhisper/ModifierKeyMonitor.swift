@@ -109,6 +109,8 @@ class ModifierKeyMonitor {
     private var pressedKey: ModifierKey?
     /// Whether a non-modifier key went down during the current press (see `handleKeyDown`).
     private var pressChorded = false
+    /// When the current press went down (`CGEvent.timestamp`), to drop key-downs from before it.
+    private var pressTimestamp: CGEventTimestamp = 0
 
     var onKeyDown: ((ModifierKey) -> Void)?
     var onKeyUp: ((ModifierKey) -> Void)?
@@ -271,6 +273,7 @@ class ModifierKeyMonitor {
             // A second modifier pressed mid-recording is ignored: the first owns this take.
             pressedKey = key
             pressChorded = false
+            pressTimestamp = event.timestamp
             setKeyTap(enabled: true)
             DispatchQueue.main.async {
                 self.onKeyDown?(key)
@@ -287,18 +290,24 @@ class ModifierKeyMonitor {
     /// A key went down while a trigger is held. Privacy: keys are only counted here, never
     /// recorded — the key code is compared to the cancel shortcut's and never stored or logged.
     private func handleKeyDown(event: CGEvent) {
-        guard pressedKey != nil, !pressChorded else { return }
+        guard let held = pressedKey, !pressChorded else { return }
         guard Self.keyDownCountsAsChord(
             isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
             keyCode: event.getIntegerValueField(.keyboardEventKeycode),
             cancelKeyCode: KeyboardShortcuts.getShortcut(for: .escape).map { Int64($0.carbonKeyCode) },
             sourcePID: event.getIntegerValueField(.eventSourceUnixProcessID),
-            ownPID: Int64(getpid())) else { return }
+            ownPID: Int64(getpid()),
+            triggerKeyCode: Int64(held.keyCode),
+            triggerHeldInEvent: event.flags.contains(held.cgEventFlag),
+            afterPress: event.timestamp >= pressTimestamp) else { return }
         pressChorded = true
         DispatchQueue.main.async {
             self.onChord?()
         }
     }
+
+    /// The Globe (fn) key's own key code. Some keyboards send it as a keyDown with the Fn press.
+    static let globeKeyCode: Int64 = 179
 
     /// Whether a key-down during a trigger press counts as a chord.
     /// - Rhino's own synthetic keys (typed text, ⌘V, Return) are skipped: they land after a
@@ -309,9 +318,19 @@ class ModifierKeyMonitor {
     /// - Autorepeat of a key held before the trigger is not a new press.
     /// - The cancel shortcut's key (Esc by default) is left to that flow, with its long-take
     ///   confirmation, rather than discarding first and racing it.
+    /// - The key-down must itself say the trigger was down when it happened, and come after
+    ///   the press. Both taps are serviced on the main run loop, from separate ports, so after a
+    ///   main-thread stall (take start sets up audio for ~0.4 s) a key-down can be handled
+    ///   before the trigger's release that preceded it. Without this, a quick second Fn tap
+    ///   was read as a chord on the first: the take was discarded and a new one started
+    ///   (0.1.48 "glitchy" bubble that flashes off and on, nothing pasted).
+    /// - The trigger's own key code and the Globe key are never chords.
     static func keyDownCountsAsChord(isAutorepeat: Bool, keyCode: Int64, cancelKeyCode: Int64?,
-                                     sourcePID: Int64, ownPID: Int64) -> Bool {
-        guard sourcePID != ownPID else { return false }
+                                     sourcePID: Int64, ownPID: Int64,
+                                     triggerKeyCode: Int64, triggerHeldInEvent: Bool,
+                                     afterPress: Bool) -> Bool {
+        guard sourcePID != ownPID, triggerHeldInEvent, afterPress else { return false }
+        guard keyCode != triggerKeyCode, keyCode != globeKeyCode else { return false }
         return !isAutorepeat && keyCode != cancelKeyCode
     }
     

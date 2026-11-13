@@ -2552,3 +2552,7 @@ Command Mode (#122) replaces selected text with the model's rewrite. If that sel
 dictation auto-learn is still watching, the rewrite would look like the user's edit and a word the
 model changed could become a dictionary rule. Starting a command take stops the watcher; only
 edits the user types count as evidence.
+
+## 2026-11-13 — A chord key-down must carry the trigger's flag and come after the press
+
+0.1.48 felt glitchy: on quick Fn taps the bubble flashed off and on and nothing pasted. The unified log showed "trigger chord → discard take" ~0.4–0.6 s after nearly every take start, then a new take 1–50 ms later. Both event taps (flagsChanged and the chord keyDown tap) are serviced on the main run loop from separate mach ports, and each take start blocks main ~400 ms (audio engine setup, media pause). Events queued during the stall are not delivered in order across the two ports, so a key-down from after the first release could be handled while `pressedKey` still pointed at the first press and count as its chord. `keyDownCountsAsChord` now also requires the key-down's own flags to contain the held trigger's flag, its timestamp to be at or after the press, and its key code not to be the trigger's or Globe's (179). This keeps the key tap enabled only while held (2026-11-11 decision) instead of merging the taps. The exact key behind the false chords was not captured (no Fn presses during the probe); the flag check covers any key typed while Fn was up.

@@ -111,10 +111,12 @@ final class TriggerChordTests: XCTestCase {
     private let upArrow: Int64 = 126
 
     private func counts(key: Int64 = 126, autorepeat: Bool = false,
-                        cancelKey: Int64? = 53, pid: Int64 = 99) -> Bool {
+                        cancelKey: Int64? = 53, pid: Int64 = 99,
+                        triggerHeld: Bool = true, afterPress: Bool = true) -> Bool {
         ModifierKeyMonitor.keyDownCountsAsChord(
             isAutorepeat: autorepeat, keyCode: key, cancelKeyCode: cancelKey,
-            sourcePID: pid, ownPID: me)
+            sourcePID: pid, ownPID: me, triggerKeyCode: 63,
+            triggerHeldInEvent: triggerHeld, afterPress: afterPress)
     }
 
     func testTypedKeyCounts() {
@@ -137,5 +139,21 @@ final class TriggerChordTests: XCTestCase {
         XCTAssertFalse(counts(key: upArrow, cancelKey: upArrow))
         XCTAssertTrue(counts(key: escape, cancelKey: upArrow))
         XCTAssertTrue(counts(key: escape, cancelKey: nil))
+    }
+
+    /// 0.1.48 glitch: a key-down handled late, after a main-thread stall, but typed while Fn
+    /// was up (between two quick taps) discarded the take. It must carry the trigger flag.
+    func testKeyDownWithTriggerUpDoesntCount() {
+        XCTAssertFalse(counts(triggerHeld: false))
+    }
+
+    func testKeyDownFromBeforeThePressDoesntCount() {
+        XCTAssertFalse(counts(afterPress: false))
+    }
+
+    /// The Fn/Globe key's own events are part of pressing the trigger, not a chord.
+    func testTriggerAndGlobeKeysDontCount() {
+        XCTAssertFalse(counts(key: 63))
+        XCTAssertFalse(counts(key: ModifierKeyMonitor.globeKeyCode))
     }
 }

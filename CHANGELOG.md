@@ -3,6 +3,10 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.51 — 2026-11-13
+
+- Rhino now learns your spelling fixes in Terminal too, not just in normal text boxes.
+
 ## 0.1.50 — 2026-11-13
 
 - Fn+arrow keys (Page Up, Home and friends) no longer flash the recording bubble.

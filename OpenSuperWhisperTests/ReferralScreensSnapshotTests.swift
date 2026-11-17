@@ -28,6 +28,8 @@ final class ReferralScreensSnapshotTests: XCTestCase {
         try render(UnlockRhinoView(limitReached: false, wordsThisWeek: 860, isUnlocked: false,
                                    unlock: { _ in false }, invite: {}, dismiss: {}),
                    size: UnlockRhino.panelSize, name: "2-paywall-from-menu")
+        try render(AppSumoCodePromptView(unlock: { _ in false }, dismiss: {}),
+                   size: UnlockRhino.promptSize, name: "2b-appsumo-code-prompt")
         try render(ShareRhinoView(link: link, isUnlocked: false, dismiss: {}),
                    size: NSSize(width: 420, height: 350), name: "3-share-panel-free-user")
         try render(ShareRhinoView(link: link, isUnlocked: true, dismiss: {}),

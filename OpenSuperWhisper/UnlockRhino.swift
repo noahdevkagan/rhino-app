@@ -6,7 +6,8 @@ import SwiftUI
 final class UnlockRhino {
     static let shared = UnlockRhino()
     static let buyURL = URL(string: "https://rhinovoice.app/#buy")!
-    static let panelSize = NSSize(width: 420, height: 360)
+    static let panelSize = NSSize(width: 420, height: 380)
+    static let promptSize = NSSize(width: 420, height: 180)
 
     private var panel: NSPanel?
     private lazy var appSumoHashes = UsageGate.loadAppSumoHashes()
@@ -44,13 +45,42 @@ final class UnlockRhino {
         let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "code" })?.value ?? ""
         if !gate.isUnlocked { _ = unlock(code: code) }
+        gate.markCodePromptShown()
         IndicatorWindowManager.shared.flash(gate.isUnlocked
             ? .info("Rhino is unlimited 🦏")
             : .error("That unlock code didn't work. Rhino menu → Get Rhino Unlimited"))
         show()
     }
 
-    func show(limitReached: Bool = false) {
+    /// One-time "Bought Rhino on AppSumo?" ask, a moment after launch so a rhinovoice://unlock
+    /// link that opened the app is handled first. Never for unlocked or grandfathered installs.
+    func showCodePromptIfNeeded() {
+        guard !DefaultsStore.isRunningTests,
+              ProcessInfo.processInfo.environment["RHINO_PREFS_SUITE"] == nil,
+              gate.shouldOfferCodePrompt,
+              panel?.isVisible != true else { return }
+        gate.markCodePromptShown()
+        present(title: "Rhino", size: Self.promptSize, rootView: AppSumoCodePromptView(
+            unlock: { [weak self] code in self?.unlock(code: code) ?? false },
+            dismiss: { [weak self] in self?.panel?.orderOut(nil) }))
+    }
+
+    /// `focusCode`: opened from "Enter AppSumo code…", so the cursor starts in the code field.
+    func show(limitReached: Bool = false, focusCode: Bool = false) {
+        present(title: "Rhino Unlimited", size: Self.panelSize, rootView: UnlockRhinoView(
+            limitReached: limitReached,
+            wordsThisWeek: gate.wordsThisWeek,
+            isUnlocked: gate.isUnlocked,
+            focusCode: focusCode,
+            unlock: { [weak self] code in self?.unlock(code: code) ?? false },
+            invite: { [weak self] in
+                self?.panel?.orderOut(nil)
+                ShareRhino.shared.show()
+            },
+            dismiss: { [weak self] in self?.panel?.orderOut(nil) }))
+    }
+
+    private func present<V: View>(title: String, size: NSSize, rootView: V) {
         if panel == nil {
             // Same recipe as the Share panel, which is proven to appear over whatever app
             // is frontmost: a non-activating floating panel that never hides on deactivate.
@@ -58,10 +88,9 @@ final class UnlockRhino {
             // depend on Rhino becoming active. A non-activating panel can still take key
             // focus, so the code field remains typeable.
             let panel = NSPanel(
-                contentRect: NSRect(origin: .zero, size: Self.panelSize),
+                contentRect: NSRect(origin: .zero, size: size),
                 styleMask: [.titled, .closable, .nonactivatingPanel],
                 backing: .buffered, defer: false)
-            panel.title = "Rhino Unlimited"
             panel.isReleasedWhenClosed = false
             panel.isFloatingPanel = true
             panel.hidesOnDeactivate = false
@@ -70,19 +99,11 @@ final class UnlockRhino {
             self.panel = panel
         }
         guard let panel else { return }
-        let hosting = NSHostingController(rootView: UnlockRhinoView(
-            limitReached: limitReached,
-            wordsThisWeek: gate.wordsThisWeek,
-            isUnlocked: gate.isUnlocked,
-            unlock: { [weak self] code in self?.unlock(code: code) ?? false },
-            invite: { [weak panel] in
-                panel?.orderOut(nil)
-                ShareRhino.shared.show()
-            },
-            dismiss: { [weak panel] in panel?.orderOut(nil) }))
+        panel.title = title
+        let hosting = NSHostingController(rootView: rootView)
         hosting.sizingOptions = []
         panel.contentViewController = hosting
-        panel.setContentSize(Self.panelSize)
+        panel.setContentSize(size)
         panel.center()
         panel.orderFrontRegardless()
         panel.makeKey()
@@ -97,12 +118,11 @@ struct UnlockRhinoView: View {
     let limitReached: Bool
     let wordsThisWeek: Int
     let isUnlocked: Bool
+    var focusCode = false
     let unlock: (String) -> Bool
     let invite: () -> Void
     let dismiss: () -> Void
 
-    @State private var code = ""
-    @State private var status: String?
     @State private var unlocked = false
 
     /// Typing at ~40 words a minute.
@@ -122,6 +142,16 @@ struct UnlockRhinoView: View {
                      ? "You dictated \(wordsThisWeek.formatted()) words this week, about \(minutesSaved) minutes of typing saved."
                      : "Rhino is free for \(UsageGate.weeklyFreeWords.formatted()) words a week. You've used \(wordsThisWeek.formatted()) this week.")
                     .fixedSize(horizontal: false, vertical: true)
+
+                // First, so AppSumo buyers who already paid see their way in before any price.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Already bought it, or have an AppSumo code?")
+                        .font(.subheadline.weight(.semibold))
+                    UnlockCodeField(focusOnAppear: focusCode, unlock: unlock) { unlocked = true }
+                }
+
+                Divider()
+
                 Text("Unlimited forever: $20 once, or free when \(ReferralLink.friendsNeeded) friends join. Otherwise your free words reset Monday.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -139,20 +169,6 @@ struct UnlockRhinoView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                 }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Already bought it, or have an AppSumo code?")
-                        .font(.caption).foregroundStyle(.secondary)
-                    HStack {
-                        TextField("RHINO-XXXX-XXXX", text: $code)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit(tryUnlock)
-                        Button("Unlock", action: tryUnlock)
-                    }
-                    if let status {
-                        Text(status).font(.caption).foregroundStyle(.red)
-                    }
-                }
                 Spacer(minLength: 0)
                 HStack { Spacer(); Button("Not now", action: dismiss) }
             }
@@ -161,11 +177,71 @@ struct UnlockRhinoView: View {
         .frame(width: UnlockRhino.panelSize.width, height: UnlockRhino.panelSize.height)
         .background(Color(nsColor: .windowBackgroundColor))
     }
+}
+
+/// One-time first-launch ask for AppSumo buyers who redeemed on the site but never typed the code.
+struct AppSumoCodePromptView: View {
+    let unlock: (String) -> Bool
+    let dismiss: () -> Void
+
+    @State private var unlocked = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if unlocked {
+                Text("Rhino is unlimited 🦏").font(.title3.bold())
+                Text("Thank you. Dictate as much as you like, forever.")
+                Spacer(minLength: 0)
+                HStack { Spacer(); Button("Done", action: dismiss).buttonStyle(PrimaryPillStyle()) }
+            } else {
+                Text("Bought Rhino on AppSumo?").font(.title3.bold())
+                Text("Enter your code to unlock Rhino for good.")
+                    .foregroundStyle(.secondary)
+                UnlockCodeField(focusOnAppear: true, unlock: unlock) { unlocked = true }
+                Spacer(minLength: 0)
+                HStack { Spacer(); Button("Not now", action: dismiss) }
+            }
+        }
+        .padding(20)
+        .frame(width: UnlockRhino.promptSize.width, height: UnlockRhino.promptSize.height)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+/// Code field + Unlock, shared by the paywall and the first-launch prompt.
+private struct UnlockCodeField: View {
+    let focusOnAppear: Bool
+    let unlock: (String) -> Bool
+    let onUnlocked: () -> Void
+
+    @State private var code = ""
+    @State private var status: String?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                TextField(UsageGate.codePlaceholder, text: $code)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focused)
+                    .onSubmit(tryUnlock)
+                Button("Unlock", action: tryUnlock)
+            }
+            if let status {
+                Text(status).font(.caption).foregroundStyle(.red)
+            }
+        }
+        .onAppear {
+            // The panel becomes key right after it is shown; focus on the next turn so it sticks.
+            guard focusOnAppear else { return }
+            DispatchQueue.main.async { focused = true }
+        }
+    }
 
     private func tryUnlock() {
         if unlock(code) {
-            unlocked = true
             status = nil
+            onUnlocked()
         } else {
             status = "That code didn't work. Check it and try again."
         }

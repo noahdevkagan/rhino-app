@@ -54,6 +54,34 @@ final class UsageGateTests: XCTestCase {
         }
     }
 
+    func testCodePromptShowsOnceForFreeInstalls() {
+        withGate { gate in
+            gate.bootstrap(hasCompletedOnboarding: false)
+            XCTAssertTrue(gate.shouldOfferCodePrompt)
+            gate.markCodePromptShown()
+            XCTAssertFalse(gate.shouldOfferCodePrompt)
+        }
+    }
+
+    func testCodePromptSkipsGrandfatheredAndUnlockedInstalls() {
+        withGate { gate in
+            gate.bootstrap(hasCompletedOnboarding: true)
+            XCTAssertFalse(gate.shouldOfferCodePrompt)
+        }
+        withGate { gate in
+            gate.bootstrap(hasCompletedOnboarding: false)
+            let appSumo = UsageGate.sha256("RH-AAAA-BBBB-CCCC")
+            XCTAssertTrue(gate.unlock(code: "RH-AAAA-BBBB-CCCC", appSumoHashes: [appSumo]))
+            XCTAssertFalse(gate.shouldOfferCodePrompt)
+        }
+    }
+
+    func testCodePlaceholderCoversBothCodeFormats() {
+        // Website generator: RH-XXXX-XXXX-XXXX; /thanks purchase code: RHINO-XXXX-XXXX.
+        XCTAssertTrue(UsageGate.codePlaceholder.contains("RH-XXXX-XXXX-XXXX"))
+        XCTAssertTrue(UsageGate.codePlaceholder.contains("RHINO-XXXX-XXXX"))
+    }
+
     func testBundledPurchaseHashIsWellFormed() {
         XCTAssertEqual(UsageGate.purchaseCodeHash.count, 64)
     }

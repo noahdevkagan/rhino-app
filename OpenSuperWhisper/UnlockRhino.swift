@@ -7,7 +7,7 @@ final class UnlockRhino {
     static let shared = UnlockRhino()
     static let buyURL = URL(string: "https://rhinovoice.app/#buy")!
     static let panelSize = NSSize(width: 420, height: 380)
-    static let promptSize = NSSize(width: 420, height: 180)
+    static let promptSize = NSSize(width: 420, height: 210)
 
     private var panel: NSPanel?
     private lazy var appSumoHashes = UsageGate.loadAppSumoHashes()

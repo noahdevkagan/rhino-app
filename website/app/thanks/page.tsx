@@ -35,7 +35,7 @@ export default function Thanks() {
           <CopyCode code={unlockCode} />
           <p className="unlock-backup-help">
             Only needed if the button doesn&apos;t open Rhino, or on another Mac:
-            click the Rhino icon in your menu bar → <strong>Enter unlock code…</strong> →
+            click the Rhino icon in your menu bar → <strong>Get Rhino Unlimited</strong> →
             paste the code.
           </p>
         </div>

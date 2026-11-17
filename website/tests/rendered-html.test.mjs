@@ -295,7 +295,7 @@ test("renders the changelog and post-purchase download routes", async () => {
   // The code is big and copyable, with the one place to paste it spelled out.
   assert.match(thanks, /class="unlock-code"/);
   assert.match(thanks, /Copy code/);
-  assert.match(thanks, /Enter unlock code…/);
+  assert.match(thanks, /Get Rhino Unlimited/);
   // Unlock is quiet until Download is clicked (server HTML starts quiet), with install-first help.
   assert.match(thanks, /class="button button-quiet" href="rhinovoice:\/\/unlock/);
   assert.match(thanks, /<strong>Install Rhino first, then click Unlock\.<\/strong> One click, nothing to type\./);

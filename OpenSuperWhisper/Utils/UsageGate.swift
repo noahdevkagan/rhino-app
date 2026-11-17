@@ -40,9 +40,10 @@ struct UsageGate {
 
     /// AppSumo buyers redeem on the site, install, and never type the code: the free week hides
     /// it until the limit hits and the purchase looks broken. Ask once per install, only when
-    /// there is something to unlock (grandfathered and unlocked installs never see it).
-    var shouldOfferCodePrompt: Bool {
-        !isUnlocked && !defaults.bool(forKey: Key.codePromptShown)
+    /// there is something to unlock (grandfathered and unlocked installs never see it), and
+    /// never during onboarding, where it would cover the setup window.
+    func shouldOfferCodePrompt(hasCompletedOnboarding: Bool) -> Bool {
+        hasCompletedOnboarding && !isUnlocked && !defaults.bool(forKey: Key.codePromptShown)
     }
 
     func markCodePromptShown() {

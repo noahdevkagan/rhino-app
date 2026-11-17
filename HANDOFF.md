@@ -12,8 +12,8 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 Buyers redeem on /appsumo but never type the code into Rhino. Done: /appsumo Unlock is quiet until
 Download is clicked; the paywall puts the code field first, with a placeholder for both formats; there is a one-time
 "Bought Rhino on AppSumo?" prompt at launch (usage.codePromptShown); and the menu bar has "Enter AppSumo code…" /
-"Rhino Unlimited ✓". Unit tests and snapshots pass. Still to check: the real launch prompt on a fresh install
-(over onboarding) and focus landing in the field from the menu item. See decisions.md 2026-11-17.
+"Rhino Unlimited ✓". Unit tests and snapshots pass. Still to check: the real prompt after onboarding on a fresh install,
+that a background launch does not steal keystrokes, and focus landing in the field from the menu item. See decisions.md 2026-11-17.
 
 ### Accuracy gate suites (2026-11-11, branch gate/accuracy-suites)
 

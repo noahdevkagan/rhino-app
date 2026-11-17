@@ -52,22 +52,26 @@ final class UnlockRhino {
         show()
     }
 
-    /// One-time "Bought Rhino on AppSumo?" ask, a moment after launch so a rhinovoice://unlock
-    /// link that opened the app is handled first. Never for unlocked or grandfathered installs.
+    /// One-time "Bought Rhino on AppSumo?" ask: a moment after launch (so a rhinovoice://unlock
+    /// link that opened the app is handled first) or right after onboarding finishes. Never during
+    /// onboarding, never for unlocked or grandfathered installs.
+    ///
+    /// Launches are often in the background (login item, update relaunch) while the user types
+    /// elsewhere, so this panel never takes key focus on its own: clicking the field makes it key.
     func showCodePromptIfNeeded() {
         guard !DefaultsStore.isRunningTests,
               ProcessInfo.processInfo.environment["RHINO_PREFS_SUITE"] == nil,
-              gate.shouldOfferCodePrompt,
+              gate.shouldOfferCodePrompt(hasCompletedOnboarding: AppPreferences.shared.hasCompletedOnboarding),
               panel?.isVisible != true else { return }
         gate.markCodePromptShown()
-        present(title: "Rhino", size: Self.promptSize, rootView: AppSumoCodePromptView(
+        present(title: "Rhino", size: Self.promptSize, takeFocus: false, rootView: AppSumoCodePromptView(
             unlock: { [weak self] code in self?.unlock(code: code) ?? false },
             dismiss: { [weak self] in self?.panel?.orderOut(nil) }))
     }
 
     /// `focusCode`: opened from "Enter AppSumo code…", so the cursor starts in the code field.
     func show(limitReached: Bool = false, focusCode: Bool = false) {
-        present(title: "Rhino Unlimited", size: Self.panelSize, rootView: UnlockRhinoView(
+        present(title: "Rhino Unlimited", size: Self.panelSize, takeFocus: true, rootView: UnlockRhinoView(
             limitReached: limitReached,
             wordsThisWeek: gate.wordsThisWeek,
             isUnlocked: gate.isUnlocked,
@@ -80,7 +84,8 @@ final class UnlockRhino {
             dismiss: { [weak self] in self?.panel?.orderOut(nil) }))
     }
 
-    private func present<V: View>(title: String, size: NSSize, rootView: V) {
+    /// `takeFocus`: only for panels the user just asked for (menu, paywall, unlock link).
+    private func present<V: View>(title: String, size: NSSize, takeFocus: Bool, rootView: V) {
         if panel == nil {
             // Same recipe as the Share panel, which is proven to appear over whatever app
             // is frontmost: a non-activating floating panel that never hides on deactivate.
@@ -106,7 +111,7 @@ final class UnlockRhino {
         panel.setContentSize(size)
         panel.center()
         panel.orderFrontRegardless()
-        panel.makeKey()
+        if takeFocus { panel.makeKey() }
     }
 }
 
@@ -197,7 +202,8 @@ struct AppSumoCodePromptView: View {
                 Text("Bought Rhino on AppSumo?").font(.title3.bold())
                 Text("Enter your code to unlock Rhino for good.")
                     .foregroundStyle(.secondary)
-                UnlockCodeField(focusOnAppear: true, unlock: unlock) { unlocked = true }
+                // No auto-focus: the prompt can appear while the user types in another app.
+                UnlockCodeField(focusOnAppear: false, unlock: unlock) { unlocked = true }
                 Spacer(minLength: 0)
                 HStack { Spacer(); Button("Not now", action: dismiss) }
             }

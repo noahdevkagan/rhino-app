@@ -177,8 +177,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
 
         setupStatusBarItem()
 
-        // One-time AppSumo code ask for free installs; after a beat so a rhinovoice://unlock
-        // link that launched the app unlocks first and suppresses it.
+        // One-time AppSumo code ask for free installs that finished onboarding (fresh installs get
+        // it when onboarding completes); after a beat so a rhinovoice://unlock link that launched
+        // the app unlocks first and suppresses it.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             MainActor.assumeIsolated { UnlockRhino.shared.showCodePromptIfNeeded() }
         }

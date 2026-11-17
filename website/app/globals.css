@@ -585,6 +585,8 @@ footer span { color: var(--ink); font-weight: 700; }
 .redemption-success .download-button { margin-top: 28px; }
 
 .redemption-success .unlock-steps span { text-align: left; }
+.redemption-success .button-quiet { background: var(--white); color: var(--muted); border: 1px solid var(--line); box-shadow: none; }
+.redemption-success .button-quiet:hover { background: var(--white); color: var(--ink); }
 .redeemed-code { margin-top: 24px; text-align: left; }
 .redeemed-code label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 13px; }
 .redeemed-code-row { display: flex; flex-wrap: wrap; gap: 8px; }

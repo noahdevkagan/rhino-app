@@ -356,6 +356,9 @@ test("renders the AppSumo redemption route", async () => {
   // nothing until Rhino has been opened once, and the code must stay on screen for the fallback.
   assert.match(form, /drag Rhino to Applications, then open Rhino once\./);
   assert.match(form, /choose Get Rhino Unlimited, paste your code and press Unlock\./);
+  // Unlock looks secondary until Download is clicked, so buyers install before they unlock.
+  assert.match(form, /Install Rhino first, then click Unlock\./);
+  assert.match(form, /downloaded \? "button button-primary" : "button button-quiet"/);
   assert.match(form, /navigator\.clipboard\.writeText/);
   assert.match(html, /name="robots" content="noindex, nofollow"/i);
 });

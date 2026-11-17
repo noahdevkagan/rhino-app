@@ -177,6 +177,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
 
         setupStatusBarItem()
 
+        // One-time AppSumo code ask for free installs that finished onboarding (fresh installs get
+        // it when onboarding completes); after a beat so a rhinovoice://unlock link that launched
+        // the app unlocks first and suppresses it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            MainActor.assumeIsolated { UnlockRhino.shared.showCodePromptIfNeeded() }
+        }
+
         if let window = NSApplication.shared.windows.first(where: { $0.title != "Settings" }) {
             self.mainWindow = window
             window.delegate = self
@@ -598,9 +605,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         feedbackItem.target = self
         menu.addItem(feedbackItem)
 
-        // One item, not two: free users get the upgrade screen, which offers both $20 and
-        // "invite 2 friends"; unlocked users have nothing to buy, so they get Share.
+        // Free users get the upgrade screen (both $20 and "invite 2 friends") plus a direct
+        // "Enter AppSumo code…" for buyers who redeemed on the site but never typed the code.
+        // Unlocked users have nothing to buy: they see that it worked, and Share.
         if MainActor.assumeIsolated({ UnlockRhino.shared.gate.isUnlocked }) {
+            let unlimitedItem = NSMenuItem(title: "Rhino Unlimited ✓",
+                                           action: #selector(unlockRhino), keyEquivalent: "")
+            unlimitedItem.target = self
+            menu.addItem(unlimitedItem)
             let shareItem = NSMenuItem(title: "Share Rhino with friends…",
                                        action: #selector(shareRhino), keyEquivalent: "")
             shareItem.target = self
@@ -610,6 +622,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
                                         action: #selector(unlockRhino), keyEquivalent: "")
             unlockItem.target = self
             menu.addItem(unlockItem)
+            let codeItem = NSMenuItem(title: "Enter AppSumo code…",
+                                      action: #selector(enterUnlockCode), keyEquivalent: "")
+            codeItem.target = self
+            menu.addItem(codeItem)
         }
 
         menu.addItem(NSMenuItem.separator())
@@ -620,6 +636,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
 
     @objc private func unlockRhino() {
         MainActor.assumeIsolated { UnlockRhino.shared.show() }
+    }
+
+    @objc private func enterUnlockCode() {
+        MainActor.assumeIsolated { UnlockRhino.shared.show(focusCode: true) }
     }
 
     @objc private func shareRhino() {

@@ -36,6 +36,8 @@ export default function RedeemForm() {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [copyResult, setCopyResult] = useState<"copied" | "refused" | null>(null);
+  /** Unlock stays quiet until Download is clicked: the rhinovoice:// link does nothing before Rhino is installed. */
+  const [downloaded, setDownloaded] = useState(false);
   const redeemedCodeBox = useRef<HTMLInputElement>(null);
   const hashes = useRef<Set<string> | null>(null);
   const mac = useMacVerdict();
@@ -139,7 +141,12 @@ export default function RedeemForm() {
         </div>
         <ol className="unlock-steps">
           <li>
-            <div className="unlock-step-body">
+            <div
+              className="unlock-step-body"
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("a")) setDownloaded(true);
+              }}
+            >
               <MacDownloadGate
                 href={downloadUrl}
                 appsumo
@@ -154,13 +161,13 @@ export default function RedeemForm() {
           </li>
           <li>
             <a
-              className="button button-primary"
+              className={downloaded ? "button button-primary" : "button button-quiet"}
               href={`rhinovoice://unlock?code=${encodeURIComponent(normalizeCode(code))}`}
             >
               Unlock Rhino
             </a>
             <span>
-              Rhino opens already unlimited. Nothing happened? Click the Rhino icon in your menu bar,
+              Install Rhino first, then click Unlock. Rhino opens already unlimited. Nothing happened? Click the Rhino icon in your menu bar,
               choose Get Rhino Unlimited, paste your code and press Unlock.
             </span>
           </li>

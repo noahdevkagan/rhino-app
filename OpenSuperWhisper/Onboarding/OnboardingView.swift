@@ -902,6 +902,10 @@ struct OnboardingView: View {
 
     private func completeOnboarding() {
         appState.hasCompletedOnboarding = true
+        // Fresh installs: the one-time AppSumo code ask waits until setup is done.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            MainActor.assumeIsolated { UnlockRhino.shared.showCodePromptIfNeeded() }
+        }
     }
 
     /// Footer primary button while no model is on this Mac. Starts only from the user's

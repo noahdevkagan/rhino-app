@@ -21,7 +21,12 @@ struct UsageGate {
         static let unlocked = "usage.unlocked"
         static let weekStart = "usage.weekStart"
         static let weekWords = "usage.weekWords"
+        static let codePromptShown = "usage.codePromptShown"
     }
+
+    /// Placeholder for the code field: AppSumo codes (RH-XXXX-XXXX-XXXX) and the
+    /// purchase code from /thanks (RHINO-XXXX-XXXX) both unlock.
+    static let codePlaceholder = "RH-XXXX-XXXX-XXXX or RHINO-XXXX-XXXX"
 
     /// Runs once per install, at launch. An install that already completed
     /// onboarding predates the free tier, so it was paid for: unlock it.
@@ -32,6 +37,18 @@ struct UsageGate {
     }
 
     var isUnlocked: Bool { defaults.bool(forKey: Key.unlocked) }
+
+    /// AppSumo buyers redeem on the site, install, and never type the code: the free week hides
+    /// it until the limit hits and the purchase looks broken. Ask once per install, only when
+    /// there is something to unlock (grandfathered and unlocked installs never see it), and
+    /// never during onboarding, where it would cover the setup window.
+    func shouldOfferCodePrompt(hasCompletedOnboarding: Bool) -> Bool {
+        hasCompletedOnboarding && !isUnlocked && !defaults.bool(forKey: Key.codePromptShown)
+    }
+
+    func markCodePromptShown() {
+        defaults.set(true, forKey: Key.codePromptShown)
+    }
 
     var isInTrial: Bool {
         guard let installedAt = defaults.object(forKey: Key.installedAt) as? Date else { return true }

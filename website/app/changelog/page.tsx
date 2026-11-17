@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.52",
+    date: "November 17, 2026",
+    changes: [
+      "Bought Rhino on AppSumo? Rhino now asks for your code once after setup, and \"Enter AppSumo code…\" is in the menu bar. The code box is first in the unlock window, and the menu shows \"Rhino Unlimited ✓\" once you're unlocked.",
+    ],
+  },
+  {
     version: "0.1.51",
     date: "November 13, 2026",
     changes: [

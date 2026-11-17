@@ -3,6 +3,10 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.52 — 2026-11-17
+
+- Bought Rhino on AppSumo? Rhino now asks for your code once after setup, and "Enter AppSumo code…" is in the menu bar. The code box is first in the unlock window, and the menu shows "Rhino Unlimited ✓" once you're unlocked.
+
 ## 0.1.51 — 2026-11-13
 
 - Rhino now learns your spelling fixes in Terminal too, not just in normal text boxes.

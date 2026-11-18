@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.54 — 2026-11-18
+
+- Fixed dictation sometimes turning on and then off when you press Fn. A key now only counts as an Fn shortcut (like Fn+↑) if it lands right after the press.
+- The feedback email now includes a count of dictations cancelled as key shortcuts, so reports like this are quicker to pin down.
+
 ## 0.1.53 — 2026-11-18
 
 - The code prompt and menu now say "Have an unlock code?" and "Enter unlock code…", so they work for your $20 purchase code as well as AppSumo codes.

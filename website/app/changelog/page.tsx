@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.53",
+    date: "November 18, 2026",
+    changes: [
+      "The code prompt and menu now say \"Have an unlock code?\" and \"Enter unlock code…\", so they work for your $20 purchase code as well as AppSumo codes.",
+    ],
+  },
+  {
     version: "0.1.52",
     date: "November 17, 2026",
     changes: [

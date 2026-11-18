@@ -52,19 +52,25 @@ struct FeedbackFormView: View {
         .frame(width: 440)
     }
 
-    static func emailURL(feedback: String, version: String) -> URL? {
+    /// `diagnostics`: lines appended under the typed text (local counters only; the user sees
+    /// them in their mail client before sending).
+    static func emailURL(feedback: String, version: String, diagnostics: [String] = []) -> URL? {
+        let body = diagnostics.isEmpty
+            ? feedback
+            : feedback + "\n\n----\n" + diagnostics.joined(separator: "\n")
         var components = URLComponents()
         components.scheme = "mailto"
         components.path = address
         components.queryItems = [
             .init(name: "subject", value: "Rhino feedback (v\(version))"),
-            .init(name: "body", value: feedback),
+            .init(name: "body", value: body),
         ]
         return components.url
     }
 
     private func send() {
-        if let url = Self.emailURL(feedback: text, version: UpdatesView.currentVersion) {
+        if let url = Self.emailURL(feedback: text, version: UpdatesView.currentVersion,
+                                   diagnostics: [ChordDiscards.summary]) {
             NSWorkspace.shared.open(url)
         }
         dismiss()

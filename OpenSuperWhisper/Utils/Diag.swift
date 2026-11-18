@@ -130,3 +130,32 @@ final class MainThreadWatchdog {
         }
     }
 }
+
+/// Takes thrown away because a key followed the modifier trigger (Fn+↑ and friends; see
+/// `ShortcutManager.handleChord`). Counted locally and written to the unified log in every
+/// build, so a report of "the bubble turns on, then off" can be checked against it. Only the
+/// count, the time of the last one and its delay after the press are kept; never the key.
+/// Nothing leaves the Mac unless the user sends the feedback email that quotes the count.
+enum ChordDiscards {
+    static let countKey = "diag.chordDiscardCount"
+    static let lastKey = "diag.chordDiscardLastAt"
+
+    static var count: Int { DefaultsStore.current.integer(forKey: countKey) }
+
+    static func record(msSincePress: Int, at time: Date = Date()) {
+        let total = count + 1
+        DefaultsStore.current.set(total, forKey: countKey)
+        DefaultsStore.current.set(time, forKey: lastKey)
+        Diag.log.notice("trigger chord → discard take (\(msSincePress)ms after press, \(total) total)")
+    }
+
+    /// One line for the feedback email.
+    static var summary: String {
+        guard count > 0 else { return "Dictations cancelled as key shortcuts: 0" }
+        var line = "Dictations cancelled as key shortcuts: \(count)"
+        if let last = DefaultsStore.current.object(forKey: lastKey) as? Date {
+            line += " (last \(ISO8601DateFormatter().string(from: last)))"
+        }
+        return line
+    }
+}

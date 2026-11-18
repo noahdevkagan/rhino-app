@@ -106,14 +106,14 @@ final class BubbleRevealGateTests: XCTestCase {
     }
 
     /// The press time is backdated by the window server's "last modifier change" age, so a
-    /// late handler still counts keys pressed during its stall; never more than the chord window.
+    /// late handler still counts keys pressed during its stall; never more than the backdate limit.
     func testPhysicalPressTimeBackdatesTheHandler() {
         let handled = Date(timeIntervalSinceReferenceDate: 1_000)
         XCTAssertEqual(ShortcutManager.physicalPressTime(
             handledAt: handled, secondsSinceLastFlagsChange: 0.35), handled.addingTimeInterval(-0.35))
         XCTAssertEqual(ShortcutManager.physicalPressTime(
             handledAt: handled, secondsSinceLastFlagsChange: 1e9),
-                       handled.addingTimeInterval(-ShortcutManager.chordCancelWindow))
+                       handled.addingTimeInterval(-ShortcutManager.pressBackdateLimit))
         XCTAssertEqual(ShortcutManager.physicalPressTime(
             handledAt: handled, secondsSinceLastFlagsChange: -1), handled)
     }

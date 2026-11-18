@@ -3,6 +3,10 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## Unreleased
+
+- The code prompt and menu now say "Have an unlock code?" and "Enter unlock code…", so they work for your $20 purchase code as well as AppSumo codes.
+
 ## 0.1.52 — 2026-11-17
 
 - Bought Rhino on AppSumo? Rhino now asks for your code once after setup, and "Enter AppSumo code…" is in the menu bar. The code box is first in the unlock window, and the menu shows "Rhino Unlimited ✓" once you're unlocked.

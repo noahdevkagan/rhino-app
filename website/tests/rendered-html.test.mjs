@@ -296,6 +296,9 @@ test("renders the changelog and post-purchase download routes", async () => {
   assert.match(thanks, /class="unlock-code"/);
   assert.match(thanks, /Copy code/);
   assert.match(thanks, /Get Rhino Unlimited/);
+  // Unlock is quiet until Download is clicked (server HTML starts quiet), with install-first help.
+  assert.match(thanks, /class="button button-quiet" href="rhinovoice:\/\/unlock/);
+  assert.match(thanks, /<strong>Install Rhino first, then click Unlock\.<\/strong> One click, nothing to type\./);
   const download = await (await render("/download")).text();
   assert.match(download, /Download Rhino free/);
   assert.match(download, /href="\/get"/);

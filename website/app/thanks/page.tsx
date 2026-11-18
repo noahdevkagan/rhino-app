@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CopyCode } from "./copy-code";
+import { UnlockSteps } from "./unlock-steps";
 
 export const metadata: Metadata = {
   title: "Thanks for buying Rhino",
@@ -28,20 +29,7 @@ export default function Thanks() {
         <p className="payment-note">
           Your payment is complete. PayPal emailed you a receipt.
         </p>
-        <ol className="unlock-steps">
-          <li>
-            <a className="button button-primary download-button" href={downloadUrl}>
-              Download Rhino for Mac
-            </a>
-            <span>Open the DMG and drag Rhino to Applications. Already have Rhino? Skip to step 2.</span>
-          </li>
-          <li>
-            <a className="button button-primary" href={`rhinovoice://unlock?code=${unlockCode}`}>
-              Unlock Rhino
-            </a>
-            <span>One click. Nothing to type. Rhino opens and says it&apos;s unlimited.</span>
-          </li>
-        </ol>
+        <UnlockSteps downloadUrl={downloadUrl} unlockCode={unlockCode} />
         <div className="unlock-backup">
           <p className="unlock-backup-label">Your unlock code</p>
           <CopyCode code={unlockCode} />

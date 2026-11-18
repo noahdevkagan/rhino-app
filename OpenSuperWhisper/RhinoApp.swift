@@ -606,7 +606,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         menu.addItem(feedbackItem)
 
         // Free users get the upgrade screen (both $20 and "invite 2 friends") plus a direct
-        // "Enter AppSumo code…" for buyers who redeemed on the site but never typed the code.
+        // "Enter unlock code…" for buyers who redeemed on the site but never typed the code.
         // Unlocked users have nothing to buy: they see that it worked, and Share.
         if MainActor.assumeIsolated({ UnlockRhino.shared.gate.isUnlocked }) {
             let unlimitedItem = NSMenuItem(title: "Rhino Unlimited ✓",
@@ -622,7 +622,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
                                         action: #selector(unlockRhino), keyEquivalent: "")
             unlockItem.target = self
             menu.addItem(unlockItem)
-            let codeItem = NSMenuItem(title: "Enter AppSumo code…",
+            let codeItem = NSMenuItem(title: "Enter unlock code…",
                                       action: #selector(enterUnlockCode), keyEquivalent: "")
             codeItem.target = self
             menu.addItem(codeItem)

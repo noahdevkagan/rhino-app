@@ -7,7 +7,7 @@ final class UnlockRhino {
     static let shared = UnlockRhino()
     static let buyURL = URL(string: "https://rhinovoice.app/#buy")!
     static let panelSize = NSSize(width: 420, height: 380)
-    static let promptSize = NSSize(width: 420, height: 180)
+    static let promptSize = NSSize(width: 420, height: 210)
 
     private var panel: NSPanel?
     private lazy var appSumoHashes = UsageGate.loadAppSumoHashes()
@@ -52,7 +52,7 @@ final class UnlockRhino {
         show()
     }
 
-    /// One-time "Bought Rhino on AppSumo?" ask: a moment after launch (so a rhinovoice://unlock
+    /// One-time "Have an unlock code?" ask: a moment after launch (so a rhinovoice://unlock
     /// link that opened the app is handled first) or right after onboarding finishes. Never during
     /// onboarding, never for unlocked or grandfathered installs.
     ///
@@ -69,7 +69,7 @@ final class UnlockRhino {
             dismiss: { [weak self] in self?.panel?.orderOut(nil) }))
     }
 
-    /// `focusCode`: opened from "Enter AppSumo code…", so the cursor starts in the code field.
+    /// `focusCode`: opened from "Enter unlock code…", so the cursor starts in the code field.
     func show(limitReached: Bool = false, focusCode: Bool = false) {
         present(title: "Rhino Unlimited", size: Self.panelSize, takeFocus: true, rootView: UnlockRhinoView(
             limitReached: limitReached,
@@ -199,9 +199,10 @@ struct AppSumoCodePromptView: View {
                 Spacer(minLength: 0)
                 HStack { Spacer(); Button("Done", action: dismiss).buttonStyle(PrimaryPillStyle()) }
             } else {
-                Text("Bought Rhino on AppSumo?").font(.title3.bold())
-                Text("Enter your code to unlock Rhino for good.")
+                Text("Have an unlock code?").font(.title3.bold())
+                Text("From AppSumo or your $20 purchase. Enter it to unlock Rhino for good.")
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 // No auto-focus: the prompt can appear while the user types in another app.
                 UnlockCodeField(focusOnAppear: false, unlock: unlock) { unlocked = true }
                 Spacer(minLength: 0)

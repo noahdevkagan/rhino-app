@@ -40,9 +40,44 @@ final class TriggerChordTests: XCTestCase {
         var state = ShortcutManager.ChordState()
         let press = state.pressBegan(at: t0)
         state.takeStarted(by: press)
-        XCTAssertNil(state.chord(at: at(ShortcutManager.chordCancelWindow)))
+        // Just past the window: Date arithmetic at t0 + 0.3 rounds a hair under it (the exact
+        // edge is `testChordWindowEdge`).
+        XCTAssertNil(state.chord(at: at(ShortcutManager.chordCancelWindow + 0.01)))
         XCTAssertNil(state.chord(at: at(5)))
         XCTAssertFalse(state.isChorded(press))
+    }
+
+    /// The customer case (2026-11-18): a key well into the hold must not wipe the take.
+    func testKeyHalfASecondIntoTheHoldIsNotAChord() {
+        var state = ShortcutManager.ChordState()
+        let press = state.pressBegan(at: t0)
+        state.takeStarted(by: press)
+        XCTAssertNil(state.chord(at: at(0.5)))
+        XCTAssertFalse(state.isChorded(press), "the release still stops the take")
+    }
+
+    /// A chord delivered late is timed from the key, not from its handler.
+    func testPhysicalKeyTimeBackdatesALateChord() {
+        // ↑ pressed 60 ms into the hold, handled 450 ms in: still a chord.
+        let key = ShortcutManager.physicalKeyTime(
+            handledAt: at(0.45), secondsSinceLastKeyDown: 0.39, pressedAt: t0)
+        XCTAssertEqual(key.timeIntervalSince(t0), 0.06, accuracy: 0.001)
+        XCTAssertTrue(ShortcutManager.keyIsChord(sincePress: key.timeIntervalSince(t0)))
+        // The last hardware key-down predates the press (a synthetic key): handler time.
+        XCTAssertEqual(ShortcutManager.physicalKeyTime(
+            handledAt: at(0.45), secondsSinceLastKeyDown: 30, pressedAt: t0), at(0.45))
+        XCTAssertEqual(ShortcutManager.physicalKeyTime(
+            handledAt: at(0.45), secondsSinceLastKeyDown: -1, pressedAt: t0), at(0.45))
+        XCTAssertEqual(ShortcutManager.physicalKeyTime(
+            handledAt: at(0.45), secondsSinceLastKeyDown: 0.1, pressedAt: nil), at(0.45))
+    }
+
+    func testChordDiscardsAreCounted() {
+        let before = ChordDiscards.count
+        ChordDiscards.record(msSincePress: 80, at: Date(timeIntervalSince1970: 0))
+        XCTAssertEqual(ChordDiscards.count, before + 1)
+        XCTAssertTrue(ChordDiscards.summary.hasPrefix(
+            "Dictations cancelled as key shortcuts: \(before + 1) (last 1970-01-01T00:00:00Z"))
     }
 
     func testChordWindowEdge() {

@@ -20,4 +20,12 @@ final class FeedbackFormTests: XCTestCase {
             "The hotkey works great & I'd like another option."
         )
     }
+
+    func testDiagnosticsGoUnderTheFeedback() throws {
+        let url = try XCTUnwrap(FeedbackFormView.emailURL(
+            feedback: "Fn flashes.", version: "1.2.3", diagnostics: ["A: 1", "B: 2"]))
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.queryItems?.first(where: { $0.name == "body" })?.value,
+                       "Fn flashes.\n\n----\nA: 1\nB: 2")
+    }
 }

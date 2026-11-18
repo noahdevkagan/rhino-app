@@ -7,6 +7,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Fn "on, then off" report (2026-11-18, branch claude/wonderful-ride-ngw9x9)
+
+Sylvain (0.1.51): Fn capture flashes on then off, must press again. Likely a chord discard (decisions.md 2026-11-18).
+Done: chord window 1 s → 0.3 s timed from the physical key; discards logged + counted in release; count appended to the
+feedback email. Not built or run on a Mac (CI only). Still to do: ask Sylvain whether he holds or taps and what keyboard
+tools he runs; after he updates, read the count in his next feedback email; hand-test Fn+↑ and a slow Fn+↑ in Rhino Dev.
+
 ### AppSumo code entry (2026-11-17, branch appsumo-redeem-fixes, draft PR)
 
 Buyers redeem on /appsumo but never type the code into Rhino. Done: /appsumo Unlock is quiet until

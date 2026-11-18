@@ -9,6 +9,14 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.54",
+    date: "November 18, 2026",
+    changes: [
+      "Fixed dictation sometimes turning on and then off when you press Fn. A key now only counts as an Fn shortcut (like Fn+↑) if it lands right after the press.",
+      "The feedback email now includes a count of dictations cancelled as key shortcuts, so reports like this are quicker to pin down.",
+    ],
+  },
+  {
     version: "0.1.53",
     date: "November 18, 2026",
     changes: [

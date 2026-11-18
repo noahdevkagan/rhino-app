@@ -65,7 +65,8 @@ class ShortcutManager {
     /// (ModifierKeyMonitor reports at most one key per press).
     struct ChordState {
         private(set) var press = 0
-        private var pressedAt: Date?
+        /// When the press physically went down (`physicalPressTime`), not when it was handled.
+        private(set) var pressedAt: Date?
         private var chordedPress: Int?
         private var takeOwner: Int?
 
@@ -96,9 +97,15 @@ class ShortcutManager {
     }
 
     /// How soon after the trigger press a key makes it a chord. A shortcut like Fn+↑ lands
-    /// almost at once; a key after this is a stray press during real dictation, which keeps
-    /// recording (a long take is never wiped without the Esc confirmation).
-    static let chordCancelWindow: TimeInterval = 1.0
+    /// almost at once (20–120 ms in Noah's logs); a key after this is a stray press during real
+    /// dictation, which keeps recording (a long take is never wiped without the Esc
+    /// confirmation). It was 1 s until a customer's takes kept vanishing mid-hold: both ends are
+    /// now physical times (see `physicalKeyTime`), so the window no longer has to absorb
+    /// main-thread stalls (decisions.md 2026-11-18).
+    static let chordCancelWindow: TimeInterval = 0.3
+
+    /// The furthest back a press is backdated: an older modifier change can't be this press.
+    static let pressBackdateLimit: TimeInterval = 1.0
 
     /// How long a new take's audible and visible side effects (bubble, start chime, media
     /// pause, paywall) wait, so a chord landing in that time never shows or plays them. The mic
@@ -114,9 +121,21 @@ class ShortcutManager {
     }
 
     /// The trigger press's real time: `handledAt` minus how long ago the last modifier change
-    /// happened, never more than `chordCancelWindow` back (an older change can't be this press).
+    /// happened, never more than `pressBackdateLimit` back (an older change can't be this press).
     static func physicalPressTime(handledAt: Date, secondsSinceLastFlagsChange: TimeInterval) -> Date {
-        handledAt.addingTimeInterval(-min(max(secondsSinceLastFlagsChange, 0), chordCancelWindow))
+        handledAt.addingTimeInterval(-min(max(secondsSinceLastFlagsChange, 0), pressBackdateLimit))
+    }
+
+    /// When the chord's key really went down: `handledAt` minus the window server's "last
+    /// key-down" age, so a chord delivered late (main was busy starting the take) is still
+    /// timed from the key, not from its handler. If that lands before the press, the last
+    /// hardware key-down isn't this key (a synthetic key from another app doesn't move that
+    /// clock), and the handler's own time is all there is.
+    static func physicalKeyTime(handledAt: Date, secondsSinceLastKeyDown: TimeInterval,
+                                pressedAt: Date?) -> Date {
+        let estimate = handledAt.addingTimeInterval(-max(secondsSinceLastKeyDown, 0))
+        guard let pressedAt, estimate >= pressedAt else { return handledAt }
+        return estimate
     }
 
     static func keyIsChord(sincePress elapsed: TimeInterval) -> Bool {
@@ -296,14 +315,14 @@ class ShortcutManager {
         // Timed and cancelled here (not in the Task) so queue latency can't stretch the
         // gesture, and a deferred stop can't fire between this press and its handling.
         let now = Date()
-        let press = chords.pressBegan(at: now)
         // When the modifier actually went down, by the window server's clock: after a
-        // main-thread stall this handler runs late, and the bubble's chord check must count a
-        // key pressed in between (see `BubbleRevealGate.shouldAwaitChord`).
+        // main-thread stall this handler runs late, and the chord window and the bubble's chord
+        // check must count from the press itself (see `BubbleRevealGate.shouldAwaitChord`).
         let physicalPressAt = canChord
             ? Self.physicalPressTime(handledAt: now, secondsSinceLastFlagsChange:
                 CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: .flagsChanged))
             : now
+        let press = chords.pressBegan(at: physicalPressAt)
         let awaitingSecondTap = pendingHoldStop != nil
         pendingHoldStop?.cancel()
         pendingHoldStop = nil
@@ -379,7 +398,13 @@ class ShortcutManager {
     
     /// A non-modifier key went down while a modifier trigger was held (see `ChordState`).
     private func handleChord() {
-        guard let press = chords.chord(at: Date()) else { return }
+        let keyAt = Self.physicalKeyTime(
+            handledAt: Date(),
+            secondsSinceLastKeyDown: CGEventSource.secondsSinceLastEventType(
+                .hidSystemState, eventType: .keyDown),
+            pressedAt: chords.pressedAt)
+        let sincePress = chords.pressedAt.map { keyAt.timeIntervalSince($0) } ?? 0
+        guard let press = chords.chord(at: keyAt) else { return }
         // The release will be a no-op; the hold timer must not flip holdMode behind it.
         holdWorkItem?.cancel()
         holdWorkItem = nil
@@ -388,7 +413,9 @@ class ShortcutManager {
                                          takeLive: self.activeVm != nil,
                                          lockedOn: self.lockedOn) else { return }
             // Quietly: transcribe and insert nothing, and don't block main on the recorder.
-            Diag.mark("trigger chord → discard take")
+            // Logged and counted in release too (never the key): a take that vanishes
+            // mid-hold is otherwise invisible in a customer report.
+            ChordDiscards.record(msSincePress: Int(sincePress * 1000))
             self.discardChordTake()
         }
     }

@@ -40,7 +40,9 @@ final class TriggerChordTests: XCTestCase {
         var state = ShortcutManager.ChordState()
         let press = state.pressBegan(at: t0)
         state.takeStarted(by: press)
-        XCTAssertNil(state.chord(at: at(ShortcutManager.chordCancelWindow)))
+        // Just past the window: Date arithmetic at t0 + 0.3 rounds a hair under it (the exact
+        // edge is `testChordWindowEdge`).
+        XCTAssertNil(state.chord(at: at(ShortcutManager.chordCancelWindow + 0.01)))
         XCTAssertNil(state.chord(at: at(5)))
         XCTAssertFalse(state.isChorded(press))
     }

@@ -288,6 +288,9 @@ struct HomeHeaderView: View {
                     .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
             )
 
+            // Hidden until there are enough dictations to say something fun.
+            RhinoWrappedSection()
+
             HStack(spacing: 10) {
                 Text("Dictate")
                     .scaledFont(size: 12.5)
@@ -341,6 +344,7 @@ struct HomeHeaderView: View {
         .padding(.horizontal, 24)
         .onAppear {
             stats.reload()
+            RhinoWrappedModel.shared.refresh()
             modelMissing = Self.isModelMissing()
             reloadShortcutDescription()
         }
@@ -351,7 +355,10 @@ struct HomeHeaderView: View {
             refreshCleanupOffer()
         }
         .onReceive(NotificationCenter.default.publisher(
-            for: RecordingStore.recordingsDidUpdateNotification)) { _ in stats.reload() }
+            for: RecordingStore.recordingsDidUpdateNotification)) { _ in
+            stats.reload()
+            RhinoWrappedModel.shared.refresh()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .modelSelectionDidChange)) { _ in
             modelMissing = Self.isModelMissing()
             modelInfo = Self.activeModelInfo()

@@ -346,6 +346,26 @@ class WhisperEngine: TranscriptionEngine {
         "thank you very much", "thank you bye", "thank you bye bye",
         "bye", "bye bye", "the end",
         "subtitles by the amara org community",
+        // Non-English versions. Whisper invents these when the language is set to one of
+        // them or auto-detect picks it from room noise: a German user's silent clip typed
+        // "Vielen Dank." Same pairing rule as above, so a spoken "Danke" still comes through.
+        // German
+        "vielen dank", "danke", "danke schön", "dankeschön", "vielen dank fürs zuschauen",
+        "danke fürs zuschauen", "bis zum nächsten mal", "tschüss",
+        "untertitel im auftrag des zdf", "untertitel im auftrag des zdf für funk",
+        "untertitelung des zdf für funk", "untertitel der amara org community",
+        // Spanish
+        "gracias", "muchas gracias", "gracias por ver", "gracias por ver el video",
+        "subtítulos realizados por la comunidad de amara org",
+        // French
+        "merci", "merci beaucoup", "merci d avoir regardé",
+        "sous titres réalisés par la communauté d amara org",
+        // Portuguese
+        "obrigado", "obrigada", "muito obrigado", "muito obrigada",
+        // Italian
+        "grazie", "grazie mille", "grazie per la visione",
+        // Dutch
+        "dank je wel", "dank u wel", "bedankt", "bedankt voor het kijken",
     ]
 
     /// True when `text`, lowercased and reduced to letters and single spaces, is one of the

@@ -53,6 +53,48 @@ final class RhinoWrappedTests: XCTestCase {
         XCTAssertEqual(RhinoWrapped.sentences("it’s fine"), [["it's", "fine"]])
     }
 
+    /// Chinese/Japanese/Thai have no spaces; whole clauses must never become a "word"
+    /// (they'd land in the shared image).
+    func testUnspacedScriptsSplitIntoWordsNotClauses() {
+        let zh = "我今天下午要和客户开会讨论新产品的发布计划。然后我们一起吃晚饭！"
+        let sentences = RhinoWrapped.sentences(zh)
+        XCTAssertEqual(sentences.count, 2)
+        XCTAssertGreaterThan(sentences[0].count, 5)
+        for token in sentences.flatMap({ $0 }) { XCTAssertLessThanOrEqual(token.count, 6, token) }
+
+        let rows = filler(8) + [dictation(zh, day: 20), dictation("ประชุมกับลูกค้าตอนบ่ายเรื่องแผนเปิดตัวสินค้าใหม่", day: 21)]
+        let w = RhinoWrapped.compute(rows, calendar: calendar)!
+        XCTAssertGreaterThan(w.biggestRambleWords, 5)
+        for tile in w.tiles(calendar: calendar) {
+            XCTAssertFalse(tile.value.contains("客户开会讨论"), tile.value)
+            XCTAssertFalse(tile.note.contains("客户开会讨论"), tile.note)
+        }
+    }
+
+    func testOverlongTokensNeverShowAsYourWord() {
+        let long = "supercalifragilisticexpialidocious" // 34 letters
+        let rows = filler(8) + [dictation("\(long) \(long) \(long) rhino", day: 20), dictation("rhino", day: 21)]
+        let w = RhinoWrapped.compute(rows, calendar: calendar)!
+        XCTAssertEqual(w.topWord, "rhino")
+        XCTAssertNil(w.topPhrase.flatMap { $0.contains(long) ? $0 : nil })
+    }
+
+    func testLikeAsVerbIsNotAFillerAndJustIsNeverOne() {
+        XCTAssertFalse(RhinoWrapped.isFiller("like", after: "i"))
+        XCTAssertFalse(RhinoWrapped.isFiller("like", after: "would"))
+        XCTAssertFalse(RhinoWrapped.isFiller("like", after: "looks"))
+        XCTAssertTrue(RhinoWrapped.isFiller("like", after: "was"))
+        XCTAssertTrue(RhinoWrapped.isFiller("like", after: nil))
+        XCTAssertFalse(RhinoWrapped.isFiller("just", after: nil))
+
+        var rows = filler(8)
+        rows.append(dictation("I like it. We would like more. It looks like rain. I just really like that.", day: 20))
+        rows.append(dictation("Um, it was like, actually fine. Uh.", day: 21))
+        let w = RhinoWrapped.compute(rows, calendar: calendar)!
+        XCTAssertEqual(w.topFiller, "actually") // like ×1, actually ×1, um ×1, uh ×1: alphabetical tie-break
+        XCTAssertEqual(w.topFillerCount, 1)
+    }
+
     func testContentWordRules() {
         XCTAssertFalse(RhinoWrapped.isContentWord("ok"))     // ≤ 2 letters
         XCTAssertFalse(RhinoWrapped.isContentWord("the"))    // stopword
@@ -166,6 +208,8 @@ final class RhinoWrappedTests: XCTestCase {
         XCTAssertEqual(RhinoWrapped.compact(950), "950")
         XCTAssertEqual(RhinoWrapped.compact(6_312), "6.3K")
         XCTAssertEqual(RhinoWrapped.compact(1_260_000), "1.3M")
+        XCTAssertEqual(RhinoWrapped.compact(999_949), "999.9K")
+        XCTAssertEqual(RhinoWrapped.compact(999_960), "1.0M")
     }
 
     /// The share image renders in both modes (ImageRenderer has no window to lean on).

@@ -2604,3 +2604,12 @@ NSSharingServicePicker with "Copy Image" added first. The footer uses the existi
 link (ReferralLink, generated on first use like Share Rhino does), so friends from a shared Wrapped
 count toward the 2-friend unlock; nothing is sent until the user shares. The image carries only the
 stats, never transcript text beyond the top word and phrase.
+
+## 2026-11-20 — Rhino Wrapped review fixes: NLTokenizer words, 20-char cap, "like" heuristic, no "just"
+
+Review of PR #139. Words come from NLTokenizer(.word), not whitespace/punctuation splitting: Chinese,
+Japanese and Thai have no spaces, so whole clauses became "words" and could reach the shared PNG. As a
+backstop, a token over 20 characters never counts as "Your word" or in its phrase. "just" is no longer
+a filler (it is nearly always a real word and won for everyone), and "like" right after I/you/we/
+would/looks/feel… is the verb or a comparison, so it isn't counted. Copy Image writes one PNG item
+(two items pasted twice in some apps). The cache key includes the time zone.

@@ -29,7 +29,9 @@ final class RhinoWrappedModel: ObservableObject {
 
     private func load() async {
         let store = RecordingStore.shared
-        guard let current = try? await store.completedHistorySignature(),
+        // The time zone is part of the key: days, hours and weekends move with it.
+        guard let history = try? await store.completedHistorySignature(),
+              case let current = history + "|" + TimeZone.current.identifier,
               current != signature,
               let rows = try? await store.fetchWrappedDictations() else { return }
         let result = await Task.detached(priority: .utility) { RhinoWrapped.compute(rows) }.value
@@ -217,8 +219,8 @@ enum RhinoWrappedSharer {
             alternateImage: nil) {
                 let pasteboard = NSPasteboard.general
                 pasteboard.clearContents()
+                // One item only: two (PNG + NSImage) made some apps paste the image twice.
                 pasteboard.setData(png, forType: .png)
-                pasteboard.writeObjects([image])
             }
 
         guard let view, view.window != nil else {

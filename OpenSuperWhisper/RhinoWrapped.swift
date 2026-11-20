@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 
 /// "Your Rhino Wrapped": eight playful stats about how this person talks, computed from the
 /// local history DB. Pure functions here (unit-tested in RhinoWrappedTests); loading,
@@ -16,7 +17,21 @@ struct RhinoWrapped: Equatable, Sendable {
     /// Below this the stats are noise ("your word: hello"), so the card stays hidden.
     static let minimumDictations = 10
 
-    static let fillers = ["like", "just", "actually", "basically", "literally", "um", "uh"]
+    /// "just" is left out: it is nearly always a real word, so it won every time.
+    static let fillers = ["like", "actually", "basically", "literally", "um", "uh"]
+
+    /// "like" after these is the verb or a comparison ("I like", "would like", "looks like"),
+    /// not a filler. Cheap, and good enough for a fun stat.
+    static let likeNotFillerAfter: Set<String> = [
+        "i", "you", "we", "they", "he", "she", "would", "don't", "didn't", "doesn't", "really",
+        "i'd", "you'd", "we'd", "they'd", "i'll", "we'll", "you'll", "to", "look", "looks",
+        "looked", "feel", "feels", "felt", "sound", "sounds", "seem", "seems", "something",
+        "much", "more", "also", "not", "who", "people",
+    ]
+
+    /// Longest token shown on the card. Scripts written without spaces can still hand
+    /// the tokenizer a long run; this keeps a clause from ever reaching the shared image.
+    static let maxDisplayedWordLength = 20
 
     var firstDate: Date
     var dictations: Int
@@ -70,20 +85,24 @@ extension RhinoWrapped {
         var weekdayCounts = [Int](repeating: 0, count: 8)
         var days = Set<Date>()
 
+        let tokenizer = NLTokenizer(unit: .word)
         for row in rows {
             var words = 0
-            for sentence in sentences(row.text) {
+            for sentence in sentences(row.text, tokenizer: tokenizer) {
                 var previous: String?
                 for token in sentence {
                     words += 1
-                    if fillerSet.contains(token) { fillerCounts[token, default: 0] += 1 }
+                    if isFiller(token, after: previous) { fillerCounts[token, default: 0] += 1 }
                     if token == "please" { wrapped.pleaseCount += 1 }
                     if isContentWord(token) { wordCounts[token, default: 0] += 1 }
-                    if let previous { phraseCounts[previous + " " + token, default: 0] += 1 }
+                    if let previous, previous.count <= maxDisplayedWordLength,
+                       token.count <= maxDisplayedWordLength {
+                        phraseCounts[previous + " " + token, default: 0] += 1
+                    }
                     previous = token
                 }
             }
-            wrapped.questions += row.text.reduce(0) { $1 == "?" ? $0 + 1 : $0 }
+            wrapped.questions += row.text.reduce(0) { $1 == "?" || $1 == "？" ? $0 + 1 : $0 }
             wrapped.biggestRambleWords = max(wrapped.biggestRambleWords, words)
 
             if let app = row.sourceAppName?.trimmingCharacters(in: .whitespaces), !app.isEmpty {
@@ -136,34 +155,39 @@ extension RhinoWrapped {
     }
 
     /// Lowercased words, grouped by sentence so a phrase never spans "…done. Think…".
-    /// Apostrophes stay inside words ("don't"); everything else splits.
-    static func sentences(_ text: String) -> [[String]] {
+    /// NLTokenizer finds the words, so Chinese, Japanese and Thai (written without spaces)
+    /// split into words instead of whole clauses. Straight and curly apostrophes match.
+    static func sentences(_ text: String, tokenizer: NLTokenizer = NLTokenizer(unit: .word)) -> [[String]] {
+        let lower = text.lowercased()
         var result: [[String]] = []
         var current: [String] = []
-        var word = ""
-        func endWord() {
-            let trimmed = word.trimmingCharacters(in: apostrophes)
-            if !trimmed.isEmpty { current.append(trimmed) }
-            word = ""
-        }
-        for ch in text.lowercased() {
-            if ch.isLetter || ch.isNumber || ch == "'" || ch == "’" {
-                word.append(ch == "’" ? "'" : ch)
-            } else {
-                endWord()
-                if ch == "." || ch == "!" || ch == "?" || ch == "\n" || ch == ";" {
-                    if !current.isEmpty { result.append(current); current = [] }
-                }
+        var lastEnd = lower.startIndex
+        tokenizer.string = lower
+        tokenizer.enumerateTokens(in: lower.startIndex..<lower.endIndex) { range, _ in
+            if !current.isEmpty, lower[lastEnd..<range.lowerBound].contains(where: sentenceEnds.contains) {
+                result.append(current)
+                current = []
             }
+            lastEnd = range.upperBound
+            let token = lower[range].replacingOccurrences(of: "’", with: "'")
+                .trimmingCharacters(in: apostrophes)
+            if token.contains(where: { $0.isLetter || $0.isNumber }) { current.append(token) }
+            return true
         }
-        endWord()
         if !current.isEmpty { result.append(current) }
         return result
     }
 
-    /// Counts toward "Your word": longer than two letters, not a stopword or filler, not a number.
+    /// A filler use of `token`, given the word before it in the same sentence.
+    static func isFiller(_ token: String, after previous: String?) -> Bool {
+        guard fillerSet.contains(token) else { return false }
+        if token == "like", let previous, likeNotFillerAfter.contains(previous) { return false }
+        return true
+    }
+
+    /// Counts toward "Your word": 3–20 letters, not a stopword or filler, not a number.
     static func isContentWord(_ token: String) -> Bool {
-        token.count > 2 && !stopwords.contains(token) && !fillerSet.contains(token)
+        token.count > 2 && token.count <= maxDisplayedWordLength && !stopwords.contains(token) && !fillerSet.contains(token)
             && !token.allSatisfy(\.isNumber)
     }
 
@@ -188,6 +212,7 @@ extension RhinoWrapped {
     }
 
     private static let apostrophes = CharacterSet(charactersIn: "'")
+    private static let sentenceEnds: Set<Character> = [".", "!", "?", "\n", ";", "。", "！", "？", "…"]
     private static let fillerSet = Set(fillers)
 
     /// Common English function words plus dictation glue ("yeah", "okay", "gonna").
@@ -306,7 +331,8 @@ extension RhinoWrapped {
 
     /// 6_312 → "6.3K"; 950 → "950"; 1_260_000 → "1.3M".
     static func compact(_ n: Int) -> String {
-        if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
+        // Round first so 999_960 reads "1.0M", not "1000.0K".
+        if n >= 999_950 { return String(format: "%.1fM", Double(n) / 1_000_000) }
         if n >= 1_000 { return String(format: "%.1fK", Double(n) / 1_000) }
         return "\(n)"
     }

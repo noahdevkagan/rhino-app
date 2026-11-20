@@ -20,6 +20,26 @@ final class SilenceHallucinationTests: XCTestCase {
             "Subtitles by the Amara.org community"))
     }
 
+    /// A German user's silent recording typed "Vielen Dank." (Nov 2026 report).
+    func testMatchesNonEnglishStockPhrases() {
+        XCTAssertTrue(WhisperEngine.isKnownSilenceHallucination("Vielen Dank."))
+        XCTAssertTrue(WhisperEngine.isKnownSilenceHallucination("Danke schön!"))
+        XCTAssertTrue(WhisperEngine.isKnownSilenceHallucination(
+            "Untertitel im Auftrag des ZDF, 2017"))
+        XCTAssertTrue(WhisperEngine.isKnownSilenceHallucination("¡Gracias!"))
+        XCTAssertTrue(WhisperEngine.isKnownSilenceHallucination("Merci d'avoir regardé."))
+        XCTAssertTrue(WhisperEngine.isKnownSilenceHallucination("Obrigado."))
+        XCTAssertTrue(WhisperEngine.isKnownSilenceHallucination("Grazie."))
+        XCTAssertTrue(WhisperEngine.isKnownSilenceHallucination("Dank je wel."))
+    }
+
+    func testDoesNotMatchRealNonEnglishDictation() {
+        XCTAssertFalse(WhisperEngine.isKnownSilenceHallucination(
+            "Vielen Dank für deine Hilfe gestern."))
+        XCTAssertFalse(WhisperEngine.isKnownSilenceHallucination("Danke, das passt so."))
+        XCTAssertFalse(WhisperEngine.isKnownSilenceHallucination("Gracias por todo, amigo."))
+    }
+
     func testDoesNotMatchRealDictation() {
         XCTAssertFalse(WhisperEngine.isKnownSilenceHallucination(""))
         XCTAssertFalse(WhisperEngine.isKnownSilenceHallucination(

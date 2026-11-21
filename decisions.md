@@ -2613,3 +2613,14 @@ backstop, a token over 20 characters never counts as "Your word" or in its phras
 a filler (it is nearly always a real word and won for everyone), and "like" right after I/you/we/
 would/looks/feel… is the verb or a comparison, so it isn't counted. Copy Image writes one PNG item
 (two items pasted twice in some apps). The cache key includes the time zone.
+
+## 2026-11-20 — Rhino Wrapped: shown locked from day one, moved above History
+
+Noah tried the card in Rhino Dev and approved a follow-up mockup (newuser-after). The card now sits
+directly above History, after the "Dictate fn anywhere" row, because above that row it pushed the core
+instruction down. Under 10 dictations it no longer hides: it shows "N of 10" with a progress bar, a
+"Try one now" row using the user's own dictation key and a sample phrase (rotates with each dictation),
+and the 8 tiles greyed with "K more to unlock", with no Share button. Hiding it gave new users nothing
+to aim at. Weak values got kinder notes: no fillers = "clean talker", 0 weekend = "weekdays only", a
+1-day streak = "come back tomorrow". The model now also publishes the counted-dictation number (same
+rule as compute: completed, non-empty) so the locked count and the unlock agree.

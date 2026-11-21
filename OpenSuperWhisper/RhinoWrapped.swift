@@ -243,6 +243,45 @@ extension RhinoWrapped {
     ])
 }
 
+// MARK: - Locked (under `minimumDictations`)
+
+extension RhinoWrapped {
+    /// Dictations that count toward unlocking: completed and not empty, same as `compute`.
+    static func countedDictations(_ rows: [Dictation]) -> Int {
+        rows.reduce(0) { $1.text.isEmpty ? $0 : $0 + 1 }
+    }
+
+    /// Short, realistic things to try saying. Rotates with each new dictation.
+    static let samplePhrases = [
+        "Reply to Sam: sounds good, see you at 3.",
+        "Can we move tomorrow's call to Thursday?",
+        "Thanks for the update, I'll take a look tonight.",
+        "Remind me to send the invoice on Friday.",
+        "Running five minutes late, start without me.",
+        "Love this idea, let's try it next week.",
+    ]
+
+    static func samplePhrase(for count: Int) -> String {
+        samplePhrases[abs(count) % samplePhrases.count]
+    }
+
+    /// "3 of 10" on the locked card's header.
+    static func progressText(_ count: Int) -> String {
+        "\(min(max(count, 0), minimumDictations)) of \(minimumDictations)"
+    }
+
+    /// "7 more to unlock" under each greyed tile.
+    static func lockedNote(_ count: Int) -> String {
+        "\(max(minimumDictations - count, 1)) more to unlock"
+    }
+
+    /// Tile labels in card order, for the locked state.
+    static let tileLabels = [
+        "Your word", "Where you talk most", "Filler of choice", "Best streak",
+        "Peak hour", "Biggest ramble", "Questions asked", "Weekend talk",
+    ]
+}
+
 // MARK: - Display
 
 extension RhinoWrapped {
@@ -266,7 +305,7 @@ extension RhinoWrapped {
             wordNote += " · “\(Self.displayPhrase(topPhrase))” ×\(n(topPhraseCount))"
         }
 
-        var fillerNote = "barely any"
+        var fillerNote = "clean talker"
         if topFiller != nil {
             fillerNote = "\(times(topFillerCount)) · “\(fillerFootnoteWord)” "
                 + (fillerFootnoteCount == 0 ? "never" : "just \(n(fillerFootnoteCount))")
@@ -280,7 +319,8 @@ extension RhinoWrapped {
         }
 
         let weekendShare = Double(weekendDictations) / Double(max(dictations, 1))
-        let weekendNote = weekendShare < 0.1 ? "you rest on weekends"
+        let weekendNote = weekendDictations == 0 ? "weekdays only"
+            : weekendShare < 0.1 ? "you rest on weekends"
             : "\(Int((weekendShare * 100).rounded()))% of your talking"
 
         let weekday = calendar.weekdaySymbols[safe: peakWeekday - 1] ?? ""
@@ -295,7 +335,7 @@ extension RhinoWrapped {
                  value: topFiller.map { "“\($0)”" } ?? "none", note: fillerNote),
             Tile(label: "Best streak",
                  value: bestStreakDays == 1 ? "1 day" : "\(n(bestStreakDays)) days",
-                 note: activeDays == 1 ? "1 day talking" : "\(n(activeDays)) days talking"),
+                 note: bestStreakDays <= 1 ? "come back tomorrow" : "\(n(activeDays)) days talking"),
             Tile(label: "Peak hour",
                  value: Self.hourWindow(peakHourStart), note: "\(weekday)s most"),
             Tile(label: "Biggest ramble",
@@ -303,7 +343,7 @@ extension RhinoWrapped {
             Tile(label: "Questions asked",
                  value: n(questions), note: pleaseNote),
             Tile(label: "Weekend talk",
-                 value: times(weekendDictations), note: weekendNote),
+                 value: weekendDictations == 0 ? "0 times" : times(weekendDictations), note: weekendNote),
         ]
     }
 

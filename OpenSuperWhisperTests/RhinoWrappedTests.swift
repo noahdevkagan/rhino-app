@@ -191,7 +191,66 @@ final class RhinoWrappedTests: XCTestCase {
         let rows = (2...6).flatMap { day in [dictation("hi there", day: day), dictation("bye now", day: day)] }
         let w = RhinoWrapped.compute(rows, calendar: calendar)!
         XCTAssertEqual(w.weekendDictations, 0)
-        XCTAssertEqual(w.tiles(calendar: calendar)[7].note, "you rest on weekends")
+        let tiles = w.tiles(calendar: calendar)
+        XCTAssertEqual(tiles[7].value, "0 times")
+        XCTAssertEqual(tiles[7].note, "weekdays only")
+
+        // One Saturday in 11 (under 10%) still reads as resting.
+        let some = RhinoWrapped.compute(rows + [dictation("saturday", day: 7)], calendar: calendar)!
+        XCTAssertEqual(some.weekendDictations, 1)
+        XCTAssertEqual(some.tiles(calendar: calendar)[7].note, "you rest on weekends")
+    }
+
+    func testFriendlyLowDataCopy() {
+        // All on one day, no fillers: weak tiles still read kindly.
+        let rows = (0..<10).map { dictation("ship the deck today", day: 4, hour: 9 + $0 % 3) }
+        let w = RhinoWrapped.compute(rows, calendar: calendar)!
+        let tiles = w.tiles(calendar: calendar)
+        XCTAssertEqual(tiles[2].value, "none")
+        XCTAssertEqual(tiles[2].note, "clean talker")
+        XCTAssertEqual(tiles[3].value, "1 day")
+        XCTAssertEqual(tiles[3].note, "come back tomorrow")
+    }
+
+    func testLockedStateHelpers() {
+        let rows = [dictation("one", day: 2), dictation("", day: 2), dictation("two", day: 3)]
+        XCTAssertEqual(RhinoWrapped.countedDictations(rows), 2)
+        XCTAssertNil(RhinoWrapped.compute(rows, calendar: calendar))
+
+        XCTAssertEqual(RhinoWrapped.progressText(0), "0 of 10")
+        XCTAssertEqual(RhinoWrapped.progressText(6), "6 of 10")
+        XCTAssertEqual(RhinoWrapped.progressText(14), "10 of 10")
+        XCTAssertEqual(RhinoWrapped.lockedNote(0), "10 more to unlock")
+        XCTAssertEqual(RhinoWrapped.lockedNote(3), "7 more to unlock")
+        XCTAssertEqual(RhinoWrapped.lockedNote(9), "1 more to unlock")
+
+        let real = RhinoWrapped.compute(filler(10, startDay: 2), calendar: calendar)!
+        XCTAssertEqual(RhinoWrapped.tileLabels, real.tiles(calendar: calendar).map(\.label))
+
+        // The phrase changes with each dictation and wraps around.
+        XCTAssertNotEqual(RhinoWrapped.samplePhrase(for: 3), RhinoWrapped.samplePhrase(for: 4))
+        XCTAssertEqual(RhinoWrapped.samplePhrase(for: 0),
+                       RhinoWrapped.samplePhrase(for: RhinoWrapped.samplePhrases.count))
+        for phrase in RhinoWrapped.samplePhrases { XCTAssertLessThanOrEqual(phrase.count, 50) }
+    }
+
+    @MainActor
+    func testLockedCardRenders() throws {
+        for (scheme, name) in [(ColorScheme.light, "light"), (.dark, "dark")] {
+            let view = RhinoWrappedLockedView(count: 6, shortcut: "fn", scheme: scheme)
+                .frame(width: 760).padding(20)
+                .background(scheme == .dark ? Color(red: 0.07, green: 0.07, blue: 0.09) : .white)
+                .environment(\.colorScheme, scheme)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            let image = try XCTUnwrap(renderer.nsImage)
+            XCTAssertGreaterThan(image.size.height, 200)
+            if let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+               let png = rep.representation(using: .png, properties: [:]) {
+                try png.write(to: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("rhino-wrapped-locked-\(name).png"))
+            }
+        }
     }
 
     func testSinceTextAndFirstDate() {

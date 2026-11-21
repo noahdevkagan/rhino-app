@@ -288,9 +288,6 @@ struct HomeHeaderView: View {
                     .stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1)
             )
 
-            // Hidden until there are enough dictations to say something fun.
-            RhinoWrappedSection()
-
             HStack(spacing: 10) {
                 Text("Dictate")
                     .scaledFont(size: 12.5)
@@ -340,6 +337,10 @@ struct HomeHeaderView: View {
                     .help("Change the dictation model")
                 }
             }
+
+            // Last in the header, directly above History (Noah: odd above the Dictate row).
+            // Locked with progress until 10 dictations.
+            RhinoWrappedSection(shortcut: shortcutDescription)
         }
         .padding(.horizontal, 24)
         .onAppear {

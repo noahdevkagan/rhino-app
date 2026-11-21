@@ -9,11 +9,13 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ### Rhino Wrapped card (2026-11-20, branch rhino-wrapped, draft PR)
 
-Home card under the stats strip: 8 fun stats from local history + Share (PNG with invite link, share
-menu with Copy Image). Code: RhinoWrapped.swift (stats, unit-tested), RhinoWrappedCard.swift (cache,
-card, share). See decisions.md 2026-11-20. Unit tests pass; the share PNG was rendered from a copy of
-real history in light and dark. Not done: a look at the card inside a running Rhino Dev (launching Dev
-quits the installed Rhino), and a click on Share → Messages/Copy Image by hand.
+Home card at the bottom of the header, directly above History: 8 fun stats from local history + Share
+(PNG with invite link, share menu with Copy Image). Under 10 dictations it shows locked: "N of 10" +
+progress bar, a "Try one now: hold <key> and say ..." row, greyed "?" tiles, no Share. Code:
+RhinoWrapped.swift (stats + locked helpers, unit-tested), RhinoWrappedCard.swift (cache, card, locked card,
+share). See decisions.md 2026-11-20. Unit tests pass; card and locked card rendered in light and dark.
+Rhino Dev relaunched on this build (6 dictations, so locked at 6 of 10). Not done: a click on Share →
+Messages/Copy Image by hand.
 
 ### Fn "on, then off" report (2026-11-18, branch claude/wonderful-ride-ngw9x9)
 

@@ -337,10 +337,15 @@ struct HomeHeaderView: View {
                     .help("Change the dictation model")
                 }
             }
+
+            // Last in the header, directly above History (Noah: odd above the Dictate row).
+            // Locked with progress until 10 dictations.
+            RhinoWrappedSection(shortcut: shortcutDescription)
         }
         .padding(.horizontal, 24)
         .onAppear {
             stats.reload()
+            RhinoWrappedModel.shared.refresh()
             modelMissing = Self.isModelMissing()
             reloadShortcutDescription()
         }
@@ -351,7 +356,10 @@ struct HomeHeaderView: View {
             refreshCleanupOffer()
         }
         .onReceive(NotificationCenter.default.publisher(
-            for: RecordingStore.recordingsDidUpdateNotification)) { _ in stats.reload() }
+            for: RecordingStore.recordingsDidUpdateNotification)) { _ in
+            stats.reload()
+            RhinoWrappedModel.shared.refresh()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .modelSelectionDidChange)) { _ in
             modelMissing = Self.isModelMissing()
             modelInfo = Self.activeModelInfo()

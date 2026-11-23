@@ -9,6 +9,14 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.55",
+    date: "November 23, 2026",
+    changes: [
+      "New on Home: Your Rhino Wrapped. Your most-used word, favorite app, filler word, best streak, peak hour and more, with a Share button that makes an image with your invite link. New users see it fill up over their first 10 dictations.",
+      "Silent recordings no longer type stock phrases like \"Vielen Dank.\" or \"Gracias.\" in German, Spanish, French, Portuguese, Italian or Dutch.",
+    ],
+  },
+  {
     version: "0.1.54",
     date: "November 18, 2026",
     changes: [

@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.55 — 2026-11-23
+
+- New on Home: Your Rhino Wrapped. Your most-used word, favorite app, filler word, best streak, peak hour and more, with a Share button that makes an image with your invite link. New users see it fill up over their first 10 dictations.
+- Silent recordings no longer type stock phrases like "Vielen Dank." or "Gracias." in German, Spanish, French, Portuguese, Italian or Dutch.
+
 ## 0.1.54 — 2026-11-18
 
 - Fixed dictation sometimes turning on and then off when you press Fn. A key now only counts as an Fn shortcut (like Fn+↑) if it lands right after the press.

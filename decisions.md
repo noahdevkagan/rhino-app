@@ -2589,3 +2589,38 @@ Buyers redeem at /appsumo, download, and never type the code into Rhino. The fre
 Sylvain (0.1.51, M4 Air): since about the time chords shipped, pressing Fn turns capture "briefly on, then off" in every app and he has to press again. A chord discard is the only path added in that period that ends a live take, and it matches: the bubble hides, nothing is typed, the release is ignored. Not confirmed on his Mac: release builds logged nothing about it, and the key is never recorded. Candidates are another app's synthetic key (remapper, text expander, a second dictation app on Fn), a real key of his own in the first second, or a system key-down that comes with Fn under a code other than 179.
 
 Choices: `chordCancelWindow` is 0.3 s, down from 1 s. Real Fn+↑ chords landed 20–120 ms after the press; the 1 s was partly cover for main-thread stalls, because both ends were handler times. Now the press is the backdated physical time (as the bubble gate already used) and the key is backdated by the window server's last-key-down age (`physicalKeyTime`), falling back to handler time when that age predates the press (a synthetic key doesn't move the hardware clock). The press backdate cap stays 1 s under its own name (`pressBackdateLimit`). A deliberate, slow Fn+↑ (over 0.3 s) now records and behaves like a hold, as before chords existed. Every chord discard is written to the unified log in all builds and counted in defaults (`diag.chordDiscardCount`, last time, delay after the press; never the key). The feedback email appends that count under the typed text, where the user sees it before sending. Rejected: a key whitelist (Globe+letter shortcuts make it long, and the unknown key may be on it) and a setting to turn chords off (wait for the count to say whether it is needed). Not verified by hand; this session had no Mac, CI is the gate.
+
+## 2026-11-20 — Rhino Wrapped: stats computed from history on-device, shared as an image with the invite link
+
+Home shows a "Your Rhino Wrapped" card (Noah-approved mockup) under the stats strip, hidden below 10
+completed dictations. Stats are computed off the main thread from three columns of completed rows and
+recomputed only when a cheap SQL fingerprint (count, newest timestamp, total text length) changes,
+because recordingsDidUpdate fires many times per dictation. The model is a shared singleton so tab
+switches (which rebuild Home) don't recompute. "Your word" drops stopwords, fillers, numbers and words
+of two letters or fewer; its phrase is the top bigram containing that word ("think" → "I think"), not
+the top bigram overall, which is always "of the"-style glue. Share renders a PNG with ImageRenderer
+(no dynamic NSColors, so the image matches the user's light/dark mode) and opens
+NSSharingServicePicker with "Copy Image" added first. The footer uses the existing referral invite
+link (ReferralLink, generated on first use like Share Rhino does), so friends from a shared Wrapped
+count toward the 2-friend unlock; nothing is sent until the user shares. The image carries only the
+stats, never transcript text beyond the top word and phrase.
+
+## 2026-11-20 — Rhino Wrapped review fixes: NLTokenizer words, 20-char cap, "like" heuristic, no "just"
+
+Review of PR #139. Words come from NLTokenizer(.word), not whitespace/punctuation splitting: Chinese,
+Japanese and Thai have no spaces, so whole clauses became "words" and could reach the shared PNG. As a
+backstop, a token over 20 characters never counts as "Your word" or in its phrase. "just" is no longer
+a filler (it is nearly always a real word and won for everyone), and "like" right after I/you/we/
+would/looks/feel… is the verb or a comparison, so it isn't counted. Copy Image writes one PNG item
+(two items pasted twice in some apps). The cache key includes the time zone.
+
+## 2026-11-20 — Rhino Wrapped: shown locked from day one, moved above History
+
+Noah tried the card in Rhino Dev and approved a follow-up mockup (newuser-after). The card now sits
+directly above History, after the "Dictate fn anywhere" row, because above that row it pushed the core
+instruction down. Under 10 dictations it no longer hides: it shows "N of 10" with a progress bar, a
+"Try one now" row using the user's own dictation key and a sample phrase (rotates with each dictation),
+and the 8 tiles greyed with "K more to unlock", with no Share button. Hiding it gave new users nothing
+to aim at. Weak values got kinder notes: no fillers = "clean talker", 0 weekend = "weekdays only", a
+1-day streak = "come back tomorrow". The model now also publishes the counted-dictation number (same
+rule as compute: completed, non-empty) so the locked count and the unlock agree.

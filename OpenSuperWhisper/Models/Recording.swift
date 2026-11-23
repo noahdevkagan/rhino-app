@@ -259,6 +259,40 @@ class RecordingStore: ObservableObject {
         }
     }
 
+    /// Cheap fingerprint of the completed history (count, newest, total text length).
+    /// Wrapped recomputes only when it changes: progress updates post the same
+    /// recordingsDidUpdate notification many times per dictation.
+    nonisolated func completedHistorySignature() async throws -> String {
+        try await dbQueue.read { db in
+            let row = try Row.fetchOne(db, sql: """
+                SELECT COUNT(*), MAX(timestamp), SUM(LENGTH(transcription))
+                FROM recordings WHERE status = ?
+                """, arguments: [RecordingStatus.completed.rawValue])
+            // Raw values: no decoding, so the stored date format doesn't matter.
+            let values: [DatabaseValue] = (0..<3).map { row?[$0] ?? .null }
+            return values.map(\.description).joined(separator: "|")
+        }
+    }
+
+    /// Only the columns Rhino Wrapped reads, for every completed dictation.
+    nonisolated func fetchWrappedDictations() async throws -> [RhinoWrapped.Dictation] {
+        try await dbQueue.read { db in
+            let rows = try Row.fetchCursor(db, sql: """
+                SELECT transcription, timestamp, sourceAppName FROM recordings
+                WHERE status = ? ORDER BY timestamp
+                """, arguments: [RecordingStatus.completed.rawValue])
+            var result: [RhinoWrapped.Dictation] = []
+            while let row = try rows.next() {
+                guard let timestamp: Date = row["timestamp"] else { continue }
+                result.append(RhinoWrapped.Dictation(
+                    text: row["transcription"] ?? "",
+                    timestamp: timestamp,
+                    sourceAppName: row["sourceAppName"]))
+            }
+            return result
+        }
+    }
+
     func getPendingRecordings() -> [Recording] {
         do {
             return try dbQueue.read { db in

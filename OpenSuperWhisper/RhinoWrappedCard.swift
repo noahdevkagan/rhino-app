@@ -213,13 +213,19 @@ struct RhinoWrappedLockedView: View {
 
             HStack(spacing: 6) {
                 Text("🎙️")
-                Text("Try one now: hold")
-                Text(shortcut)
-                    .scaledFont(size: 12, weight: .semibold)
-                    .padding(.horizontal, 6).padding(.vertical, 1)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(palette.keyFill))
-                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(palette.keyBorder, lineWidth: 1))
-                Text("and say")
+                if shortcut == "—" {
+                    // No dictation key set: no key chip to point at.
+                    Text("Try saying")
+                } else {
+                    // Tap-to-toggle users would hold, release, and keep recording.
+                    Text("Try one now: \(AppPreferences.shared.holdToRecord ? "hold" : "press")")
+                    Text(shortcut)
+                        .scaledFont(size: 12, weight: .semibold)
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(palette.keyFill))
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(palette.keyBorder, lineWidth: 1))
+                    Text("and say")
+                }
                 Text("\"\(RhinoWrapped.samplePhrase(for: count))\"")
                     .italic()
                     .lineLimit(1)

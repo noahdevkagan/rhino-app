@@ -335,7 +335,7 @@ extension RhinoWrapped {
                  value: topFiller.map { "“\($0)”" } ?? "none", note: fillerNote),
             Tile(label: "Best streak",
                  value: bestStreakDays == 1 ? "1 day" : "\(n(bestStreakDays)) days",
-                 note: bestStreakDays <= 1 ? "come back tomorrow" : "\(n(activeDays)) days talking"),
+                 note: activeDays <= 1 ? "come back tomorrow" : "\(n(activeDays)) days talking"),
             Tile(label: "Peak hour",
                  value: Self.hourWindow(peakHourStart), note: "\(weekday)s most"),
             Tile(label: "Biggest ramble",

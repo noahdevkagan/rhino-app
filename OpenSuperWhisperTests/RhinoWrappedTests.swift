@@ -210,6 +210,12 @@ final class RhinoWrappedTests: XCTestCase {
         XCTAssertEqual(tiles[2].note, "clean talker")
         XCTAssertEqual(tiles[3].value, "1 day")
         XCTAssertEqual(tiles[3].note, "come back tomorrow")
+
+        // Several separate days, no two in a row: streak is 1 but they did come back.
+        let spread = (0..<10).map { dictation("ship the deck today", day: 2 + ($0 % 5) * 2) }
+        let s = RhinoWrapped.compute(spread, calendar: calendar)!.tiles(calendar: calendar)
+        XCTAssertEqual(s[3].value, "1 day")
+        XCTAssertEqual(s[3].note, "5 days talking")
     }
 
     func testLockedStateHelpers() {

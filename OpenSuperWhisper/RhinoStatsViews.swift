@@ -195,7 +195,7 @@ struct HomeRecentSection: View {
                                 Text(recording.sourceAppName ?? "—")
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
-                                    .frame(width: 76, alignment: .leading)
+                                    .frame(width: 104, alignment: .leading)
                                 Text(recording.transcription.replacingOccurrences(of: "\n", with: " "))
                                     .lineLimit(1)
                                     .truncationMode(.tail)

@@ -9,6 +9,14 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    version: "0.1.56",
+    date: "November 24, 2026",
+    changes: [
+      "History and Stats now have their own tabs. Stats shows your words, time saved, streak, top apps and your Wrapped for this week, this month, this year or all time, compared with the period before, and you can share any of them.",
+      "Home is simpler: a This week card and your last 3 dictations. History has app filters and groups dictations by day.",
+    ],
+  },
+  {
     version: "0.1.55",
     date: "November 23, 2026",
     changes: [

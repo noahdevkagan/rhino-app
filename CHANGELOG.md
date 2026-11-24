@@ -3,6 +3,11 @@
 User-facing notes, newest first. A release tag `vX.Y.Z` cannot be pushed
 without a `## X.Y.Z` section here (enforced by scripts/githooks/pre-push).
 
+## 0.1.56 — 2026-11-24
+
+- History and Stats now have their own tabs. Stats shows your words, time saved, streak, top apps and your Wrapped for this week, this month, this year or all time, compared with the period before, and you can share any of them.
+- Home is simpler: a This week card and your last 3 dictations. History has app filters and groups dictations by day.
+
 ## 0.1.55 — 2026-11-23
 
 - New on Home: Your Rhino Wrapped. Your most-used word, favorite app, filler word, best streak, peak hour and more, with a Share button that makes an image with your invite link. New users see it fill up over their first 10 dictations.

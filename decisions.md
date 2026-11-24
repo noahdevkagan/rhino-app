@@ -2624,3 +2624,22 @@ and the 8 tiles greyed with "K more to unlock", with no Share button. Hiding it 
 to aim at. Weak values got kinder notes: no fillers = "clean talker", 0 weekend = "weekdays only", a
 1-day streak = "come back tomorrow". The model now also publishes the counted-dictation number (same
 rule as compute: completed, non-empty) so the locked count and the unlock agree.
+
+## 2026-11-24 — History and Stats tabs; Home gets "This week" (Bet #151)
+
+Approved mockups (Main/History/Stats). The sidebar is Home, History, Stats, Dictionary, Snippets; History
+and Stats wear a "NEW" badge until first opened. Home keeps the strip and Dictate row and drops the full
+list and the all-time Wrapped: it shows "This week" (clicks through to Stats) or the locked "N of 10" card,
+then the last 3 dictations. Ranges: Week = the last 7 days including today vs the 7 days before (rolling, so
+Monday isn't always "down 90%"); Month = this calendar month so far vs the same number of days of last
+month (clamped to that month's end), for the same reason; Year (calendar year to date) and All time have
+no fair comparison, so their KPI cards show context lines instead (since, workdays, active days, × a
+40 wpm typist). Wrapped now takes an interval and Stats uses minimum 1 inside a range; the unlock still
+needs 10 dictations all time, so the share card can't be from one dictation for a brand-new user. Stats is
+computed in a detached task from one read of the local GRDB store, cached per range by the history
+fingerprint + time zone + today's date. Zero network: everything reads RecordingStore.
+
+## 2026-11-24 — Stats/History refresh: DayClock + content-hash signature
+- `DayClock` (day-change, clock-change, zone-change notifications, plus window-becomes-key as a sleep-through-midnight fallback) is the one day signal for Stats, Home "This week"/"Recent" and History day headers.
+- The stats cache signature hashes every completed row (id, text, time, app, duration) inside SQLite with a 32-bit FNV-1a scalar function summed over rows: no overflow, order-independent, catches same-length edits. Chosen over an in-memory revision counter so edits from another process on the same DB still invalidate.
+- History refresh re-reads the already-loaded rows (rounded to whole pages) with the current search/app filter and swaps them in without clearing, so SwiftUI diffs by id and keeps scroll.

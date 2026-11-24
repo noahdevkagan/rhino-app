@@ -2638,3 +2638,8 @@ no fair comparison, so their KPI cards show context lines instead (since, workda
 needs 10 dictations all time, so the share card can't be from one dictation for a brand-new user. Stats is
 computed in a detached task from one read of the local GRDB store, cached per range by the history
 fingerprint + time zone + today's date. Zero network: everything reads RecordingStore.
+
+## 2026-11-24 — Stats/History refresh: DayClock + content-hash signature
+- `DayClock` (day-change, clock-change, zone-change notifications, plus window-becomes-key as a sleep-through-midnight fallback) is the one day signal for Stats, Home "This week"/"Recent" and History day headers.
+- The stats cache signature hashes every completed row (id, text, time, app, duration) inside SQLite with a 32-bit FNV-1a scalar function summed over rows: no overflow, order-independent, catches same-length edits. Chosen over an in-memory revision counter so edits from another process on the same DB still invalidate.
+- History refresh re-reads the already-loaded rows (rounded to whole pages) with the current search/app filter and swaps them in without clearing, so SwiftUI diffs by id and keeps scroll.

@@ -83,10 +83,43 @@ class ContentViewModel: ObservableObject {
         startFreshLoad(query: "")
     }
 
-    /// Keeps the current search and app filter: a new dictation or a delete reloads
-    /// the list the user is looking at, not an unfiltered one.
+    /// A new dictation, an edit or a delete: re-reads the rows already loaded (same
+    /// search and app filter) and swaps them in without clearing the list first, so
+    /// SwiftUI diffs by id and the scroll position stays put.
     func reloadKeepingFilters() {
-        startFreshLoad(query: currentSearchQuery)
+        loadGeneration += 1
+        isLoadingMore = false
+        let generation = loadGeneration
+        let query = currentSearchQuery
+        let app = appFilter
+        let limit = Self.refreshLimit(loaded: recordings.count, pageSize: pageSize)
+        loadOverview()
+        Task {
+            guard let fresh = try? await recordingStore.fetchHistoryPage(
+                query: query, app: app, limit: limit, offset: 0) else { return }
+            await MainActor.run {
+                guard generation == self.loadGeneration else { return }
+                if !Self.sameRows(self.recordings, fresh) { self.recordings = fresh }
+                self.currentPage = fresh.count / self.pageSize
+                self.canLoadMore = fresh.count >= limit
+            }
+        }
+    }
+
+    /// Rows to re-read on a refresh: everything loaded, rounded up to whole pages.
+    nonisolated static func refreshLimit(loaded: Int, pageSize: Int) -> Int {
+        max(1, (loaded + pageSize - 1) / pageSize) * pageSize
+    }
+
+    /// Recording's == ignores some fields the row shows (model, app, failure detail).
+    nonisolated static func sameRows(_ a: [Recording], _ b: [Recording]) -> Bool {
+        guard a.count == b.count else { return false }
+        for (x, y) in zip(a, b) {
+            guard x == y, x.timestamp == y.timestamp, x.modelUsed == y.modelUsed,
+                  x.wasFallback == y.wasFallback, x.failureDetail == y.failureDetail,
+                  x.sourceAppName == y.sourceAppName else { return false }
+        }
+        return true
     }
 
     func filter(app: String?) {
@@ -443,6 +476,8 @@ struct ContentView: View {
     @State private var showDeleteConfirmation = false
     @State private var searchTask: Task<Void, Never>? = nil
     @State private var mainTab: MainTab = .home
+    /// Day headers ("Today", "Yesterday") roll over at midnight.
+    @ObservedObject private var dayClock = DayClock.shared
 
     private var currentShortcutDescription: String {
         RecordingTriggerSet
@@ -581,7 +616,9 @@ struct ContentView: View {
     /// "Today", "Yesterday", then "Saturday, Nov 22" (with the year when it isn't this one).
     static func dayHeader(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
         if calendar.isDate(date, inSameDayAs: now) { return "Today" }
-        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        // Relative to `now`, not the wall clock (isDateInYesterday), so a caller's day drives it.
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+           calendar.isDate(date, inSameDayAs: yesterday) { return "Yesterday" }
         let style = calendar.isDate(date, equalTo: now, toGranularity: .year)
             ? Date.FormatStyle().weekday(.wide).month(.abbreviated).day()
             : Date.FormatStyle().weekday(.wide).month(.abbreviated).day().year()
@@ -714,7 +751,7 @@ struct ContentView: View {
                                     if index == 0 || !Calendar.current.isDate(
                                         recording.timestamp,
                                         inSameDayAs: viewModel.recordings[index - 1].timestamp) {
-                                        Text(Self.dayHeader(recording.timestamp).uppercased())
+                                        Text(Self.dayHeader(recording.timestamp, now: dayClock.today).uppercased())
                                             .scaledFont(size: 11.5, weight: .bold)
                                             .tracking(0.5)
                                             .foregroundColor(.secondary)

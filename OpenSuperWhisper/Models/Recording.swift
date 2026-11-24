@@ -129,6 +129,8 @@ class RecordingStore: ObservableObject {
         // a CLI run of this binary). Wait for it rather than failing the migration and crashing.
         var config = Configuration()
         config.busyMode = .timeout(5)
+        // The stats cache's content hash (historySignature) runs inside SQLite.
+        config.prepareDatabase { db in db.add(function: RecordingStore.rowHashFunction) }
 
         do {
             try FileManager.default.createDirectory(
@@ -259,19 +261,43 @@ class RecordingStore: ObservableObject {
         }
     }
 
-    /// Cheap fingerprint of the completed history (count, newest, total text length).
-    /// Wrapped recomputes only when it changes: progress updates post the same
-    /// recordingsDidUpdate notification many times per dictation.
+    /// Fingerprint of the completed history: count, newest timestamp and a content hash of
+    /// every row's id, text, time, app and duration. The stats cache recomputes only when
+    /// it changes (progress updates post recordingsDidUpdate many times per dictation),
+    /// and the hash catches edits that keep the text the same length.
     nonisolated func completedHistorySignature() async throws -> String {
-        try await dbQueue.read { db in
-            let row = try Row.fetchOne(db, sql: """
-                SELECT COUNT(*), MAX(timestamp), SUM(LENGTH(transcription))
-                FROM recordings WHERE status = ?
-                """, arguments: [RecordingStatus.completed.rawValue])
-            // Raw values: no decoding, so the stored date format doesn't matter.
-            let values: [DatabaseValue] = (0..<3).map { row?[$0] ?? .null }
-            return values.map(\.description).joined(separator: "|")
+        try await dbQueue.read { try Self.historySignature($0) }
+    }
+
+    /// See completedHistorySignature. Needs `rowHashFunction` added to the connection.
+    nonisolated static func historySignature(_ db: Database) throws -> String {
+        let row = try Row.fetchOne(db, sql: """
+            SELECT COUNT(*), MAX(timestamp),
+                   SUM(\(rowHashFunctionName)(id, transcription, timestamp, sourceAppName, duration))
+            FROM recordings WHERE status = ?
+            """, arguments: [RecordingStatus.completed.rawValue])
+        // Raw values: no decoding, so the stored date format doesn't matter.
+        let values: [DatabaseValue] = (0..<3).map { row?[$0] ?? .null }
+        return values.map(\.description).joined(separator: "|")
+    }
+
+    nonisolated static let rowHashFunctionName = "rhino_row_hash"
+
+    /// 32-bit FNV-1a of a row's fields. 32 bits so SUM over the table can't overflow
+    /// SQLite's 64-bit integers; the sum makes the result independent of row order.
+    nonisolated static var rowHashFunction: DatabaseFunction {
+        DatabaseFunction(rowHashFunctionName, argumentCount: 5, pure: true) { values in
+            Int64(rowHash(values.map(\.description)))
         }
+    }
+
+    nonisolated static func rowHash(_ fields: [String]) -> UInt32 {
+        var hash: UInt32 = 2_166_136_261
+        for (index, field) in fields.enumerated() {
+            if index > 0 { hash = (hash ^ 0x1F) &* 16_777_619 }  // field separator
+            for byte in field.utf8 { hash = (hash ^ UInt32(byte)) &* 16_777_619 }
+        }
+        return hash
     }
 
     /// Only the columns Rhino Wrapped reads, for every completed dictation.

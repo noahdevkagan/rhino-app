@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 // MARK: - Loading + cache
@@ -21,6 +22,15 @@ final class RhinoStatsModel: ObservableObject {
     private var wanted: Set<StatsRange> = [.week]
     private var running = false
     private var rerun = false
+    private var dayChange: AnyCancellable?
+
+    init() {
+        // Ranges end at midnight: recompute when the day rolls over, not only when a new
+        // dictation arrives. The day is part of the cache key, so this recomputes.
+        dayChange = DayClock.shared.$today.dropFirst().sink { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
+        }
+    }
 
     /// Completed, non-empty dictations all time; nil until the first load.
     var countedDictations: Int? { stats.values.first?.countedDictations }
@@ -167,6 +177,8 @@ struct ThisWeekCard: View {
 /// The last three dictations on one line each, with a link to the full History tab.
 struct HomeRecentSection: View {
     let openHistory: () -> Void
+    /// "Yesterday" / times roll over at midnight.
+    @ObservedObject private var dayClock = DayClock.shared
     @State private var rows: [Recording] = []
     @State private var loaded = false
 
@@ -189,7 +201,7 @@ struct HomeRecentSection: View {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, recording in
                         Button(action: openHistory) {
                             HStack(spacing: 14) {
-                                Text(Self.when(recording.timestamp))
+                                Text(Self.when(recording.timestamp, now: dayClock.today))
                                     .foregroundColor(.secondary)
                                     .frame(width: 70, alignment: .leading)
                                 Text(recording.sourceAppName ?? "—")
@@ -229,7 +241,9 @@ struct HomeRecentSection: View {
         if calendar.isDate(date, inSameDayAs: now) {
             return date.formatted(date: .omitted, time: .shortened)
         }
-        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        // Relative to `now`, not the wall clock (isDateInYesterday), so a caller's day drives it.
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+           calendar.isDate(date, inSameDayAs: yesterday) { return "Yesterday" }
         return date.formatted(.dateTime.month(.abbreviated).day())
     }
 }

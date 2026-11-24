@@ -27,6 +27,11 @@ class ContentViewModel: ObservableObject {
     @Published var microphoneService = MicrophoneService.shared
     @Published var shouldClearSearch = false
     @Published var errorMessage: String?
+    /// History tab: the app filter chip picked (nil = All apps), the total in history
+    /// and the top source apps for the chips.
+    @Published var appFilter: String?
+    @Published var historyCount = 0
+    @Published var topApps: [String] = []
 
     private var currentPage = 0
     private let pageSize = 100
@@ -78,6 +83,28 @@ class ContentViewModel: ObservableObject {
         startFreshLoad(query: "")
     }
 
+    /// Keeps the current search and app filter: a new dictation or a delete reloads
+    /// the list the user is looking at, not an unfiltered one.
+    func reloadKeepingFilters() {
+        startFreshLoad(query: currentSearchQuery)
+    }
+
+    func filter(app: String?) {
+        guard app != appFilter else { return }
+        appFilter = app
+        startFreshLoad(query: currentSearchQuery)
+    }
+
+    private func loadOverview() {
+        Task {
+            guard let overview = try? await recordingStore.historyOverview() else { return }
+            historyCount = overview.count
+            topApps = overview.apps
+            // A filtered app that left the top list (deleted rows) keeps its chip.
+            if let appFilter, !topApps.contains(appFilter) { topApps.append(appFilter) }
+        }
+    }
+
     /// Resets paging and starts a fresh page-0 load. Bumps the load generation so
     /// any in-flight load discards its stale results instead of overwriting the
     /// list, and clears `isLoadingMore` so the reload is never dropped by the
@@ -89,6 +116,7 @@ class ContentViewModel: ObservableObject {
         recordings = []
         loadGeneration += 1
         isLoadingMore = false
+        loadOverview()
         loadMore()
     }
 
@@ -101,17 +129,13 @@ class ContentViewModel: ObservableObject {
         let page = currentPage
         let limit = pageSize
         let query = currentSearchQuery
+        let app = appFilter
         let offset = page * limit
-        
-        
+
         Task {
-            let newRecordings: [Recording]
-            if query.isEmpty {
-                newRecordings = try await recordingStore.fetchRecordings(limit: limit, offset: offset)
-            } else {
-                newRecordings = await recordingStore.searchRecordingsAsync(query: query, limit: limit, offset: offset)
-            }
-            
+            let newRecordings = (try? await recordingStore.fetchHistoryPage(
+                query: query, app: app, limit: limit, offset: offset)) ?? []
+
             
             await MainActor.run {
                 // Discard results once a newer reload (e.g. after a retention
@@ -469,6 +493,8 @@ struct ContentView: View {
                 Divider()
                 switch mainTab {
                 case .home: homePane
+                case .history: historyTab
+                case .stats: StatsTabView()
                 case .dictionary: DictionaryTabView()
                 case .snippets: SnippetsTabView()
                 }
@@ -506,7 +532,7 @@ struct ContentView: View {
             )
         }
         .onReceive(NotificationCenter.default.publisher(for: RecordingStore.recordingsDidUpdateNotification)) { _ in
-            viewModel.loadInitialData()
+            viewModel.reloadKeepingFilters()
         }
         // Engine loading is quiet background work (it runs at launch as a warm-up):
         // no dimming overlay — the sidebar shows a small "warming up" pill instead.
@@ -537,23 +563,63 @@ struct ContentView: View {
             }
         }
     }
-    /// The merged Home tab (Willow-style): stats header on top, history below.
+    /// Home: stats strip, "This week" and the last 3 dictations. The full list is History.
     private var homePane: some View {
-        VStack(spacing: 0) {
-            HomeHeaderView()
-            historyPane
+        ScrollView(showsIndicators: false) {
+            HomeHeaderView(openTab: { mainTab = $0 })
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ThemePalette.windowBackground(colorScheme))
     }
 
-    /// The history section: title + search, recording list, record button.
+    private var historyTab: some View {
+        historyPane
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(ThemePalette.windowBackground(colorScheme))
+    }
+
+    /// "Today", "Yesterday", then "Saturday, Nov 22" (with the year when it isn't this one).
+    static func dayHeader(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        if calendar.isDate(date, inSameDayAs: now) { return "Today" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        let style = calendar.isDate(date, equalTo: now, toGranularity: .year)
+            ? Date.FormatStyle().weekday(.wide).month(.abbreviated).day()
+            : Date.FormatStyle().weekday(.wide).month(.abbreviated).day().year()
+        return date.formatted(style)
+    }
+
+    /// App filter chip: All apps plus the top source apps.
+    private func appChip(_ title: String, app: String?) -> some View {
+        let selected = viewModel.appFilter == app
+        let dark = colorScheme == .dark
+        return Button {
+            viewModel.filter(app: app)
+        } label: {
+            Text(title)
+                .scaledFont(size: 12.5, weight: .semibold)
+                .lineLimit(1)
+                .foregroundColor(selected ? (dark ? .black : .white) : .primary.opacity(0.8))
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(Capsule().fill(selected
+                    ? (dark ? Color(white: 0.94) : Color(red: 0.114, green: 0.114, blue: 0.122))
+                    : ThemePalette.cardBackground(colorScheme)))
+                .overlay(Capsule().stroke(selected ? Color.clear : ThemePalette.cardBorder(colorScheme), lineWidth: 1))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The History tab: title, count, search, app chips, the list grouped by day, record button.
     private var historyPane: some View {
         VStack(spacing: 0) {
-                    // Section header: "History" + right-aligned search (Willow-style).
-                    HStack(spacing: 12) {
+                    HStack(spacing: 16) {
                         Text("History")
-                            .scaledFont(size: 18, weight: .bold)
+                            .scaledFont(size: 26, weight: .bold)
+                        Text("\(viewModel.historyCount.formatted()) dictation\(viewModel.historyCount == 1 ? "" : "s") · stored only on this Mac")
+                            .scaledFont(size: 12.5)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
                         Spacer()
                         HStack {
                             Image(systemName: "magnifyingglass")
@@ -590,12 +656,24 @@ struct ContentView: View {
                         .frame(maxWidth: 280)
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, 22)
+                    .padding(.top, 26)
+
+                    if !viewModel.topApps.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                appChip("All apps", app: nil)
+                                ForEach(viewModel.topApps, id: \.self) { appChip($0, app: $0) }
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 1)
+                        }
+                        .padding(.top, 14)
+                    }
 
                     ScrollView(showsIndicators: false) {
                         if viewModel.recordings.isEmpty {
                             VStack(spacing: 16) {
-                                if !debouncedSearchText.isEmpty {
+                                if !debouncedSearchText.isEmpty || viewModel.appFilter != nil {
                                     // Show "no results" for search
                                     Image(systemName: "magnifyingglass")
                                         .scaledFont(size: 40)
@@ -631,8 +709,18 @@ struct ContentView: View {
                             }
                             .frame(maxWidth: .infinity)
                         } else {
-                            LazyVStack(spacing: 8) {
-                                ForEach(viewModel.recordings) { recording in
+                            LazyVStack(alignment: .leading, spacing: 8) {
+                                ForEach(Array(viewModel.recordings.enumerated()), id: \.element.id) { index, recording in
+                                    if index == 0 || !Calendar.current.isDate(
+                                        recording.timestamp,
+                                        inSameDayAs: viewModel.recordings[index - 1].timestamp) {
+                                        Text(Self.dayHeader(recording.timestamp).uppercased())
+                                            .scaledFont(size: 11.5, weight: .bold)
+                                            .tracking(0.5)
+                                            .foregroundColor(.secondary)
+                                            .padding(.top, index == 0 ? 0 : 10)
+                                            .padding(.bottom, 2)
+                                    }
                                     RecordingRow(
                                         recording: recording,
                                         searchQuery: debouncedSearchText,

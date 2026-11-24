@@ -34,6 +34,26 @@ final class RhinoWrappedTests: XCTestCase {
         XCTAssertNil(RhinoWrapped.compute(withBlanks, calendar: calendar))
     }
 
+    func testIntervalLimitsWrappedToThatRange() {
+        let october = (1...10).map { dictation("Invoice invoice.", day: $0) .withMonth(10, calendar) }
+        let november = [dictation("Honestly honestly.", day: 20), dictation("Honestly.", day: 21)]
+        let rows = october + november
+        let nov = DateInterval(start: date(day: 1, hour: 0), end: date(day: 1, hour: 0, month: 12))
+
+        // The default minimum still applies inside a range…
+        XCTAssertNil(RhinoWrapped.compute(rows, in: nov, calendar: calendar))
+        // …and Stats lowers it to one.
+        let w = RhinoWrapped.compute(rows, in: nov, minimum: 1, calendar: calendar)!
+        XCTAssertEqual(w.dictations, 2)
+        XCTAssertEqual(w.topWord, "honestly")
+        XCTAssertEqual(w.firstDate, date(day: 20))
+        XCTAssertEqual(RhinoWrapped.compute(rows, calendar: calendar)?.topWord, "invoice")
+
+        // Half-open: a row at the interval's end belongs to the next one.
+        XCTAssertTrue(RhinoWrapped.contains(nov, nov.start))
+        XCTAssertFalse(RhinoWrapped.contains(nov, nov.end))
+    }
+
     func testTopWordSkipsStopwordsShortWordsAndFillersAndPicksItsPhrase() {
         var rows = filler(8)
         rows.append(dictation("I think we should ship it. I think so. Um, I like the API.", day: 20))
@@ -307,5 +327,13 @@ final class RhinoWrappedTests: XCTestCase {
         let w = RhinoWrapped.compute(rows, calendar: calendar)
         XCTAssertNotNil(w)
         XCTAssertLessThan(Date().timeIntervalSince(start), 3.0)
+    }
+}
+
+private extension RhinoWrapped.Dictation {
+    func withMonth(_ month: Int, _ calendar: Calendar) -> RhinoWrapped.Dictation {
+        var parts = calendar.dateComponents([.year, .day, .hour], from: timestamp)
+        parts.month = month
+        return .init(text: text, timestamp: calendar.date(from: parts)!, sourceAppName: sourceAppName)
     }
 }

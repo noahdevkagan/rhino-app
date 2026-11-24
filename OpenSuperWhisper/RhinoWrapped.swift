@@ -12,6 +12,8 @@ struct RhinoWrapped: Equatable, Sendable {
         let text: String
         let timestamp: Date
         let sourceAppName: String?
+        /// Recorded seconds. Stats (time saved, speed) read it; Wrapped's tiles don't.
+        var duration: TimeInterval = 0
     }
 
     /// Below this the stats are noise ("your word: hello"), so the card stays hidden.
@@ -67,12 +69,17 @@ struct RhinoWrapped: Equatable, Sendable {
 // MARK: - Computation
 
 extension RhinoWrapped {
-    /// nil until there are `minimumDictations` dictations with any words in them.
+    /// nil until there are `minimum` dictations with any words in them.
+    /// `interval` limits it to one Stats range (a week, a month…); nil is all time.
     /// One pass over the text; thousands of dictations take well under a second, and the
     /// caller runs it off the main thread.
-    static func compute(_ rows: [Dictation], calendar: Calendar = .current) -> RhinoWrapped? {
-        let rows = rows.filter { !$0.text.isEmpty }
-        guard rows.count >= minimumDictations,
+    static func compute(_ rows: [Dictation], in interval: DateInterval? = nil,
+                        minimum: Int = minimumDictations,
+                        calendar: Calendar = .current) -> RhinoWrapped? {
+        let rows = rows.filter { row in
+            !row.text.isEmpty && (interval.map { Self.contains($0, row.timestamp) } ?? true)
+        }
+        guard rows.count >= max(minimum, 1),
               let first = rows.map(\.timestamp).min() else { return nil }
 
         var wrapped = RhinoWrapped(firstDate: first, dictations: rows.count)
@@ -152,6 +159,11 @@ extension RhinoWrapped {
             weekdayCounts[a] != weekdayCounts[b] ? weekdayCounts[a] < weekdayCounts[b] : a > b
         } ?? 1
         return wrapped
+    }
+
+    /// Half-open: a row at the interval's end belongs to the next period, not both.
+    static func contains(_ interval: DateInterval, _ date: Date) -> Bool {
+        date >= interval.start && date < interval.end
     }
 
     /// Lowercased words, grouped by sentence so a phrase never spans "…done. Think…".

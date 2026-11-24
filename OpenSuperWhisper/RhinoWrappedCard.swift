@@ -1,50 +1,6 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Loading + cache
-
-/// Holds the current Wrapped stats for Home. Shared so the result survives tab switches
-/// (Home is rebuilt on each), and keyed on a cheap SQL fingerprint of the history so the
-/// many recordingsDidUpdate posts during a dictation don't each re-read every transcript.
-@MainActor
-final class RhinoWrappedModel: ObservableObject {
-    static let shared = RhinoWrappedModel()
-
-    @Published private(set) var wrapped: RhinoWrapped?
-    /// Counted dictations, for the locked card's "N of 10". nil until the first load.
-    @Published private(set) var dictationCount: Int?
-
-    private var signature: String?
-    private var running = false
-    private var rerun = false
-
-    func refresh() {
-        guard !running else { rerun = true; return }
-        running = true
-        Task { [weak self] in
-            await self?.load()
-            guard let self else { return }
-            self.running = false
-            if self.rerun { self.rerun = false; self.refresh() }
-        }
-    }
-
-    private func load() async {
-        let store = RecordingStore.shared
-        // The time zone is part of the key: days, hours and weekends move with it.
-        guard let history = try? await store.completedHistorySignature(),
-              case let current = history + "|" + TimeZone.current.identifier,
-              current != signature,
-              let rows = try? await store.fetchWrappedDictations() else { return }
-        let (result, count) = await Task.detached(priority: .utility) {
-            (RhinoWrapped.compute(rows), RhinoWrapped.countedDictations(rows))
-        }.value
-        wrapped = result
-        dictationCount = count
-        signature = current
-    }
-}
-
 // MARK: - Card
 
 /// Colors are picked from an explicit scheme (not dynamic NSColors) so ImageRenderer
@@ -85,6 +41,10 @@ private struct WrappedPalette {
 struct RhinoWrappedCardView: View {
     let wrapped: RhinoWrapped
     let scheme: ColorScheme
+    /// "Your Rhino Wrapped" for all time; the Stats tab passes "Your week Wrapped" etc.
+    var title = "Your Rhino Wrapped"
+    /// Next to the title; nil shows "since <first dictation>".
+    var subtitle: String?
     var onShare: ((NSView?) -> Void)?
     var footer: String?
 
@@ -95,10 +55,10 @@ struct RhinoWrappedCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Your Rhino Wrapped")
+                Text(title)
                     .scaledFont(size: 15, weight: .bold)
                     .foregroundColor(palette.text)
-                Text(wrapped.sinceText())
+                Text(subtitle ?? wrapped.sinceText())
                     .scaledFont(size: 11.5)
                     .foregroundColor(palette.secondary)
                 Spacer()
@@ -286,25 +246,6 @@ struct RhinoWrappedLockedView: View {
     }
 }
 
-/// Home's slot, directly above History: the locked card under 10 dictations, the real one after.
-struct RhinoWrappedSection: View {
-    /// The user's dictation key as Home shows it ("fn", "⌥ Space").
-    let shortcut: String
-    @ObservedObject private var model = RhinoWrappedModel.shared
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        // No modifiers here: HomeHeaderView drives refresh().
-        if let wrapped = model.wrapped {
-            RhinoWrappedCardView(wrapped: wrapped, scheme: colorScheme) { anchorView in
-                RhinoWrappedSharer.share(wrapped, scheme: colorScheme, from: anchorView)
-            }
-        } else if let count = model.dictationCount {
-            RhinoWrappedLockedView(count: count, shortcut: shortcut, scheme: colorScheme)
-        }
-    }
-}
-
 // MARK: - Share
 
 /// Renders the card to a PNG and opens the system share menu, with "Copy Image" first.
@@ -320,8 +261,10 @@ enum RhinoWrappedSharer {
         return (url.host ?? "rhinovoice.app") + url.path
     }
 
-    static func image(_ wrapped: RhinoWrapped, scheme: ColorScheme) -> NSImage? {
+    static func image(_ wrapped: RhinoWrapped, title: String = "Your Rhino Wrapped",
+                      subtitle: String? = nil, scheme: ColorScheme) -> NSImage? {
         let card = RhinoWrappedCardView(wrapped: wrapped, scheme: scheme,
+                                        title: title, subtitle: subtitle,
                                         footer: "Made with Rhino · \(footerLink)")
             .frame(width: 760)
             .padding(20)
@@ -338,8 +281,10 @@ enum RhinoWrappedSharer {
         return rep.representation(using: .png, properties: [:])
     }
 
-    static func share(_ wrapped: RhinoWrapped, scheme: ColorScheme, from view: NSView?) {
-        guard let image = image(wrapped, scheme: scheme), let png = pngData(image) else { return }
+    static func share(_ wrapped: RhinoWrapped, title: String = "Your Rhino Wrapped",
+                      subtitle: String? = nil, scheme: ColorScheme, from view: NSView?) {
+        guard let image = image(wrapped, title: title, subtitle: subtitle, scheme: scheme),
+              let png = pngData(image) else { return }
         let file = FileManager.default.temporaryDirectory
             .appendingPathComponent("Rhino Wrapped.png")
         try? png.write(to: file, options: .atomic)
@@ -382,7 +327,7 @@ final class ViewAnchor {
     weak var view: NSView?
 }
 
-private struct AnchorView: NSViewRepresentable {
+struct AnchorView: NSViewRepresentable {
     let anchor: ViewAnchor
     func makeNSView(context: Context) -> NSView {
         let view = NSView()

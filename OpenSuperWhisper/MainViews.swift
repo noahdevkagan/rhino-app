@@ -6,22 +6,29 @@ import SwiftUI
 // separate window reached from the sidebar footer.
 
 enum MainTab: String, CaseIterable, Identifiable {
-    // History lives inside Home now (Willow-style: stats strip on top, history
-    // below) — Paul S.: "you can merge the home tab with history to simplify".
-    case home, dictionary, snippets
+    // History is its own tab again (2026-11-24): Home keeps a "This week" card and the
+    // last 3 dictations; History has the full list; Stats has the charts and Wrapped.
+    case home, history, stats, dictionary, snippets
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .home: return "Home"
+        case .history: return "History"
+        case .stats: return "Stats"
         case .dictionary: return "Dictionary"
         case .snippets: return "Snippets"
         }
     }
 
+    /// Tabs that wear a "NEW" badge until first opened.
+    var isNew: Bool { self == .history || self == .stats }
+
     var icon: String {
         switch self {
         case .home: return "house"
+        case .history: return "clock"
+        case .stats: return "chart.bar"
         case .dictionary: return "character.book.closed"
         case .snippets: return "text.quote"
         }
@@ -36,6 +43,8 @@ struct MainSidebar: View {
     @ObservedObject private var transcriptionService = TranscriptionService.shared
 
     @State private var versionHovered = false
+    /// Raw values of the new tabs already opened (their "NEW" badge is gone).
+    @AppStorage("mainTabsSeen", store: DefaultsStore.current) private var seenTabs = ""
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
@@ -59,6 +68,14 @@ struct MainSidebar: View {
                         Text(tab.title)
                             .scaledFont(size: 13, weight: .medium)
                         Spacer(minLength: 0)
+                        if tab.isNew && !seenTabs.split(separator: ",").contains(Substring(tab.rawValue)) {
+                            Text("NEW")
+                                .scaledFont(size: 9, weight: .bold)
+                                .foregroundColor(StatsPalette(scheme: colorScheme).link)
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(Capsule().fill(StatsPalette(scheme: colorScheme).tint))
+                                .overlay(Capsule().stroke(StatsPalette(scheme: colorScheme).tintBorder, lineWidth: 1))
+                        }
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
@@ -132,6 +149,11 @@ struct MainSidebar: View {
         }
         .padding(.horizontal, 6)
         .frame(width: 168)
+        .onChange(of: selection) { _, tab in
+            guard tab.isNew else { return }
+            var seen = Set(seenTabs.split(separator: ",").map(String.init))
+            if seen.insert(tab.rawValue).inserted { seenTabs = seen.sorted().joined(separator: ",") }
+        }
         .background(ThemePalette.panelSurface(colorScheme).opacity(0.5))
     }
 }
@@ -176,9 +198,11 @@ final class DictationStats: ObservableObject {
     }
 }
 
-/// The fixed header of the merged Home tab: title, stats strip, and the
-/// shortcut + active-model row. The history list scrolls below it (ContentView).
+/// The Home tab: title, stats strip, the shortcut + active-model row, then the
+/// "This week" card (locked Wrapped under 10 dictations) and the last 3 dictations.
 struct HomeHeaderView: View {
+    /// Switches the main window's tab ("See your stats →", "All history →").
+    var openTab: (MainTab) -> Void = { _ in }
     @StateObject private var stats = DictationStats()
     @Environment(\.colorScheme) private var colorScheme
     @State private var modelMissing = false
@@ -338,14 +362,18 @@ struct HomeHeaderView: View {
                 }
             }
 
-            // Last in the header, directly above History (Noah: odd above the Dictate row).
-            // Locked with progress until 10 dictations.
-            RhinoWrappedSection(shortcut: shortcutDescription)
+            // Below the Dictate row (Noah: odd above it). Locked Wrapped with progress
+            // until 10 dictations, then this week's summary; a click opens Stats.
+            HomeWeekSection(shortcut: shortcutDescription) { openTab(.stats) }
+
+            HomeRecentSection { openTab(.history) }
+                .padding(.top, 6)
         }
         .padding(.horizontal, 24)
+        .padding(.bottom, 24)
         .onAppear {
             stats.reload()
-            RhinoWrappedModel.shared.refresh()
+            RhinoStatsModel.shared.refresh()
             modelMissing = Self.isModelMissing()
             reloadShortcutDescription()
         }
@@ -358,7 +386,7 @@ struct HomeHeaderView: View {
         .onReceive(NotificationCenter.default.publisher(
             for: RecordingStore.recordingsDidUpdateNotification)) { _ in
             stats.reload()
-            RhinoWrappedModel.shared.refresh()
+            RhinoStatsModel.shared.refresh()
         }
         .onReceive(NotificationCenter.default.publisher(for: .modelSelectionDidChange)) { _ in
             modelMissing = Self.isModelMissing()

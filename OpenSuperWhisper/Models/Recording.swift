@@ -278,7 +278,7 @@ class RecordingStore: ObservableObject {
     nonisolated func fetchWrappedDictations() async throws -> [RhinoWrapped.Dictation] {
         try await dbQueue.read { db in
             let rows = try Row.fetchCursor(db, sql: """
-                SELECT transcription, timestamp, sourceAppName FROM recordings
+                SELECT transcription, timestamp, sourceAppName, duration FROM recordings
                 WHERE status = ? ORDER BY timestamp
                 """, arguments: [RecordingStatus.completed.rawValue])
             var result: [RhinoWrapped.Dictation] = []
@@ -287,9 +287,54 @@ class RecordingStore: ObservableObject {
                 result.append(RhinoWrapped.Dictation(
                     text: row["transcription"] ?? "",
                     timestamp: timestamp,
-                    sourceAppName: row["sourceAppName"]))
+                    sourceAppName: row["sourceAppName"],
+                    duration: max(row["duration"] ?? 0, 0)))
             }
             return result
+        }
+    }
+
+    /// One page of the History tab: newest first, optionally narrowed to a search
+    /// query and/or one source app (the filter chips).
+    nonisolated func fetchHistoryPage(query: String, app: String?, limit: Int, offset: Int) async throws -> [Recording] {
+        try await dbQueue.read { db in
+            var request = Recording.all()
+            if !query.isEmpty {
+                request = request.filter(Recording.Columns.transcription.like("%\(query)%").collating(.nocase))
+            }
+            if let app {
+                request = request.filter(Recording.Columns.sourceAppName == app)
+            }
+            return try request
+                .order(Recording.Columns.timestamp.desc)
+                .limit(limit, offset: offset)
+                .fetchAll(db)
+        }
+    }
+
+    /// History's count line and filter chips: every row in history, and the source
+    /// apps with the most dictations (most first).
+    nonisolated func historyOverview(topApps: Int = 5) async throws -> (count: Int, apps: [String]) {
+        try await dbQueue.read { db in
+            let count = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM recordings") ?? 0
+            let apps = try String.fetchAll(db, sql: """
+                SELECT sourceAppName FROM recordings
+                WHERE sourceAppName IS NOT NULL AND TRIM(sourceAppName) != ''
+                GROUP BY sourceAppName ORDER BY COUNT(*) DESC, sourceAppName LIMIT ?
+                """, arguments: [topApps])
+            return (count, apps)
+        }
+    }
+
+    /// Home's "Recent": the newest completed dictations with any text.
+    nonisolated func fetchRecentDictations(limit: Int) async throws -> [Recording] {
+        try await dbQueue.read { db in
+            try Recording
+                .filter(Recording.Columns.status == RecordingStatus.completed.rawValue)
+                .filter(Recording.Columns.transcription != "")
+                .order(Recording.Columns.timestamp.desc)
+                .limit(limit)
+                .fetchAll(db)
         }
     }
 

@@ -19,10 +19,10 @@ final class RhinoStatsTests: XCTestCase {
 
     private var now: Date { date(11, 24, hour: 15) }
 
-    private func row(_ words: Int, _ month: Int, _ day: Int, hour: Int = 10, app: String? = "Slack",
-                     seconds: Double = 0, word: String = "rhino") -> RhinoWrapped.Dictation {
+    private func row(_ words: Int, _ month: Int, _ day: Int, hour: Int = 10, year: Int = 2026,
+                     app: String? = "Slack", seconds: Double = 0, word: String = "rhino") -> RhinoWrapped.Dictation {
         .init(text: Array(repeating: word, count: words).joined(separator: " "),
-              timestamp: date(month, day, hour: hour), sourceAppName: app, duration: seconds)
+              timestamp: date(month, day, hour: hour, year: year), sourceAppName: app, duration: seconds)
     }
 
     // MARK: Periods

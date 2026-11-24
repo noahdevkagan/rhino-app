@@ -158,6 +158,23 @@ final class RhinoStatsTests: XCTestCase {
         XCTAssertEqual(thisWeek, [0, 1, 4, -1, -1, -1, -1])
     }
 
+    /// Chile starts DST at midnight: Sun Sep 6 2026 begins at 01:00. Days after it must
+    /// still line up with startOfDay, or their bars, heatmap cells and streak go missing.
+    func testMidnightDSTDayKeepsLaterDaysAligned() {
+        var santiago = Calendar(identifier: .gregorian)
+        santiago.timeZone = TimeZone(identifier: "America/Santiago")!
+        santiago.locale = Locale(identifier: "en_US")
+        func at(_ day: Int) -> Date { santiago.date(from: DateComponents(year: 2026, month: 9, day: day, hour: 12))! }
+        let rows = (4...10).map { RhinoWrapped.Dictation(text: "one two", timestamp: at($0), sourceAppName: nil) }
+        let stats = RhinoStats.compute(rows, range: .week, now: at(10), calendar: santiago)
+        XCTAssertEqual(stats.bars.map(\.words), Array(repeating: 2, count: 7))
+        XCTAssertEqual(stats.currentStreak, 7)
+        // Week of Sun Sep 6: every past day has words.
+        XCTAssertEqual(stats.heatmap.last?.prefix(5).allSatisfy { $0 > 0 }, true)
+        let month = RhinoStats.compute(rows, range: .month, now: at(10), calendar: santiago)
+        XCTAssertEqual(month.bars.suffix(7).map(\.words), Array(repeating: 2, count: 7))
+    }
+
     // MARK: Wrapped for a range
 
     func testWrappedCoversOnlyTheRange() {

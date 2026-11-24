@@ -93,19 +93,22 @@ extension RhinoStats {
     /// Intervals are half-open and end at the start of tomorrow.
     static func period(_ range: StatsRange, now: Date, firstDate: Date?,
                        calendar: Calendar) -> (current: DateInterval, previous: DateInterval?) {
+        // Every boundary goes through startOfDay: where DST starts at midnight (Chile,
+        // Paraguay…) that day begins at 01:00, and adding days to it keeps the 01:00.
         let today = calendar.startOfDay(for: now)
-        let end = calendar.date(byAdding: .day, value: 1, to: today)!
+        let end = calendar.dateInterval(of: .day, for: now)!.end
         switch range {
         case .week:
-            let start = calendar.date(byAdding: .day, value: -6, to: today)!
-            let previousStart = calendar.date(byAdding: .day, value: -7, to: start)!
+            let start = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -6, to: today)!)
+            let previousStart = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -7, to: start)!)
             return (DateInterval(start: start, end: end), DateInterval(start: previousStart, end: start))
         case .month:
             let start = calendar.dateInterval(of: .month, for: now)!.start
             // Last month's same days so far (Oct 1–24 against Nov 1–24), never past its end.
             let elapsed = calendar.dateComponents([.day], from: start, to: end).day ?? 0
             let previousStart = calendar.date(byAdding: .month, value: -1, to: start)!
-            let previousEnd = min(calendar.date(byAdding: .day, value: elapsed, to: previousStart)!, start)
+            let previousEnd = min(calendar.startOfDay(for: calendar.date(byAdding: .day, value: elapsed,
+                                                                         to: previousStart)!), start)
             return (DateInterval(start: start, end: end), DateInterval(start: previousStart, end: previousEnd))
         case .year:
             let start = calendar.dateInterval(of: .year, for: now)!.start
@@ -148,7 +151,8 @@ extension RhinoStats {
         var cursor = calendar.dateInterval(of: unit, for: interval.start)!.start
         while cursor < interval.end {
             bucketStarts.append(cursor)
-            cursor = calendar.date(byAdding: unit, value: 1, to: cursor)!
+            // The bucket's own end, not cursor + 1: keeps every start on a true day start.
+            cursor = calendar.dateInterval(of: unit, for: cursor)!.end
         }
         var bucketWords: [Date: Int] = [:]
         var appWords: [String: Int] = [:]
@@ -192,11 +196,14 @@ extension RhinoStats {
     /// yet (so the morning doesn't read "0-day streak").
     static func currentStreak(_ days: Set<Date>, now: Date, calendar: Calendar) -> Int {
         var day = calendar.startOfDay(for: now)
-        if !days.contains(day) { day = calendar.date(byAdding: .day, value: -1, to: day)! }
+        let dayBefore = { (day: Date) in
+            calendar.startOfDay(for: calendar.date(byAdding: .day, value: -1, to: day)!)
+        }
+        if !days.contains(day) { day = dayBefore(day) }
         var streak = 0
         while days.contains(day) {
             streak += 1
-            day = calendar.date(byAdding: .day, value: -1, to: day)!
+            day = dayBefore(day)
         }
         return streak
     }
@@ -208,7 +215,7 @@ extension RhinoStats {
         let thisWeek = calendar.dateInterval(of: .weekOfYear, for: today)!.start
         let first = calendar.date(byAdding: .weekOfYear, value: -(heatmapWeeks - 1), to: thisWeek)!
         let columns: [[Date]] = (0..<heatmapWeeks).map { week in
-            (0..<7).map { calendar.date(byAdding: .day, value: week * 7 + $0, to: first)! }
+            (0..<7).map { calendar.startOfDay(for: calendar.date(byAdding: .day, value: week * 7 + $0, to: first)!) }
         }
         let busiest = columns.joined().filter { $0 <= today }.map { dayWords[$0] ?? 0 }.max() ?? 0
         return columns.map { column in

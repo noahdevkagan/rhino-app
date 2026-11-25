@@ -177,31 +177,36 @@ class WhisperEngine: TranscriptionEngine {
         // off the original file, so it's skipped when the user asked to see them.
         //
         // One exception to the fallback: when the VAD finds nothing AND the clip is
-        // near-digital silence (peak below any plausible speech), there is no quiet
-        // sentence to protect — running whisper on it only invites a hallucinated
-        // "you"/"Thank you." that would be typed into the user's document. Return
-        // nothing instead. (Caught by tests/asr's silence case.)
+        // silent by InputLevel's test (dead-mic quiet, or below the old -48 dBFS peak bail
+        // without the shape of speech), there is no quiet sentence to protect — running
+        // whisper on it only invites a hallucinated "you"/"Thank you." that would be typed
+        // into the user's document. Return nothing instead. (Caught by tests/asr's silence
+        // case.) Quiet speech is lifted to a normal level first, so the VAD and whisper both
+        // hear it (decisions.md 2026-11-25).
+        let prepared = InputLevel.prepare(converted)
+        let audio = prepared.samples
+        let level = prepared.analysis
         let samples: [Float]
         // True when the VAD ran and heard no speech anywhere — but the clip wasn't silent
         // enough for the bail above, so the whole clip still went to whisper. Remembered so
         // a transcript of pure breath/room noise can be vetoed below.
         var vadHeardNoSpeech = false
         if settings.showTimestamps {
-            if Self.isNearSilence(converted) {
+            if level.isSilent {
                 onProgressUpdate?(1.0)
                 return TranscriptionResult.noSpeech
             }
-            samples = converted
+            samples = audio
         } else {
-            let segments = detectSpeech(in: converted)
+            let segments = detectSpeech(in: audio)
             let trimmed = Self.speechOnlySamples(
-                from: converted, segments: segments ?? [])
-            if trimmed.isEmpty && Self.isNearSilence(converted) {
+                from: audio, segments: segments ?? [])
+            if trimmed.isEmpty && level.isSilent {
                 onProgressUpdate?(1.0)
                 return ""
             }
             vadHeardNoSpeech = segments?.isEmpty == true
-            samples = trimmed.isEmpty ? converted : trimmed
+            samples = trimmed.isEmpty ? audio : trimmed
         }
 
         let nThreads = max(2, min(ProcessInfo.processInfo.activeProcessorCount, 8))
@@ -437,18 +442,6 @@ class WhisperEngine: TranscriptionEngine {
         // one. The wider padding likewise protects word onsets, since Whisper mistranscribes a
         // word whose first consonant got clipped. Both trade a little kept silence for words.
         return vadContext?.speechSegments(in: samples, minSpeechMs: 100, padMs: 100)
-    }
-
-    /// True when the whole clip's peak amplitude is below any plausible speech —
-    /// digital silence or a dead mic, not a quiet talker (normal speech peaks are
-    /// two orders of magnitude above this even on a distant laptop mic).
-    static func isNearSilence(_ samples: [Float], threshold: Float = 0.004) -> Bool {
-        var peak: Float = 0
-        for s in samples {
-            peak = max(peak, abs(s))
-            if peak >= threshold { return false }
-        }
-        return true
     }
 
     /// Stitches the speech regions back into one buffer, mirroring what whisper.cpp does

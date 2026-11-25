@@ -2643,3 +2643,22 @@ fingerprint + time zone + today's date. Zero network: everything reads Recording
 - `DayClock` (day-change, clock-change, zone-change notifications, plus window-becomes-key as a sleep-through-midnight fallback) is the one day signal for Stats, Home "This week"/"Recent" and History day headers.
 - The stats cache signature hashes every completed row (id, text, time, app, duration) inside SQLite with a 32-bit FNV-1a scalar function summed over rows: no overflow, order-independent, catches same-length edits. Chosen over an in-memory revision counter so edits from another process on the same DB still invalidate.
 - History refresh re-reads the already-loaded rows (rounded to whole pages) with the current search/app filter and swaps them in without clearing, so SwiftUI diffs by id and keeps scroll.
+
+## 2026-11-25 — Quiet mics: shared gain + a relative silence test (InputLevel)
+
+PR #143's accent bench showed quiet input costs words (AU set, -24 dB copies: Parakeet v2 3.4 → 7.3% WER,
+Whisper turbo 5.3 → 11.6%) and that below about -48 dBFS peak the old `WhisperEngine.isNearSilence`
+(peak < 0.004) returned nothing at all. Both engines now run the decoded clip through `InputLevel.prepare`:
+- **Speech-like** = at least 200 ms of 20 ms frames 15 dB above the clip's own floor (p10 of frame RMS,
+  and above -85 dBFS), including one 100 ms run of voiced-looking frames (zero-crossing rate < 0.2).
+  Keystrokes, clicks and flat noise fail this; quiet syllables pass.
+- **Gain** only for speech-like clips: bring p95 frame RMS to -22 dBFS, capped at +40 dB, peak never past
+  0.9, skipped under +6 dB. Normal speech and every non-speech clip reach the engine bit-for-bit as before.
+- **Silent** = peak < 1e-4 (dead mic, always), or not speech-like and either under the old 0.004 bail or an
+  isolated blip (floor < -60 dBFS, p95 within 6 dB of it, under 200 ms active). The blip rule was added
+  because the new gate set showed Parakeet typing "Really" for one pop that clears the old peak bail.
+Why not just normalise everything: noise would be amplified into Parakeet (no VAD) and Whisper (which
+hallucinates "Thank you."). Why not lower the absolute bail: room tone at -55 dBFS peak would then reach
+the engines. The relative test is what separates the two. Gate: tests/asr and tests/parakeet run
+`audio/levels` (synthetic noise from gen_noise.py, must type nothing; quiet speech, must transcribe).
+Bench: bench/accents/levels.sh, mix_noise.py, levels_report.py. Not measured: a real quiet mic in a real room.

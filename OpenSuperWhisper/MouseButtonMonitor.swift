@@ -178,11 +178,12 @@ final class MouseButtonMonitor {
     var onButtonDown: ((MouseButton) -> Void)?
     var onButtonUp: ((MouseButton) -> Void)?
 
-    /// Physical button state from the window server. The tracker takes it as a closure, so tests
-    /// inject their own.
+    /// Physical button state. The tracker takes it as a closure, so tests inject their own.
+    /// `.hidSystemState` is the hardware state, read before any event tap: the session state
+    /// may not count a press our own active tap swallowed, which would end a take mid-hold.
     static func isPhysicallyDown(_ button: MouseButton) -> Bool {
         guard let cgButton = CGMouseButton(rawValue: UInt32(button.number)) else { return false }
-        return CGEventSource.buttonState(.combinedSessionState, button: cgButton)
+        return CGEventSource.buttonState(.hidSystemState, button: cgButton)
     }
 
     private init() {}
@@ -213,9 +214,14 @@ final class MouseButtonMonitor {
         guard context.open() else {
             print("MouseButtonMonitor: Failed to create event tap")
             if let carried = carry.pressed { deliver(.up(carried)) }
+            // Keep checking: recheckTrust() retries the build while no tap exists.
+            startTrustTimer()
             return
         }
         tap = context
+        // A release in the gap between the old tap closing and this one going live was seen by
+        // neither; settle it now so the carried take can't be stranded.
+        context.settle()
         startTrustTimer()
         print("MouseButtonMonitor: Started (\(mouseButtons.map(\.displayName).joined(separator: ", ")), swallow: \(canSwallow))")
     }
@@ -257,7 +263,12 @@ final class MouseButtonMonitor {
     fileprivate func recheckTrust() {
         precondition(Thread.isMainThread)
         guard !currentButtons.isEmpty else { return }
-        if let tap, tap.tracker.pressed != nil { return }
+        // Settle first: a take whose release was lost (tap died mid-hold) must not block the
+        // rebuild forever. Only a button that is really still down defers it.
+        if let tap {
+            tap.settle()
+            if tap.tracker.pressed != nil { return }
+        }
         let trusted = AXIsProcessTrusted()
         let wantsTap = trusted || CGPreflightListenEventAccess()
         let mismatch = tap.map { $0.swallows != trusted } ?? wantsTap
@@ -346,6 +357,16 @@ private final class TapContext {
         thread.start()
         ready.wait()
         return true
+    }
+
+    /// Delivers the release of a held button that is no longer physically down.
+    func settle() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard alive else { return }
+        if let edge = _tracker.reconcile(isDown: MouseButtonMonitor.isPhysicallyDown) {
+            monitor?.deliver(edge)
+        }
     }
 
     /// Stops the tap and its thread; returns the button that was held, if any. After this the

@@ -264,6 +264,16 @@ class ShortcutManager {
             ModifierKeyMonitor.shared.start(modifierKeys: modifiers)
         }
 
+        // A mouse button behaves like a key combination: hold to talk, tap to toggle, double-tap
+        // to lock. It can't be the start of a chord, so its bubble shows at once.
+        MouseButtonMonitor.shared.stop()
+        let mouseButtons = set.mouseButtons
+        if !mouseButtons.isEmpty {
+            MouseButtonMonitor.shared.onButtonDown = { [weak self] _ in self?.handleKeyDown(canChord: false) }
+            MouseButtonMonitor.shared.onButtonUp = { [weak self] _ in self?.handleKeyUp() }
+            MouseButtonMonitor.shared.start(mouseButtons: mouseButtons)
+        }
+
         bindKeyComboSlots(set.keyCombos)
 
         // Off by default; while off, its combination must not be swallowed system-wide.

@@ -3,11 +3,12 @@ import Carbon.HIToolbox
 import KeyboardShortcuts
 import SwiftUI
 
-/// Records the recording trigger: a key combination or a single modifier, whichever the user
-/// performs. One field instead of a mode picker plus per-mode controls.
+/// Records the recording trigger: a key combination, a single modifier or (for the record
+/// trigger list) an extra mouse button, whichever the user performs. One field instead of a
+/// mode picker plus per-mode controls.
 ///
-/// Click to arm, then do the thing you want as your trigger: press ⌃⌥D, or tap Right ⌥ on its
-/// own. Esc cancels, ⌫ clears.
+/// Click to arm, then do the thing you want as your trigger: press ⌃⌥D, tap Right ⌥ on its
+/// own, or click a side mouse button over the window. Esc cancels, ⌫ clears.
 struct TriggerRecorderField: View {
     /// Where this field stores what it records. Two actions use the same widget: start a
     /// recording, and cancel.
@@ -222,8 +223,13 @@ struct TriggerRecorderField: View {
     }
 
     private var placeholder: String {
-        allowsModifier ? "key or modifier…" : "key combination…"
+        if allowsMouseButton { return "key, modifier or mouse button…" }
+        return allowsModifier ? "key or modifier…" : "key combination…"
     }
+
+    /// Only the dictate trigger list takes a mouse button: cancel and Command Mode are
+    /// keyboard bindings.
+    private var allowsMouseButton: Bool { allowsMultiple && allowsModifier }
 
     // MARK: - Capture
 
@@ -235,6 +241,7 @@ struct TriggerRecorderField: View {
         // Pause live hotkeys so re-recording the current trigger doesn't start a dictation.
         KeyboardShortcuts.isEnabled = false
         ModifierKeyMonitor.shared.stop()
+        MouseButtonMonitor.shared.stop()
 
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
             heldModifiers = event.modifierFlags.intersection([.control, .option, .shift, .command])
@@ -282,6 +289,20 @@ struct TriggerRecorderField: View {
             return nil
         }!)
 
+        // Middle and side buttons arrive as otherMouseDown (over any of Rhino's windows). Left
+        // and right click never do, and MouseButton refuses them anyway.
+        if allowsMouseButton {
+            monitors.append(NSEvent.addLocalMonitorForEvents(matching: .otherMouseDown) { event in
+                detector.contaminate()
+                if let button = MouseButton(number: event.buttonNumber) {
+                    save(.mouse(button))
+                } else {
+                    NSSound.beep()
+                }
+                return nil
+            }!)
+        }
+
         // A click outside the field disarms; a click on it is handled by the tap gesture.
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
             if !isHovering { disarm() }
@@ -320,6 +341,8 @@ struct TriggerRecorderField: View {
             KeyboardShortcuts.setShortcut(nil, for: name)
             self.shortcut = nil
             modifierKey = key
+        case .mouse:
+            break // single-binding fields don't take mouse buttons (see allowsMouseButton)
         }
         disarm()
     }

@@ -1692,7 +1692,7 @@ struct SettingsView: View {
                     Text("Recording trigger")
                         .scaledFont(size: 13)
                         .foregroundColor(STheme.text)
-                    Text("Click Add, then do the thing: press a combination with ⌘ ⌥ ⌃, or tap a single modifier on its own. Keep several and use whichever suits the moment.")
+                    Text("Click Add, then do the thing: press a combination with ⌘ ⌥ ⌃, tap a single modifier on its own, or click a middle or side mouse button over this window. Keep several and use whichever suits the moment.")
                         .scaledFont(size: 11)
                         .foregroundColor(STheme.hint)
                         .fixedSize(horizontal: false, vertical: true)

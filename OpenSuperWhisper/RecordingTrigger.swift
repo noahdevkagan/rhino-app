@@ -18,8 +18,9 @@ enum RecorderCombo {
     }
 }
 
-/// What starts a recording: a key combination or a single modifier held on its own.
-/// (Mouse-button triggers were cut in the 80/20 simplification.)
+/// What starts a recording: a key combination, a single modifier held on its own, or an extra
+/// mouse button (middle or a side/thumb button; never left or right click). Mouse buttons were
+/// cut in the 80/20 simplification and came back on customer demand (decisions.md 2026-11-25).
 ///
 /// The old shape asked the user to pick a mode first and only then record something, which meant
 /// the mode could disagree with what was stored, leaving a configured key stranded behind a
@@ -29,6 +30,7 @@ enum RecordingTrigger: Equatable, Codable {
     case none
     case keyCombo(KeyboardShortcuts.Shortcut)
     case modifier(ModifierKey)
+    case mouse(MouseButton)
 
     /// Key caps for the settings field, one per key.
     @MainActor var caps: [String] {
@@ -43,6 +45,8 @@ enum RecordingTrigger: Equatable, Codable {
             return symbols + (key.isEmpty ? [] : [key])
         case .modifier(let key):
             return [key.displayName]
+        case .mouse(let button):
+            return [button.displayName]
         }
     }
 
@@ -56,6 +60,8 @@ enum RecordingTrigger: Equatable, Codable {
             return shortcut.description
         case .modifier(let key):
             return key.shortSymbol
+        case .mouse(let button):
+            return button.displayName
         }
     }
 
@@ -94,10 +100,11 @@ enum RecordingTrigger: Equatable, Codable {
         case .none: return .keyCombo
         case .keyCombo: return .keyCombo
         case .modifier: return .modifier
+        case .mouse: return .mouse
         }
     }
 
-    enum Kind { case keyCombo, modifier }
+    enum Kind { case keyCombo, modifier, mouse }
 }
 
 /// The recording triggers, in the order they were added. Any number of each kind: the old shape
@@ -112,15 +119,19 @@ struct RecordingTriggerSet: Equatable, Codable {
         triggers.compactMap { if case .modifier(let key) = $0 { return key } else { return nil } }
     }
 
+    var mouseButtons: [MouseButton] {
+        triggers.compactMap { if case .mouse(let button) = $0 { return button } else { return nil } }
+    }
+
     var keyCombos: [KeyboardShortcuts.Shortcut] {
         triggers.compactMap { if case .keyCombo(let combo) = $0 { return combo } else { return nil } }
     }
 
-    /// A lone modifier (including the default Fn trigger) is observed with a listen-only
+    /// A lone modifier (including the default Fn trigger) or a mouse button is observed with a
     /// CGEvent tap. That requires global event-listening authorization (provided by Rhino's
     /// existing Accessibility grant or by Input Monitoring); registered combos do not.
     var requiresGlobalEventListening: Bool {
-        !modifiers.isEmpty
+        !modifiers.isEmpty || !mouseButtons.isEmpty
     }
 
     /// The first configured trigger is the primary one presented in compact UI hints. Settings
@@ -148,6 +159,34 @@ struct RecordingTriggerSet: Equatable, Codable {
         else { return .empty }
         return decoded
     }
+
+    private enum CodingKeys: String, CodingKey { case triggers }
+
+    /// Lossy per trigger: one entry this build can't read (a kind added by a newer version, or
+    /// a button number out of range) is skipped instead of wiping the whole list.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        var list = try container.nestedUnkeyedContainer(forKey: .triggers)
+        var triggers: [RecordingTrigger] = []
+        while !list.isAtEnd {
+            if let trigger = try? list.decode(RecordingTrigger.self) {
+                triggers.append(trigger)
+            } else {
+                // Decodes from any JSON value (object, number, string, null, array), so it always
+                // moves past the element. `try`, not `try?`: if it ever failed, throwing beats
+                // spinning on the same index.
+                _ = try list.decode(SkippedEntry.self)
+            }
+        }
+        self.triggers = triggers
+    }
+
+    init(triggers: [RecordingTrigger]) {
+        self.triggers = triggers
+    }
+
+    /// Consumes one unreadable array element so decoding can move past it.
+    private struct SkippedEntry: Decodable {}
 
     var json: String {
         guard let data = try? JSONEncoder().encode(self),

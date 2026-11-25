@@ -2643,3 +2643,28 @@ fingerprint + time zone + today's date. Zero network: everything reads Recording
 - `DayClock` (day-change, clock-change, zone-change notifications, plus window-becomes-key as a sleep-through-midnight fallback) is the one day signal for Stats, Home "This week"/"Recent" and History day headers.
 - The stats cache signature hashes every completed row (id, text, time, app, duration) inside SQLite with a 32-bit FNV-1a scalar function summed over rows: no overflow, order-independent, catches same-length edits. Chosen over an in-memory revision counter so edits from another process on the same DB still invalidate.
 - History refresh re-reads the already-loaded rows (rounded to whole pages) with the current search/app filter and swaps them in without clearing, so SwiftUI diffs by id and keeps scroll.
+
+## 2026-11-25 — Accent benchmark: Parakeet v2 stays the default; Whisper card no longer says "Accurate"
+
+Trigger: an Australian customer found Rhino less accurate than Wispr Flow. New `bench/accents/` runs
+every installed engine on real Common Voice 17 English speech (CC0; 52 AU, 59 US control, 60 England,
+60 India/S. Asia, 17 NZ clips; audio fetched, not committed) plus quiet (−24 dB), mildly noisy (pink noise,
+about 22–25 dB SNR as measured, not café-level) and lo-fi (300–3400 Hz) copies of AU/US. Measured: Parakeet v2, which onboarding gives
+new users, scores 3.4% WER on Australian speech (95% CI 1.8–5.6), no worse than the US control (5.6%);
+per-accent gaps of about 2 points or less are noise at this sample size, and v2 is not the best
+cell everywhere (v3 leads on India/S. Asia 9.2 vs 10.7; NZ, 17 clips, is lower for every engine).
+Parakeet v3 ties v2 pooled (−0.1 pts, CI −0.8 to +0.6); Whisper large-v3 turbo (and q5) is worse
+pooled (+1.8 pts, CI +0.3 to +3.6) and roughly 15x slower (over 1 s vs ~85 ms per clip). Most of
+Whisper's pooled deficit comes from 3 clips where, as Rhino runs it, it drops or invents words;
+without them the gap is +0.8 pts. So no default-model or decode change: nothing measured beats what new users already get, and
+no region-specific default is justified. The one fix with data behind it: the Settings engine cards
+called Whisper "Accurate · 99 langs", which tells an English speaker chasing accuracy to switch to the
+slower, less accurate engine; they now read "Best for English · fast" / "99 languages · slower".
+Existing choices are untouched. Found but not shipped: very quiet input (peak below −48 dBFS) hits the
+`isNearSilence` bail in both engines and the whole dictation comes back empty (2/52 AU, 1/59 US
+quiet clips on Parakeet); peak-normalising those clips (`degrade.sh`, `-quietgain`) restores clean-level WER on Parakeet v2
+(AU 7.3% → 3.8%) and Whisper turbo (11.6% → 4.7%) but not fully on Parakeet v3 (AU 5.6% vs 3.8%
+clean: one clip still decodes as no speech at −3 dBFS).
+Lowering the bail risks stray tokens on a dead mic (Parakeet has no VAD), so it needs real
+silent-room recordings in tests/parakeet before it ships. Read speech is not dictation: the customer's
+gap is more likely names, conversational phrasing and Wispr's cloud LLM rewrite than the accent.

@@ -31,7 +31,15 @@
     "kind": "keep",
     "must_contain": [
       "Draft Matt a message"
-    ]
+    ],
+    "polished": {
+      "known_gap": {
+        "why": "2026-11-25 at Polished the model keeps every word but writes 'Draft Matt, a message' (a stray comma; nothing answered). Light tidy rejects its rewrite instead; a prompt rule against it didn't help",
+        "problems": [
+          "missing 'Draft Matt a message'"
+        ]
+      }
+    }
   },
   {
     "id": "word-order",

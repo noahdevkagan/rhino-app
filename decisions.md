@@ -2643,3 +2643,36 @@ fingerprint + time zone + today's date. Zero network: everything reads Recording
 - `DayClock` (day-change, clock-change, zone-change notifications, plus window-becomes-key as a sleep-through-midnight fallback) is the one day signal for Stats, Home "This week"/"Recent" and History day headers.
 - The stats cache signature hashes every completed row (id, text, time, app, duration) inside SQLite with a 32-bit FNV-1a scalar function summed over rows: no overflow, order-independent, catches same-length edits. Chosen over an in-memory revision counter so edits from another process on the same DB still invalidate.
 - History refresh re-reads the already-loaded rows (rounded to whole pages) with the current search/app filter and swaps them in without clearing, so SwiftUI diffs by id and keeps scroll.
+
+## 2026-11-25 — Cleanup levels: Exactly what I said / Light tidy / Polished
+
+A customer who also uses Wispr Flow said Rhino types speech verbatim. Measured: at default prefs
+(model downloaded, `cleanupOnlyWhenNeeded` on) every filler, repeat, false-start and "no wait" case in the
+gate came back exactly as spoken; without the model (every new user until they click Download) nothing
+but spoken punctuation and message layout runs. The Output tab now opens with one choice of three levels.
+- **The level is a view over existing prefs, not a parallel system.** `aiPostProcessingEnabled` off =
+  level 1, on = level 2, on + new `cleanupPolishEnabled` = level 3. No migration code: upgraders land on
+  1 or 2 exactly as before, new users on 2 (the 2026-10-19 default). Picking a level never rewrites
+  `spokenEditsEnabled`, `removeFillerWords` or `cleanupOnlyWhenNeeded`; Polished implies them at runtime,
+  so going back to Light tidy restores what the user had. The old "Clean up with AI" toggle is replaced.
+- **Polished, deterministic first.** `Disfluency` removes hesitation sounds (um, uh, er, hmm; not "uh
+  huh"), comma-bracketed fillers (", you know,", ", like,") and stammered repeats of 1–3 words, in code,
+  before the model, so it works without the model. Repeats people mean are kept: number words and digits,
+  and words like that/had/is/very/no/bye. Bare "like" and "you know" are left alone (usually real words).
+- **Polished, model half.** Runs the model on every dictation (ignores `cleanupOnlyWhenNeeded`), turns on
+  the spoken-edits pass (choosing Polished is the opt-in that 2026-10's "deletes words, needs consent"
+  asked for), and adds a separate prompt section: drop false starts and leftover fillers, lay out three or
+  more named items as a list without a cue, never drop a list's lead-in, never add words or answer. It's a
+  section only Polished assembles, so Light tidy's prompt is byte-identical. It does NOT reverse 2026-08-26
+  (no dropping "filler sentences").
+- **Guard: one narrow exception.** At Polished a dropped run of ≤6 words whose first word is said again
+  right after it (or whose last word was said right before it: the diff may keep either copy) counts as an
+  explained false start. Dropped clauses that aren't restarted and invented words are rejected as before.
+- **Reverses 2026-11-05 "rambles stay one block", for Polished only.** `MessageLayout.applyParagraphs`
+  breaks any long prose line (400+ chars) into paragraphs with the same grouping as message bodies,
+  greeting or not. Light tidy is unchanged.
+- `verbatimInAIApps` still wins at every level: the check runs before any Polished step. English only for
+  the Polished steps (the fillers and prompt are English). Zero network.
+- Gate: `tests/cleanup/run.sh` now runs cases.json at Light tidy, then cases.json again plus
+  cases-polished.json at Polished (so instruction- and question-bait are checked at both). Its defaults
+  suite is per-run: worktrees running the gate side by side deleted each other's shared suite mid-run.

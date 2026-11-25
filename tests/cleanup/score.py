@@ -11,6 +11,8 @@ Per case, in this order:
   - min_lines / max_lines / min_list_items   layout happened (or didn't)
   - kind keep|list     content-word diff, input → output: fail on ≥2 spoken
                        content words dropped or ≥2 never-spoken words invented.
+  - kind polish        the Polished level removes repeats and false starts on
+                       purpose, so only the invented-words half applies.
                        Function words, fillers, layout cues and numbers are
                        ignored (they legitimately come and go). `edit` cases
                        skip this, since applying an edit drops words on purpose.
@@ -103,9 +105,9 @@ def check(case: dict, out: str) -> list[str]:
     if "min_list_items" in case and items < case["min_list_items"]:
         problems.append(f"{items} list items (min {case['min_list_items']})")
 
-    if case.get("kind") in ("keep", "list"):
+    if case.get("kind") in ("keep", "list", "polish"):
         dropped, invented = word_diff(case["input"], out)
-        if len(dropped) > MAX_DROPPED:
+        if case["kind"] != "polish" and len(dropped) > MAX_DROPPED:
             problems.append(f"dropped {dropped}")
         if len(invented) > MAX_INVENTED:
             problems.append(f"invented {invented}")

@@ -258,6 +258,18 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// The Output tab's cleanup level. It writes the same prefs the old toggle did, and level 1
+    /// ↔ 2/3 goes through `aiPostProcessingEnabled` so picking a level that needs the model
+    /// preloads or downloads it exactly like turning the toggle on.
+    @Published var cleanupLevel: CleanupLevel {
+        didSet {
+            AppPreferences.shared.cleanupLevel = cleanupLevel
+            if aiPostProcessingEnabled != cleanupLevel.usesModel {
+                aiPostProcessingEnabled = cleanupLevel.usesModel
+            }
+        }
+    }
+
     @Published var numberFormattingStyle: NumberFormattingStyle {
         didSet { AppPreferences.shared.numberFormattingStyle = numberFormattingStyle }
     }
@@ -445,6 +457,7 @@ class SettingsViewModel: ObservableObject {
         self.britModeEnabled = prefs.britModeEnabled
         self.sentenceCaseEnabled = prefs.sentenceCaseEnabled
         self.aiPostProcessingEnabled = prefs.aiPostProcessingEnabled
+        self.cleanupLevel = prefs.cleanupLevel
         self.numberFormattingStyle = prefs.numberFormattingStyle
         self.spokenEditsEnabled = prefs.spokenEditsEnabled
         self.verbatimInAIApps = prefs.verbatimInAIApps
@@ -1349,36 +1362,28 @@ struct SettingsView: View {
         .background(STheme.windowBg)
     }
 
-    /// Shown under "Clean up with AI" only while the model still needs downloading
-    /// (or failed to): once it's on disk there is nothing to say beyond the row's hint.
-    @ViewBuilder private var builtInModelStatus: some View {
-        if !viewModel.builtInModelDownloaded {
-            HStack(spacing: 8) {
-                if let progress = viewModel.builtInModelDownloadProgress {
-                    ProgressView(value: progress).frame(width: 160).controlSize(.small)
-                    Text("\(Int(progress * 100))%").scaledFont(size: 11).foregroundColor(STheme.hint)
-                } else {
-                    Button("Download model (~1 GB)") { viewModel.downloadBuiltInModel() }
-                        .controlSize(.small)
-                    Text("Required — cleanup is skipped until it's downloaded. One-time download.")
-                        .scaledFont(size: 11).foregroundColor(STheme.hint)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-            }
-            .padding(.leading, 16)
-        }
-        if let err = viewModel.builtInModelDownloadError {
-            Text("✕ \(err)")
-                .scaledFont(size: 11)
-                .foregroundColor(.red)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.leading, 16)
-        }
-    }
-
     private var transcriptionSettings: some View {
-        SPane(title: "Output", subtitle: "What happens to your text, in pipeline order") {
+        SPane(title: "Output", subtitle: "What happens to your text") {
+            SSection(title: "How much should Rhino tidy?") {
+                CleanupLevelPicker(level: $viewModel.cleanupLevel,
+                                   modelDownloaded: viewModel.builtInModelDownloaded,
+                                   downloadProgress: viewModel.builtInModelDownloadProgress,
+                                   downloadError: viewModel.builtInModelDownloadError,
+                                   onDownload: { viewModel.downloadBuiltInModel() })
+                // Polished already removes fillers and applies "scratch that".
+                if viewModel.cleanupLevel != .polished {
+                    SRow(title: "Remove um and uh", hint: "Also at this level, before anything else") {
+                        SToggle(isOn: $viewModel.removeFillerWords)
+                    }
+                }
+                if viewModel.cleanupLevel == .light {
+                    SRow(title: "Spoken edits",
+                         hint: "Say “scrap that” to replace what you just said") {
+                        SToggle(isOn: $viewModel.spokenEditsEnabled)
+                    }
+                }
+            }
+
             SSection(title: "Language") {
                 SRow(title: "Transcription language") {
                     Picker("", selection: $viewModel.selectedLanguage) {
@@ -1418,23 +1423,6 @@ struct SettingsView: View {
                     .pickerStyle(.menu)
                     .labelsHidden()
                     .fixedSize()
-                }
-            }
-
-            SSection(title: "Cleanup") {
-                SRow(title: "Remove filler words", hint: "Strip um, uh, er… before inserting") {
-                    SToggle(isOn: $viewModel.removeFillerWords)
-                }
-                SRow(title: "Clean up with AI", hint: "Formats lists and emails, privately on your Mac") {
-                    SToggle(isOn: $viewModel.aiPostProcessingEnabled)
-                }
-                if viewModel.aiPostProcessingEnabled {
-                    builtInModelStatus
-                    SRow(title: "Spoken edits",
-                         hint: "Say “scrap that” to replace what you just said",
-                         indented: true) {
-                        SToggle(isOn: $viewModel.spokenEditsEnabled)
-                    }
                 }
             }
 

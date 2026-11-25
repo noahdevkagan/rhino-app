@@ -5,6 +5,16 @@ Auto-injected into every Claude session in this repo (SessionStart hook in
 Keep it short: current state, outstanding work, and the prompt to start from.
 The durable "why" behind choices goes in `decisions.md`, not here.
 
+## 2026-11-25 — cleanup levels (branch cleanup-levels, draft PR)
+
+Three-level "How much should Rhino tidy?" control at the top of Settings → Output (Exactly what I said /
+Light tidy / Polished). Design and reasons: decisions.md 2026-11-25. Done: prefs mapping, `Disfluency`,
+Polished prompt section, guard false-start exception, `MessageLayout.applyParagraphs`, picker UI,
+CleanupLevelTests (21) + opt-in CleanupLevelSnapshotTests, gate runs both levels (L2 11/12 + 1 gap,
+L3 18/20 + 2 gaps). Not done: never hand-tested in the GUI (other agents were building; brief said no GUI);
+Polished on non-English is a no-op by design. Next: Noah tries Polished for a day; decide whether new
+users should default to Polished once the model is downloaded.
+
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
 ### Rhino Wrapped card (2026-11-20, branch rhino-wrapped, draft PR)

@@ -11,13 +11,15 @@
 #     phrases kept (the harmful rewrites from docs/performance-audit-2026-10-05.md)
 #   - effect: lists become lists, spoken edits get applied, messages get laid out
 #
-# `cleanupOnlyWhenNeeded` is OFF here so the model runs on every case, the
+# `cleanupOnlyWhenNeeded` is OFF here (Polished ignores it anyway) so the model runs on every case, the
 # worst case for fidelity. Never downloads: the suite reuses the model the
 # installed Rhino already has, or skips when none is on this machine.
 set -uo pipefail
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
-SUITE=com.noahkagan.rhino.gate.cleanup
+# One suite per run: worktrees run this gate side by side, and a shared suite gets
+# deleted by the other run halfway through this one.
+SUITE=com.noahkagan.rhino.gate.cleanup.$$
 
 if [ "${CI:-false}" = "true" ]; then
     echo "cleanup SKIPPED on CI: needs the 1 GB cleanup model and real hardware"
@@ -53,26 +55,59 @@ if [ ! -e "$DEV_MODEL" ]; then
 fi
 
 mkdir -p .out
-defaults delete "$SUITE" >/dev/null 2>&1 || true
-defaults write "$SUITE" aiPostProcessingEnabled -bool true
-defaults write "$SUITE" smartFormattingEnabled -bool true
-defaults write "$SUITE" spokenEditsEnabled -bool true
-defaults write "$SUITE" cleanupOnlyWhenNeeded -bool false
-defaults write "$SUITE" numberFormattingStyle smart
-defaults write "$SUITE" whisperLanguage en
-defaults write "$SUITE" saveTranscriptionHistory -bool false
 
-python3 -c 'import json,sys; [print(c["input"]) for c in json.load(open("cases.json"))]' \
-    | RHINO_PREFS_SUITE="$SUITE" "$APP" cleanup --stdin > .out/cleanup.json 2> .out/cleanup.log
-status=$?
-defaults delete "$SUITE" >/dev/null 2>&1 || true
-if [ $status -ne 0 ]; then
-    echo "cleanup FAIL: CLI exited $status (see tests/cleanup/.out/cleanup.log)"
-    exit 1
-fi
-if grep -q "built-in model not downloaded\|LLM cleanup is off" .out/cleanup.log; then
-    echo "cleanup FAIL: the model did not load, so nothing was tested (see tests/cleanup/.out/cleanup.log)"
-    exit 1
-fi
+# Two passes. "Light tidy" (level 2) runs cases.json with today's prefs. "Polished" (level 3)
+# runs cases.json again, so instruction-bait and question-bait must still pass through
+# unanswered, plus cases-polished.json. A case's optional "polished" object overrides its
+# fields for the level-3 pass. LEVEL=2 or LEVEL=3 runs one pass only.
+python3 - <<'PY'
+import json
+base = json.load(open("cases.json"))
+extra = json.load(open("cases-polished.json"))
+level3 = []
+for c in base + extra:
+    c = dict(c)
+    c.update(c.pop("polished", {}))
+    level3.append(c)
+json.dump(level3, open(".out/cases-level3.json", "w"), indent=1)
+PY
 
-python3 score.py cases.json .out/cleanup.json .out/cleanup.log
+run_pass() {  # name cases-file polish(true|false)
+    local name=$1 cases=$2 polish=$3
+    defaults delete "$SUITE" >/dev/null 2>&1 || true
+    defaults write "$SUITE" aiPostProcessingEnabled -bool true
+    defaults write "$SUITE" smartFormattingEnabled -bool true
+    defaults write "$SUITE" spokenEditsEnabled -bool true
+    defaults write "$SUITE" cleanupOnlyWhenNeeded -bool false
+    defaults write "$SUITE" cleanupPolishEnabled -bool "$polish"
+    defaults write "$SUITE" numberFormattingStyle smart
+    defaults write "$SUITE" whisperLanguage en
+    defaults write "$SUITE" saveTranscriptionHistory -bool false
+    # A record of what the pass ran with.
+    defaults read "$SUITE" > ".out/$name.prefs" 2>&1
+
+    python3 -c 'import json,sys; [print(c["input"]) for c in json.load(open(sys.argv[1]))]' "$cases" \
+        | RHINO_PREFS_SUITE="$SUITE" "$APP" cleanup --stdin > ".out/$name.json" 2> ".out/$name.log"
+    local status=$?
+    defaults delete "$SUITE" >/dev/null 2>&1 || true
+    rm -f "$HOME/Library/Preferences/$SUITE.plist"
+    if [ $status -ne 0 ]; then
+        echo "cleanup FAIL ($name): CLI exited $status (see tests/cleanup/.out/$name.log)"
+        return 1
+    fi
+    if grep -q "built-in model not downloaded\|LLM cleanup is off" ".out/$name.log"; then
+        echo "cleanup FAIL ($name): the model did not load, so nothing was tested (see tests/cleanup/.out/$name.log)"
+        return 1
+    fi
+    echo "== $name =="
+    python3 score.py "$cases" ".out/$name.json" ".out/$name.log"
+}
+
+fail=0
+if [ "${LEVEL:-both}" != "3" ]; then
+    run_pass cleanup cases.json false || fail=1
+fi
+if [ "${LEVEL:-both}" != "2" ]; then
+    run_pass polished .out/cases-level3.json true || fail=1
+fi
+exit $fail

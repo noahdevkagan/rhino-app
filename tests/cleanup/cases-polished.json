@@ -1,0 +1,66 @@
+[
+  {
+    "id": "polish-fillers",
+    "why": "Level 3 (Polished): hesitations and comma-bracketed fillers go without being asked.",
+    "input": "Um, so I was thinking, uh, we could, you know, move the launch to next week, um, if that works for everyone.",
+    "kind": "polish",
+    "must_contain": ["move the launch to next week", "if that works for everyone"],
+    "must_not_contain": ["um,", "uh,", "you know"]
+  },
+  {
+    "id": "polish-repeats",
+    "why": "Level 3: stammered repeats collapse to one saying.",
+    "input": "I I think the the new pricing page looks great and we should we should tell the team today",
+    "kind": "polish",
+    "must_contain": ["new pricing page looks great", "tell the team today"],
+    "must_not_contain": ["I I ", "the the", "we should we should"]
+  },
+  {
+    "id": "polish-false-start",
+    "why": "Level 3: an abandoned start is dropped and the restart kept.",
+    "input": "I was going to, I think we should hire two more engineers before the end of the quarter.",
+    "kind": "polish",
+    "must_contain": ["we should hire two more engineers"],
+    "must_not_contain": ["I was going to"]
+  },
+  {
+    "id": "polish-self-correction",
+    "why": "Level 3 turns on spoken edits: the correction is applied, not typed out.",
+    "input": "Let's book the flight for Tuesday, no wait, Wednesday morning.",
+    "kind": "edit",
+    "must_contain": ["Wednesday"],
+    "must_not_contain": ["Tuesday", "no wait"]
+  },
+  {
+    "id": "polish-ramble-paragraphs",
+    "why": "Level 3: a long dictation with no greeting still gets paragraphs (code, not the model).",
+    "input": "So I've been thinking about the onboarding flow and I think the biggest problem is that people don't understand what the app does until they've already dictated something. The first screen asks for microphone permission before it explains anything, and that feels pushy. I'd like to try showing a short demo video first. Then we ask for permission once they've seen the value. The other thing is the settings page, which has gotten really long. Most people never scroll past the first section, so the important options need to be at the top. We could also add a search box later if it keeps growing.",
+    "kind": "polish",
+    "must_contain": ["demo video", "search box", "settings page"],
+    "min_lines": 2
+  },
+  {
+    "id": "polish-list-no-cue",
+    "why": "Level 3: four parallel tasks become a list with no 'one, two, three' cue.",
+    "input": "For the offsite we need to book the venue, order the catering, send the invites and set up the projector.",
+    "kind": "list",
+    "must_contain": ["book the venue", "order the catering", "send the invites", "set up the projector"],
+    "min_list_items": 3
+  },
+  {
+    "id": "polish-short-typical",
+    "why": "Level 3 must leave an ordinary short sentence alone (and is the latency probe).",
+    "input": "Can you send me the deck before the call tomorrow",
+    "kind": "keep",
+    "must_contain": ["send me the deck before the call tomorrow"],
+    "max_lines": 1
+  },
+  {
+    "id": "polish-deliberate-repeats",
+    "why": "Level 3 must keep repeats that are meant: emphasis, grammar, numbers.",
+    "input": "I know that that is very very important, and my number is five five five one two one two.",
+    "kind": "keep",
+    "must_contain": ["that that", "very very"],
+    "must_contain_any": ["five five five", "555"]
+  }
+]

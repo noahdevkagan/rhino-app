@@ -33,7 +33,10 @@ enum CleanupFidelityGuard {
     static let shortDictationWords = 40
     static let shortDroppedLimit = 2
 
-    static func preservesSpokenWords(input: String, output: String) -> Bool {
+    /// `allowFalseStarts` is the Polished level: an abandoned start the speaker restarted
+    /// ("I was going to, I think we should…") may go. Nothing else is loosened.
+    static func preservesSpokenWords(input: String, output: String,
+                                     allowFalseStarts: Bool = false) -> Bool {
         let spoken = words(input)
         // Scripts written without spaces come through as a few very long "words";
         // counting them says nothing about what was kept.
@@ -47,13 +50,19 @@ enum CleanupFidelityGuard {
         for change in written.difference(from: spoken) {
             switch change {
             case .remove(let offset, let word, _):
-                removedOffsets.append(offset)
-                removed[word, default: 0] += 1
                 removals.append(Change(word: word, offset: offset))
             case .insert(let offset, let word, _):
                 inserted[word, default: 0] += 1
                 insertions.append(Change(word: word, offset: offset))
             }
+        }
+        if allowFalseStarts {
+            let restarts = falseStartOffsets(spoken: spoken, removed: removals.map(\.offset))
+            removals.removeAll { restarts.contains($0.offset) }
+        }
+        for change in removals {
+            removedOffsets.append(change.offset)
+            removed[change.word, default: 0] += 1
         }
         // A word that moved is neither lost nor invented.
         for (word, count) in removed {
@@ -84,6 +93,33 @@ enum CleanupFidelityGuard {
     }
 
     private struct Change { let word: String; let offset: Int }
+
+    /// Longest abandoned start that counts as a false start.
+    static let falseStartMaxWords = 6
+
+    /// Offsets of dropped runs that are false starts: a run of up to `falseStartMaxWords`
+    /// spoken words whose first word is said again right after it ("I was going to, I think…",
+    /// "we should, we need to…"). A dropped clause that isn't restarted stays a drop.
+    private static func falseStartOffsets(spoken: [String], removed: [Int]) -> Set<Int> {
+        var result = Set<Int>()
+        var runs: [[Int]] = []
+        for offset in removed.sorted() {
+            if let last = runs.last?.last, last + 1 == offset {
+                runs[runs.count - 1].append(offset)
+            } else {
+                runs.append([offset])
+            }
+        }
+        for run in runs where run.count <= falseStartMaxWords {
+            guard let first = run.first, let last = run.last else { continue }
+            // The diff may keep either saying of the restart word: "[i was going to] i think"
+            // or "i [was going to i] think" are the same false start.
+            if (last + 1 < spoken.count && spoken[last + 1] == spoken[first]) || (first > 0 && spoken[first - 1] == spoken[last]) {
+                result.formUnion(run)
+            }
+        }
+        return result
+    }
 
     /// Content words lost and gained once moves, joins, word-form changes and completed
     /// fragments are paired off. Works on the diff's ordered changes, never on dictionary

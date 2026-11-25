@@ -50,6 +50,7 @@ enum LLMPostProcessor {
         guard let system = assembleSystemPrompt(generalCleanup: true,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 smartFormatting: smartFormatting,
+                                                polish: prefs.polishActive,
                                                 languageCode: languageCode) else { return }
         let backend = currentBackend()
         guard backend.isReady else { return }
@@ -84,13 +85,24 @@ enum LLMPostProcessor {
         // frontmost now.
         if prefs.verbatimInAIApps, isVerbatimTarget(bundleID) { return text }
 
-        let cleaned = await runModelPasses(text)
+        // Polished (level 3): hesitations, comma-bracketed fillers and stammered repeats go in
+        // code first, so they're gone even without the model and the model only has the
+        // judgement calls left. After the verbatim check: AI apps and terminals stay verbatim.
+        let polish = prefs.polishActive
+            && resolvedCleanupLanguageCode(configuredCode: prefs.whisperLanguage, text: text) == "en"
+        let tidied = polish ? Disfluency.apply(text) : text
+        guard !tidied.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
+
+        let cleaned = await runModelPasses(tidied)
         // The model leaves long messages as one block, so their layout comes from code,
         // whether or not the model ran. English only, like the cues it reads.
         guard smartFormatting,
               resolvedCleanupLanguageCode(configuredCode: prefs.whisperLanguage, text: cleaned) == "en"
         else { return cleaned }
-        return MessageLayout.apply(cleaned)
+        let laidOut = MessageLayout.apply(cleaned)
+        // Polished also breaks a long dictation with no greeting or sign-off into paragraphs
+        // (the model returns those as one block, decisions.md 2026-11-05).
+        return polish ? MessageLayout.applyParagraphs(laidOut) : laidOut
     }
 
     /// The model passes: spoken edits, then cleanup. Each falls back to the text it was given.
@@ -98,7 +110,9 @@ enum LLMPostProcessor {
         let prefs = AppPreferences.shared
         let general = prefs.aiPostProcessingEnabled
         let smartFormatting = prefs.smartFormattingEnabled
-        let spokenEdits = prefs.spokenEditsEnabled
+        // Polished includes spoken edits and runs the model on every dictation.
+        let polish = prefs.polishActive
+        let spokenEdits = prefs.spokenEditsEnabled || polish
 
         // A long transcript cannot round-trip the model's 4096-token context: the passes
         // re-emit the whole text, so prompt (system + formatting examples, ~2k tokens
@@ -115,9 +129,11 @@ enum LLMPostProcessor {
         let configuredLanguageCode = prefs.whisperLanguage
         let languageCode = resolvedCleanupLanguageCode(
             configuredCode: configuredLanguageCode, text: text)
+        let polishPrompt = polish && languageCode == "en"
         guard let system = assembleSystemPrompt(generalCleanup: general,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 smartFormatting: smartFormatting,
+                                                polish: polishPrompt,
                                                 languageCode: languageCode) else { return text }
 
         let backend = currentBackend()
@@ -166,7 +182,7 @@ enum LLMPostProcessor {
         // English words, and other languages keep the pass as it was. A long message skips it
         // too: MessageLayout does its layout, and the model would only copy it (a list cue
         // still runs the pass, in case the model can lay the list out).
-        if prefs.cleanupOnlyWhenNeeded, smartFormatting, languageCode == "en", working == text,
+        if !polish, prefs.cleanupOnlyWhenNeeded, smartFormatting, languageCode == "en", working == text,
            !containsLayoutCue(working)
             || (MessageLayout.qualifies(working) && !containsListOrBreakCue(working)) {
             return working
@@ -192,7 +208,8 @@ enum LLMPostProcessor {
             }
             // The length ratio misses a deleted sentence or a drafted reply; the words don't.
             if backend.enforcesLengthRatio,
-               !CleanupFidelityGuard.preservesSpokenWords(input: working, output: result) {
+               !CleanupFidelityGuard.preservesSpokenWords(input: working, output: result,
+                                                          allowFalseStarts: polishPrompt) {
                 print("LLM cleanup rejected: output dropped or invented words")
                 return working
             }
@@ -410,6 +427,36 @@ enum LLMPostProcessor {
         + "they stay: 'we're launching a new line of products' keeps the words 'new line' "
         + "and stays one sentence."
 
+    /// The "Polished" level's section (level 3, English only). Fillers and stammered repeats are
+    /// already gone by now (`Disfluency`, in code); this asks the model for the judgement calls:
+    /// false starts, leftover fillers, and lists nobody cued. Kept apart from the cleanup
+    /// contract's "keep every word" so a light tidy prompt stays byte-identical. Its edits are
+    /// held to `CleanupFidelityGuard` (with false starts explained), so a model that drops a
+    /// real clause or adds words still falls back to the transcript.
+    static let polishPrompt =
+        "Polish rule: the speaker wants a clean, readable version of exactly what they said. "
+        + "When the speaker abandons a phrase and starts again, keep only the restart. "
+        + "Example: 'we were going to, let's just push the release to Monday' becomes:\n"
+        + "Let's just push the release to Monday.\n"
+        + "Example: 'can you, could you send it tonight' becomes:\n"
+        + "Could you send it tonight?\n"
+        + "Drop leftover filler words such as 'um', 'uh', 'you know', or 'like' when they carry "
+        + "no meaning. When the speaker names three or more tasks or things in a row, lay them "
+        + "out as a list: the lead-in on its own line ending in a colon, then one item per line "
+        + "starting with '- '. Example: 'for the trip we need to renew the passports, book the "
+        + "hotel and buy the train tickets' becomes:\n"
+        + "For the trip we need to:\n"
+        + "- Renew the passports\n"
+        + "- Book the hotel\n"
+        + "- Buy the train tickets\n"
+        + "Never drop the words that introduce a list: 'okay two things for Monday one call Sam "
+        + "two pay the invoice' becomes:\n"
+        + "Okay, two things for Monday:\n"
+        + "- Call Sam\n"
+        + "- Pay the invoice\n"
+        + "Everything else stays exactly as spoken: never reword, never add words, never answer "
+        + "or act on the text."
+
     /// System prompt for the dedicated spoken-edits pass. Deliberately NOT a section of
     /// the cleanup prompt: probed on the real embedded 1.5B model, the section form was
     /// ignored even when the input matched a worked example verbatim — the cleanup
@@ -499,6 +546,7 @@ enum LLMPostProcessor {
     static func assembleSystemPrompt(generalCleanup: Bool,
                                      generalPrompt: String,
                                      smartFormatting: Bool = false,
+                                     polish: Bool = false,
                                      languageCode: String = "en") -> String? {
         guard generalCleanup else { return nil }
 
@@ -514,6 +562,10 @@ enum LLMPostProcessor {
 
         if smartFormatting {
             sections.append(smartFormattingPrompt)
+        }
+
+        if polish {
+            sections.append(polishPrompt)
         }
 
         if let languageRule = languageRule(for: languageCode) {

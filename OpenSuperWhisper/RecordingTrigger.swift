@@ -171,8 +171,11 @@ struct RecordingTriggerSet: Equatable, Codable {
         while !list.isAtEnd {
             if let trigger = try? list.decode(RecordingTrigger.self) {
                 triggers.append(trigger)
-            } else if (try? list.decode(SkippedEntry.self)) == nil {
-                break // not even an object: stop rather than spin on it
+            } else {
+                // Decodes from any JSON value (object, number, string, null, array), so it always
+                // moves past the element. `try`, not `try?`: if it ever failed, throwing beats
+                // spinning on the same index.
+                _ = try list.decode(SkippedEntry.self)
             }
         }
         self.triggers = triggers

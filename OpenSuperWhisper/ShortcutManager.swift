@@ -266,11 +266,14 @@ class ShortcutManager {
 
         // A mouse button behaves like a key combination: hold to talk, tap to toggle, double-tap
         // to lock. It can't be the start of a chord, so its bubble shows at once.
-        MouseButtonMonitor.shared.stop()
+        // No stop() before start(): start() rebuilds in place and keeps a take whose button is
+        // still held and still a trigger; stop() (trigger removed) delivers the release instead.
         let mouseButtons = set.mouseButtons
-        if !mouseButtons.isEmpty {
-            MouseButtonMonitor.shared.onButtonDown = { [weak self] _ in self?.handleKeyDown(canChord: false) }
-            MouseButtonMonitor.shared.onButtonUp = { [weak self] _ in self?.handleKeyUp() }
+        MouseButtonMonitor.shared.onButtonDown = { [weak self] _ in self?.handleKeyDown(canChord: false) }
+        MouseButtonMonitor.shared.onButtonUp = { [weak self] _ in self?.handleKeyUp() }
+        if mouseButtons.isEmpty {
+            MouseButtonMonitor.shared.stop()
+        } else {
             MouseButtonMonitor.shared.start(mouseButtons: mouseButtons)
         }
 

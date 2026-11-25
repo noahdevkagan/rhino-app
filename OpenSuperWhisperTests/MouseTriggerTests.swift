@@ -133,7 +133,6 @@ final class MouseTriggerTrackerTests: XCTestCase {
     func testHoldAndReleaseReportEdgesAndSwallow() {
         var tracker = MouseTriggerTracker(watched: [mouse4])
         XCTAssertEqual(tracker.handle(.down, buttonNumber: 3), .init(edge: .down(mouse4), consume: true))
-        XCTAssertEqual(tracker.handle(.dragged, buttonNumber: 3), .init(edge: nil, consume: true))
         XCTAssertEqual(tracker.handle(.up, buttonNumber: 3), .init(edge: .up(mouse4), consume: true))
     }
 
@@ -161,10 +160,96 @@ final class MouseTriggerTrackerTests: XCTestCase {
         XCTAssertEqual(tracker.handle(.up, buttonNumber: 3), .init(edge: nil, consume: true))
     }
 
-    func testResetForgetsAHeldButton() {
+    /// Every button that isn't a configured trigger is untouched, including while a take is
+    /// held, and the tap's lock-free pre-check agrees with the tracker.
+    func testNonTriggerButtonsPassThroughEvenDuringATake() {
+        var tracker = MouseTriggerTracker(watched: [mouse4])
+        for number in [0, 1, 2, 4, 5, 31, 32, -1] {
+            XCTAssertFalse(tracker.watches(buttonNumber: number), "button \(number)")
+        }
+        XCTAssertTrue(tracker.watches(buttonNumber: 3))
+
+        _ = tracker.handle(.down, buttonNumber: 3)
+        for number in [0, 1, 2, 4] {
+            XCTAssertEqual(tracker.handle(.down, buttonNumber: number), .passThrough)
+            XCTAssertEqual(tracker.handle(.up, buttonNumber: number), .passThrough)
+        }
+        XCTAssertEqual(tracker.pressed, mouse4, "other buttons don't touch the take")
+        XCTAssertEqual(tracker.handle(.up, buttonNumber: 3), .init(edge: .up(mouse4), consume: true))
+    }
+
+    // MARK: - Tap disabled by timeout / user input, then re-enabled
+
+    /// The button is still down when the tap comes back: keep the take, and its real release
+    /// still ends it.
+    func testReenableWithButtonStillHeldKeepsTheTake() {
         var tracker = MouseTriggerTracker(watched: [mouse4])
         _ = tracker.handle(.down, buttonNumber: 3)
-        tracker.reset()
-        XCTAssertEqual(tracker.handle(.down, buttonNumber: 3), .init(edge: .down(mouse4), consume: true))
+        XCTAssertNil(tracker.reconcile(isDown: { _ in true }))
+        XCTAssertEqual(tracker.pressed, mouse4)
+        XCTAssertEqual(tracker.handle(.up, buttonNumber: 3), .init(edge: .up(mouse4), consume: true))
+    }
+
+    /// The release happened while the tap was off: report it now so hold-to-talk stops, and
+    /// don't report it twice if a late up turns up.
+    func testReenableAfterButtonWasReleasedDeliversTheLostRelease() {
+        var tracker = MouseTriggerTracker(watched: [mouse4])
+        _ = tracker.handle(.down, buttonNumber: 3)
+        var asked: [MouseButton] = []
+        XCTAssertEqual(tracker.reconcile(isDown: { asked.append($0); return false }), .up(mouse4))
+        XCTAssertEqual(asked, [mouse4])
+        XCTAssertNil(tracker.pressed)
+        XCTAssertEqual(tracker.handle(.up, buttonNumber: 3), .init(edge: nil, consume: true))
+        XCTAssertEqual(tracker.handle(.down, buttonNumber: 3), .init(edge: .down(mouse4), consume: true),
+                       "the next press starts a new take")
+    }
+
+    func testReenableWithNothingHeldIsANoOp() {
+        var tracker = MouseTriggerTracker(watched: [mouse4])
+        XCTAssertNil(tracker.reconcile(isDown: { _ in XCTFail("no button to check"); return false }))
+    }
+
+    // MARK: - Tap rebuilt (stop/start) while the button is held
+
+    func testStopWhileHeldHandsBackTheRelease() {
+        var tracker = MouseTriggerTracker(watched: [mouse4])
+        _ = tracker.handle(.down, buttonNumber: 3)
+        XCTAssertEqual(tracker.release(), .up(mouse4))
+        XCTAssertNil(tracker.release(), "only once")
+    }
+
+    func testRebuildWhileHeldKeepsTheTakeWhenStillATriggerAndStillDown() {
+        let carry = MouseTriggerTracker.carryOver(held: mouse4, into: [mouse4, .middle], isDown: { _ in true })
+        XCTAssertEqual(carry.pressed, mouse4)
+        XCTAssertNil(carry.release)
+
+        var next = MouseTriggerTracker(watched: [mouse4, .middle], pressed: carry.pressed)
+        XCTAssertEqual(next.handle(.up, buttonNumber: 3), .init(edge: .up(mouse4), consume: true),
+                       "the real release on the new tap ends the take")
+    }
+
+    func testRebuildWhileHeldReleasesWhenTheButtonWasLetGo() {
+        let carry = MouseTriggerTracker.carryOver(held: mouse4, into: [mouse4], isDown: { _ in false })
+        XCTAssertNil(carry.pressed)
+        XCTAssertEqual(carry.release, .up(mouse4))
+    }
+
+    /// The trigger was removed (or no tap could be built) mid-hold: end the take now.
+    func testRebuildWhileHeldReleasesWhenTheButtonIsNoLongerATrigger() {
+        let carry = MouseTriggerTracker.carryOver(held: mouse4, into: [.middle], isDown: { _ in true })
+        XCTAssertNil(carry.pressed)
+        XCTAssertEqual(carry.release, .up(mouse4))
+        XCTAssertEqual(MouseTriggerTracker.carryOver(held: mouse4, into: [], isDown: { _ in true }).release,
+                       .up(mouse4))
+    }
+
+    func testRebuildWithNothingHeldDeliversNothing() {
+        let carry = MouseTriggerTracker.carryOver(held: nil, into: [mouse4], isDown: { _ in true })
+        XCTAssertNil(carry.pressed)
+        XCTAssertNil(carry.release)
+    }
+
+    func testCarriedButtonMustBeWatched() {
+        XCTAssertNil(MouseTriggerTracker(watched: [.middle], pressed: mouse4).pressed)
     }
 }

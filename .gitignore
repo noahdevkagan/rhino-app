@@ -130,6 +130,8 @@ tests/*/.out/
 # Test/bench working files (audio + transcripts never committed)
 tests/asr/audio/
 bench/corpus/audio/
+bench/accents/audio/
+bench/accents/.out/
 bench/corpus/results/
 bench/parity/.out/
 

@@ -1312,8 +1312,11 @@ struct SettingsView: View {
             .padding(.horizontal, 24).padding(.top, 2)
 
             HStack(spacing: 8) {
-                engineCard(tag: "fluidaudio", name: "Parakeet", sub: "Fast, on-device")
-                engineCard(tag: "whisper", name: "Whisper", sub: "Accurate · 99 langs")
+                // Measured, bench/accents (decisions.md 2026-11-25): on real AU/GB/IN/NZ/US
+                // speech Parakeet makes fewer errors than Whisper turbo and runs ~15x faster,
+                // so "Accurate" on the Whisper card steered English users the wrong way.
+                engineCard(tag: "fluidaudio", name: "Parakeet", sub: "Best for English · fast")
+                engineCard(tag: "whisper", name: "Whisper", sub: "99 languages · slower")
             }
             .padding(.horizontal, 24).padding(.top, 12)
 

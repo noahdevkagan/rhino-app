@@ -89,7 +89,7 @@ gate before anything publishes.
 | `Scripts/release.sh` | Release flow (gate → bump → notarized DMG → GitHub release); see `docs/RELEASING.md` |
 | `Scripts/` | Upstream helper scripts + `push-gate.sh` + `githooks/` (ours) |
 | `tests/` | Push-gate suites: `hygiene` (privacy), `asr` (whisper WER), `parakeet` (Parakeet WER), `cleanup` (LLM cleanup fidelity + effect, with `known_gap` cases), `latency`, `release`, `smoke`; `insertion-manual.md` is human-run |
-| `bench/` | Scorecard trend (`history.jsonl`) + `corpus/` (Noah's-voice head-to-head vs Wispr Flow) |
+| `bench/` | Scorecard trend (`history.jsonl`) + `corpus/` (Noah's-voice head-to-head vs Wispr Flow) + `accents/` (Common Voice WER per engine x accent) |
 | `.github/workflows/test-gate.yml` | Same gate on CI; release workflows must `workflow_call` it |
 | `docs/` | Upstream docs (PUBLISHING.md, release notes) |
 | `website/` | rhinovoice.app (vinext/Next). Guides and comparisons are content objects rendered by `app/_components/*-page.tsx`; follow `SITE-PLAYBOOK.md` (shared with the MeetMouse repo) for voice, facts and cross-linking. `npm test` in `website/` |

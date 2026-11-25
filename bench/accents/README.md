@@ -31,3 +31,15 @@ engine gets 80%+ wrong are treated as broken Common Voice rows and dropped (the 
 95% intervals are bootstrap over clips; the paired table compares each config with `--baseline`
 on the same clips. With 50–60 clips per group, differences under ~2 points are noise.
 Latency is the bench's wall time per clip, first (warm-up) clip excluded.
+
+## Quiet input and noise (2026-11-25, decisions.md "Quiet mics")
+
+```bash
+./levels.sh au us                    # -24/-30/-36 dB copies -> audio/<g>-q24|q30|q36
+python3 mix_noise.py au 10           # seeded pink noise at 10 dB SNR -> audio/au-snr10
+python3 mix_noise.py au 10 30        # same, then 30 dB down -> audio/au-snr10q30
+python3 ../../tests/asr/gen_noise.py audio/noise --full --speech ../../tests/asr/audio/.tmp/short.wav
+OUT=.out/after CONFIGS="pk-v2 pk-v3 whisper-turbo" ACCENTS="noise au-q24 ..." ./run.sh
+python3 levels_report.py .out/base .out/after   # WER + empty counts, and words typed on no-speech clips
+```
+All noise here is synthetic (seeded); nothing is downloaded or committed.

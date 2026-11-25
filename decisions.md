@@ -2655,19 +2655,38 @@ but spoken punctuation and message layout runs. The Output tab now opens with on
   1 or 2 exactly as before, new users on 2 (the 2026-10-19 default). Picking a level never rewrites
   `spokenEditsEnabled`, `removeFillerWords` or `cleanupOnlyWhenNeeded`; Polished implies them at runtime,
   so going back to Light tidy restores what the user had. The old "Clean up with AI" toggle is replaced.
-- **Polished, deterministic first.** `Disfluency` removes hesitation sounds (um, uh, er, hmm; not "uh
-  huh"), comma-bracketed fillers (", you know,", ", like,") and stammered repeats of 1–3 words, in code,
-  before the model, so it works without the model. Repeats people mean are kept: number words and digits,
-  and words like that/had/is/very/no/bye. Bare "like" and "you know" are left alone (usually real words).
+- **Polished, deterministic first.** `Disfluency` runs in code, before the model, so it works without
+  the model. Rule (from the PR #142 review): remove only what is unambiguously a disfluency; a missed "um"
+  costs nothing, a deleted real word changes what was said. It removes:
+  - lowercase um/uh/hmm/ah/erm, and "er" only as an aside (", er," or "er,"); a capitalised Um/Uh/Hmm only
+    at a sentence start before a comma or a lowercase word. Kept: ER, HMM, UM, "4 mm", "Um Kulthum", "Er
+    ist", "uh huh" (also kept from the legacy filler toggle while Polished is on).
+  - ", you know," / ", like," / ", I mean," only mid-sentence between two commas. Kept: ", you know?",
+    "…, I guess.", a sentence-opening "You know,", and bare like / you know.
+  - a doubled function word (I I, the the, we we…) or a 2–3 word restart that starts like a sentence
+    (we should we should), separated by spaces only. Kept: anything across a comma ("Turn right, right",
+    "New York, New York"), capitalised names (Walla Walla, Duran Duran, The The), grammar doubles (log in in,
+    her her, was was, had had, that that), number words and digits, letters (w w w), and emphasis.
+  - Mending after a removal keeps the sentence's own . ? ! ("That's all, um." → "That's all."), and
+    re-capitalises only a word that a removal left at a sentence start; nothing else is recased.
 - **Polished, model half.** Runs the model on every dictation (ignores `cleanupOnlyWhenNeeded`), turns on
   the spoken-edits pass (choosing Polished is the opt-in that 2026-10's "deletes words, needs consent"
   asked for), and adds a separate prompt section: drop false starts and leftover fillers, lay out three or
   more named items as a list without a cue, never drop a list's lead-in, never add words or answer. It's a
   section only Polished assembles, so Light tidy's prompt is byte-identical. It does NOT reverse 2026-08-26
   (no dropping "filler sentences").
-- **Guard: one narrow exception.** At Polished a dropped run of ≤6 words whose first word is said again
-  right after it (or whose last word was said right before it: the diff may keep either copy) counts as an
-  explained false start. Dropped clauses that aren't restarted and invented words are rejected as before.
+- **Guard: one narrow exception, tightened after review.** At Polished a dropped run of ≤6 words counts
+  as an explained false start only if ALL hold: it is an abandoned fragment (no . ? ! inside or at its end);
+  the restart repeats its first 2 words (or it is a one-word stammer); and it holds no negation, no number
+  and no content word the restart's sentence doesn't say again. So parallel clauses ("Tell Sam X, tell
+  Maya Y", "two pallets for Dallas, five for Austin", "can't … , can …", "refund A but not B") are rejected
+  when the model drops one. Cost, accepted: a real false start with its own content ("I was going to tell
+  them, I think…") is rejected too, and that dictation keeps the Disfluency output. The guard's 12-word
+  minimum drops to 5 at Polished so short parallel clauses are checked.
+- **Token budget checked (real Qwen tokenizer, 2026-11-25).** At the 3,500-char cap (3,427 chars of
+  prose, 693 tokens) the full chat prompt is 2,081 tokens at Light tidy and 2,343 at Polished (+262), so
+  1,753 tokens are left for the reply against ~700 needed. Truncation would need text under ~2.9 chars per
+  token (digit-heavy), and a truncated reply is discarded, not pasted. No cap change.
 - **Reverses 2026-11-05 "rambles stay one block", for Polished only.** `MessageLayout.applyParagraphs`
   breaks any long prose line (400+ chars) into paragraphs with the same grouping as message bodies,
   greeting or not. Light tidy is unchanged.

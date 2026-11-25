@@ -33,8 +33,11 @@ extension LLMCleanupBackend {
 enum LLMPostProcessor {
     /// The one backend: the embedded llama.cpp model.
     static func currentBackend() -> LLMCleanupBackend {
-        BuiltInLlamaBackend.shared
+        backendOverride ?? BuiltInLlamaBackend.shared
     }
+
+    /// Unit tests only: a fake backend, so `process` can be exercised without loading the model.
+    static var backendOverride: LLMCleanupBackend?
 
     /// Warms the cleanup backend for an imminent dictation: called at recording start, so the
     /// context load (after an idle unload) and the constant prompt prefix — system prompt plus
@@ -50,7 +53,9 @@ enum LLMPostProcessor {
         guard let system = assembleSystemPrompt(generalCleanup: true,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 smartFormatting: smartFormatting,
-                                                polish: prefs.polishActive,
+                                                // The same rule real calls use (English only),
+                                                // or the warmed prefix never matches.
+                                                polish: prefs.polishActive && languageCode == "en",
                                                 languageCode: languageCode) else { return }
         let backend = currentBackend()
         guard backend.isReady else { return }
@@ -93,7 +98,7 @@ enum LLMPostProcessor {
         let tidied = polish ? Disfluency.apply(text) : text
         guard !tidied.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
 
-        let cleaned = await runModelPasses(tidied)
+        let cleaned = await runModelPasses(tidied, polish: polish)
         // The model leaves long messages as one block, so their layout comes from code,
         // whether or not the model ran. English only, like the cues it reads.
         guard smartFormatting,
@@ -106,12 +111,13 @@ enum LLMPostProcessor {
     }
 
     /// The model passes: spoken edits, then cleanup. Each falls back to the text it was given.
-    private static func runModelPasses(_ text: String) async -> String {
+    /// `polish` is Polished for an English dictation (`process` decides); other languages get
+    /// the Light tidy passes, as the Polished prompt and edits are English.
+    private static func runModelPasses(_ text: String, polish: Bool) async -> String {
         let prefs = AppPreferences.shared
         let general = prefs.aiPostProcessingEnabled
         let smartFormatting = prefs.smartFormattingEnabled
         // Polished includes spoken edits and runs the model on every dictation.
-        let polish = prefs.polishActive
         let spokenEdits = prefs.spokenEditsEnabled || polish
 
         // A long transcript cannot round-trip the model's 4096-token context: the passes

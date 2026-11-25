@@ -11,8 +11,11 @@ Per case, in this order:
   - min_lines / max_lines / min_list_items   layout happened (or didn't)
   - kind keep|list     content-word diff, input → output: fail on ≥2 spoken
                        content words dropped or ≥2 never-spoken words invented.
-  - kind polish        the Polished level removes repeats and false starts on
-                       purpose, so only the invented-words half applies.
+  - kind polish        the Polished level removes stammers and false starts on
+                       purpose. Invented words fail as for keep; a dropped content
+                       word fails unless it is a stammer (said in a repeated run of
+                       1-3 words and still in the output) or listed in the case's
+                       `may_drop` (the words of a scripted false start).
                        Function words, fillers, layout cues and numbers are
                        ignored (they legitimately come and go). `edit` cases
                        skip this, since applying an edit drops words on purpose.
@@ -76,6 +79,17 @@ def word_diff(spoken: str, written: str) -> tuple[list[str], list[str]]:
     return dropped, invented
 
 
+def stammered_words(text: str) -> set[str]:
+    """Words inside a run of 1-3 words said twice in a row ("we should we should")."""
+    w = words(text)
+    found: set[str] = set()
+    for n in (1, 2, 3):
+        for i in range(len(w) - 2 * n + 1):
+            if w[i:i + n] == w[i + n:i + 2 * n]:
+                found.update(w[i:i + n])
+    return found
+
+
 def has(phrase: str, text: str) -> bool:
     """Case-sensitive (brand names), except the phrase's first letter: list
     items and sentence starts get capitalized ("passport" → "- Passport")."""
@@ -107,7 +121,16 @@ def check(case: dict, out: str) -> list[str]:
 
     if case.get("kind") in ("keep", "list", "polish"):
         dropped, invented = word_diff(case["input"], out)
-        if case["kind"] != "polish" and len(dropped) > MAX_DROPPED:
+        if case["kind"] == "polish":
+            # Over-deletion: only stammers and the case's listed words may go.
+            stammers = stammered_words(case["input"])
+            kept = content_bag(out)
+            allowed = set(case.get("may_drop", []))
+            unexplained = [w for w in dropped
+                           if w not in allowed and not (w in stammers and kept.get(w, 0) > 0)]
+            if unexplained:
+                problems.append(f"dropped {unexplained}")
+        elif len(dropped) > MAX_DROPPED:
             problems.append(f"dropped {dropped}")
         if len(invented) > MAX_INVENTED:
             problems.append(f"invented {invented}")

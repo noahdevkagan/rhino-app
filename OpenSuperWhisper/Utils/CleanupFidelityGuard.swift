@@ -12,6 +12,10 @@ enum CleanupFidelityGuard {
     /// Shorter texts are left to the length guard: a legitimate fix to a few words is a
     /// large fraction of them.
     static let minimumWords = 12
+    /// Polished asks the model to drop words (false starts, fillers), so a short dictation can
+    /// lose a whole clause ("Order two pallets for Dallas, order five pallets for Austin" → the
+    /// Austin half): there the word check starts at this many words instead.
+    static let polishedMinimumWords = 5
     /// A deleted clause. Cleanup drops a stray "and" or a repeated word, never this many in a row.
     static let longestDroppedRun = 8
     /// Dropped words scattered through the text: at least `droppedFloor` of them and more
@@ -40,7 +44,7 @@ enum CleanupFidelityGuard {
         let spoken = words(input)
         // Scripts written without spaces come through as a few very long "words";
         // counting them says nothing about what was kept.
-        guard spoken.count >= minimumWords,
+        guard spoken.count >= (allowFalseStarts ? polishedMinimumWords : minimumWords),
               spoken.reduce(0, { $0 + $1.count }) / spoken.count <= 12 else { return true }
         let written = words(output)
 
@@ -57,7 +61,13 @@ enum CleanupFidelityGuard {
             }
         }
         if allowFalseStarts {
-            let restarts = falseStartOffsets(spoken: spoken, removed: removals.map(\.offset))
+            // If the two tokenisers ever disagree, treat every word as a sentence end: no
+            // run then counts as a false start, which is the safe side.
+            let ends = sentenceEnds(input)
+            let restarts = falseStartOffsets(
+                spoken: spoken,
+                endsSentence: ends.count == spoken.count ? ends : Array(repeating: true, count: spoken.count),
+                removed: removals.map(\.offset))
             removals.removeAll { restarts.contains($0.offset) }
         }
         for change in removals {
@@ -97,10 +107,17 @@ enum CleanupFidelityGuard {
     /// Longest abandoned start that counts as a false start.
     static let falseStartMaxWords = 6
 
-    /// Offsets of dropped runs that are false starts: a run of up to `falseStartMaxWords`
-    /// spoken words whose first word is said again right after it ("I was going to, I think…",
-    /// "we should, we need to…"). A dropped clause that isn't restarted stays a drop.
-    private static func falseStartOffsets(spoken: [String], removed: [Int]) -> Set<Int> {
+    /// Offsets of dropped runs that are false starts. Parallel clauses look like restarts
+    /// ("tell Sam the budget is approved, tell Maya…", "we will refund the deposit but we will
+    /// not…"), so a dropped run only counts when ALL of these hold for the abandoned start F
+    /// (up to `falseStartMaxWords` words) and the restart R that follows it:
+    ///   - F is a fragment: no word in it ends a sentence (no ".", "?" or "!" inside or after it);
+    ///   - R repeats at least F's first two words, or F is one word said twice ("I I think");
+    ///   - F holds no negation and no number (losing "can't" or "two" changes the meaning);
+    ///   - every content word in F is said again in R's sentence.
+    /// When in doubt the run stays a drop and the guard decides as it would at Light tidy.
+    private static func falseStartOffsets(spoken: [String], endsSentence: [Bool],
+                                          removed: [Int]) -> Set<Int> {
         var result = Set<Int>()
         var runs: [[Int]] = []
         for offset in removed.sorted() {
@@ -112,14 +129,67 @@ enum CleanupFidelityGuard {
         }
         for run in runs where run.count <= falseStartMaxWords {
             guard let first = run.first, let last = run.last else { continue }
-            // The diff may keep either saying of the restart word: "[i was going to] i think"
-            // or "i [was going to i] think" are the same false start.
-            if (last + 1 < spoken.count && spoken[last + 1] == spoken[first]) || (first > 0 && spoken[first - 1] == spoken[last]) {
-                result.formUnion(run)
+            let n = run.count
+            // The diff may keep either saying of the repeated words: "[we should] we should go"
+            // and "we [should we] should go" drop the same false start. Shifting the run back by
+            // `s` words is the same text when the s words before it equal its last s words.
+            for s in 0...n {
+                let a = first - s, b = last + 1 - s
+                guard a >= 0 else { break }
+                guard (0..<s).allSatisfy({ spoken[a + $0] == spoken[b + $0] }) else { continue }
+                if isFalseStart(spoken: spoken, endsSentence: endsSentence, start: a, restart: b) {
+                    result.formUnion(run)
+                    break
+                }
             }
         }
         return result
     }
+
+    /// Whether spoken[start..<restart] is an abandoned start that spoken[restart...] restarts.
+    private static func isFalseStart(spoken: [String], endsSentence: [Bool],
+                                     start: Int, restart: Int) -> Bool {
+        let fragment = Array(spoken[start..<restart])
+        guard !fragment.isEmpty, fragment.count <= falseStartMaxWords else { return false }
+        // A finished sentence is not a false start, however much the next one looks like it.
+        if (start..<restart).contains(where: { endsSentence[$0] }) { return false }
+        // The restart must say the fragment's first two words again (one for a stammer).
+        let repeated = min(2, fragment.count)
+        guard restart + repeated <= spoken.count,
+              (0..<repeated).allSatisfy({ spoken[restart + $0] == fragment[$0] }) else { return false }
+        if fragment.contains(where: { isNegation($0) || isNumber($0) }) { return false }
+        // Everything the fragment said that matters is said again before the restart's
+        // sentence ends: otherwise dropping it loses information ("refund the deposit").
+        var end = restart
+        while end < spoken.count {
+            end += 1
+            if endsSentence[end - 1] { break }
+        }
+        let restartWords = Set(spoken[restart..<end])
+        return fragment.allSatisfy { !isContent($0) || restartWords.contains($0) }
+    }
+
+    private static func isNegation(_ word: String) -> Bool {
+        negations.contains(word) || word.hasSuffix("n't")
+    }
+
+    private static let negations: Set<String> = [
+        "not", "no", "never", "nothing", "nobody", "none", "neither", "nor", "cannot", "nowhere",
+        "without", "cant", "wont", "dont", "didnt", "doesnt", "isnt", "arent", "wasnt", "werent",
+        "shouldnt", "couldnt", "wouldnt", "havent", "hasnt", "hadnt",
+    ]
+
+    private static func isNumber(_ word: String) -> Bool {
+        word.contains(where: \.isNumber) || numberWords.contains(word)
+    }
+
+    private static let numberWords: Set<String> = [
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+        "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+        "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+        "eighty", "ninety", "hundred", "thousand", "million", "billion", "half", "dozen",
+        "first", "second", "third", "once", "twice",
+    ]
 
     /// Content words lost and gained once moves, joins, word-form changes and completed
     /// fragments are paired off. Works on the diff's ordered changes, never on dictionary
@@ -188,6 +258,39 @@ enum CleanupFidelityGuard {
     /// Short dictations also let "as" and "are" come and go ("as f as long as" → "as far as").
     private static func isShortContent(_ word: String) -> Bool {
         isContent(word) && word != "as" && word != "are"
+    }
+
+    /// For each word `words(text)` returns, whether a ".", "?" or "!" follows it before the
+    /// next word. Same tokenising as `words`, so the indexes line up.
+    private static func sentenceEnds(_ text: String) -> [Bool] {
+        let normalized = text.lowercased().replacingOccurrences(of: "’", with: "'")
+        let wordChars = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "'"))
+        var ends: [Bool] = []
+        var token = ""
+        var separator = ""
+        func finish() {
+            if !token.trimmingCharacters(in: CharacterSet(charactersIn: "'")).isEmpty {
+                ends.append(false)
+            }
+            token = ""
+        }
+        for scalar in normalized.unicodeScalars {
+            if wordChars.contains(scalar) {
+                if token.isEmpty, !ends.isEmpty, separator.contains(where: { ".?!".contains($0) }) {
+                    ends[ends.count - 1] = true
+                }
+                if token.isEmpty { separator = "" }
+                token.unicodeScalars.append(scalar)
+            } else {
+                finish()
+                separator.unicodeScalars.append(scalar)
+            }
+        }
+        finish()
+        if !ends.isEmpty, separator.contains(where: { ".?!".contains($0) }) {
+            ends[ends.count - 1] = true
+        }
+        return ends
     }
 
     private static func words(_ text: String) -> [String] {

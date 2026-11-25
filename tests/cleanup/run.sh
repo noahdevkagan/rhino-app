@@ -11,8 +11,9 @@
 #     phrases kept (the harmful rewrites from docs/performance-audit-2026-10-05.md)
 #   - effect: lists become lists, spoken edits get applied, messages get laid out
 #
-# `cleanupOnlyWhenNeeded` is OFF here (Polished ignores it anyway) so the model runs on every case, the
-# worst case for fidelity. Never downloads: the suite reuses the model the
+# Light tidy runs with `cleanupOnlyWhenNeeded` OFF and spoken edits ON so the model runs on
+# every case, the worst case for fidelity. Polished runs with both left at the user defaults
+# (on / off): Polished itself must force the model and spoken edits, and this proves it does. Never downloads: the suite reuses the model the
 # installed Rhino already has, or skips when none is on this machine.
 set -uo pipefail
 cd "$(dirname "$0")"
@@ -20,6 +21,13 @@ ROOT="$(cd ../.. && pwd)"
 # One suite per run: worktrees run this gate side by side, and a shared suite gets
 # deleted by the other run halfway through this one.
 SUITE=com.noahkagan.rhino.gate.cleanup.$$
+# An interrupted run must not leave its per-run suite behind.
+cleanup_suite() {
+    defaults delete "$SUITE" >/dev/null 2>&1 || true
+    rm -f "$HOME/Library/Preferences/$SUITE.plist"
+}
+trap cleanup_suite EXIT
+trap 'cleanup_suite; exit 130' INT TERM
 
 if [ "${CI:-false}" = "true" ]; then
     echo "cleanup SKIPPED on CI: needs the 1 GB cleanup model and real hardware"
@@ -77,8 +85,10 @@ run_pass() {  # name cases-file polish(true|false)
     defaults delete "$SUITE" >/dev/null 2>&1 || true
     defaults write "$SUITE" aiPostProcessingEnabled -bool true
     defaults write "$SUITE" smartFormattingEnabled -bool true
-    defaults write "$SUITE" spokenEditsEnabled -bool true
-    defaults write "$SUITE" cleanupOnlyWhenNeeded -bool false
+    if [ "$polish" = "false" ]; then
+        defaults write "$SUITE" spokenEditsEnabled -bool true
+        defaults write "$SUITE" cleanupOnlyWhenNeeded -bool false
+    fi
     defaults write "$SUITE" cleanupPolishEnabled -bool "$polish"
     defaults write "$SUITE" numberFormattingStyle smart
     defaults write "$SUITE" whisperLanguage en
@@ -89,8 +99,7 @@ run_pass() {  # name cases-file polish(true|false)
     python3 -c 'import json,sys; [print(c["input"]) for c in json.load(open(sys.argv[1]))]' "$cases" \
         | RHINO_PREFS_SUITE="$SUITE" "$APP" cleanup --stdin > ".out/$name.json" 2> ".out/$name.log"
     local status=$?
-    defaults delete "$SUITE" >/dev/null 2>&1 || true
-    rm -f "$HOME/Library/Preferences/$SUITE.plist"
+    cleanup_suite
     if [ $status -ne 0 ]; then
         echo "cleanup FAIL ($name): CLI exited $status (see tests/cleanup/.out/$name.log)"
         return 1

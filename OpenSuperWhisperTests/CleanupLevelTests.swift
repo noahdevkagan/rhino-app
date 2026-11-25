@@ -7,7 +7,8 @@ import XCTest
 /// the level matching what they had, and the deterministic half of Polished.
 final class CleanupLevelTests: XCTestCase {
     private let keys = ["aiPostProcessingEnabled", "cleanupPolishEnabled", "spokenEditsEnabled",
-                        "removeFillerWords", "cleanupOnlyWhenNeeded"]
+                        "removeFillerWords", "cleanupOnlyWhenNeeded", "whisperLanguage",
+                        "verbatimInAIApps", "smartFormattingEnabled"]
 
     override func setUp() {
         super.setUp()
@@ -15,6 +16,7 @@ final class CleanupLevelTests: XCTestCase {
     }
 
     override func tearDown() {
+        LLMPostProcessor.backendOverride = nil
         keys.forEach { DefaultsStore.current.removeObject(forKey: $0) }
         super.tearDown()
     }
@@ -85,9 +87,11 @@ final class CleanupLevelTests: XCTestCase {
     // MARK: - Disfluency (Polished, in code)
 
     func testHesitationsGo() {
+        // Comma-bracketed hesitations take both commas with them.
         XCTAssertEqual(Disfluency.apply("Um, so I was thinking, uh, we could ship it, um, today."),
-                       "So I was thinking, we could ship it, today.")
-        XCTAssertEqual(Disfluency.apply("I er need hmm a minute"), "I need a minute")
+                       "So I was thinking we could ship it today.")
+        XCTAssertEqual(Disfluency.apply("I, er, need hmm a minute"), "I need a minute")
+        XCTAssertEqual(Disfluency.apply("Hmm, let me check."), "Let me check.")
     }
 
     func testAnswersAndRealWordsStay() {
@@ -102,7 +106,40 @@ final class CleanupLevelTests: XCTestCase {
         XCTAssertEqual(Disfluency.apply("We should, you know, move the launch."),
                        "We should move the launch.")
         XCTAssertEqual(Disfluency.apply("It was, like, huge."), "It was huge.")
-        XCTAssertEqual(Disfluency.apply("You know, I think it's fine."), "I think it's fine.")
+        XCTAssertEqual(Disfluency.apply("It's, I mean, fine."), "It's fine.")
+    }
+
+    func testFillersOutsideCommasStay() {
+        // Only mid-sentence between two commas. Sentence-final hedges are how it was said,
+        // and deleting only the words of ", you know?" would turn a statement into a question.
+        for text in ["We ship Friday, you know?", "It's fine, I guess.", "It's fine, I guess?",
+                     "You know, I think it's fine.", "We ship Friday, you know."] {
+            XCTAssertEqual(Disfluency.apply(text), text)
+        }
+    }
+
+    func testAcronymsUnitsAndNamesStay() {
+        XCTAssertEqual(Disfluency.apply("She's in the ER, um, since noon"), "She's in the ER since noon")
+        for text in ["We trained an HMM on the data", "I studied at UM for four years",
+                     "a 4 mm screw", "Use a 12mm bolt.", "Um Kulthum sings tonight.",
+                     "Er ist müde.", "Ich glaube er ist müde.", "AH is the tag."] {
+            XCTAssertEqual(Disfluency.apply(text), text)
+        }
+    }
+
+    func testPunctuationAfterAHesitationStays() {
+        XCTAssertEqual(Disfluency.apply("That's all, um."), "That's all.")
+        XCTAssertEqual(Disfluency.apply("I think that's it um. Thanks"), "I think that's it. Thanks")
+        XCTAssertEqual(Disfluency.apply("That's all, um"), "That's all")
+        XCTAssertEqual(Disfluency.apply("Done. Um, the next one is ready"), "Done. The next one is ready")
+        XCTAssertEqual(Disfluency.apply("Thanks!\nUm, see you"), "Thanks!\nSee you")
+    }
+
+    func testCapitalsChangeOnlyWhereSomethingWasRemoved() {
+        XCTAssertEqual(Disfluency.apply("Meet at 3 p.m. and um then e.g. vim on my iPhone"),
+                       "Meet at 3 p.m. and then e.g. vim on my iPhone")
+        XCTAssertEqual(Disfluency.apply("I I said e.g. vim at 3 p.m. and iPhone"),
+                       "I said e.g. vim at 3 p.m. and iPhone")
     }
 
     func testRealLikeAndYouKnowStay() {
@@ -116,7 +153,18 @@ final class CleanupLevelTests: XCTestCase {
                        "I think the page is great")
         XCTAssertEqual(Disfluency.apply("we should we should tell the team"),
                        "we should tell the team")
-        XCTAssertEqual(Disfluency.apply("I think, I think it works."), "I think it works.")
+        XCTAssertEqual(Disfluency.apply("The the plan is set."), "The plan is set.")
+    }
+
+    func testRealDoublesStay() {
+        // Doubles that are grammar, names or spelling, and anything across a comma.
+        for text in ["log in in the morning", "I handed her her coat", "What it was was a mistake",
+                     "Walla Walla", "Bora Bora", "Baden Baden", "Duran Duran", "New York, New York",
+                     "The The", "We love The The.", "w w w dot example dot com",
+                     "Turn right, right at the light", "I think, I think it works.",
+                     "It was so so good."] {
+            XCTAssertEqual(Disfluency.apply(text), text)
+        }
     }
 
     func testDeliberateRepeatsStay() {
@@ -139,12 +187,49 @@ final class CleanupLevelTests: XCTestCase {
 
     // MARK: - Guard: false starts at Polished only
 
-    func testFalseStartIsExplainedOnlyWhenAllowed() {
-        let input = "I was going to tell them, I think we should hire two more engineers before the end of the quarter"
-        let output = "I think we should hire two more engineers before the end of the quarter."
-        XCTAssertFalse(CleanupFidelityGuard.preservesSpokenWords(input: input, output: output))
+    func testFalseStartsPass() {
+        let cases = [
+            ("I was going to, I think we should hire two more engineers before the end of the quarter",
+             "I think we should hire two more engineers before the end of the quarter."),
+            ("We should, we should probably wait until the numbers come in next week before deciding",
+             "We should probably wait until the numbers come in next week before deciding."),
+        ]
+        for (input, output) in cases {
+            XCTAssertTrue(CleanupFidelityGuard.preservesSpokenWords(input: input, output: output,
+                                                                    allowFalseStarts: true), input)
+        }
+    }
+
+    func testRestartThatRepeatsTwoWordsIsExplainedOnlyAtPolished() {
+        // A long dictation: four dropped content words would fail the plain guard.
+        let rest = " the onboarding numbers from last week look better than we expected, and the team wants to keep the new welcome screen"
+        let input = "we should move the pricing call, we should move the pricing call to Thursday because" + rest
+        let output = "We should move the pricing call to Thursday because" + rest
         XCTAssertTrue(CleanupFidelityGuard.preservesSpokenWords(input: input, output: output,
                                                                 allowFalseStarts: true))
+    }
+
+    func testParallelClausesAreNotFalseStarts() {
+        // The model dropped a real clause; each looks like a restart but isn't.
+        let cases = [
+            ("I called the bank this morning. I emailed Sam the contract. I booked the flight to Denver.",
+             "I called the bank this morning. I booked the flight to Denver."),
+            ("Tell Sam the budget is approved, tell Maya the budget is still pending",
+             "Tell Maya the budget is still pending."),
+            ("Order two pallets for Dallas, order five pallets for Austin",
+             "Order five pallets for Austin."),
+            ("Tell them we can't do the Monday slot, we can do the Tuesday slot",
+             "Tell them we can do the Tuesday slot."),
+            ("We will refund the deposit but we will not refund the cleaning fee",
+             "We will not refund the cleaning fee."),
+            // An abandoned start that holds words the restart doesn't say again stays a drop.
+            ("I was going to tell them, I think we should hire two more engineers before the end of the quarter",
+             "I think we should hire two more engineers before the end of the quarter."),
+        ]
+        for (input, output) in cases {
+            XCTAssertFalse(CleanupFidelityGuard.preservesSpokenWords(input: input, output: output,
+                                                                     allowFalseStarts: true), input)
+        }
     }
 
     func testDroppedClauseIsStillRejectedAtPolished() {
@@ -159,6 +244,62 @@ final class CleanupLevelTests: XCTestCase {
         let output = "I strongly think we should hire two more senior engineers before the end of the quarter."
         XCTAssertFalse(CleanupFidelityGuard.preservesSpokenWords(input: input, output: output,
                                                                  allowFalseStarts: true))
+    }
+
+    // MARK: - process() wiring (fake backend: no model, so only the code steps run)
+
+    private struct NotReadyBackend: LLMCleanupBackend {
+        var isReady: Bool { false }
+        func generate(system: String, user: String) async throws -> String { user }
+    }
+
+    private func polishedPrefs(language: String = "en") {
+        LLMPostProcessor.backendOverride = NotReadyBackend()
+        let prefs = AppPreferences.shared
+        prefs.cleanupLevel = .polished
+        prefs.whisperLanguage = language
+        prefs.verbatimInAIApps = true
+        prefs.smartFormattingEnabled = true
+    }
+
+    private let stammer = "Um, I I think we should ship it."
+
+    func testProcessRunsDisfluencyAtPolished() async {
+        polishedPrefs()
+        let out = await LLMPostProcessor.process(stammer)
+        XCTAssertEqual(out, "I think we should ship it.")
+    }
+
+    func testProcessSkipsDisfluencyForVerbatimApps() async {
+        polishedPrefs()
+        let out = await LLMPostProcessor.process(stammer, bundleID: "com.openai.chat")
+        XCTAssertEqual(out, stammer)
+    }
+
+    func testProcessSkipsDisfluencyAtLightTidy() async {
+        polishedPrefs()
+        AppPreferences.shared.cleanupLevel = .light
+        let out = await LLMPostProcessor.process(stammer)
+        XCTAssertEqual(out, stammer)
+    }
+
+    func testProcessSkipsDisfluencyForOtherLanguages() async {
+        polishedPrefs(language: "de")
+        let text = "Um, ich ich glaube, er ist müde."
+        let out = await LLMPostProcessor.process(text)
+        XCTAssertEqual(out, text)
+    }
+
+    func testPolishedKeepsUhHuhEvenWithTheOldFillerToggle() {
+        let prefs = AppPreferences.shared
+        prefs.removeFillerWords = true
+        prefs.cleanupLevel = .polished
+        let cleaned = prefs.cleanTranscription("Uh huh, um, that works.")
+        XCTAssertEqual(Disfluency.apply(cleaned), "Uh huh, that works.")
+        XCTAssertEqual(prefs.cleanTranscription("Uh-huh. Sounds good."), "Uh-huh. Sounds good.")
+        // Light tidy keeps the toggle's old behaviour exactly.
+        prefs.cleanupLevel = .light
+        XCTAssertEqual(prefs.cleanTranscription("Uh huh, that works."), "huh, that works.")
     }
 
     // MARK: - Prompt and layout

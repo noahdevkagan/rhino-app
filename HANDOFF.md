@@ -12,7 +12,11 @@ Light tidy / Polished). Design and reasons: decisions.md 2026-11-25. Done: prefs
 Polished prompt section, guard false-start exception, `MessageLayout.applyParagraphs`, picker UI,
 CleanupLevelTests (21) + opt-in CleanupLevelSnapshotTests, gate runs both levels (L2 11/12 + 1 gap,
 L3 18/20 + 2 gaps). Not done: never hand-tested in the GUI (other agents were building; brief said no GUI);
-Polished on non-English is a no-op by design. Next: Noah tries Polished for a day; decide whether new
+Polished on non-English is a no-op by design. Review fixes (same day): guard false-start rule tightened,
+Disfluency rewritten to keep real words (acronyms, units, names, grammar doubles), mending keeps . ? !,
+process()/prewarm English-only, "uh huh" kept, gate scorer checks over-deletion at Polished, gate
+Polished pass uses user-default prefs + trap cleanup; 5 parallel-clause gate cases. Gate: L2 11 + 1 gap,
+L3 23 + 2 gaps of 25; CleanupLevelTests 33. Next: Noah tries Polished for a day; decide whether new
 users should default to Polished once the model is downloaded.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)

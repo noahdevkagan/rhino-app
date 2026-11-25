@@ -392,9 +392,28 @@ final class AppPreferences {
     /// An invalid regex is a no-op (`replacingOccurrences` returns the input unchanged).
     func cleanTranscription(_ text: String) -> String {
         guard removeFillerWords, !fillerWordsPattern.isEmpty else { return text }
-        let stripped = text.replacingOccurrences(
+        // Polished keeps "uh huh" (it means yes), but the default pattern lists it. Swap each
+        // one for a placeholder the pattern can't match while Polished is on, then put it back,
+        // so the older toggle can't undo that.
+        let placeholder = "\u{E001}"
+        var answers: [String] = []
+        var protected = text
+        if polishActive {
+            let ns = text as NSString
+            let answer = try! NSRegularExpression(pattern: #"\buh[ -]huh\b"#, options: [.caseInsensitive])
+            for match in answer.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+                answers.append(ns.substring(with: match.range))
+            }
+            protected = answer.stringByReplacingMatches(
+                in: text, range: NSRange(location: 0, length: ns.length), withTemplate: placeholder)
+        }
+        var stripped = protected.replacingOccurrences(
             of: fillerWordsPattern, with: "",
             options: [.regularExpression, .caseInsensitive])
+        for original in answers {
+            guard let range = stripped.range(of: placeholder) else { break }
+            stripped.replaceSubrange(range, with: original)
+        }
         return stripped
             .replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)

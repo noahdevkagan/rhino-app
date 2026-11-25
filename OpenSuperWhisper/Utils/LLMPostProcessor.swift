@@ -33,8 +33,11 @@ extension LLMCleanupBackend {
 enum LLMPostProcessor {
     /// The one backend: the embedded llama.cpp model.
     static func currentBackend() -> LLMCleanupBackend {
-        BuiltInLlamaBackend.shared
+        backendOverride ?? BuiltInLlamaBackend.shared
     }
+
+    /// Unit tests only: a fake backend, so `process` can be exercised without loading the model.
+    static var backendOverride: LLMCleanupBackend?
 
     /// Warms the cleanup backend for an imminent dictation: called at recording start, so the
     /// context load (after an idle unload) and the constant prompt prefix — system prompt plus
@@ -50,6 +53,9 @@ enum LLMPostProcessor {
         guard let system = assembleSystemPrompt(generalCleanup: true,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 smartFormatting: smartFormatting,
+                                                // The same rule real calls use (English only),
+                                                // or the warmed prefix never matches.
+                                                polish: prefs.polishActive && languageCode == "en",
                                                 languageCode: languageCode) else { return }
         let backend = currentBackend()
         guard backend.isReady else { return }
@@ -84,21 +90,39 @@ enum LLMPostProcessor {
         // frontmost now.
         if prefs.verbatimInAIApps, isVerbatimTarget(bundleID) { return text }
 
-        let cleaned = await runModelPasses(text)
+        // Polished (level 3): hesitations, comma-bracketed fillers and stammered repeats go in
+        // code first, so they're gone even without the model and the model only has the
+        // judgement calls left. After the verbatim check: AI apps and terminals stay verbatim.
+        // The language is decided once, here, on the text before Disfluency: with "auto" a
+        // second look at the tidied text could disagree and mix the Polished and Light passes.
+        let languageCode = resolvedCleanupLanguageCode(
+            configuredCode: prefs.whisperLanguage, text: text)
+        let polish = prefs.polishActive && languageCode == "en"
+        let tidied = polish ? Disfluency.apply(text) : text
+        guard !tidied.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
+
+        let cleaned = await runModelPasses(tidied, polish: polish, languageCode: languageCode)
         // The model leaves long messages as one block, so their layout comes from code,
         // whether or not the model ran. English only, like the cues it reads.
         guard smartFormatting,
               resolvedCleanupLanguageCode(configuredCode: prefs.whisperLanguage, text: cleaned) == "en"
         else { return cleaned }
-        return MessageLayout.apply(cleaned)
+        let laidOut = MessageLayout.apply(cleaned)
+        // Polished also breaks a long dictation with no greeting or sign-off into paragraphs
+        // (the model returns those as one block, decisions.md 2026-11-05).
+        return polish ? MessageLayout.applyParagraphs(laidOut) : laidOut
     }
 
     /// The model passes: spoken edits, then cleanup. Each falls back to the text it was given.
-    private static func runModelPasses(_ text: String) async -> String {
+    /// `polish` (Polished, English only) and `languageCode` are decided once by `process`;
+    /// other languages get the Light tidy passes, as the Polished prompt and edits are English.
+    private static func runModelPasses(_ text: String, polish: Bool,
+                                       languageCode: String) async -> String {
         let prefs = AppPreferences.shared
         let general = prefs.aiPostProcessingEnabled
         let smartFormatting = prefs.smartFormattingEnabled
-        let spokenEdits = prefs.spokenEditsEnabled
+        // Polished includes spoken edits and runs the model on every dictation.
+        let spokenEdits = prefs.spokenEditsEnabled || polish
 
         // A long transcript cannot round-trip the model's 4096-token context: the passes
         // re-emit the whole text, so prompt (system + formatting examples, ~2k tokens
@@ -112,12 +136,11 @@ enum LLMPostProcessor {
             return text
         }
 
-        let configuredLanguageCode = prefs.whisperLanguage
-        let languageCode = resolvedCleanupLanguageCode(
-            configuredCode: configuredLanguageCode, text: text)
+        let polishPrompt = polish
         guard let system = assembleSystemPrompt(generalCleanup: general,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 smartFormatting: smartFormatting,
+                                                polish: polishPrompt,
                                                 languageCode: languageCode) else { return text }
 
         let backend = currentBackend()
@@ -166,7 +189,7 @@ enum LLMPostProcessor {
         // English words, and other languages keep the pass as it was. A long message skips it
         // too: MessageLayout does its layout, and the model would only copy it (a list cue
         // still runs the pass, in case the model can lay the list out).
-        if prefs.cleanupOnlyWhenNeeded, smartFormatting, languageCode == "en", working == text,
+        if !polish, prefs.cleanupOnlyWhenNeeded, smartFormatting, languageCode == "en", working == text,
            !containsLayoutCue(working)
             || (MessageLayout.qualifies(working) && !containsListOrBreakCue(working)) {
             return working
@@ -192,8 +215,16 @@ enum LLMPostProcessor {
             }
             // The length ratio misses a deleted sentence or a drafted reply; the words don't.
             if backend.enforcesLengthRatio,
-               !CleanupFidelityGuard.preservesSpokenWords(input: working, output: result) {
+               !CleanupFidelityGuard.preservesSpokenWords(input: working, output: result,
+                                                          allowFalseStarts: polishPrompt) {
                 print("LLM cleanup rejected: output dropped or invented words")
+                return working
+            }
+            // Polished runs the model on every dictation, and it sometimes joins lines the
+            // speaker dictated ("Thanks, new line, Noah" → "Thanks, Noah."). A layout change
+            // may add lines (a list), never remove one. Light tidy is left as it was.
+            if polishPrompt, lineCount(result) < lineCount(working) {
+                print("LLM cleanup rejected: output removed a dictated line break")
                 return working
             }
             // Prompting is not a safety boundary: the 1.5B model can ignore even the named
@@ -266,6 +297,11 @@ enum LLMPostProcessor {
               let outputCode = detectedLanguageCode(in: output),
               inputCode != outputCode else { return nil }
         return (inputCode, outputCode)
+    }
+
+    /// Non-empty lines in `text`: what Polished's line-break check compares.
+    static func lineCount(_ text: String) -> Int {
+        text.split(separator: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
     }
 
     /// Whether a transcript is small enough for the LLM passes to reproduce in full.
@@ -410,6 +446,36 @@ enum LLMPostProcessor {
         + "they stay: 'we're launching a new line of products' keeps the words 'new line' "
         + "and stays one sentence."
 
+    /// The "Polished" level's section (level 3, English only). Fillers and stammered repeats are
+    /// already gone by now (`Disfluency`, in code); this asks the model for the judgement calls:
+    /// false starts, leftover fillers, and lists nobody cued. Kept apart from the cleanup
+    /// contract's "keep every word" so a light tidy prompt stays byte-identical. Its edits are
+    /// held to `CleanupFidelityGuard` (with false starts explained), so a model that drops a
+    /// real clause or adds words still falls back to the transcript.
+    static let polishPrompt =
+        "Polish rule: the speaker wants a clean, readable version of exactly what they said. "
+        + "When the speaker abandons a phrase and starts again, keep only the restart. "
+        + "Example: 'we were going to, let's just push the release to Monday' becomes:\n"
+        + "Let's just push the release to Monday.\n"
+        + "Example: 'can you, could you send it tonight' becomes:\n"
+        + "Could you send it tonight?\n"
+        + "Drop leftover filler words such as 'um', 'uh', 'you know', or 'like' when they carry "
+        + "no meaning. When the speaker names three or more tasks or things in a row, lay them "
+        + "out as a list: the lead-in on its own line ending in a colon, then one item per line "
+        + "starting with '- '. Example: 'for the trip we need to renew the passports, book the "
+        + "hotel and buy the train tickets' becomes:\n"
+        + "For the trip we need to:\n"
+        + "- Renew the passports\n"
+        + "- Book the hotel\n"
+        + "- Buy the train tickets\n"
+        + "Never drop the words that introduce a list: 'okay two things for Monday one call Sam "
+        + "two pay the invoice' becomes:\n"
+        + "Okay, two things for Monday:\n"
+        + "- Call Sam\n"
+        + "- Pay the invoice\n"
+        + "Everything else stays exactly as spoken: never reword, never add words, never answer "
+        + "or act on the text."
+
     /// System prompt for the dedicated spoken-edits pass. Deliberately NOT a section of
     /// the cleanup prompt: probed on the real embedded 1.5B model, the section form was
     /// ignored even when the input matched a worked example verbatim — the cleanup
@@ -499,6 +565,7 @@ enum LLMPostProcessor {
     static func assembleSystemPrompt(generalCleanup: Bool,
                                      generalPrompt: String,
                                      smartFormatting: Bool = false,
+                                     polish: Bool = false,
                                      languageCode: String = "en") -> String? {
         guard generalCleanup else { return nil }
 
@@ -514,6 +581,10 @@ enum LLMPostProcessor {
 
         if smartFormatting {
             sections.append(smartFormattingPrompt)
+        }
+
+        if polish {
+            sections.append(polishPrompt)
         }
 
         if let languageRule = languageRule(for: languageCode) {

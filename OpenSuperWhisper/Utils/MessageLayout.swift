@@ -63,6 +63,16 @@ enum MessageLayout {
             .joined(separator: "\n\n")
     }
 
+    /// The Polished level's paragraphs: every long prose line is broken up the way `apply`
+    /// breaks a message body, greeting or not. Lines already laid out are kept.
+    static func applyParagraphs(_ text: String) -> String {
+        let lines = text.components(separatedBy: "\n")
+        guard lines.contains(where: isLongProse) else { return text }
+        return lines
+            .map { isLongProse($0) ? paragraphs(in: $0).joined(separator: "\n\n") : $0 }
+            .joined(separator: "\n")
+    }
+
     /// Prose line long enough to break up. List items are never split.
     private static func isLongProse(_ line: String) -> Bool {
         line.count >= minChars

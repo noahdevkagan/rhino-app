@@ -392,6 +392,10 @@ final class AppPreferences {
     /// An invalid regex is a no-op (`replacingOccurrences` returns the input unchanged).
     func cleanTranscription(_ text: String) -> String {
         guard removeFillerWords, !fillerWordsPattern.isEmpty else { return text }
+        // Polished removes hesitations itself (`Disfluency`), with rules that keep "ER",
+        // "4 mm", "Er ist", "uh huh" and line breaks; this older pattern removes all of those,
+        // and its Settings row is hidden at Polished. So it doesn't run there at all.
+        if polishActive { return text }
         let stripped = text.replacingOccurrences(
             of: fillerWordsPattern, with: "",
             options: [.regularExpression, .caseInsensitive])
@@ -463,6 +467,31 @@ final class AppPreferences {
     /// `LLMPostProcessor.containsLayoutCue`. Off restores cleanup on every dictation.
     @UserDefault(key: "cleanupOnlyWhenNeeded", defaultValue: true)
     var cleanupOnlyWhenNeeded: Bool
+
+    /// Level 3 ("Polished") on top of AI cleanup: strip fillers and stammered repeats in code,
+    /// run the model on every dictation (not only when a layout cue is present) with the
+    /// polish prompt section, apply spoken self-corrections, and break long dictations into
+    /// paragraphs. Off by default, and never set by a migration: nobody's output changes
+    /// until they pick "Polished". Read it through `cleanupLevel` / `polishActive`.
+    @UserDefault(key: "cleanupPolishEnabled", defaultValue: false)
+    var cleanupPolishEnabled: Bool
+
+    /// Polish only counts while AI cleanup itself is on.
+    var polishActive: Bool { aiPostProcessingEnabled && cleanupPolishEnabled }
+
+    /// The one visible "how much does Rhino tidy" setting. Not stored on its own: it is read
+    /// from, and written to, the prefs that already drive the pipeline, so every existing
+    /// install lands on the level its settings already describe (cleanup off → 1, on → 2) and
+    /// nothing changes on upgrade. Writing a level leaves Spoken edits, Remove filler words
+    /// and `cleanupOnlyWhenNeeded` alone, so stepping 3 → 2 gives back exactly the level-2
+    /// setup the person had before.
+    var cleanupLevel: CleanupLevel {
+        get { CleanupLevel.from(aiCleanup: aiPostProcessingEnabled, polish: cleanupPolishEnabled) }
+        set {
+            aiPostProcessingEnabled = newValue != .exact
+            cleanupPolishEnabled = newValue == .polished
+        }
+    }
 
     /// Insert dictations verbatim (skip every LLM pass) when the target app is an AI
     /// assistant or a terminal. Those dictations are prompts and commands, not prose:
@@ -551,4 +580,41 @@ final class AppPreferences {
     /// and the privacy promise is "never leaves your Mac", not "never exists".
     @UserDefault(key: "saveTranscriptionHistory", defaultValue: true)
     var saveTranscriptionHistory: Bool
+}
+
+/// How much Rhino tidies what you say. See `AppPreferences.cleanupLevel`.
+enum CleanupLevel: Int, CaseIterable, Identifiable {
+    /// As recognised: no model pass.
+    case exact = 1
+    /// Today's conservative cleanup: punctuation and capitals, lists and emails when cued.
+    case light = 2
+    /// Fillers, repeats and false starts removed, self-corrections applied, paragraphs and
+    /// lists laid out on every dictation.
+    case polished = 3
+
+    var id: Int { rawValue }
+
+    static func from(aiCleanup: Bool, polish: Bool) -> CleanupLevel {
+        guard aiCleanup else { return .exact }
+        return polish ? .polished : .light
+    }
+
+    var title: String {
+        switch self {
+        case .exact: return "Exactly what I said"
+        case .light: return "Light tidy"
+        case .polished: return "Polished"
+        }
+    }
+
+    var hint: String {
+        switch self {
+        case .exact: return "Your words as heard. Nothing is reworded or laid out."
+        case .light: return "Fixes punctuation and capitals. Lays out lists and emails when you dictate one."
+        case .polished: return "Also drops um, uh and repeated words, applies “scratch that”, and splits long dictations into paragraphs and lists."
+        }
+    }
+
+    /// Whether this level does anything more than the deterministic steps without the model.
+    var usesModel: Bool { self != .exact }
 }

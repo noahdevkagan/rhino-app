@@ -2643,3 +2643,93 @@ fingerprint + time zone + today's date. Zero network: everything reads Recording
 - `DayClock` (day-change, clock-change, zone-change notifications, plus window-becomes-key as a sleep-through-midnight fallback) is the one day signal for Stats, Home "This week"/"Recent" and History day headers.
 - The stats cache signature hashes every completed row (id, text, time, app, duration) inside SQLite with a 32-bit FNV-1a scalar function summed over rows: no overflow, order-independent, catches same-length edits. Chosen over an in-memory revision counter so edits from another process on the same DB still invalidate.
 - History refresh re-reads the already-loaded rows (rounded to whole pages) with the current search/app filter and swaps them in without clearing, so SwiftUI diffs by id and keeps scroll.
+
+## 2026-11-25 — Cleanup levels: Exactly what I said / Light tidy / Polished
+
+A customer who also uses Wispr Flow said Rhino types speech verbatim. Measured: at default prefs
+(model downloaded, `cleanupOnlyWhenNeeded` on) every filler, repeat, false-start and "no wait" case in the
+gate came back exactly as spoken; without the model (every new user until they click Download) nothing
+but spoken punctuation and message layout runs. The Output tab now opens with one choice of three levels.
+- **The level is a view over existing prefs, not a parallel system.** `aiPostProcessingEnabled` off =
+  level 1, on = level 2, on + new `cleanupPolishEnabled` = level 3. No migration code: upgraders land on
+  1 or 2 exactly as before, new users on 2 (the 2026-10-19 default). Picking a level never rewrites
+  `spokenEditsEnabled`, `removeFillerWords` or `cleanupOnlyWhenNeeded`; Polished implies them at runtime,
+  so going back to Light tidy restores what the user had. The old "Clean up with AI" toggle is replaced.
+- **Polished, deterministic first.** `Disfluency` runs in code, before the model, so it works without
+  the model. Rule (from the PR #142 review): remove only what is unambiguously a disfluency; a missed "um"
+  costs nothing, a deleted real word changes what was said. It removes:
+  - lowercase um/uh/hmm/ah/erm, and "er" only as an aside (", er," or "er,"); a capitalised Um/Uh/Hmm only
+    at a sentence start before a comma or a lowercase word. Kept: ER, HMM, UM, "4 mm", "Um Kulthum", "Er
+    ist", "uh huh" (also kept from the legacy filler toggle while Polished is on).
+  - ", you know," / ", like," / ", I mean," only mid-sentence between two commas. Kept: ", you know?",
+    "…, I guess.", a sentence-opening "You know,", and bare like / you know.
+  - a doubled function word (I I, the the, we we…) or a 2–3 word restart that starts like a sentence
+    (we should we should), separated by spaces only. Kept: anything across a comma ("Turn right, right",
+    "New York, New York"), capitalised names (Walla Walla, Duran Duran, The The), grammar doubles (log in in,
+    her her, was was, had had, that that), number words and digits, letters (w w w), and emphasis.
+  - Mending after a removal keeps the sentence's own . ? ! ("That's all, um." → "That's all."), and
+    re-capitalises only a word that a removal left at a sentence start; nothing else is recased.
+- **Polished, model half.** Runs the model on every dictation (ignores `cleanupOnlyWhenNeeded`), turns on
+  the spoken-edits pass (choosing Polished is the opt-in that 2026-10's "deletes words, needs consent"
+  asked for), and adds a separate prompt section: drop false starts and leftover fillers, lay out three or
+  more named items as a list without a cue, never drop a list's lead-in, never add words or answer. It's a
+  section only Polished assembles, so Light tidy's prompt is byte-identical. It does NOT reverse 2026-08-26
+  (no dropping "filler sentences").
+- **Guard: one narrow exception, tightened after review.** At Polished a dropped run of ≤6 words counts
+  as an explained false start only if ALL hold: it is an abandoned fragment (no . ? ! inside or at its end);
+  the restart repeats its first 2 words (or it is a one-word stammer); and it holds no negation, no number
+  and no content word the restart's sentence doesn't say again. So parallel clauses ("Tell Sam X, tell
+  Maya Y", "two pallets for Dallas, five for Austin", "can't … , can …", "refund A but not B") are rejected
+  when the model drops one. Cost, accepted: a real false start with its own content ("I was going to tell
+  them, I think…") is rejected too, and that dictation keeps the Disfluency output. The guard's 12-word
+  minimum drops to 5 at Polished so short parallel clauses are checked.
+- **Token budget checked (real Qwen tokenizer, 2026-11-25).** At the 3,500-char cap (3,427 chars of
+  prose, 693 tokens) the full chat prompt is 2,081 tokens at Light tidy and 2,343 at Polished (+262), so
+  1,753 tokens are left for the reply against ~700 needed. Truncation would need text under ~2.9 chars per
+  token (digit-heavy), and a truncated reply is discarded, not pasted. No cap change.
+- **Reverses 2026-11-05 "rambles stay one block", for Polished only.** `MessageLayout.applyParagraphs`
+  breaks any long prose line (400+ chars) into paragraphs with the same grouping as message bodies,
+  greeting or not. Light tidy is unchanged.
+- `verbatimInAIApps` still wins at every level: the check runs before any Polished step. English only for
+  the Polished steps (the fillers and prompt are English). Zero network.
+- Gate: `tests/cleanup/run.sh` now runs cases.json at Light tidy, then cases.json again plus
+  cases-polished.json at Polished (so instruction- and question-bait are checked at both). Its defaults
+  suite is per-run: worktrees running the gate side by side deleted each other's shared suite mid-run.
+
+## 2026-11-25 — Polished, second review of PR #142: what code may delete
+Supersedes the matching bullets of the entry above. Same rule: a deleted real word, clause, list
+comma or line break is a defect; a missed "um" is not.
+- **Line breaks are never touched by `Disfluency`.** Every match works on spaces and tabs only, and
+  the ", um," lead-comma pattern ends in `\z`, not `$` (which also matched before a trailing "\n" and
+  took the break with it). A property test over 600 generated sentences checks: same lines, each
+  output line's words a subsequence of the input line's, no double space, no ", ." or two sentence
+  ends in a row, idempotent. The model can still join lines, so at Polished a cleanup that has fewer
+  non-empty lines than its input is rejected ("Thanks, new line, Noah" → "Thanks, Noah." did that).
+- **Comma-bracketed fillers leave one comma**, since the commas may separate list items ("Invite
+  Sam, um, Maya" → "Invite Sam, Maya"). Both go only after a word that can't end a list item or
+  clause: a, an, the, is/are/was/were/be/been, it's/that's/I'm/we're…, could/should/would/shall,
+  I/we/he/she/they, and/or ("We should, um, go" → "We should go"). Prepositions, can/will/may/must/am
+  are left out (phrasal verbs, nouns, times). Cost: "I was thinking, uh, we could" keeps a comma.
+- **", you know," / ", I mean," are removed only after one of those same words** ("As far as, you
+  know, goes" keeps it). **", like," is no longer removed in code at all**: "It tastes, like,
+  chicken" is a comparison and code can't tell it from "It was, like, huge". The model may drop it,
+  under the guard.
+- **Answers stay**: uh huh, uh uh, mm hmm, mm hm, mhm, with a space or hyphen. A hesitation that is
+  its own sentence ("Is it done? Um.") stays rather than leave "?." or a bare mark.
+- **Repeats, in plain words:** a single word said twice or more collapses only if it is on the
+  short list (I, I'm, I've, I'll, I'd, the, an, we, we're, we've, we'll, and, it's, but, my, our, if,
+  or, they're, you're) AND the next thing is a lowercase word of two or more letters. So "I I think"
+  and "the the plan" collapse; "My my, what a day", "I I V", "I I T", a sentence end, stay. "a" and
+  "to" came off the list ("I got a a minus", "add it to to do list"). 2–3 word restarts are unchanged.
+  The whole filter repeats until nothing changes, so "I I I I think" → "I think" in one call.
+- Mending: no space after an opening bracket or quote; re-capitalise after a list marker ("1. ",
+  "- ") or an opening quote at a sentence start; sentence case is judged once on the input.
+- **Guard false starts:** the dropped fragment's content words must come back in order within the
+  restart's first |F|+1 words. Anywhere-in-the-sentence let "hire Sam, we should hire Maya too if
+  Sam agrees" through.
+- **Legacy "Remove filler words" doesn't run at Polished** (its row is hidden there, and its pattern
+  removes ER, UM, "4 mm", "Er ist", "uh huh" and eats newlines with `\s*`). Those defects remain at
+  levels 1–2, unchanged on purpose (byte-identical rule); fix separately. Cost: a non-English Polished
+  user with the old toggle on loses its filler removal (Disfluency is English-only).
+- **Language decided once** in `process`, on the text before Disfluency, and passed to the model
+  passes: with "auto" a second detection on the tidied text could disagree.

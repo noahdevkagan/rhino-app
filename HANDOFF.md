@@ -16,7 +16,7 @@ Polished on non-English is a no-op by design. Review fixes (same day): guard fal
 Disfluency rewritten to keep real words (acronyms, units, names, grammar doubles), mending keeps . ? !,
 process()/prewarm English-only, "uh huh" kept, gate scorer checks over-deletion at Polished, gate
 Polished pass uses user-default prefs + trap cleanup; 5 parallel-clause gate cases. Gate: L2 11 + 1 gap,
-L3 23 + 2 gaps of 25; CleanupLevelTests 33. Next: Noah tries Polished for a day; decide whether new
+L3 23 + 2 gaps of 25; CleanupLevelTests 33. Second review fixes (2026-11-25, decisions.md same day): Disfluency never touches line breaks (property test), one comma kept, ', like,' left to the model, answers kept, repeat rule narrowed, guard restart window |F|+1, legacy filler toggle off at Polished, language decided once, Polished rejects model output that joins dictated lines. Gate: L2 11 + 1 gap, L3 24 + 2 gaps of 26; unit 942 pass. Next: Noah tries Polished for a day; decide whether new
 users should default to Polished once the model is downloaded.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)

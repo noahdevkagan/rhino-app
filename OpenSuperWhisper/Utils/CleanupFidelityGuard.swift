@@ -114,7 +114,7 @@ enum CleanupFidelityGuard {
     ///   - F is a fragment: no word in it ends a sentence (no ".", "?" or "!" inside or after it);
     ///   - R repeats at least F's first two words, or F is one word said twice ("I I think");
     ///   - F holds no negation and no number (losing "can't" or "two" changes the meaning);
-    ///   - every content word in F is said again in R's sentence.
+    ///   - every content word in F is said again, in order, in R's first |F|+1 words.
     /// When in doubt the run stays a drop and the guard decides as it would at Light tidy.
     private static func falseStartOffsets(spoken: [String], endsSentence: [Bool],
                                           removed: [Int]) -> Set<Int> {
@@ -158,15 +158,22 @@ enum CleanupFidelityGuard {
         guard restart + repeated <= spoken.count,
               (0..<repeated).allSatisfy({ spoken[restart + $0] == fragment[$0] }) else { return false }
         if fragment.contains(where: { isNegation($0) || isNumber($0) }) { return false }
-        // Everything the fragment said that matters is said again before the restart's
-        // sentence ends: otherwise dropping it loses information ("refund the deposit").
+        // A real restart says the fragment again straight away: its content words, in order,
+        // within the restart's first |F|+1 words (and its sentence). A match later on doesn't
+        // count: "hire Sam, we should hire Maya too if Sam agrees" mentions Sam again, but
+        // dropping the first clause still loses "hire Sam".
         var end = restart
-        while end < spoken.count {
+        while end < min(spoken.count, restart + fragment.count + 1) {
             end += 1
             if endsSentence[end - 1] { break }
         }
-        let restartWords = Set(spoken[restart..<end])
-        return fragment.allSatisfy { !isContent($0) || restartWords.contains($0) }
+        var window = spoken[restart..<end].makeIterator()
+        return fragment.filter(isContent).allSatisfy { word in
+            while let next = window.next() {
+                if next == word { return true }
+            }
+            return false
+        }
     }
 
     private static func isNegation(_ word: String) -> Bool {

@@ -160,5 +160,20 @@
       "refund the deposit",
       "not refund the cleaning fee"
     ]
+  },
+  {
+    "id": "polish-keeps-message-layout",
+    "why": "Level 3 must keep dictated line breaks: a removed 'um' after 'Hi Sam, new line,' took the line break with it (second review of PR #142).",
+    "input": "Hi Sam, new line, um, the deck is ready for review. Thanks, new line, Noah",
+    "kind": "polish",
+    "must_contain": [
+      "Hi Sam",
+      "deck is ready for review",
+      "Noah"
+    ],
+    "must_not_contain": [
+      "um,"
+    ],
+    "min_lines": 3
   }
 ]

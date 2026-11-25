@@ -93,12 +93,15 @@ enum LLMPostProcessor {
         // Polished (level 3): hesitations, comma-bracketed fillers and stammered repeats go in
         // code first, so they're gone even without the model and the model only has the
         // judgement calls left. After the verbatim check: AI apps and terminals stay verbatim.
-        let polish = prefs.polishActive
-            && resolvedCleanupLanguageCode(configuredCode: prefs.whisperLanguage, text: text) == "en"
+        // The language is decided once, here, on the text before Disfluency: with "auto" a
+        // second look at the tidied text could disagree and mix the Polished and Light passes.
+        let languageCode = resolvedCleanupLanguageCode(
+            configuredCode: prefs.whisperLanguage, text: text)
+        let polish = prefs.polishActive && languageCode == "en"
         let tidied = polish ? Disfluency.apply(text) : text
         guard !tidied.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
 
-        let cleaned = await runModelPasses(tidied, polish: polish)
+        let cleaned = await runModelPasses(tidied, polish: polish, languageCode: languageCode)
         // The model leaves long messages as one block, so their layout comes from code,
         // whether or not the model ran. English only, like the cues it reads.
         guard smartFormatting,
@@ -111,9 +114,10 @@ enum LLMPostProcessor {
     }
 
     /// The model passes: spoken edits, then cleanup. Each falls back to the text it was given.
-    /// `polish` is Polished for an English dictation (`process` decides); other languages get
-    /// the Light tidy passes, as the Polished prompt and edits are English.
-    private static func runModelPasses(_ text: String, polish: Bool) async -> String {
+    /// `polish` (Polished, English only) and `languageCode` are decided once by `process`;
+    /// other languages get the Light tidy passes, as the Polished prompt and edits are English.
+    private static func runModelPasses(_ text: String, polish: Bool,
+                                       languageCode: String) async -> String {
         let prefs = AppPreferences.shared
         let general = prefs.aiPostProcessingEnabled
         let smartFormatting = prefs.smartFormattingEnabled
@@ -132,10 +136,7 @@ enum LLMPostProcessor {
             return text
         }
 
-        let configuredLanguageCode = prefs.whisperLanguage
-        let languageCode = resolvedCleanupLanguageCode(
-            configuredCode: configuredLanguageCode, text: text)
-        let polishPrompt = polish && languageCode == "en"
+        let polishPrompt = polish
         guard let system = assembleSystemPrompt(generalCleanup: general,
                                                 generalPrompt: prefs.aiPostProcessingPrompt,
                                                 smartFormatting: smartFormatting,
@@ -219,6 +220,13 @@ enum LLMPostProcessor {
                 print("LLM cleanup rejected: output dropped or invented words")
                 return working
             }
+            // Polished runs the model on every dictation, and it sometimes joins lines the
+            // speaker dictated ("Thanks, new line, Noah" → "Thanks, Noah."). A layout change
+            // may add lines (a list), never remove one. Light tidy is left as it was.
+            if polishPrompt, lineCount(result) < lineCount(working) {
+                print("LLM cleanup rejected: output removed a dictated line break")
+                return working
+            }
             // Prompting is not a safety boundary: the 1.5B model can ignore even the named
             // language rule and return a fluent translation. Detect that locally and keep the
             // source transcription instead. A missed cleanup is recoverable; silently typing a
@@ -289,6 +297,11 @@ enum LLMPostProcessor {
               let outputCode = detectedLanguageCode(in: output),
               inputCode != outputCode else { return nil }
         return (inputCode, outputCode)
+    }
+
+    /// Non-empty lines in `text`: what Polished's line-break check compares.
+    static func lineCount(_ text: String) -> Int {
+        text.split(separator: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
     }
 
     /// Whether a transcript is small enough for the LLM passes to reproduce in full.

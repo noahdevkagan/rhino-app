@@ -61,19 +61,22 @@ def main():
         print(f"| {key[0]} | {key[1]} | {clips} | {fmt(b, 0)} | {fmt(a, 0)} | {fmt(b, 1)} | {fmt(a, 1)} |")
 
     nb, na = noise(before), noise(after)
-    print("\n| Config | No-speech clips | Non-empty before | Non-empty after | quiet-after-noise before / after |")
-    print("|---|---|---|---|---|")
+    print("\n| Config | No-speech clips | Typed words before | Typed words after | Punctuation-only before / after | quiet-after-noise before / after |")
+    print("|---|---|---|---|---|---|")
     for config in sorted(set(nb) | set(na)):
         hb, tb = nb.get(config, ({}, None))
         ha, ta = na.get(config, ({}, None))
-        bad_b = {k: v for k, v in hb.items() if v}
-        bad_a = {k: v for k, v in ha.items() if v}
+        # A clip "typed something" when it produced any word; a bare "." is reported but not counted.
+        bad_b = {k: v for k, v in hb.items() if norm(v)}
+        bad_a = {k: v for k, v in ha.items() if norm(v)}
+        dots_b = sum(1 for v in hb.values() if v and not norm(v))
+        dots_a = sum(1 for v in ha.values() if v and not norm(v))
 
         def tail(t):
             if t is None:
                 return "-"
             return f"{100 * edits(norm(SHORT_REF), norm(t)) / len(norm(SHORT_REF)):.0f}% WER" if t else "EMPTY"
-        print(f"| {config} | {len(ha or hb)} | {len(bad_b)} | {len(bad_a)} | {tail(tb)} / {tail(ta)} |")
+        print(f"| {config} | {len(ha or hb)} | {len(bad_b)} | {len(bad_a)} | {dots_b} / {dots_a} | {tail(tb)} / {tail(ta)} |")
         for k, v in sorted(bad_b.items()):
             print(f"  before {config} {k}: {v[:80]!r}")
         for k, v in sorted(bad_a.items()):

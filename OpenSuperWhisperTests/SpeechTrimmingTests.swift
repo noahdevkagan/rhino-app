@@ -82,7 +82,7 @@ final class SpeechTrimmingTests: XCTestCase {
     }
 
     /// Digital silence is silence; anything above the old peak bail still reaches the engine
-    /// unchanged (InputLevelTests covers quiet speech below it).
+    /// (InputLevelTests covers the rescue rules and the one isolated-pop exception).
     func testSilenceVerdictKeepsTheOldPeakBehaviour() {
         func silent(_ x: [Float]) -> Bool { InputLevel.analyze(x).isSilent }
         XCTAssertTrue(silent([Float](repeating: 0, count: 16000)))
@@ -90,10 +90,6 @@ final class SpeechTrimmingTests: XCTestCase {
                       "a flat mic noise floor is still silence")
         XCTAssertFalse(silent([Float](repeating: 0.02, count: 16000)),
                        "a clip above the old bail must NOT be treated as silence")
-        var oneSpike = [Float](repeating: 0, count: 16000)
-        oneSpike[8000] = 0.5
-        XCTAssertTrue(silent(oneSpike),
-                      "one pop in digital silence is an isolated blip, not speech (2026-11-25)")
         var spikeInNoise = (0..<16000).map { Float(($0 * 7919) % 101 - 50) / 50 * 0.02 }
         spikeInNoise[8000] = 0.5
         XCTAssertFalse(silent(spikeInNoise),

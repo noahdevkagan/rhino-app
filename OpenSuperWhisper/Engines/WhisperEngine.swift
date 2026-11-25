@@ -161,7 +161,7 @@ class WhisperEngine: TranscriptionEngine {
         // Notify conversion start (0-10% is conversion phase)
         onProgressUpdate?(0.05)
         
-        guard let converted = try await convertAudioToPCM(fileURL: url) else {
+        guard var audio = try await convertAudioToPCM(fileURL: url) else {
             throw TranscriptionError.audioConversionFailed
         }
 
@@ -183,9 +183,8 @@ class WhisperEngine: TranscriptionEngine {
         // into the user's document. Return nothing instead. (Caught by tests/asr's silence
         // case.) Quiet speech is lifted to a normal level first, so the VAD and whisper both
         // hear it (decisions.md 2026-11-25).
-        let prepared = InputLevel.prepare(converted)
-        let audio = prepared.samples
-        let level = prepared.analysis
+        // Scaled in place: a long import is never held twice.
+        let level = InputLevel.prepare(&audio, enabled: AppPreferences.shared.boostQuietSpeech)
         let samples: [Float]
         // True when the VAD ran and heard no speech anywhere — but the clip wasn't silent
         // enough for the bail above, so the whole clip still went to whisper. Remembered so

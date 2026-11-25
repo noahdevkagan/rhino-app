@@ -38,7 +38,19 @@ PY
 mkdir -p audio/.tmp
 [ -f audio/.tmp/short.wav ] || afconvert -f WAVE -d LEI16@16000 -c 1 audio/short.aiff audio/.tmp/short.wav
 [ -f audio/.tmp/message.wav ] || afconvert -f WAVE -d LEI16@16000 -c 1 audio/message.aiff audio/.tmp/message.wav
-python3 gen_noise.py audio/levels --speech audio/.tmp/short.wav
+# Short words, a whisper and a sung line, rendered by macOS `say` (nothing downloaded).
+render() {  # name voice text
+    [ -f "audio/.tmp/$1.wav" ] && return
+    say -v "$2" -o "audio/.tmp/$1.aiff" "$3" && afconvert -f WAVE -d LEI16@16000 -c 1 "audio/.tmp/$1.aiff" "audio/.tmp/$1.wav"
+}
+render hi Samantha "Hi."
+render okay Samantha "Okay."
+render sure Daniel "Sure."
+render whisper Whisper "Send it to me tomorrow."
+render cellos Cellos "We will send the draft before lunch and review it on the plane."
+python3 gen_noise.py audio/levels --speech audio/.tmp/short.wav \
+    --lowsnr audio/.tmp/short.wav --far audio/.tmp/message.wav --cellos audio/.tmp/cellos.wav \
+    --words audio/.tmp/hi.wav,audio/.tmp/okay.wav,audio/.tmp/sure.wav,audio/.tmp/whisper.wav
 python3 - <<'PY'
 import os, sys
 sys.path.insert(0, ".")

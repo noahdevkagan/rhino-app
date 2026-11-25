@@ -182,7 +182,14 @@ final class DictationPipeline: ObservableObject {
                 let fallback = AppPreferences.shared
                     .cleanTranscription(item.streamedFallback)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !fallback.isEmpty else {
+                // The file pass may have dropped the clip as one isolated pop (a mic bump), which
+                // the streaming preview can still have turned into a word ("Really"). Don't
+                // resurrect it (InputLevel, decisions.md 2026-11-25).
+                let isPop = !fallback.isEmpty
+                    && ((try? LocalAudioReader.samples(at: item.tempURL)).map {
+                        InputLevel.analyze($0, enabled: AppPreferences.shared.boostQuietSpeech).isIsolatedPop
+                    } ?? false)
+                guard !fallback.isEmpty, !isPop else {
                     try? FileManager.default.removeItem(at: item.tempURL)
                     IndicatorWindowManager.shared.flash(.info("No speech detected"))
                     return

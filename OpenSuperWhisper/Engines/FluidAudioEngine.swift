@@ -109,7 +109,8 @@ class FluidAudioEngine: TranscriptionEngine {
         let loadStart = CFAbsoluteTimeGetCurrent()
         // Quiet speech is lifted to a normal level here (Parakeet drops words on a soft talker),
         // and the silence verdict comes from the same analysis — see InputLevel.
-        let (samples, level) = InputLevel.prepare(try LocalAudioReader.samples(at: url))
+        var samples = try LocalAudioReader.samples(at: url)
+        let level = InputLevel.prepare(&samples, enabled: AppPreferences.shared.boostQuietSpeech)
         let loadConvertMs = (CFAbsoluteTimeGetCurrent() - loadStart) * 1000
 
         // Parakeet has no VAD front-end (Whisper's Silero gate doesn't run on this path), so

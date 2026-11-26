@@ -31,6 +31,7 @@ fi
 ../asr/gen_audio.sh >/dev/null
 mkdir -p .out/wav
 for src in ../asr/audio/*; do
+    [ -f "$src" ] || continue   # audio/levels is benched on its own below
     name=$(basename "${src%.*}")
     dst=".out/wav/$name.wav"
     # Re-convert when the rendered audio is newer (refs.json changed and was re-rendered).
@@ -65,6 +66,9 @@ if [ "${FAST:-0}" = "1" ]; then
     versions=$(echo $versions | cut -d' ' -f1)
 fi
 
+# WER bars for the quiet copies (see tests/asr/score_levels.py; calibrated 2026-11-25).
+LEVEL_BARS="quiet-short=12,quiet-message=8,quiet-after-noise=12"
+
 fail=0
 for v in $versions; do
     defaults delete "$SUITE" >/dev/null 2>&1 || true
@@ -81,6 +85,23 @@ for v in $versions; do
         continue
     fi
     python3 score.py "$v" "$out" || fail=1
+
+    # Quiet speech + no-speech set: Parakeet has no VAD, so this is its only guard against a
+    # dead or noisy mic typing words.
+    if RHINO_PREFS_SUITE="$SUITE" "$APP" bench ../asr/audio/levels > ".out/levels-$v.json" 2> ".out/levels-$v.log"; then
+        # Pinned: what each version already typed / missed on the old path (2026-11-25). Neither
+        # pinned clip has the shape of speech, so it reaches Parakeet unchanged.
+        if [ "$v" = v3 ]; then
+            known="hum-rms45=Uh,bark-pk36=Mm mm mm mm mm mm n"; gap="keep-whisper-room,quiet-short"
+        else
+            known=""; gap="keep-hi-room,quiet-short"
+        fi
+        python3 ../asr/score_levels.py "parakeet $v" ".out/levels-$v.json" --bars "$LEVEL_BARS" \
+            ${known:+--known "$known"} --old-gap "$gap" || fail=1
+    else
+        echo "parakeet $v levels FAIL: bench run crashed (see tests/parakeet/.out/levels-$v.log)"
+        fail=1
+    fi
 done
 defaults delete "$SUITE" >/dev/null 2>&1 || true
 exit $fail

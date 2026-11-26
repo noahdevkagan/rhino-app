@@ -81,19 +81,19 @@ final class SpeechTrimmingTests: XCTestCase {
         XCTAssertLessThan(trimmed.count, samples.count)
     }
 
-    /// Digital silence is near-silence; the faintest real speech is not. The threshold
-    /// separates "no speech exists" (return nothing, never hallucinate) from "quiet
-    /// sentence the VAD may have missed" (send the full clip to whisper).
-    func testNearSilenceSeparatesSilenceFromQuietSpeech() {
-        XCTAssertTrue(WhisperEngine.isNearSilence([Float](repeating: 0, count: 16000)))
-        XCTAssertTrue(WhisperEngine.isNearSilence([Float](repeating: 0.001, count: 16000)),
-                      "mic noise floor is still silence")
-        XCTAssertFalse(WhisperEngine.isNearSilence([Float](repeating: 0.02, count: 16000)),
-                       "quiet speech must NOT be treated as silence")
-        var oneSpike = [Float](repeating: 0, count: 16000)
-        oneSpike[8000] = 0.5
-        XCTAssertFalse(WhisperEngine.isNearSilence(oneSpike),
-                       "a single loud sample disqualifies the silence path")
+    /// Digital silence is silence; anything above the old peak bail still reaches the engine
+    /// (InputLevelTests covers the rescue rules and the one isolated-pop exception).
+    func testSilenceVerdictKeepsTheOldPeakBehaviour() {
+        func silent(_ x: [Float]) -> Bool { InputLevel.analyze(x).isSilent }
+        XCTAssertTrue(silent([Float](repeating: 0, count: 16000)))
+        XCTAssertTrue(silent([Float](repeating: 0.001, count: 16000)),
+                      "a flat mic noise floor is still silence")
+        XCTAssertFalse(silent([Float](repeating: 0.02, count: 16000)),
+                       "a clip above the old bail must NOT be treated as silence")
+        var spikeInNoise = (0..<16000).map { Float(($0 * 7919) % 101 - 50) / 50 * 0.02 }
+        spikeInNoise[8000] = 0.5
+        XCTAssertFalse(silent(spikeInNoise),
+                       "over a busy background the clip still reaches the engine as before")
     }
 
     /// The model has to actually be in the bundle, or the gate silently never runs. This is

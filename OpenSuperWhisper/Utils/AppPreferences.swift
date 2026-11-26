@@ -303,6 +303,11 @@ final class AppPreferences {
     @UserDefault(key: "liveTranscriptionEnabled", defaultValue: false)
     var liveTranscriptionEnabled: Bool
 
+    /// Lift quiet speech to a normal level and keep soft talkers the old peak bail dropped
+    /// (InputLevel, decisions.md 2026-11-25). Off restores the old behaviour exactly.
+    @UserDefault(key: "boostQuietSpeech", defaultValue: true)
+    var boostQuietSpeech: Bool
+
     @UserDefault(key: "hasCompletedOnboarding", defaultValue: false)
     var hasCompletedOnboarding: Bool
 

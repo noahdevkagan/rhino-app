@@ -335,6 +335,12 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var boostQuietSpeech: Bool {
+        didSet {
+            AppPreferences.shared.boostQuietSpeech = boostQuietSpeech
+        }
+    }
+
     @Published var pauseMediaOnRecord: Bool {
         didSet {
             AppPreferences.shared.pauseMediaOnRecord = pauseMediaOnRecord
@@ -455,6 +461,7 @@ class SettingsViewModel: ObservableObject {
         self.pasteInsteadOfTyping = prefs.pasteInsteadOfTyping
         self.notifyWhenNoPasteTarget = prefs.notifyWhenNoPasteTarget
         self.pauseMediaOnRecord = prefs.pauseMediaOnRecord
+        self.boostQuietSpeech = prefs.boostQuietSpeech
         self.retentionMaxCountEnabled = prefs.retentionMaxCountEnabled
         self.retentionMaxCount = prefs.retentionMaxCount
         self.retentionMaxAgeEnabled = prefs.retentionMaxAgeEnabled
@@ -1800,6 +1807,10 @@ struct SettingsView: View {
                     .pickerStyle(.menu)
                     .labelsHidden()
                     .fixedSize()
+                }
+                SRow(title: "Boost quiet speech",
+                     hint: "Helps a soft voice or a mic that's far away. Turn off if background sounds get typed.") {
+                    SToggle(isOn: $viewModel.boostQuietSpeech)
                 }
             }
 

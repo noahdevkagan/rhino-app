@@ -4,7 +4,7 @@
 # no downloads. The gate detects REGRESSION — absolute quality is measured
 # separately in bench/ with the real shipping models.
 #
-# FAST=1 runs only `short` + `silence`.
+# FAST=1 runs only `short` + `silence` + the levels set (quiet speech, noise, dead mic).
 set -uo pipefail
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
@@ -35,6 +35,9 @@ defaults write "$SUITE" selectedWhisperModelPath "$ROOT/ggml-tiny.en.bin"
 defaults write "$SUITE" aiPostProcessingEnabled -bool false
 defaults write "$SUITE" saveTranscriptionHistory -bool false
 
+# WER bars for the quiet copies on whisper tiny (see score_levels.py; calibrated 2026-11-25).
+LEVEL_BARS="quiet-short=12,quiet-message=8,quiet-after-noise=12"
+
 fail=0
 run_case() {
     local case=$1 ext=$2; shift 2
@@ -50,6 +53,20 @@ if [ "${FAST:-0}" != "1" ]; then
     run_case message aiff
     run_case prose aiff
     run_case technical aiff
+fi
+
+# Quiet speech + no-speech set (audio/levels): soft talkers must transcribe, and noise, hum,
+# clicks and dead-mic audio must type nothing. One bench run, so the model loads once.
+if RHINO_PREFS_SUITE="$SUITE" "$APP" bench audio/levels > .out/levels.json 2> .out/levels.log; then
+    # Pinned: what tiny already typed on the old path (2026-11-25, unchanged by InputLevel because
+    # none of these has the shape of speech). far-speech: whisper's VAD hears it, so the old
+    # path typed it too. Old-path gaps: keep-sure-room came back empty, quiet-short garbled.
+    python3 score_levels.py asr .out/levels.json --bars "$LEVEL_BARS" \
+        --known "keyboard-pk30=[Music],bark-pk36=[Music],buzz-pk30=(upbeat music),far-speech=*" \
+        --old-gap "keep-sure-room,quiet-short" || fail=1
+else
+    echo "asr levels FAIL: bench run crashed (see tests/asr/.out/levels.log)"
+    fail=1
 fi
 
 defaults delete "$SUITE" >/dev/null 2>&1 || true

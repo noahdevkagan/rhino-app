@@ -2643,3 +2643,18 @@ fingerprint + time zone + today's date. Zero network: everything reads Recording
 - `DayClock` (day-change, clock-change, zone-change notifications, plus window-becomes-key as a sleep-through-midnight fallback) is the one day signal for Stats, Home "This week"/"Recent" and History day headers.
 - The stats cache signature hashes every completed row (id, text, time, app, duration) inside SQLite with a 32-bit FNV-1a scalar function summed over rows: no overflow, order-independent, catches same-length edits. Chosen over an in-memory revision counter so edits from another process on the same DB still invalidate.
 - History refresh re-reads the already-loaded rows (rounded to whole pages) with the current search/app filter and swaps them in without clearing, so SwiftUI diffs by id and keeps scroll.
+
+## 2026-11-26 — "Pasted twice" with two indicators: diagnose from the feedback email, no code fix yet
+Mitch (0.1.56): in Slack the indicator shows over Slack and over Muse, and the text lands twice.
+Re-audit of the in-process path: one indicator panel per process (`IndicatorWindowManager.window`),
+one ⌘V per take (`TranscriptInserter.insert` → `TextInserter.paste`), `UserPasteWatcher` only
+passes events through. Two Rhinos of the same version would draw their bubbles at the same spot, so
+two indicators in different places points at something that is not this build: a Rhino older than the
+2026-08-26 launch guard started after the current one, another dictation app on the same key, or
+Apple Dictation (the known double-press-🌐 remainder from 2026-08-19; in Slack the AX caret lookup
+fails, so Rhino's bubble falls back to the mouse, which can sit over another window while Apple's
+mic icon sits at the caret). Not reproduced, so no behavior change. Chosen: the feedback email adds
+three lines (`DictationConflicts`): Rhino copies running, known dictation apps running (matched by
+name against a fixed list, never the full app list), Apple Dictation on/off and whether 🌐 starts
+it. Read only when the user sends feedback, shown in their mail client first. Rejected for now:
+quitting or warning about other dictation apps at launch (no evidence yet which cause it is).

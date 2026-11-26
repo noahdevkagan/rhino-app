@@ -7,6 +7,17 @@ The durable "why" behind choices goes in `decisions.md`, not here.
 
 ## Current state (2026-09-11, taipei workspace: customer-feedback triage → fixes)
 
+### Mitch: dictation lands twice, two indicators (2026-11-26, branch claude/new-session-e5j00q)
+
+Mitch (0.1.56): dictating into Slack shows an indicator over Slack and over Muse, and the text lands
+twice. One Rhino has one indicator panel and sends one ⌘V per take, so two indicators means a second
+thing is answering the key: an older Rhino without the launch guard, another dictation app, or Apple
+Dictation (decisions.md 2026-11-26). Not reproduced. Done: the feedback email now also lists Rhino
+copies running, other dictation apps running, and Apple Dictation on/off. Not built or run on a Mac
+(CI only). To do: reply to Mitch (ask what Activity Monitor shows for "Rhino", whether Apple Dictation
+is on, which dictate key he uses, and whether it happens outside Slack); read those lines in his next
+feedback email after he updates.
+
 ### Rhino Wrapped card (2026-11-20, branch rhino-wrapped, draft PR)
 
 Home card at the bottom of the header, directly above History: 8 fun stats from local history + Share

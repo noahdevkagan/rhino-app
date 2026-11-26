@@ -70,7 +70,7 @@ struct FeedbackFormView: View {
 
     private func send() {
         if let url = Self.emailURL(feedback: text, version: UpdatesView.currentVersion,
-                                   diagnostics: [ChordDiscards.summary]) {
+                                   diagnostics: [ChordDiscards.summary] + DictationConflicts.summary) {
             NSWorkspace.shared.open(url)
         }
         dismiss()

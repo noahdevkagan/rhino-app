@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import os
 
@@ -157,5 +158,63 @@ enum ChordDiscards {
             line += " (last \(ISO8601DateFormatter().string(from: last)))"
         }
         return line
+    }
+}
+
+/// What else on this Mac could be answering the same key press as Rhino: a second Rhino, another
+/// dictation app, or Apple Dictation. Each one shows its own indicator and inserts its own copy
+/// of the text, which the user reports as "everything is pasted twice" (Mitch, 0.1.56). Read
+/// only when the feedback form is sent, and quoted in that email; nothing is stored or sent
+/// anywhere else.
+enum DictationConflicts {
+    /// Dictation apps by the name macOS shows for them (lowercased; a running app matches when
+    /// its name contains one).
+    static let knownApps = ["wispr flow", "superwhisper", "opensuperwhisper", "macwhisper",
+                            "aqua voice", "voiceink", "willow", "monologue", "typeless"]
+
+    /// The names in `running` that are known dictation apps, in order, without repeats.
+    static func otherDictationApps(running names: [String]) -> [String] {
+        var seen = Set<String>()
+        return names.filter { name in
+            let lower = name.lowercased()
+            return knownApps.contains(where: lower.contains) && seen.insert(lower).inserted
+        }
+    }
+
+    /// `enabled`: `AppleDictationAutoEnable` in com.apple.HIToolbox (nil when never set).
+    static func appleDictationLine(enabled: Bool?, globeKey: FnGlobeKeySetting.Action) -> String {
+        guard let enabled else { return "Apple Dictation: not set up" }
+        guard enabled else { return "Apple Dictation: off" }
+        return globeKey == .startDictation
+            ? "Apple Dictation: on, started by the 🌐 key"
+            : "Apple Dictation: on"
+    }
+
+    static func lines(rhinoCopies: Int, running names: [String],
+                      appleDictation: String) -> [String] {
+        let others = otherDictationApps(running: names)
+        return [
+            "Rhino copies running: \(rhinoCopies)",
+            "Other dictation apps running: \(others.isEmpty ? "none" : others.joined(separator: ", "))",
+            appleDictation,
+        ]
+    }
+
+    /// Lines for the feedback email.
+    static var summary: [String] {
+        let apps = NSWorkspace.shared.runningApplications
+        let rhinoIDs = SingleInstanceGuard.competingBundleIDs(for: Bundle.main.bundleIdentifier ?? "")
+        let rhinos = apps.filter {
+            rhinoIDs.contains($0.bundleIdentifier ?? "") && $0.activationPolicy != .prohibited
+        }
+        let others = apps.filter { !rhinoIDs.contains($0.bundleIdentifier ?? "") }
+            .compactMap(\.localizedName)
+        let enabled = CFPreferencesCopyValue("AppleDictationAutoEnable" as CFString,
+                                             "com.apple.HIToolbox" as CFString,
+                                             kCFPreferencesCurrentUser,
+                                             kCFPreferencesAnyHost) as? Bool
+        return lines(rhinoCopies: rhinos.count, running: others,
+                     appleDictation: appleDictationLine(enabled: enabled,
+                                                        globeKey: FnGlobeKeySetting.current))
     }
 }

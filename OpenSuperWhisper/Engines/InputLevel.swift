@@ -60,9 +60,9 @@ enum InputLevel {
 
     /// The quietest talker that is ever rescued or boosted (power mean of voiced frames, dBFS).
     /// Below this the clip is handled exactly as before. Chosen from the curve in decisions.md:
-    /// it keeps a soft talker or a low-gain mic 24-30 dB down, and refuses a neighbour's TV
-    /// about 42 dB down.
-    static var rescueFloorDb: Float = Experiment.floorOverride ?? -54
+    /// -58 is the knee: the lowest floor at which no 42-dB-down background clip is newly typed on
+    /// Parakeet v2/v3 or whisper-turbo (-62 types 4-7 more), HANDOFF in scratchpad qm/.
+    static var rescueFloorDb: Float = Experiment.floorOverride ?? -58
     /// Speech already at or above this level (power mean of voiced frames) is never touched.
     static let boostBelowDb: Float = -38
     /// The speech level the gain aims for.

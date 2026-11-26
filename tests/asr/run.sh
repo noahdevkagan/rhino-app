@@ -58,8 +58,12 @@ fi
 # Quiet speech + no-speech set (audio/levels): soft talkers must transcribe, and noise, hum,
 # clicks and dead-mic audio must type nothing. One bench run, so the model loads once.
 if RHINO_PREFS_SUITE="$SUITE" "$APP" bench audio/levels > .out/levels.json 2> .out/levels.log; then
-    # keyboard-pk30: tiny typed "[Music]" before this change too (not speech-like, reaches whisper unchanged).
-    python3 score_levels.py asr .out/levels.json --bars "$LEVEL_BARS" --known keyboard-pk30 || fail=1
+    # Pinned: what tiny already typed on the old path (2026-11-25, unchanged by InputLevel because
+    # none of these has the shape of speech). far-speech: whisper's VAD hears it, so the old
+    # path typed it too. Old-path gaps: keep-sure-room came back empty, quiet-short garbled.
+    python3 score_levels.py asr .out/levels.json --bars "$LEVEL_BARS" \
+        --known "keyboard-pk30=[Music],bark-pk36=[Music],buzz-pk30=(upbeat music),far-speech=*" \
+        --old-gap "keep-sure-room,quiet-short" || fail=1
 else
     echo "asr levels FAIL: bench run crashed (see tests/asr/.out/levels.log)"
     fail=1

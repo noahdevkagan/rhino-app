@@ -89,9 +89,15 @@ for v in $versions; do
     # Quiet speech + no-speech set: Parakeet has no VAD, so this is its only guard against a
     # dead or noisy mic typing words.
     if RHINO_PREFS_SUITE="$SUITE" "$APP" bench ../asr/audio/levels > ".out/levels-$v.json" 2> ".out/levels-$v.log"; then
-        # hum-rms45: v3 typed "Uh" before this change too (not speech-like, reaches Parakeet unchanged).
-        known=""; [ "$v" = v3 ] && known=hum-rms45
-        python3 ../asr/score_levels.py "parakeet $v" ".out/levels-$v.json" --bars "$LEVEL_BARS" ${known:+--known "$known"} || fail=1
+        # Pinned: what each version already typed / missed on the old path (2026-11-25). Neither
+        # pinned clip has the shape of speech, so it reaches Parakeet unchanged.
+        if [ "$v" = v3 ]; then
+            known="hum-rms45=Uh,bark-pk36=Mm mm mm mm mm mm n"; gap="keep-whisper-room,quiet-short"
+        else
+            known=""; gap="keep-hi-room,quiet-short"
+        fi
+        python3 ../asr/score_levels.py "parakeet $v" ".out/levels-$v.json" --bars "$LEVEL_BARS" \
+            ${known:+--known "$known"} --old-gap "$gap" || fail=1
     else
         echo "parakeet $v levels FAIL: bench run crashed (see tests/parakeet/.out/levels-$v.log)"
         fail=1

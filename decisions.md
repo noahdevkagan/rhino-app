@@ -2662,3 +2662,39 @@ hallucinates "Thank you."). Why not lower the absolute bail: room tone at -55 dB
 the engines. The relative test is what separates the two. Gate: tests/asr and tests/parakeet run
 `audio/levels` (synthetic noise from gen_noise.py, must type nothing; quiet speech, must transcribe).
 Bench: bench/accents/levels.sh, mix_noise.py, levels_report.py. Not measured: a real quiet mic in a real room.
+
+## 2026-11-25 (revised after review) — Quiet mics: rescue only, Whisper-only boost, floor -58
+
+The review rejected the first version (above): it boosted everything speech-like, so a TV in the next
+room (Common Voice clips 42 dB down) was newly typed. The rule is now RESCUE ONLY: with "Boost quiet
+speech" on, no clip may come out worse than master (nothing master typed goes empty, nothing that is
+not the user's speech is newly typed); with it off, behaviour is master's peak < 0.004 rule exactly.
+- **Speech evidence** is a pitch track (voiced ms, pitch spread, frame-to-frame jitter, sustained share,
+  syllable runs), not the old frame-energy test. Level = power mean of the louder half of voiced frames.
+- **Floor -58 dBFS** speech level. Below it nothing is rescued or boosted. Curve (no-floor bench run,
+  simulated per floor): -58 is the lowest floor at which no 42-dB-down clip is newly typed on Parakeet
+  v2/v3 or whisper-turbo; -62 types +7/+4 (Parakeet au/us) and +1 (turbo). The trade-off is explicit:
+  the AU/US sets' quietest clips (speech at -60 to -90 dBFS) are the same level as the far-off set, and
+  digitally attenuated clips carry nothing else (no reverb, no noise) that tells them apart, so they stay
+  empty. That is where all of the first version's Parakeet gain came from (next point).
+- **Parakeet gets no boost above the old peak bail** (`boostAboveLegacyBail: false`). Why: re-scoring the
+  first version's own outputs per clip, its Parakeet v2 gains (AU -24 dB 7.3 → 3.9%, -30 dB 13.9 → 4.1%,
+  -36 dB 21.6 → 7.9%) came from clips master dropped under the peak bail, all with speech below -58 dBFS
+  (e.g. 26945736/26945749 at -75/-74 dBFS in au-q24: two clips, 3.4 points). Counting only those clips
+  reproduces the gain (3.8 / 5.8 / 6.2%); counting only boosted clips at or above -58 gives none
+  (7.5 / 13.9 / 21.8%, i.e. 0.0–0.7 points worse), and pk-v3 us-q30 21327535 came back EMPTY when
+  boosted 30.9 dB where master typed it. Whisper does benefit above the floor (au-q24 11.6 → 9.2%,
+  held-out us-q30 14.5 → 10.6%), so it keeps the boost. A clip rescued from under the bail is still
+  lifted on Parakeet (master typed nothing for it, so it cannot get worse); in the bench sets no speech
+  clip is both under the bail and above the floor, so that path is unit-tested only.
+  Considered: an "if the boosted result is empty, use the unboosted one" fallback. Rejected for Parakeet
+  because boosting bought nothing there, and not needed for Whisper (no clip went empty); it would
+  also cost a second inference.
+- **Isolated pop** (dropped even above the bail; Parakeet typed "Really"/"Reviewer" for one): at most
+  60 ms active, no voiced frame, 25 dB over a floor below -60, AND at most 60 ms of other audio 6 dB over
+  the floor. The last condition was added because a 3 dB-SNR talker (Common Voice 21482, which master
+  typed) has one syllable clearing the active bar and the rest a few dB over the noise.
+- Cost: about 11 ms per 5 min of speech, 5 ms per 5 min of noise (one vDSP_conv for all pitch lags,
+  sliding energy, high-pass after decimating). Decisions unchanged on ~720 bench clips vs the slower code.
+- Not measured: a real quiet microphone in a real room (all quiet audio is attenuated Common Voice, all
+  noise synthetic); singing with speech-like pitch movement is not rejected by the evidence test.

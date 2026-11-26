@@ -132,6 +132,16 @@ final class InputLevelTests: XCTestCase {
         let clip = [Float](repeating: 0, count: sr) + word + [Float](repeating: 0, count: sr)
         XCTAssertFalse(InputLevel.analyze(clip).isIsolatedPop)
         XCTAssertFalse(InputLevel.analyze(clip).isSilent)
+        // One spike over a floor that keeps rising a few dB (a talker at a low SNR, as in
+        // Common Voice 21482 at 3 dB SNR, which master typed) is not isolated either.
+        var murmur = quiet.map { $0 * self.db(28) }   // floor about -62 dBFS
+        for start in stride(from: sr / 4, to: sr * 2 - sr / 4, by: sr / 3) {
+            for i in 0..<(sr / 10) { murmur[start + i] *= 2.5 }   // +8 dB bursts, 100 ms each
+        }
+        let m = InputLevel.analyze(pop(in: murmur, at: sr, peak: 0.02))
+        XCTAssertGreaterThan(m.murmurMs, InputLevel.popMaxMurmurMs, "\(m)")
+        XCTAssertFalse(m.isIsolatedPop, "\(m)")
+        XCTAssertFalse(m.isSilent, "\(m)")
     }
 
     // MARK: - Rescue and boost need a talker

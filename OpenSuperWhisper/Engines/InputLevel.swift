@@ -84,6 +84,11 @@ enum InputLevel {
     /// ...this far above a floor below `popFloorDb`, with no voiced frame at all.
     static let popMinContrastDb: Float = 25
     static let popFloorDb: Float = -60
+    /// ...and a steady floor around it: at most this much audio 6 dB or more above the floor
+    /// besides the pop itself. A real talker at a low SNR (one syllable clearing the active
+    /// threshold, the rest of the sentence a few dB over the noise) is not a pop.
+    static let popMaxMurmurMs = 60
+    static let murmurAboveFloorDb: Float = 6
 
     /// Clips longer than this (file imports) skip the analysis and keep the old behaviour.
     static let maxAnalysedSeconds = 600
@@ -97,6 +102,8 @@ enum InputLevel {
         var floorDb: Float = -120
         var activeMs: Int = 0
         var longestActiveRunMs: Int = 0
+        /// Audio at least `murmurAboveFloorDb` over the floor that is not active.
+        var murmurMs: Int = 0
         var voicedMs: Int = 0
         /// Power mean of the louder half of the voiced frames, dBFS (-120 when there are none).
         var speechDb: Float = -120
@@ -129,6 +136,7 @@ enum InputLevel {
             enabled && activeMs > 0 && activeMs <= InputLevel.popMaxActiveMs
                 && longestActiveRunMs <= InputLevel.popMaxActiveMs
                 && voicedMs == 0
+                && murmurMs <= InputLevel.popMaxMurmurMs
                 && floorDb < InputLevel.popFloorDb
                 && InputLevel.dbfs(peak) - floorDb >= InputLevel.popMinContrastDb
         }
@@ -198,15 +206,18 @@ enum InputLevel {
         let voicingThreshold = max(floorDb + voicingAboveFloorDb, activeAbsoluteDb)
         let msPerFrame = frameLength * 1000 / sampleRate
 
-        var active = 0, run = 0, longestActive = 0
+        let murmurThreshold = floorDb + murmurAboveFloorDb
+        var active = 0, run = 0, longestActive = 0, murmur = 0
         for l in levels {
             if l > activeThreshold {
                 active += 1; run += 1; longestActive = max(longestActive, run)
             } else {
                 run = 0
+                if l > murmurThreshold { murmur += 1 }
             }
         }
         a.activeMs = active * msPerFrame
+        a.murmurMs = murmur * msPerFrame
         a.longestActiveRunMs = longestActive * msPerFrame
 
         // Pitch on the frames that stand above the floor.
@@ -264,27 +275,32 @@ enum InputLevel {
         let n4 = samples.count / decim
         var out = [Float?](repeating: nil, count: levels.count)
         guard n4 > 0 else { return out }
-        // One-pole high-pass (~60 Hz) to drop rumble, then average blocks of 4.
+        // Average blocks of 4 (vectorised), then a one-pole high-pass (~60 Hz) at 4 kHz to drop
+        // rumble. Filtering after decimating keeps the scalar recursion to a quarter of the samples.
         var low = [Float](repeating: 0, count: n4)
-        let alpha: Float = exp(-2 * .pi * 60 / Float(sampleRate))
-        var prevX: Float = 0, prevY: Float = 0
         samples.withUnsafeBufferPointer { buf in
-            for k in 0..<n4 {
-                var acc: Float = 0
-                for j in 0..<decim {
-                    let x = buf[k * decim + j]
-                    let y = alpha * (prevY + x - prevX)
-                    prevX = x; prevY = y
-                    acc += y
-                }
-                low[k] = acc / Float(decim)
+            let p = buf.baseAddress!
+            vDSP_vadd(p, decim, p + 1, decim, &low, 1, vDSP_Length(n4))
+            low.withUnsafeMutableBufferPointer { l in
+                vDSP_vadd(p + 2, decim, l.baseAddress!, 1, l.baseAddress!, 1, vDSP_Length(n4))
+                vDSP_vadd(p + 3, decim, l.baseAddress!, 1, l.baseAddress!, 1, vDSP_Length(n4))
             }
+        }
+        let alpha: Float = exp(-2 * .pi * 60 / rate)
+        var prevX: Float = 0, prevY: Float = 0
+        for k in 0..<n4 {
+            let x = low[k] / Float(decim)
+            let y = alpha * (prevY + x - prevX)
+            prevX = x; prevY = y
+            low[k] = y
         }
         let minLag = Int((rate / maxPitchHz).rounded(.down))      // 10
         let maxLag = Int((rate / minPitchHz).rounded(.up))        // 58
         let window = Int(rate * 0.04)                              // 160
         let hop = frameLength / decim                              // 80
         var r = [Float](repeating: 0, count: maxLag + 2)
+        let lagCount = maxLag - minLag + 3
+        var dots = [Float](repeating: 0, count: lagCount)
         low.withUnsafeBufferPointer { d in
             let base = d.baseAddress!
             for f in 0..<levels.count where levels[f] > threshold {
@@ -293,11 +309,19 @@ enum InputLevel {
                 var e0: Float = 0
                 vDSP_svesq(base + start, 1, &e0, vDSP_Length(window))
                 guard e0 > 0 else { continue }
-                for lag in (minLag - 1)...(maxLag + 1) {
-                    var dot: Float = 0, e1: Float = 0
-                    vDSP_dotpr(base + start, 1, base + start + lag, 1, &dot, vDSP_Length(window))
-                    vDSP_svesq(base + start + lag, 1, &e1, vDSP_Length(window))
-                    r[lag] = e1 > 0 ? dot / (e0 * e1).squareRoot() : 0
+                // Every lag's dot product in one correlation call, and the lagged window's
+                // energy slid by one sample per lag (this loop is most of the analysis cost).
+                vDSP_conv(base + start + minLag - 1, 1, base + start, 1,
+                          &dots, 1, vDSP_Length(lagCount), vDSP_Length(window))
+                var e1: Float = 0
+                vDSP_svesq(base + start + minLag - 1, 1, &e1, vDSP_Length(window))
+                for i in 0..<lagCount {
+                    let lag = minLag - 1 + i
+                    if i > 0 {
+                        let out = base[start + lag - 1], inn = base[start + lag + window - 1]
+                        e1 = max(e1 - out * out + inn * inn, 0)
+                    }
+                    r[lag] = e1 > 0 ? dots[i] / (e0 * e1).squareRoot() : 0
                 }
                 var best = -1
                 var bestR: Float = minVoicingCorrelation

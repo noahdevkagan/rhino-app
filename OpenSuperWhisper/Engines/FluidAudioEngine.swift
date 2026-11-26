@@ -107,10 +107,12 @@ class FluidAudioEngine: TranscriptionEngine {
         // WAV, so for a real dictation this is a plain read — any resample cost showing up in
         // `loadConvertMs` means the input wasn't ours. (#latency)
         let loadStart = CFAbsoluteTimeGetCurrent()
-        // Quiet speech is lifted to a normal level here (Parakeet drops words on a soft talker),
-        // and the silence verdict comes from the same analysis — see InputLevel.
+        // The silence verdict comes from InputLevel. Parakeet gets no gain on a clip the old
+        // peak bail already let through (measured no better, once worse); only a quiet talker
+        // rescued from under that bail is lifted — see InputLevel / decisions.md.
         var samples = try LocalAudioReader.samples(at: url)
-        let level = InputLevel.prepare(&samples, enabled: AppPreferences.shared.boostQuietSpeech)
+        let level = InputLevel.prepare(
+            &samples, enabled: AppPreferences.shared.boostQuietSpeech, boostAboveLegacyBail: false)
         let loadConvertMs = (CFAbsoluteTimeGetCurrent() - loadStart) * 1000
 
         // Parakeet has no VAD front-end (Whisper's Silero gate doesn't run on this path), so

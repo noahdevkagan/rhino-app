@@ -15,6 +15,11 @@ import Foundation
 /// most 60 ms, no pitched frame at all, 25 dB or more over a quiet floor), which Parakeet turned
 /// into "Really". When the evidence is missing the clip is handled exactly as before.
 ///
+/// Parakeet passes `boostAboveLegacyBail: false`: it gets no gain on any clip the old rule already
+/// sent to it (measured: no WER benefit on the quiet Common Voice sets, and one clip that master
+/// typed came back empty when boosted; decisions.md, "Parakeet: no boost above the bail"). A clip
+/// rescued from under the bail is still lifted on every engine, since master typed nothing for it.
+///
 /// With the "Boost quiet speech" preference off, `analyze(_:enabled: false)` reproduces the old
 /// rule exactly: silent iff peak < 0.004, gain 1.
 ///
@@ -85,6 +90,8 @@ enum InputLevel {
 
     struct Analysis: Equatable {
         var enabled: Bool
+        /// False for engines that only get gain on clips rescued from under the old bail.
+        var boostAboveLegacyBail = true
         var peak: Float
         /// 10th percentile of frame RMS, dBFS: the clip's own noise floor.
         var floorDb: Float = -120
@@ -138,7 +145,8 @@ enum InputLevel {
             if Experiment.gainEverything, enabled {
                 return InputLevel.gain(speechDb: InputLevel.dbfs(peak) - 12, peak: peak)
             }
-            guard canRescue, speechDb < InputLevel.boostBelowDb else { return 1 }
+            guard canRescue, speechDb < InputLevel.boostBelowDb,
+              boostAboveLegacyBail || legacySilent else { return 1 }
             return InputLevel.gain(speechDb: speechDb, peak: peak)
         }
     }
@@ -162,12 +170,13 @@ enum InputLevel {
         20 * log10(max(x, 1e-6))
     }
 
-    static func analyze(_ samples: [Float], enabled: Bool = true) -> Analysis {
+    static func analyze(_ samples: [Float], enabled: Bool = true,
+                        boostAboveLegacyBail: Bool = true) -> Analysis {
         var peak: Float = 0
         if !samples.isEmpty {
             vDSP_maxmgv(samples, 1, &peak, vDSP_Length(samples.count))
         }
-        var a = Analysis(enabled: enabled, peak: peak)
+        var a = Analysis(enabled: enabled, boostAboveLegacyBail: boostAboveLegacyBail, peak: peak)
         guard enabled, samples.count <= maxAnalysedSeconds * sampleRate else {
             a.enabled = false
             return a
@@ -330,8 +339,9 @@ enum InputLevel {
     /// Scales `samples` in place to what the recognizer should hear and returns the analysis
     /// behind it. In place so a long clip is never held twice.
     @discardableResult
-    static func prepare(_ samples: inout [Float], enabled: Bool) -> Analysis {
-        let analysis = analyze(samples, enabled: enabled)
+    static func prepare(_ samples: inout [Float], enabled: Bool,
+                        boostAboveLegacyBail: Bool = true) -> Analysis {
+        let analysis = analyze(samples, enabled: enabled, boostAboveLegacyBail: boostAboveLegacyBail)
         var g = analysis.gain
         guard g != 1 else { return analysis }
         let n = vDSP_Length(samples.count)

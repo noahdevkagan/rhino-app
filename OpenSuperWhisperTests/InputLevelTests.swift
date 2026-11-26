@@ -151,6 +151,26 @@ final class InputLevelTests: XCTestCase {
         XCTAssertGreaterThan(rms(y), rms(x) * 5)
     }
 
+    func testParakeetIsOnlyLiftedWhenRescuedFromUnderTheOldBail() {
+        // Above the old bail: Whisper is lifted, Parakeet gets the clip bit-for-bit.
+        let above = speech(seconds: 2, peakDb: -40)
+        XCTAssertFalse(InputLevel.analyze(above).legacySilent)
+        XCTAssertGreaterThan(InputLevel.dbfs(InputLevel.analyze(above).gain), 6)
+        let pk = InputLevel.analyze(above, boostAboveLegacyBail: false)
+        XCTAssertTrue(pk.hasSpeechEvidence, "\(pk)")
+        XCTAssertFalse(pk.isSilent)
+        XCTAssertEqual(pk.gain, 1)
+        var y = above
+        InputLevel.prepare(&y, enabled: true, boostAboveLegacyBail: false)
+        XCTAssertEqual(y, above)
+        // Under the old bail (master typed nothing): rescued and lifted on Parakeet too.
+        let under = speech(seconds: 2, peakDb: InputLevel.rescueFloorDb + 8)
+        let pkUnder = InputLevel.analyze(under, boostAboveLegacyBail: false)
+        XCTAssertTrue(pkUnder.legacySilent, "\(pkUnder)")
+        XCTAssertFalse(pkUnder.isSilent, "\(pkUnder)")
+        XCTAssertGreaterThan(InputLevel.dbfs(pkUnder.gain), 15)
+    }
+
     func testATalkerBelowTheRescueFloorIsHandledAsBefore() {
         // A TV in the next room: real speech, but quieter than any user at their own mic.
         let x = speech(seconds: 2, peakDb: -66)
